@@ -1,0 +1,166 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from qe_studio import askpass
+from qe_studio.config import parse_config
+from qe_studio.core.sync.rsync import (
+    Endpoint,
+    askpass_program,
+    child_env,
+    decode_rsync_name,
+    dry_run_command,
+    explain_failure,
+    parse_dry_run,
+    parse_itemize_line,
+    parse_progress,
+    remote_dir_for,
+    ssh_command,
+    transfer_command,
+)
+
+
+def config(**cluster):
+    return parse_config(
+        {
+            "paths": {"local_root": "/data/sims", "remote_root": "/scratch/me/sims"},
+            "cluster": {"host": "10.0.0.1", "user": "me", "port": 2222, **cluster},
+            "sync": {"exclude": ["tmp/", "*.wfc*"]},
+        }
+    )
+
+
+def test_ssh_command_key_auth():
+    argv = ssh_command(config(key_path="/k/id").cluster, "ssh")
+    assert argv[:3] == ["ssh", "-p", "2222"]
+    assert "BatchMode=yes" in argv and "IdentitiesOnly=yes" in argv
+    assert argv[argv.index("-i") + 1] == "/k/id"
+    assert "ServerAliveInterval=15" in argv and "ConnectTimeout=10" in argv
+
+
+def test_ssh_command_password_auth():
+    argv = ssh_command(config(auth="password").cluster, "ssh")
+    assert "BatchMode=yes" not in argv
+    assert "NumberOfPasswordPrompts=1" in argv
+
+
+def test_dry_run_command():
+    cfg = config()
+    remote = Endpoint("/scratch/me/sims/run 1", "10.0.0.1", "me")
+    argv = dry_run_command(cfg, remote, Path("/data/sims/run 1"), (3, 2, 7))
+    assert argv[:5] == ["rsync", "-n", "-rt", "-i", "--modify-window=1"]
+    assert "--out-format=%i|%l|%M|%n" in argv
+    assert "--exclude=tmp/" in argv and "--exclude=*.wfc*" in argv
+    assert "--no-h" in argv and "--timeout=60" in argv
+    assert argv[argv.index("-e") + 1].startswith("ssh -p 2222")
+    assert argv[-2:] == ["me@10.0.0.1:/scratch/me/sims/run 1/", "/data/sims/run 1/"]
+    assert "--protect-args" not in argv
+    assert "--protect-args" in dry_run_command(cfg, remote, Path("/l"), (3, 1, 3))
+
+
+def test_transfer_command_reads_list_from_stdin():
+    argv = transfer_command(config(), Endpoint("/r"), Path("/l"), (3, 2, 7))
+    assert {"-t", "--info=progress2", "--files-from=-", "--from0"} <= set(argv)
+    assert "-e" not in argv  # local endpoint
+    assert not any(a.startswith("--exclude") for a in argv)
+    assert argv[-2:] == ["/r/", "/l/"]
+
+
+def test_child_env():
+    base = {"PATH": "/usr/bin", "LANG": "pt_BR.UTF-8", askpass.SECRET_ENV: "stale"}
+    env = child_env(config().cluster, base)
+    assert env["LC_ALL"] == "C.UTF-8" and env["TZ"] == "UTC"
+    assert askpass.SECRET_ENV not in env and "SSH_ASKPASS" not in env
+    pw = child_env(config(auth="password").cluster, base, password="s3cret")
+    assert pw[askpass.SECRET_ENV] == "s3cret"
+    assert pw["SSH_ASKPASS_REQUIRE"] == "force"
+    assert Path(pw["SSH_ASKPASS"]).exists()
+
+
+def test_password_never_in_argv():
+    cfg = config(auth="password", password="s3cret")
+    remote = Endpoint("/r", "h", "u")
+    for argv in (
+        dry_run_command(cfg, remote, Path("/l")),
+        transfer_command(cfg, remote, Path("/l")),
+    ):
+        assert not any("s3cret" in arg for arg in argv)
+
+
+def test_askpass_program_prints_secret():
+    env = {**os.environ, askpass.SECRET_ENV: "p@ss word"}
+    out = subprocess.run([askpass_program(), "Password:"], env=env, capture_output=True, text=True)
+    assert out.returncode == 0 and out.stdout == "p@ss word\n"
+
+
+def test_askpass_refuses_host_key_prompts(monkeypatch, capsys):
+    monkeypatch.setenv(askpass.SECRET_ENV, "x")
+    assert askpass.main(["Are you sure you want to continue connecting (yes/no)?"]) == 0
+    assert capsys.readouterr().out == "no\n"
+    monkeypatch.delenv(askpass.SECRET_ENV)
+    assert askpass.main(["Password:"]) == 1
+
+
+def test_parse_itemize_lines():
+    item = parse_itemize_line(">f+++++++++|1234|2025/01/03-10:05:38|scf.out")
+    assert (item.code, item.size, item.path) == (">f+++++++++", 1234, "scf.out")
+    assert item.mtime == 1735898738.0
+    piped = parse_itemize_line(">f.st......|5|2025/01/03-10:05:38|odd|name.out")
+    assert piped.path == "odd|name.out"
+    escaped = parse_itemize_line(
+        ">f+++++++++|5|2025/01/03-10:05:38|Simula\\#303\\#247\\#303\\#265es/a"
+    )
+    assert escaped.path == "Simulações/a"
+    assert parse_itemize_line("garbage") is None
+    records = parse_dry_run(
+        "cd+++++++++|4096|2025/01/03-10:05:38|orbitals/\n"
+        ">f+++++++++|10|2025/01/03-10:05:38|orbitals/x\n"
+        "cL+++++++++|3|2025/01/03-10:05:38|link\n"
+    )
+    assert [r.path for r in records] == ["orbitals/x"]
+
+
+def test_decode_plain_name_untouched():
+    assert decode_rsync_name("ação.out") == "ação.out"
+
+
+def test_parse_progress():
+    chunk = (
+        "      32768   3%    0.00kB/s    0:00:00\r"
+        "    1048576  45%   12,34MB/s    0:00:02 (xfr#3, to-chk=5/10)\r"
+    )
+    progress = parse_progress(chunk)
+    assert (progress.percent, progress.files_done, progress.files_total) == (45, 5, 10)
+    assert parse_progress("sending incremental file list\n") is None
+
+
+@pytest.mark.parametrize(
+    ("stderr", "fragment"),
+    [
+        ("Host key verification failed.\r\nrsync: connection unexpectedly closed", "Chave do host"),
+        ("me@h: Permission denied (publickey,password).", "Autenticação recusada"),
+        ("ssh: connect to host h port 22: Connection timed out", "inacessível"),
+        ('rsync: [sender] change_dir "/x" failed: No such file or directory (2)', "não encontrada"),
+        ("something odd\n", "código 12: something odd"),
+    ],
+)
+def test_explain_failure(stderr, fragment):
+    assert fragment in explain_failure(12, stderr)
+
+
+def test_remote_dir_for(tmp_path):
+    cfg = parse_config({"paths": {"local_root": str(tmp_path), "remote_root": "/scratch/me/sims"}})
+    (tmp_path / "a" / "4 DOS").mkdir(parents=True)
+    assert remote_dir_for(tmp_path / "a" / "4 DOS", cfg) == "/scratch/me/sims/a/4 DOS"
+    assert remote_dir_for(tmp_path, cfg) == "/scratch/me/sims"
+    with pytest.raises(ValueError, match="não está dentro"):
+        remote_dir_for(Path(sys.prefix), cfg)
+
+
+def test_endpoint_spec():
+    assert Endpoint("/r/x/").spec() == "/r/x/"
+    assert Endpoint("/r/x", "h").spec() == "h:/r/x/"
+    assert Endpoint("/r/x", "h", "u").spec() == "u@h:/r/x/"
