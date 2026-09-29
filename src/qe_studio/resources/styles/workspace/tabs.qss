@@ -1,0 +1,52 @@
+/* Workspace document tabs (28 px, 2 px accent line on the active tab). */
+#workspaceTabs::pane {
+    border: none;
+    background: ${workspace};
+}
+#workspaceTabs > QTabBar {
+    background: ${tab_inactive};
+}
+QTabBar {
+    background: ${tab_inactive};
+    border-bottom: 1px solid ${border};
+    qproperty-drawBase: 0;
+}
+QTabBar::tab {
+    background: ${tab_inactive};
+    color: ${text_muted};
+    border: none;
+    border-right: 1px solid ${border};
+    border-top: 2px solid transparent;
+    padding: 5px 10px 5px 10px;
+    min-height: 18px;
+    font-size: 12px;
+}
+QTabBar::tab:hover {
+    color: ${text};
+    background: ${hover};
+}
+QTabBar::tab:selected {
+    background: ${tab_active};
+    color: ${accent_text};
+    border-top: 2px solid ${accent};
+}
+QTabBar::close-button {
+    subcontrol-position: right;
+}
+#emptyWorkspace {
+    background: ${workspace};
+}
+#emptyWorkspace QLabel {
+    color: ${text_dim};
+    font-size: 13px;
+}
+QTabBar::close-button {
+    image: url(${icon_close});
+    subcontrol-position: right;
+    margin: 1px;
+    border-radius: 3px;
+}
+QTabBar::close-button:hover {
+    image: url(${icon_close_hover});
+    background: ${pressed};
+}

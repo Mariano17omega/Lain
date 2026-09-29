@@ -202,6 +202,17 @@ class SniffCache:
             self._entries[path] = (*stamp, result)
         return result
 
+    def peek(self, path: Path) -> FileSniff | None:
+        """Cached result without touching the disk (for painting)."""
+        with self._lock:
+            cached = self._entries.get(Path(path))
+        return cached[2] if cached else None
+
+    def invalidate(self, prefix: Path) -> None:
+        with self._lock:
+            for path in [p for p in self._entries if p.is_relative_to(prefix)]:
+                del self._entries[path]
+
     def clear(self) -> None:
         with self._lock:
             self._entries.clear()

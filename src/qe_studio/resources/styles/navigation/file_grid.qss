@@ -1,0 +1,14 @@
+/* File view (grid of cards or list). Cards are painted by FileCardDelegate. */
+#fileGrid {
+    background: ${panel};
+    border: none;
+    outline: none;
+    padding: 4px;
+}
+#fileGrid::item {
+    border: none;
+}
+#emptyGrid {
+    color: ${text_dim};
+    font-size: 12px;
+}

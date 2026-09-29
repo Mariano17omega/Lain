@@ -61,6 +61,8 @@ class ConnectionMonitor(QObject):
         self._probing = False
         self._last_probe = 0.0
         self._probes: list[_Probe] = []
+        self._pool = QThreadPool(self)
+        self._pool.setMaxThreadCount(1)
         self._timer = QTimer(self)
         self._timer.setInterval(max(cluster.status_poll_seconds, 30) * 1000)
         self._timer.timeout.connect(self.check)
@@ -78,7 +80,9 @@ class ConnectionMonitor(QObject):
             self.check()
 
     def stop(self) -> None:
+        """Stop polling and wait for an in-flight probe (must not outlive the app)."""
         self._timer.stop()
+        self._pool.waitForDone(int(PROBE_TIMEOUT * 1000) + 500)
 
     @pyqtSlot()
     def check(self) -> None:
@@ -89,7 +93,7 @@ class ConnectionMonitor(QObject):
         runnable = _Probe(self.cluster.host, self.cluster.port)
         runnable.signals.done.connect(self._on_probe)
         self._probes.append(runnable)  # keep the signal object alive until it fires
-        QThreadPool.globalInstance().start(runnable)
+        self._pool.start(runnable)
 
     def set_syncing(self, syncing: bool) -> None:
         self._syncing = syncing

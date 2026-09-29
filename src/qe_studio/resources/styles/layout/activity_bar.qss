@@ -1,0 +1,25 @@
+/* Far-left activity bar (PRD §2.1.1). */
+#activityBar {
+    background: ${chrome};
+    border-right: 1px solid ${border};
+}
+QToolButton[variant="activity"] {
+    background: transparent;
+    border: none;
+    border-left: 2px solid transparent;
+    border-radius: 4px;
+    color: ${text_muted};
+    font-size: 9px;
+    padding: 4px 0 3px 0;
+    min-width: 46px;
+    max-width: 46px;
+}
+QToolButton[variant="activity"]:hover {
+    background: ${hover};
+    color: ${text};
+}
+QToolButton[variant="activity"]:checked {
+    background: ${accent_soft};
+    color: ${accent};
+    border-left: 2px solid ${accent};
+}

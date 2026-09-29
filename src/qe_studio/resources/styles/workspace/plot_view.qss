@@ -1,0 +1,38 @@
+/* Scientific plot tab: toolbar + centered canvas card. */
+#plotView {
+    background: ${workspace};
+}
+#plotToolbar {
+    background: ${chrome};
+    border-bottom: 1px solid ${border};
+    min-height: 30px;
+    max-height: 30px;
+}
+QToolButton[variant="plotTool"] {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: ${text_secondary};
+    padding: 2px 6px;
+    font-size: 11px;
+}
+QToolButton[variant="plotTool"]:hover {
+    background: ${hover};
+    color: ${text};
+}
+QToolButton[variant="plotTool"]:checked {
+    background: ${accent_soft};
+    border-color: ${accent_border};
+    color: ${accent_text};
+}
+#plotCard {
+    background: ${workspace};
+}
+#plotFrame {
+    border: 1px solid ${border_strong};
+}
+#plotMessage {
+    color: ${text_muted};
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+}

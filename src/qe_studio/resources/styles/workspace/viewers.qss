@@ -1,0 +1,19 @@
+/* Text and image viewers. */
+#textViewer {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+    background: ${workspace};
+    color: ${text};
+    border: none;
+    padding: 6px;
+}
+#viewerBanner {
+    background: ${panel_alt};
+    border-bottom: 1px solid ${border};
+    color: ${warning};
+    font-size: 11px;
+    padding: 4px 8px;
+}
+#imageViewer {
+    background: ${workspace};
+}

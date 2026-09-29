@@ -1,0 +1,44 @@
+/* Plot parameters panel: collapsible sections with a 40/60 label/field grid. */
+#paramsPanel, #paramsScroll, #paramsBody {
+    background: ${panel};
+    border: none;
+}
+QToolButton[variant="sectionHeader"] {
+    background: ${panel_alt};
+    border: none;
+    border-top: 1px solid ${border};
+    border-radius: 0;
+    color: ${text_secondary};
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 8px;
+    text-align: left;
+}
+QToolButton[variant="sectionHeader"]:hover {
+    color: ${text};
+}
+QWidget[variant="sectionBody"] {
+    background: ${panel};
+}
+QLabel[variant="fieldLabel"] {
+    color: ${text_muted};
+    font-size: 11px;
+}
+QLabel[variant="readout"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_secondary};
+}
+QLabel[variant="warning"] {
+    color: ${warning};
+    font-size: 11px;
+}
+QToolButton[variant="swatch"] {
+    border: 1px solid ${border_strong};
+    border-radius: 7px;
+    min-width: 12px;
+    max-width: 12px;
+    min-height: 12px;
+    max-height: 12px;
+    padding: 0;
+}

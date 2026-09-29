@@ -1,0 +1,42 @@
+/* Top toolbar: path, cluster status, view toggles, primary action. */
+#topBar {
+    background: ${chrome};
+    border-bottom: 1px solid ${border};
+}
+#pathChip {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+    color: ${accent_text};
+    background: ${accent_soft};
+    border: 1px solid ${accent_border};
+    border-radius: 4px;
+    padding: 3px 8px;
+}
+#clusterLabel {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+    color: ${text_secondary};
+}
+#topSeparator {
+    background: ${border};
+    min-width: 1px;
+    max-width: 1px;
+}
+QToolButton[variant="toggle"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_secondary};
+    background: transparent;
+    border: 1px solid ${border};
+    border-radius: 4px;
+    padding: 3px 8px;
+}
+QToolButton[variant="toggle"]:hover {
+    background: ${hover};
+    color: ${text};
+}
+QToolButton[variant="toggle"]:checked {
+    color: ${accent_text};
+    background: ${accent_soft};
+    border-color: ${accent_border};
+}

@@ -1,0 +1,34 @@
+/* Hierarchical project tree. Rows/badges are painted by ExplorerDelegate. */
+#explorerTree {
+    background: ${panel};
+    border: none;
+    outline: none;
+    show-decoration-selected: 1;
+}
+#explorerTree::item {
+    height: 22px;
+    border: none;
+}
+#explorerTree::item:hover {
+    background: ${hover};
+}
+#explorerTree::item:selected {
+    background: ${accent_soft};
+}
+#explorerTree::branch {
+    background: ${panel};
+}
+#explorerTree::branch:hover {
+    background: ${hover};
+}
+#explorerTree::branch:selected {
+    background: ${accent_soft};
+}
+#explorerTree::branch:has-children:closed {
+    border-image: none;
+    image: url(${icon_branch_closed});
+}
+#explorerTree::branch:has-children:open {
+    border-image: none;
+    image: url(${icon_branch_open});
+}

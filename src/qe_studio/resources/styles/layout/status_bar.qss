@@ -1,0 +1,23 @@
+/* Bottom status bar (22 px). */
+#statusBar {
+    background: ${chrome};
+    border-top: 1px solid ${border};
+    min-height: 22px;
+    max-height: 22px;
+    color: ${text_muted};
+}
+#statusBar::item {
+    border: none;
+}
+#statusBar QLabel {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_muted};
+    padding: 0 8px;
+}
+#statusBar QLabel[level="warning"] {
+    color: ${warning};
+}
+#statusBar QLabel[level="error"] {
+    color: ${error};
+}

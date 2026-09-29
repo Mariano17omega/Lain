@@ -38,3 +38,58 @@ def al_pdos_orbitals(tmp_path) -> Path:
     for path in src.glob("*pdos_atm*"):
         shutil.copy(path, folder / "orbitals" / path.name)
     return folder
+
+
+@pytest.fixture
+def demo_project(tmp_path) -> Path:
+    """Project tree like the mockup: 01_relax, 02_scf, 03_bands (PRD names), 04_pdos."""
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURES / "si_relax", project / "01_relax")
+    (project / "02_scf").mkdir()
+    shutil.copy(FIXTURES / "al_bands/al.scf.out", project / "02_scf/scf.out")
+    bands = project / "03_bands"
+    bands.mkdir()
+    for old, new in [
+        ("al.scf.out", "scf.out"),
+        ("al.band.in", "bands.in"),
+        ("al.band.out", "bands.out"),
+        ("bands.out", "bands_pp.out"),
+        ("bands.dat.gnu", "bands.dat.gnu"),
+    ]:
+        shutil.copy(FIXTURES / "al_bands" / old, bands / new)
+    pdos = project / "04_pdos"
+    (pdos / "orbitals").mkdir(parents=True)
+    src = FIXTURES / "al_pdos_flat"
+    for old, new in [
+        ("al.scf.out", "scf.out"),
+        ("al.nscf.out", "nscf.out"),
+        ("al.projwfc.out", "projwfc.out"),
+        ("pdos.dat.pdos_tot", "pdos.dat.pdos_tot"),
+    ]:
+        shutil.copy(src / old, pdos / new)
+    for path in src.glob("*pdos_atm*"):
+        shutil.copy(path, pdos / "orbitals" / path.name)
+    (project / "03_bands" / "tmp").mkdir()
+    return project
+
+
+@pytest.fixture
+def main_window(qtbot, demo_project, tmp_path):
+    from PyQt6.QtCore import QSettings
+
+    from qe_studio.config import LoadedConfig, parse_config
+    from qe_studio.core.detection import FolderMemory
+    from qe_studio.ui.main_window import MainWindow
+    from qe_studio.ui.theme.manager import ThemeManager
+
+    config = parse_config({"paths": {"local_root": str(demo_project)}})
+    theme = ThemeManager("dark")
+    theme.apply()
+    settings = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+    window = MainWindow(
+        LoadedConfig(config, None), theme, settings, FolderMemory(tmp_path / "memory.json")
+    )
+    qtbot.addWidget(window)
+    window.show()
+    yield window
+    window.close()

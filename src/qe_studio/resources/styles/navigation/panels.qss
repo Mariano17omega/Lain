@@ -1,0 +1,34 @@
+/* Explorer / file grid / params panels and their headers. */
+#leftPanel, #filePanel {
+    background: ${panel};
+}
+QWidget[variant="panelHeader"] {
+    background: ${panel};
+    border-bottom: 1px solid ${border};
+    min-height: 30px;
+    max-height: 30px;
+}
+QLabel[variant="panelTitle"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    font-weight: 600;
+    color: ${text_secondary};
+}
+QLabel[variant="panelCount"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_dim};
+}
+QToolButton[variant="headerButton"] {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px;
+}
+QToolButton[variant="headerButton"]:hover {
+    background: ${hover};
+}
+QToolButton[variant="headerButton"]:checked {
+    background: ${accent_soft};
+    border-color: ${accent_border};
+}

@@ -1,0 +1,57 @@
+/* Buttons: primary (Gerar Gráfico, Sincronizar), secondary, danger. */
+QPushButton {
+    background: ${card};
+    color: ${text_secondary};
+    border: 1px solid ${border_strong};
+    border-radius: 4px;
+    padding: 4px 12px;
+    min-height: 18px;
+}
+QPushButton:hover {
+    background: ${hover};
+    border-color: ${accent};
+    color: ${text};
+}
+QPushButton:pressed {
+    background: ${pressed};
+}
+QPushButton:disabled {
+    color: ${text_dim};
+    border-color: ${border};
+}
+QPushButton:default {
+    border-color: ${accent_border};
+}
+QPushButton[variant="primary"] {
+    background: ${primary_bg};
+    color: ${primary_fg};
+    border: 1px solid ${primary_bg};
+    font-weight: 600;
+}
+QPushButton[variant="primary"]:hover {
+    background: ${primary_hover};
+    border-color: ${primary_hover};
+}
+QPushButton[variant="primary"]:pressed {
+    background: ${primary_pressed};
+    padding-top: 5px;
+    padding-bottom: 3px;
+}
+QPushButton[variant="danger"] {
+    background: transparent;
+    color: ${error};
+    border: 1px solid ${error};
+}
+QPushButton[variant="danger"]:hover {
+    background: ${error_soft};
+}
+QToolButton {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px;
+    color: ${text_secondary};
+}
+QToolButton:hover {
+    background: ${hover};
+}

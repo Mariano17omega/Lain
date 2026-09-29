@@ -1,0 +1,32 @@
+/* Modal dialogs: mapping, conflicts, overwrite, sync progress. */
+QDialog QLabel[variant="dialogTitle"] {
+    font-size: 14px;
+    font-weight: 600;
+    color: ${text};
+}
+QDialog QLabel[variant="dialogText"] {
+    color: ${text_secondary};
+}
+QDialog QLabel[variant="mono"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${accent_text};
+}
+QMessageBox {
+    background: ${window};
+}
+QMessageBox QLabel {
+    color: ${text};
+}
+#syncDialog {
+    background: ${chrome};
+}
+#syncStage {
+    font-size: 13px;
+    color: ${text};
+}
+#syncDetail {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_muted};
+}
