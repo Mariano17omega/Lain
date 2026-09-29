@@ -11,6 +11,8 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
+import threading
+from collections import OrderedDict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -27,6 +29,10 @@ SniffFn = Callable[[Path], FileSniff]
 
 # Folders never scanned below the simulation folder itself.
 IGNORED_SUBDIRS = re.compile(r"^(tmp|plots|out|.*\.save|\..*)$", re.I)
+
+
+class LoadError(Exception):
+    """A detected calculation cannot be loaded for plotting (message shown to the user)."""
 
 
 class Method(StrEnum):
@@ -255,14 +261,54 @@ class CalculationModule:
             result.methods[role_id] = Method.INFERRED
 
     # -- plotting (implemented by plottable modules) ------------------------------------------
-    def default_params(self, config: Any) -> Any:
+    def default_params(self, config: Any, dataset: Any) -> Any:
         raise NotImplementedError
+
+    def param_schema(self, dataset: Any) -> list:
+        raise NotImplementedError
+
+    def param_changed(self, dataset: Any, params: Any, name: str, old: Any) -> None:
+        """Hook to adjust dependent parameters after the user edits ``name``."""
 
     def load(self, result: DetectionResult) -> Any:
         raise NotImplementedError
 
     def render(self, figure: Figure, dataset: Any, params: Any, style: Any) -> Any:
         raise NotImplementedError
+
+    def load_cached(self, result: DetectionResult) -> Any:
+        """``load`` memoized on the files' (mtime, size); safe to call from worker threads."""
+        key = (
+            self.kind,
+            tuple(
+                sorted(
+                    (role, tuple(_stamp(p) for p in paths)) for role, paths in result.files.items()
+                )
+            ),
+        )
+        with _LOAD_LOCK:
+            if key in _LOAD_CACHE:
+                _LOAD_CACHE.move_to_end(key)
+                return _LOAD_CACHE[key]
+        dataset = self.load(result)
+        with _LOAD_LOCK:
+            _LOAD_CACHE[key] = dataset
+            while len(_LOAD_CACHE) > LOAD_CACHE_SIZE:
+                _LOAD_CACHE.popitem(last=False)
+        return dataset
+
+
+LOAD_CACHE_SIZE = 8
+_LOAD_CACHE: OrderedDict[tuple, Any] = OrderedDict()
+_LOAD_LOCK = threading.Lock()
+
+
+def _stamp(path: Path) -> tuple[str, int, int]:
+    try:
+        stat = path.stat()
+    except OSError:
+        return (str(path), 0, 0)
+    return (str(path), stat.st_mtime_ns, stat.st_size)
 
 
 def _glob_match(relative: str, globs: Sequence[str]) -> bool:
