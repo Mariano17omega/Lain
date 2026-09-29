@@ -22,7 +22,7 @@ def register_fonts() -> None:
     global _fonts_registered
     if _fonts_registered:
         return
-    for resource in files("qe_studio.resources").joinpath("fonts").iterdir():
+    for resource in files("qe_studio.ui.resources").joinpath("fonts").iterdir():
         if resource.name.endswith(".ttf"):
             with as_file(resource) as path:
                 font_manager.fontManager.addfont(str(path))

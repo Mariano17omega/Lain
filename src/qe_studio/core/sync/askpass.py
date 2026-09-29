@@ -1,4 +1,4 @@
-"""SSH_ASKPASS helper: hands ssh the password QE Studio put in the child environment.
+"""SSH_ASKPASS helper: hands ssh the password Lain put in the child environment.
 
 ssh runs this program with its prompt as argument. Host-key confirmation prompts are
 answered "no" so an unknown cluster key is never accepted silently.

@@ -14,7 +14,7 @@ from enum import StrEnum
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QGuiApplication
 
-from ...config import ClusterConfig
+from ..config import ClusterConfig
 
 PROBE_TIMEOUT = 3.0
 

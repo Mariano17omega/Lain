@@ -8,7 +8,7 @@ def test_version():
 
 
 def test_vendored_assets_present():
-    resources = files("qe_studio.resources")
+    resources = files("qe_studio.ui.resources")
     fonts = {p.name for p in resources.joinpath("fonts").iterdir()}
     assert {"Inter-Regular.ttf", "JetBrainsMono-Regular.ttf"} <= fonts
     assert resources.joinpath("icons", "account_tree.svg").is_file()

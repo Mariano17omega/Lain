@@ -69,9 +69,9 @@ def main() -> int:
     from PyQt6.QtCore import QSettings
     from PyQt6.QtWidgets import QApplication
 
-    from qe_studio.app import install_excepthook
-    from qe_studio.config import LoadedConfig, parse_config
+    from qe_studio.core.config import LoadedConfig, parse_config
     from qe_studio.core.plotting.style import register_fonts
+    from qe_studio.ui.app import install_excepthook
     from qe_studio.ui.main_window import MainWindow
     from qe_studio.ui.theme.manager import ThemeManager
 

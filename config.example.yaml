@@ -1,5 +1,5 @@
-# QE Studio configuration.
-# Copy to config.yaml (git-ignored) and adjust. QE Studio looks for its config in:
+# Lain: QE Studio configuration.
+# Copy to config.yaml (git-ignored) and adjust. Lain looks for its config in:
 #   1. --config PATH   2. $QE_STUDIO_CONFIG   3. ./config.yaml   4. ~/.config/qe-studio/config.yaml
 
 paths:

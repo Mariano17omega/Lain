@@ -10,11 +10,11 @@ from logging.handlers import RotatingFileHandler
 from PyQt6.QtCore import QSettings, QThreadPool
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
-from . import __version__
-from .config import ConfigError, load_config
-from .core.appdirs import cache_dir
-from .core.plotting.style import register_fonts
-from .ui.theme.manager import THEMES, ThemeManager
+from .. import APP_NAME, __version__
+from ..core.appdirs import cache_dir
+from ..core.config import ConfigError, load_config
+from ..core.plotting.style import register_fonts
+from .theme.manager import THEMES, ThemeManager
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -51,10 +51,10 @@ def install_excepthook() -> None:
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="qe-studio", description="QE Studio")
+    parser = argparse.ArgumentParser(prog="lain", description=APP_NAME)
     parser.add_argument("--config", help="caminho do config.yaml")
     parser.add_argument("--verbose", action="store_true", help="log detalhado")
-    parser.add_argument("--version", action="version", version=f"QE Studio {__version__}")
+    parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
     return parser.parse_args(argv)
 
 
@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     theme = ThemeManager(theme_name if theme_name in THEMES else loaded.config.ui.theme)
     theme.apply(app)
 
-    from .ui.main_window import MainWindow
+    from .main_window import MainWindow
 
     window = MainWindow(loaded, theme, settings)
     window.show()

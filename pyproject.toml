@@ -1,7 +1,7 @@
 [project]
-name = "qe-studio"
+name = "lain"
 version = "0.1.0"
-description = "Desktop manager and plotter for Quantum ESPRESSO simulations"
+description = "Lain: QE Studio — desktop manager and plotter for Quantum ESPRESSO simulations"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -14,8 +14,8 @@ dependencies = [
 ]
 
 [project.scripts]
-qe-studio = "qe_studio.__main__:main"
-qe-studio-askpass = "qe_studio.askpass:main"
+lain = "qe_studio.__main__:main"
+qe-studio-askpass = "qe_studio.core.sync.askpass:main"
 
 [dependency-groups]
 dev = [

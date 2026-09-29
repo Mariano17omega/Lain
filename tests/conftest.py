@@ -77,7 +77,7 @@ def demo_project(tmp_path) -> Path:
 def main_window(qtbot, demo_project, tmp_path):
     from PyQt6.QtCore import QSettings
 
-    from qe_studio.config import LoadedConfig, parse_config
+    from qe_studio.core.config import LoadedConfig, parse_config
     from qe_studio.core.detection import FolderMemory
     from qe_studio.ui.main_window import MainWindow
     from qe_studio.ui.theme.manager import ThemeManager

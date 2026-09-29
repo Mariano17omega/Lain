@@ -20,9 +20,9 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
 
-from ...askpass import SECRET_ENV
-from ...config import AppConfig, ClusterConfig
 from ..appdirs import cache_dir
+from ..config import AppConfig, ClusterConfig
+from .askpass import SECRET_ENV
 
 OUT_FORMAT = "%i|%l|%M|%n"
 
@@ -85,7 +85,7 @@ def askpass_program() -> str:
         scripts = Path(sys.executable).parent / "Scripts" / "qe-studio-askpass.exe"
         return str(exe if exe.exists() else scripts)
     wrapper = cache_dir() / "askpass.sh"
-    content = f'#!/bin/sh\nexec {shlex.quote(sys.executable)} -m qe_studio.askpass "$@"\n'
+    content = f'#!/bin/sh\nexec {shlex.quote(sys.executable)} -m qe_studio.core.sync.askpass "$@"\n'
     if not wrapper.exists() or wrapper.read_text() != content:
         wrapper.parent.mkdir(parents=True, exist_ok=True)
         wrapper.write_text(content)

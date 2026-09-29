@@ -10,10 +10,10 @@ from matplotlib.collections import LineCollection
 from matplotlib.figure import Figure
 from matplotlib.image import imread
 
-from qe_studio.config import AppConfig
 from qe_studio.core.calculations import module_for
 from qe_studio.core.calculations.bands import merged_ticks
 from qe_studio.core.calculations.base import LoadError
+from qe_studio.core.config import AppConfig
 from qe_studio.core.detection import detect_folder
 from qe_studio.core.plotting.export import (
     existing_targets,

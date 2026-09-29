@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from qe_studio.config import (
+from qe_studio.core.config import (
     ENV_CONFIG,
     AppConfig,
     ConfigError,

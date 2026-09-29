@@ -23,10 +23,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__
-from ..config import ConfigError, LoadedConfig, load_config
+from .. import APP_NAME, __version__
 from ..core.calculations import REGISTRY, DetectionResult
 from ..core.calculations.base import LoadError
+from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.detection import FolderMemory, manual_result
 from ..core.plotting.export import existing_targets, export_figure, next_free_stem
 from ..core.plotting.style import style_for
@@ -140,7 +140,7 @@ class MainWindow(QMainWindow):
 
     # -- construction -----------------------------------------------------------------------------
     def _build(self) -> None:
-        self.setWindowTitle(f"QE Studio v{__version__} — [Projeto: {self.root}]")
+        self.setWindowTitle(f"{APP_NAME} v{__version__} — [Projeto: {self.root}]")
         self.resize(1440, 900)
         central = QWidget()
         outer = QVBoxLayout(central)
@@ -320,7 +320,7 @@ class MainWindow(QMainWindow):
                 self,
                 "config.yaml",
                 "Nenhum config.yaml carregado. Copie config.example.yaml para config.yaml "
-                "e reinicie o QE Studio.",
+                "e reinicie o Lain.",
             )
             return
         self.open_file(self.loaded.path)
@@ -341,7 +341,7 @@ class MainWindow(QMainWindow):
         self.explorer.proxy.hidden_dirs = [p.lower() for p in self.config.ui.hidden_dirs]
         self.explorer.set_root(self.root)
         self.files.set_folder(self.root)
-        self.setWindowTitle(f"QE Studio v{__version__} — [Projeto: {self.root}]")
+        self.setWindowTitle(f"{APP_NAME} v{__version__} — [Projeto: {self.root}]")
         self.refresh()
         message = loaded.warnings[0] if loaded.warnings else "config.yaml recarregado."
         self.status.set_message(message, "warning" if loaded.warnings else "info", 5000)

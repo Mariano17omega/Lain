@@ -33,8 +33,8 @@ def test_plottable_folders_load_and_render(tmp_path):
     from matplotlib.backends.backend_agg import FigureCanvasAgg
     from matplotlib.figure import Figure
 
-    from qe_studio.config import AppConfig
     from qe_studio.core.calculations.base import LoadError
+    from qe_studio.core.config import AppConfig
     from qe_studio.core.plotting.style import DARK
 
     folders = list(real_folders())

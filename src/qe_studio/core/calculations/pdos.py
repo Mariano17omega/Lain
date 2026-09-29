@@ -11,7 +11,7 @@ import numpy as np
 from matplotlib.colors import to_hex, to_rgb
 from matplotlib.figure import Figure
 
-from ...config import DEFAULT_ORBITAL_COLORS
+from ..config import DEFAULT_ORBITAL_COLORS
 from ..plotting.draw import finish, new_axes
 from ..plotting.style import PlotStyle
 from ..qe import projwfc

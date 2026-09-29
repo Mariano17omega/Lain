@@ -1,6 +1,6 @@
 import socket
 
-from qe_studio.config import parse_config
+from qe_studio.core.config import parse_config
 from qe_studio.core.sync.monitor import ConnectionMonitor, ConnectionState, probe
 
 

@@ -1,8 +1,8 @@
-# Product Requirements Document (PRD) — QE Studio
+# Product Requirements Document (PRD) — Lain: QE Studio
 
 ## 1. Overview and Objectives
 
-**QE Studio** is a native desktop application (Linux/Windows) built with Python and PyQt6 to manage, synchronize, and visualize scientific simulations performed with the *ab initio* **Quantum ESPRESSO (QE)** suite.
+**Lain: QE Studio** is a native desktop application (Linux/Windows) built with Python and PyQt6 to manage, synchronize, and visualize scientific simulations performed with the *ab initio* **Quantum ESPRESSO (QE)** suite.
 
 The system acts as a specialized file manager for solid-state physics and materials science data. It eliminates the need for repetitive manual plotting scripts by automating calculation type detection, data post-processing, and publication-ready scientific plot generation.
 

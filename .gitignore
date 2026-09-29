@@ -217,6 +217,6 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# QE Studio: per-user config (may hold cluster credentials)
+# Lain: per-user config (may hold cluster credentials)
 /config.yaml
 /screenshots/

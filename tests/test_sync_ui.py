@@ -7,7 +7,7 @@ import pytest
 from PyQt6.QtCore import QObject, QSettings, pyqtSignal
 from PyQt6.QtWidgets import QInputDialog, QMessageBox
 
-from qe_studio.config import LoadedConfig, parse_config
+from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.detection import FolderMemory
 from qe_studio.core.sync.controller import SyncStatus
 from qe_studio.core.sync.planner import Decision

@@ -1,8 +1,8 @@
-"""``python -m qe_studio`` / ``qe-studio`` entry point."""
+"""``python -m qe_studio`` / ``lain`` entry point."""
 
 import sys
 
-from .app import main
+from .ui.app import main
 
 if __name__ == "__main__":
     sys.exit(main())

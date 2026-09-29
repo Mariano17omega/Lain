@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from PyQt6.QtCore import QTimer
 
-from qe_studio.config import parse_config
+from qe_studio.core.config import parse_config
 from qe_studio.core.sync.controller import SyncController, SyncStatus
 from qe_studio.core.sync.planner import Decision
 from qe_studio.core.sync.rsync import Endpoint

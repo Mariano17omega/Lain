@@ -1,4 +1,4 @@
-"""Download the fonts and icons vendored in src/qe_studio/resources.
+"""Download the fonts and icons vendored in src/qe_studio/ui/resources.
 
 One-off maintenance script: the downloaded files are committed, so the app never
 needs network access. Re-run it to refresh the assets or add new icon names.
@@ -14,7 +14,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-RESOURCES = Path(__file__).resolve().parents[1] / "src" / "qe_studio" / "resources"
+RESOURCES = Path(__file__).resolve().parents[1] / "src" / "qe_studio" / "ui" / "resources"
 
 INTER_ZIP = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
 INTER_FILES = {

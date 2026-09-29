@@ -72,7 +72,7 @@ def test_all_icons_render(qapp):
     manager = ThemeManager("light")
     icons = [
         r.name[:-4]
-        for r in files("qe_studio.resources").joinpath("icons").iterdir()
+        for r in files("qe_studio.ui.resources").joinpath("icons").iterdir()
         if r.name.endswith(".svg")
     ]
     assert len(icons) > 40

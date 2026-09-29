@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, pyqtSignal
 
-from ...config import AppConfig
+from ..config import AppConfig
 from .planner import ConflictResolver, Decision, PlanItem, PlanStatus, SyncPlan, build_plan
 from .rsync import (
     Endpoint,

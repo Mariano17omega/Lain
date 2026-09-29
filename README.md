@@ -1,7 +1,7 @@
-# QE Studio (Lain)
+# Lain: QE Studio
 
 Desktop app (PyQt6) to browse, sync and plot [Quantum ESPRESSO](https://www.quantum-espresso.org/)
-simulations. See [`PRD.md`](PRD.md) for the product requirements and
+simulations. See [`Documentation/PRD.md`](Documentation/PRD.md) for the product requirements and
 `Documentation/design system (UX)/` for the design system the UI follows.
 
 - **Automatic detection** of band-structure, PDOS and relax runs. File names are only hints:
@@ -25,11 +25,23 @@ Requires Python ≥ 3.11 and [uv](https://docs.astral.sh/uv/). Cluster sync also
 ```bash
 uv sync
 cp config.example.yaml config.yaml   # then edit paths and cluster settings
-uv run qe-studio                      # or: uv run qe-studio --config /path/to/config.yaml
+uv run lain                           # or: uv run lain --config /path/to/config.yaml
 ```
 
+To start it from any terminal by typing just `lain`, install it as a uv tool (editable, so code
+changes apply without reinstalling; rerun with `--force` after changing dependencies or entry
+points):
+
+```bash
+uv tool install --editable .
+lain
+```
+
+Outside the repository `./config.yaml` is not found, so keep your config in
+`~/.config/qe-studio/config.yaml` (or point `$QE_STUDIO_CONFIG` at it).
+
 All settings live in `config.yaml` (there is no settings window); see
-[`config.example.yaml`](config.example.yaml) for every key. QE Studio looks for it in `--config`,
+[`config.example.yaml`](config.example.yaml) for every key. Lain looks for it in `--config`,
 `$QE_STUDIO_CONFIG`, `./config.yaml`, then `~/.config/qe-studio/config.yaml`. `config.yaml` is
 git-ignored because it may hold credentials.
 
@@ -78,14 +90,15 @@ QE_STUDIO_REAL_DATA=/path/to/runs:/other/runs uv run pytest -m realdata   # your
 uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/
 ```
 
-Code map: `src/qe_studio/core` holds the Qt-free logic: QE parsers (`core/qe`), detection,
-calculation modules (`core/calculations`; add new plot types there) and plotting/export.
-`core/sync` holds the rsync engine. `src/qe_studio/ui` holds the widgets, and
-`resources/styles/**.qss` the modular stylesheets, which use `${token}` colours from
-`resources/themes/*.yaml`.
+Code map: `src/qe_studio/core` holds the Qt-free logic: config loading (`core/config.py`), QE
+parsers (`core/qe`), detection, calculation modules (`core/calculations`; add new plot types
+there) and plotting/export. `core/sync` holds the rsync engine and the ssh askpass helper.
+`src/qe_studio/ui` holds the app bootstrap (`ui/app.py`) and the widgets, and
+`ui/resources/styles/**.qss` the modular stylesheets, which use `${token}` colours from
+`ui/resources/themes/*.yaml`.
 
 Fonts (Inter, JetBrains Mono: OFL) and Material Symbols icons (Apache-2.0) are vendored under
-`src/qe_studio/resources/`; `scripts/fetch_assets.py` refreshes them.
+`src/qe_studio/ui/resources/`; `scripts/fetch_assets.py` refreshes them.
 
 ### Known MVP limitations
 

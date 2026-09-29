@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from qe_studio import askpass
-from qe_studio.config import parse_config
+from qe_studio.core.config import parse_config
+from qe_studio.core.sync import askpass
 from qe_studio.core.sync.rsync import (
     Endpoint,
     askpass_program,

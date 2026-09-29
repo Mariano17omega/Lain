@@ -40,7 +40,7 @@ def load_fonts() -> None:
     global _fonts_loaded
     if _fonts_loaded:
         return
-    for resource in files("qe_studio.resources").joinpath("fonts").iterdir():
+    for resource in files("qe_studio.ui.resources").joinpath("fonts").iterdir():
         if resource.name.endswith(".ttf"):
             with as_file(resource) as path:
                 QFontDatabase.addApplicationFont(str(path))
@@ -48,13 +48,13 @@ def load_fonts() -> None:
 
 
 def load_tokens(theme: str) -> dict[str, str]:
-    text = files("qe_studio.resources").joinpath("themes", f"{theme}.yaml").read_text("utf-8")
+    text = files("qe_studio.ui.resources").joinpath("themes", f"{theme}.yaml").read_text("utf-8")
     return {str(k): str(v) for k, v in yaml.safe_load(text).items()}
 
 
 def style_files() -> list[tuple[str, str]]:
     """``(relative path, text)`` of every QSS file, domains in cascade order."""
-    root = files("qe_studio.resources").joinpath("styles")
+    root = files("qe_studio.ui.resources").joinpath("styles")
     out = []
     for domain in STYLE_DOMAINS:
         folder = root.joinpath(domain)
@@ -178,7 +178,7 @@ class ThemeManager(QObject):
 
     def _svg(self, name: str) -> bytes:
         if name not in self._svgs:
-            resource = files("qe_studio.resources").joinpath("icons", f"{name}.svg")
+            resource = files("qe_studio.ui.resources").joinpath("icons", f"{name}.svg")
             self._svgs[name] = resource.read_bytes()
         return self._svgs[name]
 
