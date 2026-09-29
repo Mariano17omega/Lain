@@ -262,6 +262,24 @@ FAILURE_HINTS = (
 )  # fmt: skip
 
 
+CONNECTION_NEEDLES = (
+    "Connection timed out",
+    "Connection refused",
+    "No route to host",
+    "Network is unreachable",
+    "Could not resolve hostname",
+    "timeout in data send/receive",
+    "Connection closed",
+)
+
+
+def is_connection_failure(exit_code: int, stderr: str) -> bool:
+    """ssh could not reach/keep the cluster (as opposed to a remote error)."""
+    return any(needle in stderr for needle in CONNECTION_NEEDLES) or (
+        exit_code == 255 and "Permission denied" not in stderr
+    )
+
+
 def explain_failure(exit_code: int, stderr: str) -> str:
     for needle, hint in FAILURE_HINTS:
         if needle in stderr:

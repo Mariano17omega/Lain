@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
     QInputDialog,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QSplitter,
@@ -29,9 +30,13 @@ from ..core.calculations.base import LoadError
 from ..core.detection import FolderMemory, manual_result
 from ..core.plotting.export import existing_targets, export_figure, next_free_stem
 from ..core.plotting.style import style_for
+from ..core.sync.controller import SyncController, SyncReport, SyncStatus
 from ..core.sync.monitor import ConnectionMonitor
+from ..core.sync.planner import PlanItem
+from ..core.sync.rsync import Endpoint, remote_dir_for
 from .dialogs.mapping import ask_mapping
 from .dialogs.overwrite import OverwriteChoice, ask_overwrite
+from .dialogs.sync_dialog import ConflictDialog, SyncDialog
 from .file_types import viewer_kind
 from .plot_session import PlotSession, plot_key
 from .services import DetectionService
@@ -83,6 +88,7 @@ def choose_result(parent: QWidget, results: list[DetectionResult]) -> DetectionR
 class MainWindow(QMainWindow):
     plot_ready = pyqtSignal(object)  # PlotSession
     plot_failed = pyqtSignal(str)
+    sync_finished = pyqtSignal(object)  # SyncReport
 
     def __init__(
         self,
@@ -102,6 +108,10 @@ class MainWindow(QMainWindow):
         self.monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
         self._loads: dict[str, _LoadTask] = {}
         self._overwrite_always = False
+        self._sync: SyncController | None = None
+        self._sync_dialog: SyncDialog | None = None
+        self.conflict_dialog: ConflictDialog | None = None
+        self._session_password: str | None = None
         self._render_timer = QTimer(self)
         self._render_timer.setSingleShot(True)
         self._render_timer.setInterval(RENDER_DEBOUNCE_MS)
@@ -241,6 +251,8 @@ class MainWindow(QMainWindow):
         self.settings.sync()
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        if self._sync is not None and self._sync.running:
+            self._sync.shutdown()
         self._save_state()
         self.monitor.stop()
         self.service.wait(2000)
@@ -520,5 +532,84 @@ class MainWindow(QMainWindow):
         self.files.refresh()
         return written
 
+    # -- cluster sync (PRD §5) ----------------------------------------------------------------------
     def start_sync(self) -> None:
-        self.status.set_message("Sincronização ainda não disponível.", "warning", 3000)
+        """Pull the selected folder from the cluster (whole project when nothing is selected)."""
+        if self._sync is not None and self._sync.running:
+            return
+        if not self.config.sync_enabled:
+            QMessageBox.information(
+                self,
+                "Sincronização",
+                "Configure cluster.host, cluster.user e paths.remote_root no config.yaml "
+                "para sincronizar.",
+            )
+            return
+        folder = self.current_folder()
+        try:
+            remote_dir = remote_dir_for(folder, self.config)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Sincronização", str(exc))
+            return
+        password = None
+        cluster = self.config.cluster
+        if cluster.auth == "password" and cluster.resolve_password() is None:
+            password = self._ask_password()
+            if password is None:
+                return
+        endpoint = Endpoint(remote_dir, cluster.host, cluster.user)
+        self._run_sync(folder, endpoint, password)
+
+    def _ask_password(self) -> str | None:
+        if self._session_password:
+            return self._session_password
+        cluster = self.config.cluster
+        text, ok = QInputDialog.getText(
+            self,
+            "Senha do cluster",
+            f"Senha de {cluster.user}@{cluster.host} (não é salva):",
+            QLineEdit.EchoMode.Password,
+        )
+        if not ok or not text:
+            return None
+        self._session_password = text
+        return text
+
+    def _run_sync(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
+        controller = SyncController(self.config, self, password=password)
+        dialog = SyncDialog(self.theme, controller, endpoint.spec(), str(folder), self)
+        controller.conflict_needed.connect(self._ask_conflict)
+        controller.finished.connect(self._on_sync_finished)
+        self._sync, self._sync_dialog = controller, dialog
+        self.monitor.set_syncing(True)
+        dialog.open()
+        controller.start(folder, endpoint)
+
+    def _ask_conflict(self, item: PlanItem) -> None:
+        parent = self._sync_dialog or self
+        dialog = ConflictDialog(item, parent)
+        dialog.decided.connect(self._sync.resolve)
+        dialog.finished.connect(lambda _r: setattr(self, "conflict_dialog", None))
+        self.conflict_dialog = dialog
+        dialog.open()
+
+    def _on_sync_finished(self, report: SyncReport) -> None:
+        self.monitor.set_syncing(False)
+        if report.status is not SyncStatus.CANCELLED:
+            self.monitor.report(not report.connection_failed)
+        if report.status is SyncStatus.FAILED and "Autenticação" in (report.error or ""):
+            self._session_password = None
+        self.service.invalidate(report.local_dir)
+        self.explorer.refresh()
+        self.files.refresh()
+        title = "Sincronização"
+        if report.status is SyncStatus.FAILED:
+            QMessageBox.critical(self, title, report.message)
+        elif report.status is SyncStatus.LOCAL_NEWER:
+            QMessageBox.warning(self, title, report.message)
+        elif report.status is SyncStatus.CANCELLED:
+            self.status.set_message(report.message, "warning", 5000)
+        else:
+            QMessageBox.information(self, title, report.message)
+            self.status.set_message(report.message.splitlines()[0], timeout_ms=6000)
+        self.sync_finished.emit(report)

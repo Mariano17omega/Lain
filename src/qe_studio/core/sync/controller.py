@@ -23,6 +23,7 @@ from .rsync import (
     child_env,
     dry_run_command,
     explain_failure,
+    is_connection_failure,
     parse_dry_run,
     parse_progress,
     rsync_version,
@@ -52,6 +53,7 @@ class SyncReport:
     local_newer: list[str] = field(default_factory=list)
     local_newer_folders: list[str] = field(default_factory=list)
     error: str | None = None
+    connection_failed: bool = False
 
     @property
     def message(self) -> str:
@@ -88,10 +90,12 @@ class SyncController(QObject):
         config: AppConfig,
         parent: QObject | None = None,
         extra_args: list[str] | None = None,
+        password: str | None = None,
     ):
         super().__init__(parent)
         self.config = config
         self.extra_args = extra_args or []
+        self.password = password  # typed by the user for this session; never persisted
         self._process: QProcess | None = None
         self._cancelled = False
         self._local_dir = Path()
@@ -167,7 +171,7 @@ class SyncController(QObject):
             self._finish(SyncStatus.CANCELLED)
             return
         if code != 0:
-            self._finish(SyncStatus.FAILED, error=explain_failure(code, self._stderr))
+            self._fail(code)
             return
         self.stage_changed.emit("Comparando datas de modificação…")
         self._plan = build_plan(parse_dry_run(stdout), self._local_dir)
@@ -210,7 +214,7 @@ class SyncController(QObject):
             self._finish(SyncStatus.CANCELLED)
         elif code != 0:
             self._remove_temp_files()
-            self._finish(SyncStatus.FAILED, error=explain_failure(code, self._stderr))
+            self._fail(code)
         else:
             self.progress_changed.emit(100, f"{len(self._transfer)}/{len(self._transfer)} arquivos")
             self._finish(SyncStatus.DONE)
@@ -219,7 +223,7 @@ class SyncController(QObject):
     def _launch(self, argv, on_finished, stdin: bytes | None = None, progress: bool = False):
         process = QProcess(self)
         env = QProcessEnvironment()
-        for key, value in child_env(self.config.cluster).items():
+        for key, value in child_env(self.config.cluster, password=self.password).items():
             env.insert(key, value)
         process.setProcessEnvironment(env)
         chunks: list[bytes] = []
@@ -284,7 +288,13 @@ class SyncController(QObject):
             except OSError:
                 continue
 
-    def _finish(self, status: SyncStatus, error: str | None = None) -> None:
+    def _fail(self, code: int) -> None:
+        connection = is_connection_failure(code, self._stderr)
+        self._finish(SyncStatus.FAILED, explain_failure(code, self._stderr), connection)
+
+    def _finish(
+        self, status: SyncStatus, error: str | None = None, connection_failed: bool = False
+    ) -> None:
         if not self._running:
             return
         self._running = False
@@ -298,6 +308,7 @@ class SyncController(QObject):
             local_newer=[item.path for item in self._plan.local_newer],
             local_newer_folders=self._plan.local_newer_folders,
             error=error,
+            connection_failed=connection_failed,
         )
         self.finished.emit(report)
 

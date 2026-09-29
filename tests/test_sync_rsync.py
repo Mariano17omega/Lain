@@ -164,3 +164,19 @@ def test_endpoint_spec():
     assert Endpoint("/r/x/").spec() == "/r/x/"
     assert Endpoint("/r/x", "h").spec() == "h:/r/x/"
     assert Endpoint("/r/x", "h", "u").spec() == "u@h:/r/x/"
+
+
+@pytest.mark.parametrize(
+    ("code", "stderr", "expected"),
+    [
+        (255, "ssh: connect to host h port 22: Connection timed out", True),
+        (255, "ssh: Could not resolve hostname h", True),
+        (255, "me@h: Permission denied (publickey).", False),
+        (23, 'rsync: change_dir "/x" failed: No such file or directory (2)', False),
+        (30, "rsync error: timeout in data send/receive (code 30)", True),
+    ],
+)
+def test_connection_failure_classification(code, stderr, expected):
+    from qe_studio.core.sync.rsync import is_connection_failure
+
+    assert is_connection_failure(code, stderr) is expected
