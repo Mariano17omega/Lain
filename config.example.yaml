@@ -1,0 +1,73 @@
+# QE Studio configuration.
+# Copy to config.yaml (git-ignored) and adjust. QE Studio looks for its config in:
+#   1. --config PATH   2. $QE_STUDIO_CONFIG   3. ./config.yaml   4. ~/.config/qe-studio/config.yaml
+
+paths:
+  # Local folder holding the simulation tree shown in the explorer.
+  local_root: ~/qe_simulations
+  # Matching folder on the cluster (POSIX path). Sync mirrors local_root/<sub> <- remote_root/<sub>.
+  remote_root: /home/mariano/qe_simulations
+
+cluster:
+  host: 10.220.200.1
+  port: 22
+  user: mariano
+  # auth: key       -> uses key_path (non-interactive; passphrase keys need ssh-agent)
+  # auth: password  -> reads the password from the environment variable named in password_env.
+  #                    An inline `password:` is accepted but discouraged (stored in plain text).
+  auth: key
+  key_path: ~/.ssh/id_ed25519
+  password_env: QE_STUDIO_SSH_PASSWORD
+  connect_timeout: 10
+  # Seconds between reachability probes (TCP only, no login).
+  status_poll_seconds: 300
+
+sync:
+  # rsync --exclude patterns (rsync semantics: trailing "/" = directories only).
+  exclude:
+    - tmp/
+    - "*.save/"
+    - "*.amn"
+    - "*.mmn"
+    - "UNK*"
+    - "*.unk*"
+    - "*.wfc*"
+    - "*.mix*"
+    - "*.hub*"
+    - "*.igk*"
+    - core
+    - "core.[0-9]*"
+  rsync_binary: rsync
+  ssh_binary: ssh
+
+plot:
+  # Default energy window (eV, relative to the reference energy).
+  energy_min: -5.0
+  energy_max: 5.0
+  # Zero the energy axis at E_F (false = absolute energies).
+  shift_to_fermi: true
+  # Figure size in inches (width, height); the preview keeps this aspect ratio.
+  figure_size: [6.0, 4.5]
+  line_width: 1.2
+  band_colors:
+    valence: "#2563eb"
+    conduction: "#00d2ff"
+  fermi_color: "#f43f5e"
+  orbital_colors:
+    s: "#fbbf24"
+    p: "#06b6d4"
+    d: "#a855f7"
+    f: "#ec4899"
+  export:
+    # Any of: png, svg, pdf
+    formats: [png, svg, pdf]
+    # PNG resolution: 300 or 600
+    dpi: 300
+    # Figure colors on export: current (follow app theme), light or dark.
+    theme: current
+
+ui:
+  # dark or light (the toggle in the app remembers your last choice).
+  theme: dark
+  # Folder names/patterns hidden in the explorer.
+  hidden_dirs: [tmp, "*.save"]
