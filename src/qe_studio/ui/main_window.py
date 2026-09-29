@@ -107,6 +107,7 @@ class MainWindow(QMainWindow):
         self.service = DetectionService(self.memory, self)
         self.monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
         self._loads: dict[str, _LoadTask] = {}
+        self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
         self._overwrite_always = False
         self._sync: SyncController | None = None
         self._sync_dialog: SyncDialog | None = None
@@ -198,7 +199,7 @@ class MainWindow(QMainWindow):
         self._action(files, "Sair", self.close, "Ctrl+Q")
         cluster = bar.addMenu("Cluster")
         self.sync_action = self._action(cluster, "Sincronizar pasta selecionada", self.start_sync)
-        self._action(cluster, "Testar conexão", self.monitor.check)
+        self._action(cluster, "Testar conexão", self._test_connection)
         plots = bar.addMenu("Gráficos")
         self._action(plots, "Gerar gráfico", self.generate_plot, "Ctrl+G")
         self.export_action = self._action(plots, "Exportar gráfico", self.export_plot, "Ctrl+E")
@@ -225,6 +226,7 @@ class MainWindow(QMainWindow):
         self.top_bar.generate_requested.connect(self.generate_plot)
         self.top_bar.panel_toggled.connect(self.set_panel_visible)
         self.monitor.state_changed.connect(self._apply_cluster_label)
+        self.service.detected.connect(self._on_detected)
         self.workspace.current_changed.connect(self._on_tab_changed)
         self.params.changed.connect(self._on_param_changed)
         self.params.back_requested.connect(lambda: self.set_left_mode("tree"))
@@ -332,19 +334,27 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "config.yaml inválido", str(exc))
             return
         self.loaded = loaded
-        self.monitor.stop()
+        old = self.monitor
+        old.stop()
+        old.state_changed.disconnect(self._apply_cluster_label)
+        old.deleteLater()
         self.monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
         self.monitor.state_changed.connect(self._apply_cluster_label)
         self._apply_cluster_label(self.monitor.state.value)
         self.monitor.start()
         self.sync_action.setEnabled(self.config.sync_enabled)
-        self.explorer.proxy.hidden_dirs = [p.lower() for p in self.config.ui.hidden_dirs]
+        for proxy in (self.explorer.proxy, self.files.proxy):
+            proxy.set_hidden_dirs(self.config.ui.hidden_dirs)
+        self.files.proxy.set_root(self.root)
         self.explorer.set_root(self.root)
         self.files.set_folder(self.root)
         self.setWindowTitle(f"{APP_NAME} v{__version__} — [Projeto: {self.root}]")
         self.refresh()
         message = loaded.warnings[0] if loaded.warnings else "config.yaml recarregado."
         self.status.set_message(message, "warning" if loaded.warnings else "info", 5000)
+
+    def _test_connection(self) -> None:
+        self.monitor.check()
 
     def _apply_cluster_label(self, state: str) -> None:
         cluster = self.config.cluster
@@ -363,8 +373,30 @@ class MainWindow(QMainWindow):
         self.generate_plot_for(self.current_folder())
 
     def generate_plot_for(self, folder: Path, auto_export: bool = True) -> None:
-        """Detect → (choose / map manually) → load in a worker → plot tab → save to plots/."""
-        results = self.service.detect_now(folder)
+        """Detect → (choose / map manually) → load in a worker → plot tab → save to plots/.
+
+        Detection runs in the service pool (big outputs, network disks): the rest continues
+        in ``_on_detected``.
+        """
+        key = str(folder)
+        if key in self._detecting:
+            return
+        self._detecting[key] = auto_export
+        self.status.set_message("Detectando cálculo…")
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
+        self.service.request(Path(folder), fresh=True)
+
+    def _on_detected(self, key: str) -> None:
+        if key not in self._detecting:
+            return
+        auto_export = self._detecting.pop(key)
+        QApplication.restoreOverrideCursor()
+        self.status.set_message("")
+        # Next loop turn: dialogs below must not run inside the detection task's signal.
+        QTimer.singleShot(0, lambda: self._plot_detected(Path(key), auto_export))
+
+    def _plot_detected(self, folder: Path, auto_export: bool) -> None:
+        results = self.service.results(folder) or []
         plottable = [r for r in results if r.module.plottable]
         complete = [r for r in plottable if r.complete]
         if len(complete) > 1:
@@ -578,6 +610,7 @@ class MainWindow(QMainWindow):
     def _run_sync(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
         controller = SyncController(self.config, self, password=password)
         dialog = SyncDialog(self.theme, controller, endpoint.spec(), str(folder), self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         controller.conflict_needed.connect(self._ask_conflict)
         controller.finished.connect(self._on_sync_finished)
         self._sync, self._sync_dialog = controller, dialog
@@ -588,12 +621,17 @@ class MainWindow(QMainWindow):
     def _ask_conflict(self, item: PlanItem) -> None:
         parent = self._sync_dialog or self
         dialog = ConflictDialog(item, parent)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         dialog.decided.connect(self._sync.resolve)
         dialog.finished.connect(lambda _r: setattr(self, "conflict_dialog", None))
         self.conflict_dialog = dialog
         dialog.open()
 
     def _on_sync_finished(self, report: SyncReport) -> None:
+        # The dialog deletes itself on close; the controller goes on the next loop turn.
+        controller, self._sync, self._sync_dialog = self._sync, None, None
+        if controller is not None:
+            controller.deleteLater()
         self.monitor.set_syncing(False)
         if report.status is not SyncStatus.CANCELLED:
             self.monitor.report(not report.connection_failed)

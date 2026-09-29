@@ -4,14 +4,14 @@ import sys
 from pathlib import Path
 
 import pytest
-from PyQt6.QtCore import QObject, QSettings, pyqtSignal
+from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QSettings, pyqtSignal
 from PyQt6.QtWidgets import QInputDialog, QMessageBox
 
 from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.detection import FolderMemory
-from qe_studio.core.sync.controller import SyncStatus
+from qe_studio.core.sync.controller import SyncController, SyncStatus
 from qe_studio.core.sync.planner import Decision
-from qe_studio.ui.dialogs.sync_dialog import SyncDialog
+from qe_studio.ui.dialogs.sync_dialog import ConflictDialog, SyncDialog
 from qe_studio.ui.main_window import MainWindow
 from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.spinner import CircularProgress
@@ -81,6 +81,10 @@ def test_sync_with_conflict_prompt(qtbot, tmp_path, demo_project, messages):
     assert not (local / "tmp" / "al.save").exists()
     assert messages and messages[-1][0] == "information"
     assert window.monitor.state.value != "syncing"
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert window._sync is None and window.conflict_dialog is None
+    for kind in (SyncController, SyncDialog, ConflictDialog):  # nothing piles up per sync
+        assert not window.findChildren(kind)
 
 
 def test_sync_local_newer_warns(qtbot, tmp_path, demo_project, messages):

@@ -1,5 +1,9 @@
 from pathlib import Path
 
+from PyQt6 import sip
+from PyQt6.QtCore import QCoreApplication, QEvent
+
+from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.ui.widgets.workspace import ImageViewer, TextViewer, read_for_viewer
 
 
@@ -38,6 +42,45 @@ def test_hidden_dirs_are_filtered(qtbot, main_window, demo_project):
         for r in range(window.files.proxy.rowCount(root))
     }
     assert "bands.in" in names and "tmp" not in names
+
+
+def visible_names(panel) -> set[str]:
+    root = panel.view.rootIndex()
+    return {
+        panel.proxy.path(panel.proxy.index(r, 0, root)).name
+        for r in range(panel.proxy.rowCount(root))
+    }
+
+
+def test_reload_config_replaces_monitor_and_filters(qtbot, main_window, demo_project, monkeypatch):
+    window = main_window
+    model = window.files.model
+    with qtbot.waitSignal(model.directoryLoaded, timeout=5000):
+        window.files.set_folder(demo_project / "04_pdos")
+    assert "orbitals" in visible_names(window.files)
+    config = parse_config(
+        {"paths": {"local_root": str(demo_project)}, "ui": {"hidden_dirs": ["tmp", "orbitals/"]}}
+    )
+    monkeypatch.setattr(
+        "qe_studio.ui.main_window.load_config", lambda _path: LoadedConfig(config, None)
+    )
+    old = window.monitor
+    window.reload_config()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert window.monitor is not old and sip.isdeleted(old)
+    with qtbot.waitSignal(model.directoryLoaded, timeout=5000, raising=False):
+        window.files.set_folder(demo_project / "04_pdos")
+    assert "orbitals" not in visible_names(window.files)
+    assert window.explorer.proxy.hidden_dirs == ["tmp", "orbitals"]
+
+
+def test_folder_counts_load_off_the_gui_thread(qtbot, main_window, demo_project):
+    panel = main_window.files
+    folder = demo_project / "04_pdos"
+    expected = sum(1 for p in folder.iterdir() if not p.name.startswith("."))
+    panel.refresh()
+    qtbot.waitUntil(lambda: panel.item_count(folder) is not None, timeout=5000)
+    assert panel.item_count(folder) == expected
 
 
 def test_folder_selection_updates_panels(qtbot, main_window, demo_project):

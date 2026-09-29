@@ -29,11 +29,16 @@ class FileFilterProxy(QSortFilterProxyModel):
 
     def __init__(self, hidden_dirs: list[str], dirs_only: bool = False, parent=None):
         super().__init__(parent)
-        self.hidden_dirs = [pattern.rstrip("/").lower() for pattern in hidden_dirs]
+        self.hidden_dirs: list[str] = []
+        self.set_hidden_dirs(hidden_dirs)
         self.dirs_only = dirs_only
         self.sort_column = SORT_NAME
         self.root_prefix = ""
         self.setDynamicSortFilter(True)
+
+    def set_hidden_dirs(self, patterns: list[str]) -> None:
+        self.hidden_dirs = [pattern.rstrip("/").lower() for pattern in patterns]
+        self.invalidateFilter()
 
     def set_root(self, root: Path) -> None:
         """Only entries below ``root`` are filtered (its ancestors may be named ``tmp``)."""

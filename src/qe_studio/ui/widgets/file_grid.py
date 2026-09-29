@@ -5,7 +5,18 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PyQt6.QtCore import QModelIndex, QRect, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import (
+    QModelIndex,
+    QObject,
+    QRect,
+    QRectF,
+    QRunnable,
+    QSize,
+    Qt,
+    QThreadPool,
+    QTimer,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QActionGroup, QFont, QPainter, QPen
 from PyQt6.QtWidgets import (
     QListView,
@@ -26,6 +37,27 @@ from .fs_model import SORT_DATE, SORT_NAME, SORT_SIZE, FileFilterProxy, make_fs_
 
 CARD = QSize(148, 86)
 ROW = 26
+
+
+class _CountSignals(QObject):
+    done = pyqtSignal(int, str, int)  # generation, folder, entries (-1 = unreadable)
+
+
+class _CountTask(QRunnable):
+    """Counts a subfolder's entries off the GUI thread (big folders, slow network mounts)."""
+
+    def __init__(self, generation: int, folder: str):
+        super().__init__()
+        self.generation, self.folder = generation, folder
+        self.signals = _CountSignals()
+
+    def run(self) -> None:
+        try:
+            with os.scandir(self.folder) as entries:
+                count = sum(1 for e in entries if not e.name.startswith("."))
+        except OSError:
+            count = -1
+        self.signals.done.emit(self.generation, self.folder, count)
 
 
 class FileCardDelegate(QStyledItemDelegate):
@@ -144,7 +176,12 @@ class FilePanel(QWidget):
         self.theme, self.service = theme, service
         self.setObjectName("filePanel")
         self.grid_mode = True
-        self._counts: dict[str, int] = {}
+        self._counts: dict[str, int | None] = {}
+        self._count_generation = 0  # bumped on refresh: counts from older tasks are dropped
+        self._count_tasks: dict[str, _CountTask] = {}
+        self._finished_counts: list[_CountTask] = []
+        self._count_pool = QThreadPool(self)
+        self._count_pool.setMaxThreadCount(2)
         self._folder = Path(root)
 
         layout = QVBoxLayout(self)
@@ -193,13 +230,14 @@ class FilePanel(QWidget):
 
     def set_folder(self, folder: Path) -> None:
         self._folder = Path(folder)
+        self._clear_counts()
         self.model.setRootPath(str(folder))
         self.view.setRootIndex(self.proxy.index_for(folder))
         self.service.results(self._folder)  # warm the sniff cache for status labels
         self._update_count()
 
     def refresh(self) -> None:
-        self._counts.clear()
+        self._clear_counts()
         self.view.viewport().update()
 
     def set_grid_mode(self, grid: bool) -> None:
@@ -214,13 +252,30 @@ class FilePanel(QWidget):
             self.view.setCurrentIndex(index)
 
     def item_count(self, folder: Path) -> int | None:
+        """Cached entry count (None while counting in the pool, or if unreadable)."""
         key = str(folder)
-        if key not in self._counts:
-            try:
-                self._counts[key] = sum(1 for e in os.scandir(folder) if not e.name.startswith("."))
-            except OSError:
-                return None
-        return self._counts[key]
+        if key in self._counts:
+            return self._counts[key]
+        if key not in self._count_tasks:
+            task = _CountTask(self._count_generation, key)
+            task.signals.done.connect(self._on_counted)
+            self._count_tasks[key] = task
+            self._count_pool.start(task)
+        return None
+
+    def _clear_counts(self) -> None:
+        self._count_generation += 1
+        self._counts.clear()
+
+    def _on_counted(self, generation: int, key: str, count: int) -> None:
+        # Drop the task on the next loop turn: this slot runs on its own signal object.
+        task = self._count_tasks.pop(key, None)
+        if task is not None:
+            self._finished_counts.append(task)
+            QTimer.singleShot(0, self._finished_counts.clear)
+        if generation == self._count_generation:
+            self._counts[key] = count if count >= 0 else None
+        self.view.viewport().update()  # a stale count is requested again on repaint
 
     def _apply_mode(self) -> None:
         view = self.view

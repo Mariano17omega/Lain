@@ -1,7 +1,9 @@
+import gc
 import shutil
+import weakref
 
 import pytest
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QCoreApplication, QEvent, QSize
 from PyQt6.QtWidgets import QMessageBox
 
 from qe_studio.core.calculations.base import Method
@@ -130,6 +132,19 @@ def test_theme_toggle_rerenders_plot(qtbot, main_window, demo_project, no_dialog
     window.toggle_theme()
 
 
+def test_closed_plot_is_released(qtbot, main_window, demo_project, no_dialogs):
+    """A closed tab must not stay connected to the theme (leak, then RuntimeError on toggle)."""
+    window = main_window
+    generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    ref = weakref.ref(window.current_plot())
+    window.workspace.close_tab(window.workspace.tabs.currentIndex())
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    gc.collect()
+    assert ref() is None
+    window.toggle_theme()
+    window.toggle_theme()
+
+
 def test_pdos_plot(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     session = generate(qtbot, window, demo_project / "04_pdos", auto_export=False)
@@ -164,6 +179,7 @@ def test_manual_mapping_when_scf_missing(qtbot, main_window, demo_project, no_di
 def test_relax_folder_asks_and_can_cancel(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     window.generate_plot_for(demo_project / "01_relax")
+    qtbot.waitUntil(lambda: bool(no_dialogs["mapping"]), timeout=5000)
     assert len(no_dialogs["mapping"]) == 1
     message = no_dialogs["mapping"][0][4]
     assert "RELAX" in message

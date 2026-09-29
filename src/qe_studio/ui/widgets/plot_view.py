@@ -178,7 +178,11 @@ class PlotView(QWidget):
         self.toolbar.reset_requested.connect(self._reset)
         self.canvas.mpl_connect("button_release_event", self._on_release)
         self.canvas.mpl_connect("scroll_event", self._on_release)
-        theme.theme_changed.connect(lambda _n: self.render())
+        # A bound method (not a lambda): PyQt drops the connection when the tab is deleted.
+        theme.theme_changed.connect(self._on_theme_changed)
+        self.render()
+
+    def _on_theme_changed(self, _name: str) -> None:
         self.render()
 
     def render(self) -> None:

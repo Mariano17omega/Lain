@@ -58,6 +58,7 @@ class ConnectionMonitor(QObject):
         self.enabled = enabled and cluster.configured
         self._state = ConnectionState.UNKNOWN if self.enabled else ConnectionState.DISABLED
         self._syncing = False
+        self._stopped = False
         self._probing = False
         self._last_probe = 0.0
         self._probes: list[_Probe] = []
@@ -75,12 +76,14 @@ class ConnectionMonitor(QObject):
         return ConnectionState.SYNCING if self._syncing else self._state
 
     def start(self) -> None:
+        self._stopped = False
         if self.enabled:
             self._timer.start()
             self.check()
 
     def stop(self) -> None:
         """Stop polling and wait for an in-flight probe (must not outlive the app)."""
+        self._stopped = True
         self._timer.stop()
         self._pool.waitForDone(int(PROBE_TIMEOUT * 1000) + 500)
 
@@ -122,7 +125,7 @@ class ConnectionMonitor(QObject):
     def _on_app_state(self, state) -> None:
         from PyQt6.QtCore import Qt
 
-        if not self.enabled:
+        if not self.enabled or self._stopped:  # regaining focus must not restart a stopped monitor
             return
         if state == Qt.ApplicationState.ApplicationActive:
             if not self._timer.isActive():
