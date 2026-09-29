@@ -1,0 +1,191 @@
+
+     Program PROJWFC v.6.0 (svn rev. 13286) starts on  7Feb2017 at 15:26:10 
+
+     This program is part of the open-source Quantum ESPRESSO suite
+     for quantum simulation of materials; please cite
+         "P. Giannozzi et al., J. Phys.:Condens. Matter 21 395502 (2009);
+          URL http://www.quantum-espresso.org", 
+     in publications or presentations arising from this work. More details at
+     http://www.quantum-espresso.org/quote
+
+     Parallel version (MPI), running on     2 processors
+     R & G space division:  proc/nbgrp/npool/nimage =       2
+
+     Reading data from directory:
+     /home/pietro/espresso-svn/tempdir/ni.save
+
+   Info: using nr1, nr2, nr3 values from input
+
+   Info: using nr1, nr2, nr3 values from input
+
+     IMPORTANT: XC functional enforced from input :
+     Exchange-correlation      =  SLA  PZ   NOGX NOGC ( 1  1  0  0 0 0)
+     Any further DFT definition will be discarded
+     Please, verify this is what you really want
+
+               file Ni.pz-nd-rrkjus.UPF: wavefunction(s)  4S renormalized
+
+     Parallelization info
+     --------------------
+     sticks:   dense  smooth     PW     G-vecs:    dense   smooth      PW
+     Min         210      69     27                 2799      533     141
+     Max         211      70     28                 2802      534     142
+     Sum         421     139     55                 5601     1067     283
+
+     Generating pointlists ...
+     new r_m :   0.2917 (alat units)  1.8901 (a.u.) for type    1
+
+     Check: negative/imaginary core charge=   -0.000015    0.000000
+
+     Gaussian broadening (read from input): ngauss,degauss=   1    0.020000
+
+
+     Calling projwave .... 
+
+     Atomic states used for projection
+     (read from pseudopotential files):
+
+     state #   1: atom   1 (Ni ), wfc  1 (l=0 m= 1)
+     state #   2: atom   1 (Ni ), wfc  2 (l=2 m= 1)
+     state #   3: atom   1 (Ni ), wfc  2 (l=2 m= 2)
+     state #   4: atom   1 (Ni ), wfc  2 (l=2 m= 3)
+     state #   5: atom   1 (Ni ), wfc  2 (l=2 m= 4)
+     state #   6: atom   1 (Ni ), wfc  2 (l=2 m= 5)
+
+ k =   0.0000000000  0.0000000000  0.0000000000
+==== e(   1) =     5.74731 eV ==== 
+     psi = 0.999*[#   1]
+    |psi|^2 = 0.999
+==== e(   2) =    12.65965 eV ==== 
+     psi = 0.333*[#   3]+0.333*[#   4]+0.333*[#   6]
+    |psi|^2 = 1.000
+==== e(   3) =    12.65965 eV ==== 
+     psi = 0.333*[#   3]+0.333*[#   4]+0.333*[#   6]
+    |psi|^2 = 1.000
+==== e(   4) =    12.65965 eV ==== 
+     psi = 0.333*[#   3]+0.333*[#   4]+0.333*[#   6]
+    |psi|^2 = 1.000
+==== e(   5) =    13.95722 eV ==== 
+     psi = 0.500*[#   2]+0.500*[#   5]
+    |psi|^2 = 0.999
+==== e(   6) =    13.95722 eV ==== 
+     psi = 0.500*[#   2]+0.500*[#   5]
+    |psi|^2 = 0.999
+==== e(   7) =    39.87531 eV ==== 
+     psi = 
+    |psi|^2 = 0.000
+==== e(   8) =    44.27256 eV ==== 
+     psi = 
+    |psi|^2 = 0.000
+
+ k =  -0.0833333333  0.0833333333 -0.0833333333
+==== e(   1) =     6.03574 eV ==== 
+     psi = 0.998*[#   1]
+    |psi|^2 = 0.999
+==== e(   2) =    12.58198 eV ==== 
+     psi = 0.333*[#   3]+0.333*[#   4]+0.333*[#   6]
+    |psi|^2 = 1.000
+==== e(   3) =    12.72594 eV ==== 
+     psi = 0.332*[#   3]+0.332*[#   4]+0.332*[#   6]+0.002*[#   2]+0.002*[#   5]
+    |psi|^2 = 1.000
+==== e(   4) =    12.72594 eV ==== 
+     psi = 0.332*[#   3]+0.332*[#   4]+0.332*[#   6]+0.002*[#   2]+0.002*[#   5]
+    |psi|^2 = 1.000
+==== e(   5) =    13.92971 eV ==== 
+     psi = 0.498*[#   2]+0.498*[#   5]+0.001*[#   3]+0.001*[#   4]+0.001*[#   6]
+    |psi|^2 = 0.999
+==== e(   6) =    13.92971 eV ==== 
+     psi = 0.498*[#   2]+0.498*[#   5]+0.001*[#   3]+0.001*[#   4]+0.001*[#   6]
+    |psi|^2 = 0.999
+==== e(   7) =    38.97944 eV ==== 
+     psi = 
+    |psi|^2 = 0.000
+==== e(   8) =    41.74966 eV ==== 
+     psi = 
+    |psi|^2 = 0.000
+
+ k =  -0.1666666667  0.1666666667 -0.1666666667
+==== e(   1) =     6.86693 eV ==== 
+     psi = 0.990*[#   1]+0.003*[#   3]+0.003*[#   4]+0.003*[#   6]
+    |psi|^2 = 0.999
+==== e(   2) =    12.40401 eV ==== 
+     psi = 0.330*[#   3]+0.330*[#   4]+0.330*[#   6]+0.009*[#   1]
+    |psi|^2 = 0.999
+==== e(   3) =    12.86335 eV ==== 
+     psi = 0.313*[#   3]+0.313*[#   4]+0.313*[#   6]+0.030*[#   2]+0.030*[#   5]
+    |psi|^2 = 1.000
+==== e(   4) =    12.86335 eV ==== 
+     psi = 0.313*[#   3]+0.313*[#   4]+0.313*[#   6]+0.030*[#   2]+0.030*[#   5]
+    |psi|^2 = 1.000
+==== e(   5) =    13.90652 eV ==== 
+     psi = 0.469*[#   2]+0.469*[#   5]+0.020*[#   3]+0.020*[#   4]+0.020*[#   6]
+    |psi|^2 = 0.999
+==== e(   6) =    13.90652 eV ==== 
+     psi = 0.469*[#   2]+0.469*[#   5]+0.020*[#   3]+0.020*[#   4]+0.020*[#   6]
+    |psi|^2 = 0.999
+==== e(   7) =    35.06776 eV ==== 
+     psi = 
+    |psi|^2 = 0.001
+==== e(   8) =    40.76596 eV ==== 
+     psi = 
+    |psi|^2 = 0.000
+
+ k =  -0.2500000000  0.2500000000 -0.2500000000
+==== e(   1) =     8.09921 eV ==== 
+     psi = 0.929*[#   1]+0.023*[#   3]+0.023*[#   4]+0.023*[#   6]
+    |psi|^2 = 0.998
+==== e(   2) =    12.30461 eV ==== 
+     psi = 0.309*[#   3]+0.309*[#   4]+0.309*[#   6]+0.069*[#   1]
+    |psi|^2 = 0.995
+==== e(   3) =    12.90746 eV ==== 
+     psi = 0.244*[#   3]+0.244*[#   4]+0.244*[#   6]+0.135*[#   2]+0.135*[#   5]
+    |psi|^2 = 1.000
+==== e(   4) =    12.90746 eV ==== 
+     psi = 0.244*[#   3]+0.244*[#   4]+0.244*[#   6]+0.135*[#   2]+0.135*[#   5]
+    |psi|^2 = 1.000
+==== e(   5) =    14.03999 eV ==== 
+     psi = 0.365*[#   2]+0.365*[#   5]+0.090*[#   3]+0.090*[#   4]+0.090*[#   6]
+    |psi|^2 = 0.999
+==== e(   6) =    14.03999 eV ==== 
+     psi = 0.365*[#   2]+0.365*[#   5]+0.090*[#   3]+0.090*[#   4]+0.090*[#   6]
+     [... truncated for the QE Studio test fixture ...]
+    |psi|^2 = 0.976
+==== e(   3) =    12.52414 eV ==== 
+     psi = 0.325*[#   3]+0.325*[#   4]+0.325*[#   6]
+    |psi|^2 = 0.976
+==== e(   4) =    14.49767 eV ==== 
+     psi = 0.490*[#   2]+0.490*[#   5]+0.019*[#   1]
+    |psi|^2 = 1.000
+==== e(   5) =    15.69493 eV ==== 
+     psi = 0.333*[#   3]+0.333*[#   4]+0.333*[#   6]
+    |psi|^2 = 0.999
+==== e(   6) =    23.77235 eV ==== 
+     psi = 0.008*[#   3]+0.008*[#   4]+0.008*[#   6]
+    |psi|^2 = 0.024
+==== e(   7) =    23.77235 eV ==== 
+     psi = 0.008*[#   3]+0.008*[#   4]+0.008*[#   6]
+    |psi|^2 = 0.024
+==== e(   8) =    26.15968 eV ==== 
+     psi = 0.009*[#   2]+0.009*[#   5]
+    |psi|^2 = 0.018
+
+Lowdin Charges: 
+
+     Atom #   1: total charge =   9.8849, s =  0.9446, p =  0.0000, d =  8.9403, 
+                 spin up      =   5.2340, s =  0.4655, 
+                 spin up      =   5.2340, p =  0.0000, pz=  0.0000, px=  0.0000, py=  0.0000, 
+                 spin up      =   5.2340, d =  4.7685, dz2=  0.9618, dxz=  0.9483, dyz=  0.9483, dx2-y2=  0.9618, dxy=  0.9483, 
+                 spin down    =   4.6508, s =  0.4791, 
+                 spin down    =   4.6508, p =  0.0000, pz=  0.0000, px=  0.0000, py=  0.0000, 
+                 spin down    =   4.6508, d =  4.1718, dz2=  0.8862, dxz=  0.7998, dyz=  0.7998, dx2-y2=  0.8862, dxy=  0.7998, 
+                 polarization =   0.5832, s = -0.0136, p =  0.0000, d =  0.5968, 
+     Spilling Parameter:   0.0115
+
+     PROJWFC      :     0.95s CPU         0.98s WALL
+
+
+   This run was terminated on:  15:26:11   7Feb2017            
+
+=------------------------------------------------------------------------------=
+   JOB DONE.
+=------------------------------------------------------------------------------=

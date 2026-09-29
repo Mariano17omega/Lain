@@ -1,0 +1,7 @@
+ &bands
+    prefix  = 'al'
+    filband = 'bands.dat'
+    lsym=.true.
+    outdir='./tmp'
+
+/
