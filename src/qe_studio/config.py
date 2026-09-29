@@ -1,0 +1,295 @@
+"""Loading and validation of ``config.yaml`` (PRD §6).
+
+The app has no settings window: everything operational comes from this file. Unknown keys
+are rejected so typos surface as errors instead of silently falling back to defaults.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Annotated, Literal
+
+import yaml
+from matplotlib.colors import is_color_like
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+
+ENV_CONFIG = "QE_STUDIO_CONFIG"
+CONFIG_NAME = "config.yaml"
+
+
+def _check_color(value: str) -> str:
+    if not is_color_like(value):
+        raise ValueError(f"cor inválida: {value!r}")
+    return value
+
+
+Color = Annotated[str, AfterValidator(_check_color)]
+Orbital = Literal["s", "p", "d", "f"]
+ExportFormat = Literal["png", "svg", "pdf"]
+
+DEFAULT_EXCLUDES = [
+    "tmp/",
+    "*.save/",
+    "*.amn",
+    "*.mmn",
+    "UNK*",
+    "*.unk*",
+    "*.wfc*",
+    "*.mix*",
+    "*.hub*",
+    "*.igk*",
+    "core",
+    "core.[0-9]*",
+]
+DEFAULT_ORBITAL_COLORS: dict[str, str] = {
+    "s": "#fbbf24",
+    "p": "#06b6d4",
+    "d": "#a855f7",
+    "f": "#ec4899",
+}
+
+
+class _Section(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class PathsConfig(_Section):
+    local_root: Path = Path("~/qe_simulations")
+    remote_root: str = ""
+
+    @field_validator("local_root")
+    @classmethod
+    def _expand(cls, value: Path) -> Path:
+        return Path(os.path.expandvars(str(value))).expanduser()
+
+    @field_validator("remote_root")
+    @classmethod
+    def _strip_slash(cls, value: str) -> str:
+        value = value.strip()
+        return value.rstrip("/") if value not in ("", "/") else value
+
+
+class ClusterConfig(_Section):
+    host: str = ""
+    port: int = Field(22, ge=1, le=65535)
+    user: str = ""
+    auth: Literal["key", "password"] = "key"
+    key_path: Path | None = None
+    password_env: str | None = "QE_STUDIO_SSH_PASSWORD"
+    password: SecretStr | None = None
+    connect_timeout: int = Field(10, gt=0, le=300)
+    status_poll_seconds: int = Field(300, ge=30)
+
+    @field_validator("key_path")
+    @classmethod
+    def _expand(cls, value: Path | None) -> Path | None:
+        return None if value is None else Path(os.path.expandvars(str(value))).expanduser()
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.host.strip() and self.user.strip())
+
+    def resolve_password(self, environ: dict[str, str] | None = None) -> str | None:
+        """Password from ``password_env`` (preferred) or the inline ``password``."""
+        environ = os.environ if environ is None else environ
+        if self.password_env and environ.get(self.password_env):
+            return environ[self.password_env]
+        return self.password.get_secret_value() if self.password else None
+
+
+class SyncConfig(_Section):
+    exclude: list[str] = Field(default_factory=lambda: list(DEFAULT_EXCLUDES))
+    rsync_binary: str = "rsync"
+    ssh_binary: str = "ssh"
+
+
+class ExportConfig(_Section):
+    formats: list[ExportFormat] = Field(default_factory=lambda: ["png", "svg", "pdf"])
+    dpi: int = Field(300, ge=72, le=2400)
+    theme: Literal["current", "light", "dark"] = "current"
+
+    @field_validator("formats")
+    @classmethod
+    def _unique(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("informe ao menos um formato")
+        return list(dict.fromkeys(value))
+
+
+class BandColors(_Section):
+    valence: Color = "#2563eb"
+    conduction: Color = "#00d2ff"
+
+
+class PlotConfig(_Section):
+    energy_min: float = -5.0
+    energy_max: float = 5.0
+    shift_to_fermi: bool = True
+    figure_size: tuple[float, float] = (6.0, 4.5)
+    line_width: float = Field(1.2, gt=0, le=10)
+    band_colors: BandColors = Field(default_factory=BandColors)
+    fermi_color: Color = "#f43f5e"
+    orbital_colors: dict[Orbital, Color] = Field(
+        default_factory=lambda: dict(DEFAULT_ORBITAL_COLORS)
+    )
+    export: ExportConfig = Field(default_factory=ExportConfig)
+
+    @field_validator("figure_size")
+    @classmethod
+    def _positive_size(cls, value: tuple[float, float]) -> tuple[float, float]:
+        if min(value) <= 0 or max(value) > 50:
+            raise ValueError("largura e altura devem estar entre 0 e 50 polegadas")
+        return value
+
+    @field_validator("orbital_colors")
+    @classmethod
+    def _fill_orbitals(cls, value: dict[str, str]) -> dict[str, str]:
+        return {**DEFAULT_ORBITAL_COLORS, **value}
+
+    @model_validator(mode="after")
+    def _energy_window(self) -> PlotConfig:
+        if self.energy_min >= self.energy_max:
+            raise ValueError("energy_min deve ser menor que energy_max")
+        return self
+
+
+class UiConfig(_Section):
+    theme: Literal["dark", "light"] = "dark"
+    hidden_dirs: list[str] = Field(default_factory=lambda: ["tmp", "*.save"])
+
+
+class AppConfig(_Section):
+    paths: PathsConfig = Field(default_factory=PathsConfig)
+    cluster: ClusterConfig = Field(default_factory=ClusterConfig)
+    sync: SyncConfig = Field(default_factory=SyncConfig)
+    plot: PlotConfig = Field(default_factory=PlotConfig)
+    ui: UiConfig = Field(default_factory=UiConfig)
+
+    @property
+    def sync_enabled(self) -> bool:
+        return self.cluster.configured and bool(self.paths.remote_root)
+
+
+class ConfigError(Exception):
+    """Config file missing (when explicitly requested), unreadable or invalid."""
+
+    def __init__(self, path: Path | None, problems: list[str]):
+        self.path = path
+        self.problems = problems
+        where = f" ({path})" if path else ""
+        super().__init__(f"Configuração inválida{where}:\n" + "\n".join(problems))
+
+
+@dataclass
+class LoadedConfig:
+    config: AppConfig
+    path: Path | None
+    warnings: list[str] = field(default_factory=list)
+
+
+def user_config_path() -> Path:
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    else:
+        base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return base / "qe-studio" / CONFIG_NAME
+
+
+def find_config(
+    cli_path: str | os.PathLike[str] | None = None,
+    environ: dict[str, str] | None = None,
+    cwd: Path | None = None,
+) -> Path | None:
+    """First existing config in search order; explicit paths must exist."""
+    environ = os.environ if environ is None else environ
+    for explicit, origin in ((cli_path, "--config"), (environ.get(ENV_CONFIG), ENV_CONFIG)):
+        if explicit:
+            path = Path(explicit).expanduser()
+            if not path.is_file():
+                raise ConfigError(path, [f"arquivo indicado por {origin} não encontrado"])
+            return path
+    for candidate in ((cwd or Path.cwd()) / CONFIG_NAME, user_config_path()):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _format_validation(exc: ValidationError) -> list[str]:
+    problems = []
+    for err in exc.errors():
+        loc = ".".join(str(part) for part in err["loc"]) or "(raiz)"
+        msg = err["msg"].removeprefix("Value error, ")
+        if err["type"] == "extra_forbidden":
+            msg = "chave desconhecida"
+        problems.append(f"• {loc}: {msg}")
+    return problems
+
+
+def parse_config(data: object, path: Path | None = None) -> AppConfig:
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        raise ConfigError(path, ["o arquivo deve conter um mapeamento YAML (chave: valor)"])
+    try:
+        return AppConfig.model_validate(data)
+    except ValidationError as exc:
+        raise ConfigError(path, _format_validation(exc)) from exc
+
+
+def _warnings(config: AppConfig) -> list[str]:
+    warnings = []
+    if not config.paths.local_root.is_dir():
+        warnings.append(f"Pasta local não encontrada: {config.paths.local_root}")
+    cluster = config.cluster
+    if cluster.password is not None:
+        warnings.append(
+            "Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave."
+        )
+    if config.sync_enabled:
+        if cluster.auth == "key" and cluster.key_path and not cluster.key_path.is_file():
+            warnings.append(f"Chave SSH não encontrada: {cluster.key_path}")
+        if cluster.auth == "password" and cluster.resolve_password() is None:
+            warnings.append(
+                f"auth: password, mas a variável {cluster.password_env or '(password_env)'} "
+                "não está definida."
+            )
+    else:
+        warnings.append(
+            "Cluster não configurado (host/user/remote_root): sincronização desativada."
+        )
+    return warnings
+
+
+def load_config(
+    cli_path: str | os.PathLike[str] | None = None,
+    environ: dict[str, str] | None = None,
+    cwd: Path | None = None,
+) -> LoadedConfig:
+    path = find_config(cli_path, environ, cwd)
+    if path is None:
+        config = AppConfig()
+        return LoadedConfig(
+            config,
+            None,
+            ["config.yaml não encontrado; usando valores padrão.", *_warnings(config)],
+        )
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ConfigError(path, [f"não foi possível ler o arquivo: {exc}"]) from exc
+    except yaml.YAMLError as exc:
+        raise ConfigError(path, [f"YAML inválido: {exc}"]) from exc
+    config = parse_config(data, path)
+    return LoadedConfig(config, path, _warnings(config))
