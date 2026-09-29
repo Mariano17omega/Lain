@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
+from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
 
 from ..core.calculations import DetectionResult
 from ..core.detection import FolderMemory, detect_folder
@@ -44,6 +44,7 @@ class DetectionService(QObject):
         self._lock = threading.Lock()
         self._results: dict[str, list[DetectionResult]] = {}
         self._pending: dict[str, _DetectTask] = {}
+        self._finished: list[_DetectTask] = []
 
     def results(self, folder: Path) -> list[DetectionResult] | None:
         """Cached results, scheduling detection on a miss (returns None meanwhile)."""
@@ -91,7 +92,11 @@ class DetectionService(QObject):
         return self._pool.waitForDone(msecs)
 
     def _on_done(self, folder: str, results: list[DetectionResult]) -> None:
-        self._pending.pop(folder, None)
+        # Drop the task on the next loop turn: this slot runs on its own signal object.
+        task = self._pending.pop(folder, None)
+        if task is not None:
+            self._finished.append(task)
+            QTimer.singleShot(0, self._finished.clear)
         with self._lock:
             self._results[folder] = results
         self.detected.emit(folder)

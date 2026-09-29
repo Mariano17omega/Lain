@@ -8,11 +8,12 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PyQt6.QtCore import QSettings, Qt, QUrl
+from PyQt6.QtCore import QObject, QRunnable, QSettings, Qt, QThreadPool, QTimer, QUrl, pyqtSignal
 from PyQt6.QtGui import QAction, QCloseEvent, QDesktopServices, QKeySequence
 from PyQt6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
-    QLabel,
+    QInputDialog,
     QMainWindow,
     QMessageBox,
     QSplitter,
@@ -23,21 +24,66 @@ from PyQt6.QtWidgets import (
 
 from .. import __version__
 from ..config import ConfigError, LoadedConfig, load_config
-from ..core.detection import FolderMemory
+from ..core.calculations import REGISTRY, DetectionResult
+from ..core.calculations.base import LoadError
+from ..core.detection import FolderMemory, manual_result
+from ..core.plotting.export import existing_targets, export_figure, next_free_stem
+from ..core.plotting.style import style_for
 from ..core.sync.monitor import ConnectionMonitor
+from .dialogs.mapping import ask_mapping
+from .dialogs.overwrite import OverwriteChoice, ask_overwrite
 from .file_types import viewer_kind
+from .plot_session import PlotSession, plot_key
 from .services import DetectionService
 from .theme.manager import ThemeManager
 from .widgets.bars import ActivityBar, StatusBar, TopBar
-from .widgets.common import PanelHeader
 from .widgets.explorer import ExplorerPanel
 from .widgets.file_grid import FilePanel
+from .widgets.plot_params import ParamsPanel
+from .widgets.plot_view import PlotView
 from .widgets.workspace import Workspace
 
 log = logging.getLogger(__name__)
+RENDER_DEBOUNCE_MS = 120
+
+
+class _LoadSignals(QObject):
+    loaded = pyqtSignal(object, object)  # DetectionResult, dataset
+    failed = pyqtSignal(object, str)
+
+
+class _LoadTask(QRunnable):
+    def __init__(self, result: DetectionResult):
+        super().__init__()
+        self.result = result
+        self.signals = _LoadSignals()
+        self.done = False
+
+    def run(self) -> None:
+        try:
+            dataset = self.result.module.load_cached(self.result)
+        except LoadError as exc:
+            self.signals.failed.emit(self.result, str(exc))
+        except Exception as exc:  # parsing errors must reach the user, not kill the worker
+            log.exception("load failed")
+            self.signals.failed.emit(self.result, f"{type(exc).__name__}: {exc}")
+        else:
+            self.signals.loaded.emit(self.result, dataset)
+        finally:
+            self.done = True
+
+
+def choose_result(parent: QWidget, results: list[DetectionResult]) -> DetectionResult | None:
+    """Several plottable kinds in one folder (e.g. BANDS + PDOS): ask which one."""
+    labels = [r.module.display_name for r in results]
+    label, ok = QInputDialog.getItem(parent, "Gerar gráfico", "Tipo de cálculo:", labels, 0, False)
+    return results[labels.index(label)] if ok else None
 
 
 class MainWindow(QMainWindow):
+    plot_ready = pyqtSignal(object)  # PlotSession
+    plot_failed = pyqtSignal(str)
+
     def __init__(
         self,
         loaded: LoadedConfig,
@@ -54,6 +100,12 @@ class MainWindow(QMainWindow):
         self.memory = memory or FolderMemory()
         self.service = DetectionService(self.memory, self)
         self.monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
+        self._loads: dict[str, _LoadTask] = {}
+        self._overwrite_always = False
+        self._render_timer = QTimer(self)
+        self._render_timer.setSingleShot(True)
+        self._render_timer.setInterval(RENDER_DEBOUNCE_MS)
+        self._render_timer.timeout.connect(self._render_current)
 
         self._build()
         self._build_menus()
@@ -99,8 +151,8 @@ class MainWindow(QMainWindow):
         self.left.setObjectName("leftPanel")
         self.left.setMinimumWidth(200)
         self.left.addWidget(self.explorer)
-        self.params_page = self._build_params_page()
-        self.left.addWidget(self.params_page)
+        self.params = ParamsPanel(self.theme)
+        self.left.addWidget(self.params)
 
         self.files = FilePanel(self.theme, self.service, self.root, hidden)
         self.files.setMinimumWidth(170)
@@ -119,18 +171,6 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         self.status = StatusBar()
         self.setStatusBar(self.status)
-
-    def _build_params_page(self) -> QWidget:
-        """Placeholder until a plot exists (replaced by the plot parameters panel)."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(PanelHeader(self.theme, "Ajuste do gráfico", "tune"))
-        hint = QLabel("Gere um gráfico para ajustar\nos parâmetros de plotagem.")
-        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        hint.setProperty("variant", "fieldLabel")
-        layout.addWidget(hint, 1)
-        return page
 
     def _action(self, menu, text: str, slot, shortcut: str | None = None) -> QAction:
         action = menu.addAction(text)
@@ -175,6 +215,12 @@ class MainWindow(QMainWindow):
         self.top_bar.generate_requested.connect(self.generate_plot)
         self.top_bar.panel_toggled.connect(self.set_panel_visible)
         self.monitor.state_changed.connect(self._apply_cluster_label)
+        self.workspace.current_changed.connect(self._on_tab_changed)
+        self.params.changed.connect(self._on_param_changed)
+        self.params.back_requested.connect(lambda: self.set_left_mode("tree"))
+        self.params.export_requested.connect(self.export_plot)
+        self.params.remap_requested.connect(self._remap_current)
+        self.params.labels_edited.connect(self._remember_labels)
 
     # -- state ----------------------------------------------------------------------------------
     def _restore_state(self) -> None:
@@ -296,12 +342,183 @@ class MainWindow(QMainWindow):
         self.top_bar.set_cluster(label, state)
         self.activity.rsync.set_dot(None if state == "disabled" else state)
 
-    # -- actions implemented by the plot and sync workflows ----------------------------------------
-    def generate_plot(self) -> None:
-        self.status.set_message("Geração de gráficos ainda não disponível.", "warning", 3000)
+    # -- plot workflow (PRD §3, §4) -----------------------------------------------------------------
+    def current_plot(self) -> PlotView | None:
+        widget = self.workspace.current()
+        return widget if isinstance(widget, PlotView) else None
 
-    def export_plot(self) -> None:
-        self.status.set_message("Nenhum gráfico aberto.", "warning", 3000)
+    def generate_plot(self) -> None:
+        self.generate_plot_for(self.current_folder())
+
+    def generate_plot_for(self, folder: Path, auto_export: bool = True) -> None:
+        """Detect → (choose / map manually) → load in a worker → plot tab → save to plots/."""
+        results = self.service.detect_now(folder)
+        plottable = [r for r in results if r.module.plottable]
+        complete = [r for r in plottable if r.complete]
+        if len(complete) > 1:
+            chosen = choose_result(self, complete)
+            if chosen is None:
+                return
+        elif complete:
+            chosen = complete[0]
+        else:
+            chosen = self._map_manually(folder, results)
+            if chosen is None:
+                return
+        self._load(chosen, auto_export)
+
+    def _map_manually(self, folder: Path, results: list[DetectionResult]) -> DetectionResult | None:
+        modules = [m for m in REGISTRY if m.plottable]
+        detected = [r.badge for r in results if not r.module.plottable]
+        message = ""
+        if detected and not any(r.module.plottable for r in results):
+            message = (
+                f"Esta pasta foi identificada como {', '.join(detected)}, que ainda não tem "
+                "gráfico no MVP. Para plotar bandas ou PDOS, indique os arquivos."
+            )
+        elif not results:
+            message = (
+                "Nenhum cálculo reconhecido nesta pasta (nomes e conteúdo). "
+                "Indique o tipo de cálculo e os arquivos manualmente."
+            )
+        answer = ask_mapping(self, folder, modules, results, message)
+        if answer is None:
+            return None
+        kind, mapping, remember = answer
+        module = next(m for m in modules if m.kind == kind)
+        if remember:
+            self.memory.set_mapping(folder, kind, mapping)
+            self.service.invalidate(folder)
+        return manual_result(module, folder, mapping, self.service.sniff_cache.sniff)
+
+    def _load(self, result: DetectionResult, auto_export: bool) -> None:
+        key = plot_key(result.folder, result.kind)
+        if key in self._loads and not self._loads[key].done:
+            return
+        task = _LoadTask(result)
+        task.signals.loaded.connect(lambda r, d: self._on_loaded(r, d, auto_export))
+        task.signals.failed.connect(self._on_load_failed)
+        self._loads[key] = task
+        self.status.set_message(f"Carregando {result.module.display_name.lower()}…")
+        QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
+        QThreadPool.globalInstance().start(task)
+
+    def _finish_load(self, result: DetectionResult) -> None:
+        # Released on the next loop turn: we are inside a slot of the task's own signal object.
+        key = plot_key(result.folder, result.kind)
+        QTimer.singleShot(0, lambda: self._loads.pop(key, None))
+        if QApplication.overrideCursor() is not None:
+            QApplication.restoreOverrideCursor()
+
+    def _on_load_failed(self, result: DetectionResult, error: str) -> None:
+        self._finish_load(result)
+        self.status.set_message("Falha ao carregar os dados do gráfico.", "error", 8000)
+        QMessageBox.warning(self, "Não foi possível gerar o gráfico", error)
+        self.plot_failed.emit(error)
+
+    def _on_loaded(self, result: DetectionResult, dataset, auto_export: bool) -> None:
+        self._finish_load(result)
+        key = plot_key(result.folder, result.kind)
+        existing = self.workspace.widget_for(key)
+        params = result.module.default_params(self.config, dataset)
+        labels = self.memory.labels(result.folder) if result.kind == "bands" else None
+        if labels:
+            params.labels = ", ".join(labels)
+        session = PlotSession(result, dataset, params)
+        if existing is not None:
+            self.workspace.close_key(key)
+        view = PlotView(self.theme, session)
+        view.rendered.connect(self._on_rendered)
+        view.limits_changed.connect(self.params.refresh_values)
+        view.export_requested.connect(self.export_plot)
+        self.workspace.add(key, view, session.title, ("bubble_chart", "accent"), str(result.folder))
+        self.set_panel_visible("workspace", True)
+        self.params.bind(session)
+        self.params.refresh_values()
+        self.set_left_mode("params")
+        self.status.set_message(
+            f"{session.module.display_name}: {result.folder.name}", timeout_ms=4000
+        )
+        if auto_export:
+            self.export_plot()
+        self.plot_ready.emit(session)
+
+    def _on_tab_changed(self, widget) -> None:
+        if isinstance(widget, PlotView):
+            self.params.bind(widget.session)
+            self.params.refresh_values()
+            self._on_rendered(widget.session.info)
+        elif widget is None:
+            self.params.bind(None)
+
+    def _on_param_changed(self, _name: str) -> None:
+        self._render_timer.start()
+
+    def _render_current(self) -> None:
+        view = self.current_plot()
+        if view is not None:
+            view.render()
+
+    def _on_rendered(self, info) -> None:
+        view = self.current_plot()
+        if info is None or view is None:
+            return
+        params = view.session.params
+        px = f"{round(params.figure_width * params.export_dpi)}×{round(params.figure_height * params.export_dpi)} px"
+        self.status.set_readout(f"{info.summary} · {px} ({params.export_dpi} DPI)")
+        if hasattr(self.params, "readout"):
+            self.params.readout.setText(info.summary)
+
+    def _remap_current(self) -> None:
+        view = self.current_plot()
+        if view is None:
+            return
+        folder = view.session.folder
+        result = self._map_manually(folder, [view.session.result])
+        if result is not None:
+            self._load(result, auto_export=False)
+
+    def _remember_labels(self, labels: list) -> None:
+        view = self.current_plot()
+        if view is not None and view.session.kind == "bands":
+            self.memory.set_labels(view.session.folder, labels or None)
+
+    def export_plot(self) -> list[Path]:
+        """Save the current plot to <folder>/plots/ in the configured formats (PRD §4.4)."""
+        view = self.current_plot()
+        if view is None:
+            self.status.set_message("Nenhum gráfico aberto.", "warning", 3000)
+            return []
+        session = view.session
+        params = session.params
+        formats = params.export_formats
+        if not formats:
+            self.status.set_message("Selecione ao menos um formato de exportação.", "warning", 4000)
+            return []
+        stem = session.kind
+        existing = existing_targets(session.folder, stem, formats)
+        if existing and not self._overwrite_always:
+            new_stem = next_free_stem(session.folder, stem, formats)
+            choice, remember = ask_overwrite(self, existing, new_stem)
+            if choice is OverwriteChoice.CANCEL:
+                self.status.set_message("Exportação cancelada.", timeout_ms=3000)
+                return []
+            if choice is OverwriteChoice.NEW_VERSION:
+                stem = new_stem
+            self._overwrite_always = remember
+        export_theme = self.config.plot.export.theme
+        style = self.theme.plot_style if export_theme == "current" else style_for(export_theme)
+        try:
+            written = export_figure(
+                session.module, session.dataset, params, style, session.folder, stem
+            )
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "Falha ao exportar", str(exc))
+            return []
+        names = ", ".join(p.name for p in written)
+        self.status.set_message(f"Salvo em plots/: {names}", timeout_ms=8000)
+        self.files.refresh()
+        return written
 
     def start_sync(self) -> None:
         self.status.set_message("Sincronização ainda não disponível.", "warning", 3000)

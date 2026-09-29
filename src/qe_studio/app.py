@@ -34,6 +34,22 @@ def setup_logging(verbose: bool = False) -> None:
     )
 
 
+def install_excepthook() -> None:
+    """Report unexpected errors instead of letting PyQt6 abort the whole app."""
+    log = logging.getLogger("qe_studio")
+
+    def hook(kind, value, tb) -> None:
+        log.error("erro inesperado", exc_info=(kind, value, tb))
+        if QApplication.instance() is not None:
+            QMessageBox.critical(
+                None,
+                "Erro inesperado",
+                f"{kind.__name__}: {value}\n\nDetalhes no log ({cache_dir() / 'qe_studio.log'}).",
+            )
+
+    sys.excepthook = hook
+
+
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="qe-studio", description="QE Studio")
     parser.add_argument("--config", help="caminho do config.yaml")
@@ -45,6 +61,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     setup_logging(args.verbose)
+    install_excepthook()
     app = QApplication(sys.argv[:1])
     app.setApplicationName("QE Studio")
     app.setOrganizationName("qe-studio")

@@ -66,3 +66,10 @@ QProgressBar::chunk {
     background: ${accent};
     border-radius: 3px;
 }
+QAbstractSpinBox {
+    padding-right: 6px;
+}
+QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {
+    width: 0px;
+    border: none;
+}

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import KW_ONLY, dataclass, field
 from typing import Literal
 
 FieldKind = Literal["float", "int", "bool", "color", "choice", "text", "labels", "series"]
@@ -16,6 +16,7 @@ class ParamField:
     label: str
     section: str
     kind: FieldKind
+    _: KW_ONLY
     choices: tuple[tuple[object, str], ...] = ()  # (value, label)
     minimum: float | None = None
     maximum: float | None = None

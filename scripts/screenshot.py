@@ -69,12 +69,14 @@ def main() -> int:
     from PyQt6.QtCore import QSettings
     from PyQt6.QtWidgets import QApplication
 
+    from qe_studio.app import install_excepthook
     from qe_studio.config import LoadedConfig, parse_config
     from qe_studio.core.plotting.style import register_fonts
     from qe_studio.ui.main_window import MainWindow
     from qe_studio.ui.theme.manager import ThemeManager
 
     app = QApplication(sys.argv[:1])
+    install_excepthook()
     register_fonts()
     config = parse_config(
         {
@@ -93,8 +95,15 @@ def main() -> int:
             window.service.detect_now(folder)
         window.explorer.select_path(project / "03_bands")
         window.open_file(project / "03_bands" / "bands.in")
-        if args.plot and hasattr(window, "generate_plot_for"):
+        if args.plot:
+            from PyQt6.QtCore import QEventLoop, QTimer
+
+            loop = QEventLoop()
+            window.plot_ready.connect(loop.quit)
+            window.plot_failed.connect(loop.quit)
+            QTimer.singleShot(15000, loop.quit)
             window.generate_plot_for(project / "03_bands", auto_export=False)
+            loop.exec()
         for _ in range(30):
             app.processEvents()
         window.service.wait(3000)

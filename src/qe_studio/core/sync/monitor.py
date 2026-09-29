@@ -105,8 +105,13 @@ class ConnectionMonitor(QObject):
 
     def _on_probe(self, reachable: bool) -> None:
         self._probing = False
-        self._probes = [p for p in self._probes if p.signals is not self.sender()]
+        # Release finished probes later: this slot runs on the probe's own signal object.
+        QTimer.singleShot(0, self._release_probes)
         self.report(reachable)
+
+    def _release_probes(self) -> None:
+        if not self._probing:
+            self._probes.clear()
 
     def _set(self, state: ConnectionState) -> None:
         changed = state != self._state
