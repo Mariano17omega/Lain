@@ -191,3 +191,34 @@ def test_missing_rsync_binary_fails(qtbot, dirs):
     config = parse_config({"sync": {"rsync_binary": "/nonexistent/rsync"}})
     report, _ = run_sync(qtbot, SyncController(config), local, Endpoint(str(remote)))
     assert report.status is SyncStatus.FAILED and "rsync não encontrado" in report.error
+
+
+def test_unexpected_stage_error_fails_the_sync(qtbot, dirs, monkeypatch):
+    """An exception inside a stage (e.g. mkdir of the local folder) must still end the sync."""
+    remote, local = dirs
+    write(remote, "a.out", "x")
+
+    def broken(*args, **kwargs):
+        raise NotADirectoryError(20, "Not a directory", str(local))
+
+    monkeypatch.setattr("qe_studio.core.sync.controller.transfer_command", broken)
+    controller = SyncController(make_config())
+    report, _ = run_sync(qtbot, controller, local, Endpoint(str(remote)))
+    assert report.status is SyncStatus.FAILED and "Not a directory" in report.error
+    assert not controller.running
+
+
+def test_temp_cleanup_lists_each_folder_once(tmp_path, monkeypatch):
+    controller = SyncController(make_config())
+    controller._local_dir = tmp_path
+    controller._transfer = [f"run/f{i}.out" for i in range(50)] + ["other/x.dat"]
+    for name in ("run/.f1.out.Ab12Cd", "run/.f49.out.zzzzzz", "run/.keep.out.Ab12Cd", "run/f1.out"):
+        write(tmp_path, name, "")
+    write(tmp_path, "other/.x.dat.123456", "")
+    scanned = []
+    real = os.scandir
+    monkeypatch.setattr(os, "scandir", lambda path: scanned.append(path) or real(path))
+    controller._remove_temp_files()
+    assert sorted(p.name for p in (tmp_path / "run").iterdir()) == [".keep.out.Ab12Cd", "f1.out"]
+    assert list((tmp_path / "other").iterdir()) == []
+    assert len(scanned) == 2

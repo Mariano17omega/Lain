@@ -13,7 +13,6 @@ import os
 import re
 import shlex
 import stat
-import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -110,18 +109,13 @@ def child_env(
 
 
 @lru_cache(maxsize=4)
-def rsync_version(rsync_binary: str = "rsync") -> tuple[int, ...] | None:
-    try:
-        out = subprocess.run(
-            [*shlex.split(rsync_binary), "--version"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        ).stdout
-    except (OSError, subprocess.SubprocessError):
-        return None
-    match = re.search(r"version\s+(\d+)\.(\d+)\.(\d+)", out)
+def version_command(rsync_binary: str = "rsync") -> list[str]:
+    return [*shlex.split(rsync_binary), "--version"]
+
+
+def parse_version(output: str) -> tuple[int, ...] | None:
+    """``rsync --version`` output → (major, minor, patch), None if it is not rsync's."""
+    match = re.search(r"version\s+(\d+)\.(\d+)\.(\d+)", output)
     return tuple(int(part) for part in match.groups()) if match else None
 
 

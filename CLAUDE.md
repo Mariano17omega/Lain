@@ -113,9 +113,12 @@ QSettings (`layout/*`, `files/*`, `explorer/last_folder`).
 `core/sync/rsync.py` builds commands/env and parses output (children run with `LC_ALL=C.UTF-8`,
 `TZ=UTC`, `--no-h` because rsync output is locale-dependent). `planner.py` is pure: dry-run
 records + local stats → per-file NEW / UPDATE / LOCAL_NEWER; files only present locally (like
-`plots/`) never block a pull. `controller.py` is a `QProcess` state machine (dry run → plan →
-conflicts → transfer) that never opens dialogs: it emits `conflict_needed` and waits for
-`resolve()`, so UI and tests supply the answer. Passwords reach ssh only via `SSH_ASKPASS`
+`plots/`) never block a pull. `controller.py` is a `QProcess` state machine (`rsync --version` →
+dry run → plan, whose local stats run in a worker → conflicts → transfer) that never opens
+dialogs: it emits `conflict_needed` and waits for `resolve()`, so UI and tests supply the answer.
+Every stage runs through `_step()`, so an exception ends the sync as FAILED instead of hanging
+it. `monitor.py` probes in daemon threads, not a `QThreadPool` (DNS ignores the connect timeout
+and a pool's destructor waits without limit). Passwords reach ssh only via `SSH_ASKPASS`
 (`askpass.py`, installed as `qe-studio-askpass`) through the child env, never argv or logs; unknown
 host keys are always refused.
 

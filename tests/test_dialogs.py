@@ -1,9 +1,9 @@
-from PyQt6.QtWidgets import QDialogButtonBox
+from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QWidget
 
 from qe_studio.core.calculations import REGISTRY
 from qe_studio.core.detection import detect_folder
-from qe_studio.ui.dialogs.mapping import ManualMappingDialog
-from qe_studio.ui.dialogs.overwrite import OverwriteChoice, OverwriteDialog
+from qe_studio.ui.dialogs.mapping import ManualMappingDialog, ask_mapping
+from qe_studio.ui.dialogs.overwrite import OverwriteChoice, OverwriteDialog, ask_overwrite
 
 from conftest import FIXTURES
 
@@ -46,3 +46,12 @@ def test_overwrite_dialog_choices(qtbot, tmp_path):
     qtbot.addWidget(dialog)
     dialog._choose(OverwriteChoice.CANCEL)
     assert dialog.result() == 0
+
+
+def test_ask_helpers_delete_their_dialogs(qtbot, monkeypatch, tmp_path):
+    parent = QWidget()
+    qtbot.addWidget(parent)
+    monkeypatch.setattr(QDialog, "exec", lambda self: QDialog.DialogCode.Rejected)
+    assert ask_overwrite(parent, [tmp_path / "a.png"], "a_v2") == (OverwriteChoice.CANCEL, False)
+    assert ask_mapping(parent, FIXTURES / "al_bands", plottable(), []) is None
+    qtbot.waitUntil(lambda: not parent.findChildren(QDialog), timeout=2000)

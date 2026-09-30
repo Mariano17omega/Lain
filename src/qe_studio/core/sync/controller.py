@@ -1,8 +1,9 @@
 """Pull synchronization state machine driving rsync through QProcess (PRD §5).
 
-Stages: dry run → plan → conflict prompts → transfer. The controller never blocks the GUI
-thread and never opens dialogs: it emits ``conflict_needed`` and waits for ``resolve()``, so
-the UI (or a test) decides how to ask.
+Stages: rsync version → dry run → plan → conflict prompts → transfer. The controller never
+blocks the GUI thread (processes run in ``QProcess``, the plan's local stats in a worker) and
+never opens dialogs: it emits ``conflict_needed`` and waits for ``resolve()``, so the UI (or a
+test) decides how to ask.
 """
 
 from __future__ import annotations
@@ -14,7 +15,15 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, pyqtSignal
+from PyQt6.QtCore import (
+    QObject,
+    QProcess,
+    QProcessEnvironment,
+    QRunnable,
+    QThreadPool,
+    QTimer,
+    pyqtSignal,
+)
 
 from ..config import AppConfig
 from .planner import ConflictResolver, Decision, PlanItem, PlanStatus, SyncPlan, build_plan
@@ -26,13 +35,16 @@ from .rsync import (
     is_connection_failure,
     parse_dry_run,
     parse_progress,
-    rsync_version,
+    parse_version,
     transfer_command,
+    version_command,
 )
 
 log = logging.getLogger(__name__)
 
 KILL_GRACE_MS = 3000
+RSYNC_MISSING = "rsync não encontrado (sync.rsync_binary)."
+TEMP_NAME = re.compile(r"^\.(.+)\.[A-Za-z0-9]{6}$")  # rsync's partial file for ``name``
 
 
 class SyncStatus(StrEnum):
@@ -79,6 +91,27 @@ class SyncReport:
         return "\n".join(lines)
 
 
+class _PlanSignals(QObject):
+    done = pyqtSignal(int, object, object)  # sync run, SyncPlan | None, exception | None
+
+
+class _PlanTask(QRunnable):
+    """Compares the dry-run listing with the local files: one stat per file, network homes."""
+
+    def __init__(self, run_id: int, stdout: str, local_dir: Path):
+        super().__init__()
+        self.run_id, self.stdout, self.local_dir = run_id, stdout, local_dir
+        self.signals = _PlanSignals()
+
+    def run(self) -> None:
+        try:
+            plan = build_plan(parse_dry_run(self.stdout), self.local_dir)
+        except Exception as exc:  # reported as a failed sync, never lost in the worker
+            self.signals.done.emit(self.run_id, None, exc)
+        else:
+            self.signals.done.emit(self.run_id, plan, None)
+
+
 class SyncController(QObject):
     stage_changed = pyqtSignal(str)
     progress_changed = pyqtSignal(int, str)  # percent (-1 = indeterminate), detail
@@ -106,6 +139,9 @@ class SyncController(QObject):
         self._stderr = ""
         self._version: tuple[int, ...] | None = None
         self._running = False
+        self._run_id = 0  # plan results of an earlier (cancelled) run are dropped
+        self._plan_tasks: dict[int, _PlanTask] = {}  # running (keeps their signals alive)
+        self._finished_tasks: list[_PlanTask] = []
 
     @property
     def running(self) -> bool:
@@ -120,20 +156,17 @@ class SyncController(QObject):
         if self._running:
             raise RuntimeError("sincronização já em andamento")
         self._running = True
+        self._run_id += 1
         self._cancelled = False
         self._local_dir = Path(local_dir)
         self._remote = remote
         self._plan = SyncPlan()
         self._resolver = None
         self._transfer = []
-        self._version = rsync_version(self.config.sync.rsync_binary)
-        if self._version is None:
-            self._finish(SyncStatus.FAILED, error="rsync não encontrado (sync.rsync_binary).")
-            return
+        self._version = None
         self.stage_changed.emit("Listando arquivos no cluster…")
         self.progress_changed.emit(-1, remote.spec())
-        argv = dry_run_command(self.config, remote, self._local_dir, self._version, self.extra_args)
-        self._launch(argv, self._on_dry_run_finished)
+        self._step(self._check_version)
 
     def resolve(self, decision: Decision) -> None:
         if self._resolver is None or not self._running:
@@ -166,6 +199,36 @@ class SyncController(QObject):
             process.waitForFinished(1000)
 
     # -- stages -----------------------------------------------------------------------------------
+    def _step(self, stage, *args) -> None:
+        """Run a stage; an unexpected error (e.g. the local folder cannot be created) ends the
+        sync as FAILED instead of leaving it, and its dialog, running forever."""
+        try:
+            stage(*args)
+        except Exception as exc:
+            self._unexpected(exc)
+
+    def _unexpected(self, exc: BaseException) -> None:
+        log.error("sync stage failed", exc_info=exc)
+        self._kill_if_running()
+        self._finish(SyncStatus.FAILED, error=f"erro inesperado ({type(exc).__name__}: {exc})")
+
+    def _check_version(self) -> None:
+        argv = version_command(self.config.sync.rsync_binary)
+        self._launch(argv, self._on_version, start_error=RSYNC_MISSING)
+
+    def _on_version(self, _code: int, stdout: str) -> None:
+        if self._cancelled:
+            self._finish(SyncStatus.CANCELLED)
+            return
+        self._version = parse_version(stdout)
+        if self._version is None:
+            self._finish(SyncStatus.FAILED, error=RSYNC_MISSING)
+            return
+        argv = dry_run_command(
+            self.config, self._remote, self._local_dir, self._version, self.extra_args
+        )
+        self._launch(argv, self._on_dry_run_finished)
+
     def _on_dry_run_finished(self, code: int, stdout: str) -> None:
         if self._cancelled:
             self._finish(SyncStatus.CANCELLED)
@@ -174,7 +237,28 @@ class SyncController(QObject):
             self._fail(code)
             return
         self.stage_changed.emit("Comparando datas de modificação…")
-        self._plan = build_plan(parse_dry_run(stdout), self._local_dir)
+        task = _PlanTask(self._run_id, stdout, self._local_dir)
+        task.signals.done.connect(self._on_plan)
+        self._plan_tasks[self._run_id] = task
+        QThreadPool.globalInstance().start(task)
+
+    def _on_plan(self, run_id: int, plan: SyncPlan | None, error: Exception | None) -> None:
+        # Drop the task on the next loop turn: this slot runs on its own signal object.
+        task = self._plan_tasks.pop(run_id, None)
+        if task is not None:
+            self._finished_tasks.append(task)
+            QTimer.singleShot(0, self._finished_tasks.clear)
+        if run_id != self._run_id or not self._running:
+            return  # cancelled while planning: already finished
+        if self._cancelled:
+            self._finish(SyncStatus.CANCELLED)
+        elif error is not None:
+            self._unexpected(error)
+        else:
+            self._step(self._use_plan, plan)
+
+    def _use_plan(self, plan: SyncPlan) -> None:
+        self._plan = plan
         if self._plan.status is PlanStatus.UP_TO_DATE:
             self._finish(SyncStatus.UP_TO_DATE)
         elif self._plan.status is PlanStatus.LOCAL_NEWER:
@@ -191,7 +275,7 @@ class SyncController(QObject):
             self.stage_changed.emit("Conflito: aguardando decisão…")
             self.conflict_needed.emit(item)
             return
-        self._start_transfer()
+        self._step(self._start_transfer)
 
     def _start_transfer(self) -> None:
         approved = self._resolver.approved if self._resolver else []
@@ -220,7 +304,14 @@ class SyncController(QObject):
             self._finish(SyncStatus.DONE)
 
     # -- helpers ----------------------------------------------------------------------------------
-    def _launch(self, argv, on_finished, stdin: bytes | None = None, progress: bool = False):
+    def _launch(
+        self,
+        argv,
+        on_finished,
+        stdin: bytes | None = None,
+        progress: bool = False,
+        start_error: str | None = None,
+    ):
         process = QProcess(self)
         env = QProcessEnvironment()
         for key, value in child_env(self.config.cluster, password=self.password).items():
@@ -244,13 +335,15 @@ class SyncController(QObject):
             if self._process is process:
                 self._process = None
             process.deleteLater()
-            on_finished(code, b"".join(chunks).decode("utf-8", "surrogateescape"))
+            self._step(on_finished, code, b"".join(chunks).decode("utf-8", "surrogateescape"))
 
         def failed(error) -> None:
             if error == QProcess.ProcessError.FailedToStart:
                 if self._process is process:
                     self._process = None
-                self._finish(SyncStatus.FAILED, error=f"não foi possível executar {argv[0]}")
+                self._finish(
+                    SyncStatus.FAILED, error=start_error or f"não foi possível executar {argv[0]}"
+                )
 
         process.readyReadStandardOutput.connect(read_stdout)
         process.readyReadStandardError.connect(read_stderr)
@@ -278,15 +371,21 @@ class SyncController(QObject):
 
     def _remove_temp_files(self) -> None:
         """rsync writes ``.name.XXXXXX`` temps; SIGKILL can leave them behind."""
+        names: dict[Path, set[str]] = {}
         for relative in self._transfer:
             target = self._local_dir / relative
-            pattern = re.compile(rf"^\.{re.escape(target.name)}\.[A-Za-z0-9]{{6}}$")
+            names.setdefault(target.parent, set()).add(target.name)
+        for folder, expected in names.items():  # one listing per folder, not one per file
             try:
-                for entry in os.scandir(target.parent):
-                    if pattern.match(entry.name):
-                        os.remove(entry.path)
+                with os.scandir(folder) as entries:
+                    temps = [e.path for e in entries if _temp_of(e.name) in expected]
             except OSError:
                 continue
+            for path in temps:
+                try:
+                    os.remove(path)
+                except OSError:
+                    continue
 
     def _fail(self, code: int) -> None:
         connection = is_connection_failure(code, self._stderr)
@@ -311,6 +410,11 @@ class SyncController(QObject):
             connection_failed=connection_failed,
         )
         self.finished.emit(report)
+
+
+def _temp_of(name: str) -> str | None:
+    match = TEMP_NAME.match(name)
+    return match.group(1) if match else None
 
 
 __all__ = ["Decision", "PlanItem", "SyncController", "SyncReport", "SyncStatus"]

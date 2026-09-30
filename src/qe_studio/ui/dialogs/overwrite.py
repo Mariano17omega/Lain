@@ -68,4 +68,7 @@ def ask_overwrite(
     """(choice, remember-for-session)."""
     dialog = OverwriteDialog(existing, new_stem, parent)
     dialog.exec()
-    return dialog.choice, dialog.remember.isChecked() and dialog.choice is OverwriteChoice.OVERWRITE
+    remember = dialog.remember.isChecked() and dialog.choice is OverwriteChoice.OVERWRITE
+    choice = dialog.choice
+    dialog.deleteLater()
+    return choice, remember

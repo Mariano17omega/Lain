@@ -149,6 +149,8 @@ def ask_mapping(
 ) -> tuple[str, dict[str, list[Path]], bool] | None:
     """(kind, mapping, remember) or None if cancelled."""
     dialog = ManualMappingDialog(folder, modules, results, parent, message)
-    if dialog.exec() != QDialog.DialogCode.Accepted:
-        return None
-    return dialog.module.kind, dialog.mapping(), dialog.remember.isChecked()
+    answer = None
+    if dialog.exec() == QDialog.DialogCode.Accepted:
+        answer = dialog.module.kind, dialog.mapping(), dialog.remember.isChecked()
+    dialog.deleteLater()
+    return answer

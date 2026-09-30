@@ -1,6 +1,7 @@
 import gc
 import os
 import shutil
+import threading
 import weakref
 
 import pytest
@@ -11,6 +12,7 @@ from PyQt6.QtCore import QCoreApplication, QEvent, QSize
 from PyQt6.QtWidgets import QLabel, QMessageBox, QPushButton
 
 from qe_studio.core.calculations.base import Method
+from qe_studio.ui import main_window as main_window_module
 from qe_studio.ui.dialogs.overwrite import OverwriteChoice
 from qe_studio.ui.widgets.plot_view import PlotView
 
@@ -116,6 +118,44 @@ def test_zoom_limits_flow_into_params(qtbot, main_window, demo_project, no_dialo
     assert (params.emin, params.emax, params.xmin) == (-5.0, 5.0, None)
 
 
+def test_back_and_forward_flow_into_params(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    view = window.current_plot()
+    nav, ax = view.toolbar.nav, view.figure.axes[0]
+    nav.push_current()  # what a toolbar zoom records: the first view, then the zoomed one
+    ax.set_ylim(-2.0, 1.0)
+    nav.push_current()
+    view._on_release(None)
+    params = view.session.params
+    assert (params.emin, params.emax) == (-2.0, 1.0)
+    view.toolbar.back.click()
+    assert (params.emin, params.emax) == pytest.approx((-5.0, 5.0))
+    view.toolbar.forward.click()
+    assert (params.emin, params.emax) == (-2.0, 1.0)
+
+
+def test_regenerate_keeps_edits_made_while_loading(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    session = generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    session.params.emin = -3.0  # edited after the worker read bands.plot (none yet)
+    window._on_loaded(session.result, session.dataset, (None, []), False)
+    new = window.current_plot().session
+    assert new is not session and new.params.emin == -3.0 and new.defaults.emin == -5.0
+
+
+def test_detected_results_survive_an_invalidation(qtbot, main_window, demo_project, no_dialogs):
+    """A refresh or sync between detection and the next loop turn must not lose the results."""
+    window = main_window
+    folder = demo_project / "03_bands"
+    window.service.detect_now(folder)
+    window._detecting[str(folder)] = False
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        window._on_detected(str(folder))
+        window.service.invalidate()
+    assert no_dialogs["mapping"] == []
+
+
 def test_canvas_keeps_export_inches(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     generate(qtbot, window, demo_project / "03_bands", auto_export=False)
@@ -191,7 +231,16 @@ def test_manual_mapping_when_scf_missing(qtbot, main_window, demo_project, no_di
         return "bands", {"scf_out": [elsewhere / "run.log"], "gnu": [folder / "dados.gnu"]}, True
 
     monkeypatch.setattr("qe_studio.ui.main_window.ask_mapping", mapping)
+    on_gui_thread = []
+    real = main_window_module.manual_result
+
+    def manual_result(*args):
+        on_gui_thread.append(threading.current_thread() is threading.main_thread())
+        return real(*args)
+
+    monkeypatch.setattr(main_window_module, "manual_result", manual_result)
     session = generate(qtbot, window, folder, auto_export=False)
+    assert on_gui_thread == [False]  # it sniffs the mapped files: load worker only
     assert session.result.methods["scf_out"] is Method.MANUAL
     assert session.dataset.fermi == 8.0584
     assert window.memory.mapping(folder, "bands")["scf_out"] == [elsewhere / "run.log"]

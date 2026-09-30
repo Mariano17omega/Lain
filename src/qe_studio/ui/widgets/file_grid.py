@@ -255,6 +255,12 @@ class FilePanel(QWidget):
         self._clear_counts()
         self.view.viewport().update()
 
+    def shutdown(self, msecs: int = 1000) -> bool:
+        """Drop queued counts and wait for the running ones (window close): the pool's
+        destructor would otherwise run every queued scan, without a time limit."""
+        self._count_pool.clear()
+        return self._count_pool.waitForDone(msecs)
+
     def _on_theme_changed(self, _name: str) -> None:
         self.view.viewport().update()
 

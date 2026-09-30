@@ -163,7 +163,7 @@ class ExplorerPanel(QWidget):
         self.tree.setRootIndex(self.proxy.index_for(root))
 
     def refresh(self) -> None:
-        self.service.invalidate()
+        """Repaint the badges; the caller invalidates the detection it knows is stale."""
         self.tree.viewport().update()
 
     def current_path(self) -> Path | None:

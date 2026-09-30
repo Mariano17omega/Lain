@@ -4,8 +4,11 @@ import pytest
 from PyQt6 import sip
 from PyQt6.QtCore import QCoreApplication, QEvent, QSettings
 from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtWidgets import QMessageBox
 
 from qe_studio.core.config import LoadedConfig, parse_config
+from qe_studio.core.sync.controller import SyncReport, SyncStatus
+from qe_studio.core.sync.rsync import Endpoint
 from qe_studio.ui.main_window import MainWindow, fit_widths
 from qe_studio.ui.widgets.bars import ActivityBar
 from qe_studio.ui.widgets.fs_model import SORT_DATE
@@ -380,3 +383,18 @@ def test_unusable_last_folder_falls_back_to_the_root(qtbot, main_window, demo_pr
     window.settings.setValue("explorer/last_folder", str(folder))
     window._restore_folder()
     assert window.files.folder == demo_project
+
+
+def test_sync_keeps_detection_outside_the_synced_folder(
+    qtbot, main_window, demo_project, monkeypatch
+):
+    window = main_window
+    monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a, **k: None))
+    relax, bands = demo_project / "01_relax", demo_project / "03_bands"
+    for folder in (relax, bands):
+        window.service.detect_now(folder)
+    synced = bands / "tmp"
+    window._on_sync_finished(SyncReport(SyncStatus.DONE, synced, Endpoint("/r/03_bands/tmp")))
+    assert window.service.results(relax) is not None
+    assert window.service.results(bands) is not None
+    assert window.service.file_sniff(bands / "scf.out") is not None

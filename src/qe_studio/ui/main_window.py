@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import copy
 import logging
+from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 from PyQt6.QtCore import (
     QObject,
@@ -35,7 +37,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import APP_NAME, __version__
-from ..core.calculations import REGISTRY, DetectionResult
+from ..core.calculations import REGISTRY, CalculationModule, DetectionResult
 from ..core.calculations.base import LoadError
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.detection import FolderMemory, manual_result
@@ -46,6 +48,7 @@ from ..core.plotting.plot_file import (
     delete_plot_file,
     plot_file_path,
     read_plot_file,
+    stored_params,
     write_plot_file,
 )
 from ..core.sync.controller import SyncController, SyncReport, SyncStatus
@@ -76,29 +79,48 @@ PANELS = ("tree", "grid", "workspace")  # splitter order
 DEFAULT_PANEL_WIDTHS = {"tree": 280, "grid": 320, "workspace": 840}
 
 
+class _Manual(NamedTuple):
+    """A manual mapping (PRD §3.2), matched in the load worker: that sniffs the chosen files,
+    which can be big or on a network disk."""
+
+    module: CalculationModule
+    folder: Path
+    mapping: dict[str, list[Path]]
+    sniff: Callable
+
+    @property
+    def kind(self) -> str:
+        return self.module.kind
+
+    def build(self) -> DetectionResult:
+        return manual_result(self.module, self.folder, self.mapping, self.sniff)
+
+
 class _LoadSignals(QObject):
     loaded = pyqtSignal(object, object, object)  # DetectionResult, dataset, read_plot_file()
-    failed = pyqtSignal(object, str)
+    failed = pyqtSignal(object, str)  # DetectionResult | _Manual
 
 
 class _LoadTask(QRunnable):
-    def __init__(self, result: DetectionResult):
+    def __init__(self, target: DetectionResult | _Manual):
         super().__init__()
-        self.result = result
+        self.target = target
         self.signals = _LoadSignals()
         self.done = False
 
     def run(self) -> None:
         try:
-            dataset = self.result.module.load_cached(self.result)
-            stored = read_plot_file(self.result.folder, self.result.kind)
+            target = self.target
+            result = target.build() if isinstance(target, _Manual) else target
+            dataset = result.module.load_cached(result)
+            stored = read_plot_file(result.folder, result.kind)
         except LoadError as exc:
-            self.signals.failed.emit(self.result, str(exc))
+            self.signals.failed.emit(self.target, str(exc))
         except Exception as exc:  # parsing errors must reach the user, not kill the worker
             log.exception("load failed")
-            self.signals.failed.emit(self.result, f"{type(exc).__name__}: {exc}")
+            self.signals.failed.emit(self.target, f"{type(exc).__name__}: {exc}")
         else:
-            self.signals.loaded.emit(self.result, dataset, stored)
+            self.signals.loaded.emit(result, dataset, stored)
         finally:
             self.done = True
 
@@ -363,7 +385,8 @@ class MainWindow(QMainWindow):
         self._flush_plot_files()
         self._save_state()
         self.monitor.stop()
-        self.service.wait(2000)
+        self.service.shutdown(2000)
+        self.files.shutdown()
         super().closeEvent(event)
 
     # -- navigation -----------------------------------------------------------------------------
@@ -623,14 +646,19 @@ class MainWindow(QMainWindow):
     def _on_detected(self, key: str) -> None:
         if key not in self._detecting:
             return
+        # Taken now: by the next loop turn a refresh or sync may have invalidated the cache.
+        results = self.service.results(Path(key))
+        if results is None:
+            return  # invalidated already: detection runs again and lands here
         auto_export = self._detecting.pop(key)
         QApplication.restoreOverrideCursor()
         self.status.set_message("")
         # Next loop turn: dialogs below must not run inside the detection task's signal.
-        QTimer.singleShot(0, lambda: self._plot_detected(Path(key), auto_export))
+        QTimer.singleShot(0, lambda: self._plot_detected(Path(key), results, auto_export))
 
-    def _plot_detected(self, folder: Path, auto_export: bool) -> None:
-        results = self.service.results(folder) or []
+    def _plot_detected(
+        self, folder: Path, results: list[DetectionResult], auto_export: bool
+    ) -> None:
         plottable = [r for r in results if r.module.plottable]
         complete = [r for r in plottable if r.complete]
         if len(complete) > 1:
@@ -645,7 +673,7 @@ class MainWindow(QMainWindow):
                 return
         self._load(chosen, auto_export)
 
-    def _map_manually(self, folder: Path, results: list[DetectionResult]) -> DetectionResult | None:
+    def _map_manually(self, folder: Path, results: list[DetectionResult]) -> _Manual | None:
         modules = [m for m in REGISTRY if m.plottable]
         detected = [r.badge for r in results if not r.module.plottable]
         message = ""
@@ -667,30 +695,30 @@ class MainWindow(QMainWindow):
         if remember:
             self.memory.set_mapping(folder, kind, mapping)
             self.service.invalidate(folder)
-        return manual_result(module, folder, mapping, self.service.sniff_cache.sniff)
+        return _Manual(module, folder, mapping, self.service.sniff_cache.sniff)
 
-    def _load(self, result: DetectionResult, auto_export: bool) -> None:
-        key = plot_key(result.folder, result.kind)
+    def _load(self, target: DetectionResult | _Manual, auto_export: bool) -> None:
+        key = plot_key(target.folder, target.kind)
         if key in self._loads and not self._loads[key].done:
             return
         self._flush_plot_files(key)  # the worker reads the .plot: pending edits first
-        task = _LoadTask(result)
+        task = _LoadTask(target)
         task.signals.loaded.connect(lambda r, d, s: self._on_loaded(r, d, s, auto_export))
         task.signals.failed.connect(self._on_load_failed)
         self._loads[key] = task
-        self.status.set_message(f"Carregando {result.module.display_name.lower()}…")
+        self.status.set_message(f"Carregando {target.module.display_name.lower()}…")
         QApplication.setOverrideCursor(Qt.CursorShape.BusyCursor)
         QThreadPool.globalInstance().start(task)
 
-    def _finish_load(self, result: DetectionResult) -> None:
+    def _finish_load(self, target: DetectionResult | _Manual) -> None:
         # Released on the next loop turn: we are inside a slot of the task's own signal object.
-        key = plot_key(result.folder, result.kind)
+        key = plot_key(target.folder, target.kind)
         QTimer.singleShot(0, lambda: self._loads.pop(key, None))
         if QApplication.overrideCursor() is not None:
             QApplication.restoreOverrideCursor()
 
-    def _on_load_failed(self, result: DetectionResult, error: str) -> None:
-        self._finish_load(result)
+    def _on_load_failed(self, target: DetectionResult | _Manual, error: str) -> None:
+        self._finish_load(target)
         self.status.set_message("Falha ao carregar os dados do gráfico.", "error", 8000)
         QMessageBox.warning(self, "Não foi possível gerar o gráfico", error)
         self.plot_failed.emit(error)
@@ -701,14 +729,18 @@ class MainWindow(QMainWindow):
         existing = self.workspace.widget_for(key)
         module = result.module
         params = module.default_params(self.config, dataset)
-        stored_params, stored_warnings = stored
+        stored, stored_warnings = stored
+        if existing is not None and existing.session.params != existing.session.defaults:
+            # Regenerating an open plot: its tab also has the edits made while the worker read
+            # <kind>.plot (they reach the file only when the tab closes below).
+            stored, stored_warnings = stored_params(existing.session.params), []
         # k-point labels typed before <kind>.plot existed (read-only fallback).
-        legacy = stored_params is None and result.kind == "bands"
+        legacy = stored is None and result.kind == "bands"
         if legacy and (labels := self.memory.labels(result.folder)):
             params.labels = ", ".join(labels)
         session = PlotSession(result, dataset, params)  # defaults: without the stored settings
-        if stored_params is not None:
-            ignored = apply_stored(params, stored_params, module.param_schema(dataset))
+        if stored is not None:
+            ignored = apply_stored(params, stored, module.param_schema(dataset))
             if ignored:
                 log.warning("%s.plot: ignored %s", result.kind, ", ".join(ignored))
         if existing is not None:

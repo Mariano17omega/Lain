@@ -98,6 +98,7 @@ class _Navigation(NavigationToolbar2QT):
 class PlotToolbar(QWidget):
     export_requested = pyqtSignal()
     reset_requested = pyqtSignal()
+    navigated = pyqtSignal()  # Back/Forward changed the axis limits
 
     def __init__(
         self, theme: ThemeManager, canvas: FigureCanvasQTAgg, parent: QWidget | None = None
@@ -130,12 +131,20 @@ class PlotToolbar(QWidget):
         self.export = tool("download", "Exportar", "Salvar em plots/ (Ctrl+E)")
 
         self.reset.clicked.connect(self.reset_requested)
-        self.back.clicked.connect(self.nav.back)
-        self.forward.clicked.connect(self.nav.forward)
+        self.back.clicked.connect(self._back)
+        self.forward.clicked.connect(self._forward)
         self.pan.clicked.connect(self._pan)
         self.zoom.clicked.connect(self._zoom)
         self.export.clicked.connect(self.export_requested)
         self.nav.on_message = self.message.setText
+
+    def _back(self) -> None:
+        self.nav.back()
+        self.navigated.emit()
+
+    def _forward(self) -> None:
+        self.nav.forward()
+        self.navigated.emit()
 
     def _pan(self) -> None:
         self.nav.pan()
@@ -163,6 +172,7 @@ class PlotView(QWidget):
         self.setObjectName("plotView")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.theme, self.session = theme, session
+        self._limits: tuple | None = None  # axis limits the params already describe
         register_fonts()
         params = session.params
         self.figure = Figure(figsize=params.figure_size)
@@ -176,6 +186,7 @@ class PlotView(QWidget):
         layout.addWidget(self.box, 1)
         self.toolbar.export_requested.connect(self.export_requested)
         self.toolbar.reset_requested.connect(self._reset)
+        self.toolbar.navigated.connect(self._on_release)
         self.canvas.mpl_connect("button_release_event", self._on_release)
         self.canvas.mpl_connect("scroll_event", self._on_release)
         self.render()
@@ -188,6 +199,7 @@ class PlotView(QWidget):
         style = self.session.style  # not the app theme: the figure looks like the export
         self.canvas.rc = style.rc(params.font_size)
         info = self.session.render(self.figure, style)
+        self._limits = self._axis_limits()
         self.canvas.draw_idle()
         self.toolbar.nav.update()  # drop the pan/zoom history of the previous drawing
         self.rendered.emit(info)
@@ -197,13 +209,19 @@ class PlotView(QWidget):
         self.render()
         self.limits_changed.emit()
 
-    def _on_release(self, _event) -> None:
+    def _axis_limits(self) -> tuple | None:
         if not self.figure.axes:
-            return
+            return None
         ax = self.figure.axes[0]
-        xlim, ylim = tuple(ax.get_xlim()), tuple(ax.get_ylim())
-        info = self.session.info
-        if info is not None and (xlim, ylim) == (tuple(info.xlim), tuple(info.ylim)):
+        return tuple(ax.get_xlim()), tuple(ax.get_ylim())
+
+    def _on_release(self, _event=None) -> None:
+        """Pan/zoom, scroll or Back/Forward: store the new view in the params (exports)."""
+        limits = self._axis_limits()
+        # Compared with the last stored view, not the rendered one: Back to the first view
+        # must still undo a zoom already written into the params.
+        if limits is None or limits == self._limits:
             return
-        self.session.apply_limits(xlim, ylim)
+        self._limits = limits
+        self.session.apply_limits(*limits)
         self.limits_changed.emit()

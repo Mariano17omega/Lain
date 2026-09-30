@@ -22,8 +22,12 @@ class _DetectTask(QRunnable):
         super().__init__()
         self.token, self.folder, self.sniff, self.memory = token, folder, sniff, memory
         self.signals = _Signals()
+        self.cancelled = False  # superseded before it started: skip the work
 
     def run(self) -> None:
+        if self.cancelled:
+            self.signals.done.emit(self.token, None)
+            return
         try:
             results = detect_folder(self.folder, sniff=self.sniff.sniff, memory=self.memory)
         except Exception:  # never let a worker exception take the app down
@@ -33,6 +37,12 @@ class _DetectTask(QRunnable):
 
 def _within(key: str, folder: Path | None) -> bool:
     return folder is None or Path(key).is_relative_to(folder)
+
+
+def _affected(key: str, folder: Path | None) -> bool:
+    """Detection that may change with ``folder``'s files: inside it, or a sibling folder
+    (``infer_from_neighbours`` takes the SCF output from sibling ``*scf*`` folders)."""
+    return _within(key, folder) or Path(key).parent == Path(folder).parent
 
 
 class DetectionService(QObject):
@@ -67,6 +77,7 @@ class DetectionService(QObject):
         key = str(folder)
         if key in self._pending and not fresh:
             return
+        self._cancel(key)
         token = next(self._tokens)
         task = _DetectTask(token, Path(folder), self.sniff_cache, self.memory)
         task.signals.done.connect(self._on_done)
@@ -78,7 +89,8 @@ class DetectionService(QObject):
         """Synchronous detection refreshing the cache (blocks: scripts and tests only)."""
         key = str(folder)
         results = detect_folder(Path(folder), sniff=self.sniff_cache.sniff, memory=self.memory)
-        self._pending.pop(key, None)  # a task started earlier must not overwrite this
+        self._cancel(key)  # a task started earlier must not overwrite this
+        self._pending.pop(key, None)
         with self._lock:
             self._results[key] = results
         self.detected.emit(key)
@@ -88,21 +100,40 @@ class DetectionService(QObject):
         return self.sniff_cache.peek(Path(path))
 
     def invalidate(self, folder: Path | None = None) -> None:
+        """Forget ``folder`` (the whole project when None): its sniffs, and the detection of
+        the folders its files can affect."""
         with self._lock:
-            for key in [k for k in self._results if _within(k, folder)]:
+            for key in [k for k in self._results if _affected(k, folder)]:
                 del self._results[key]
         if folder is None:
             self.sniff_cache.clear()
         else:
             self.sniff_cache.invalidate(Path(folder))
         # Running tasks may have read the old files: start over, their results are dropped.
-        for key in [k for k in self._pending if _within(k, folder)]:
+        for key in [k for k in self._pending if _affected(k, folder)]:
             self.request(Path(key), fresh=True)
 
     def wait(self, msecs: int = 5000) -> bool:
         return self._pool.waitForDone(msecs)
 
-    def _on_done(self, token: int, results: list[DetectionResult]) -> None:
+    def shutdown(self, msecs: int = 2000) -> bool:
+        """Skip the queued tasks and wait for the running ones (window close).
+
+        The pool's destructor waits for every task without a time limit, so none may be left
+        queued behind a slow network mount.
+        """
+        for key in list(self._pending):
+            self._cancel(key)
+        self._pending.clear()
+        return self._pool.waitForDone(msecs)
+
+    def _cancel(self, key: str) -> None:
+        """A queued task for ``key`` skips its work; a running one has its result dropped."""
+        task = self._tasks.get(self._pending.get(key, -1))
+        if task is not None:
+            task.cancelled = True
+
+    def _on_done(self, token: int, results: list[DetectionResult] | None) -> None:
         # Drop the task on the next loop turn: this slot runs on its own signal object.
         task = self._tasks.pop(token, None)
         if task is None:
@@ -110,8 +141,8 @@ class DetectionService(QObject):
         self._finished.append(task)
         QTimer.singleShot(0, self._finished.clear)
         key = str(task.folder)
-        if self._pending.get(key) != token:
-            return  # superseded (invalidated or refreshed) while it ran
+        if results is None or self._pending.get(key) != token:
+            return  # superseded (invalidated or refreshed) before or while it ran
         del self._pending[key]
         with self._lock:
             self._results[key] = results

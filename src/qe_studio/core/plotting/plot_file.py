@@ -55,9 +55,14 @@ def read_plot_file(folder: Path, kind: str) -> tuple[dict[str, Any] | None, list
 
 def write_plot_file(folder: Path, kind: str, params: Any) -> Path:
     path = plot_file_path(folder, kind)
-    data = {"lain_plot": FORMAT_VERSION, "kind": kind, "params": _plain(asdict(params))}
+    data = {"lain_plot": FORMAT_VERSION, "kind": kind, "params": stored_params(params)}
     atomic_write_text(path, HEADER + yaml.safe_dump(data, sort_keys=False, allow_unicode=True))
     return path
+
+
+def stored_params(params: Any) -> dict[str, Any]:
+    """``params`` as the file stores them (what ``read_plot_file`` returns)."""
+    return _plain(asdict(params))
 
 
 def _plain(value: Any) -> Any:

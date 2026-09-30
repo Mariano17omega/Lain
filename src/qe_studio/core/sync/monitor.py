@@ -3,15 +3,20 @@
 Probes are plain TCP connects to the SSH port (no login), at most every
 ``cluster.status_poll_seconds`` and only while the app window is active: frequent
 pre-authentication disconnects can trip fail2ban on the cluster.
+
+Each probe runs in a daemon thread, not a ``QThreadPool``: the connect timeout does not cover
+the DNS lookup, which can block much longer (VPN or resolver down), and a pool waits for its
+running task, without a time limit, when it is destroyed (config reload, exit).
 """
 
 from __future__ import annotations
 
 import socket
+import threading
 import time
 from enum import StrEnum
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QGuiApplication
 
 from ..config import ClusterConfig
@@ -39,14 +44,8 @@ class _ProbeSignals(QObject):
     done = pyqtSignal(bool)
 
 
-class _Probe(QRunnable):
-    def __init__(self, host: str, port: int):
-        super().__init__()
-        self.host, self.port = host, port
-        self.signals = _ProbeSignals()
-
-    def run(self) -> None:
-        self.signals.done.emit(probe(self.host, self.port))
+def _run_probe(signals: _ProbeSignals, host: str, port: int) -> None:
+    signals.done.emit(probe(host, port))
 
 
 class ConnectionMonitor(QObject):
@@ -61,9 +60,8 @@ class ConnectionMonitor(QObject):
         self._stopped = False
         self._probing = False
         self._last_probe = 0.0
-        self._probes: list[_Probe] = []
-        self._pool = QThreadPool(self)
-        self._pool.setMaxThreadCount(1)
+        # Signal objects of the probe threads, released on the GUI thread once each has ended.
+        self._probes: list[tuple[threading.Thread, _ProbeSignals]] = []
         self._timer = QTimer(self)
         self._timer.setInterval(max(cluster.status_poll_seconds, 30) * 1000)
         self._timer.timeout.connect(self.check)
@@ -82,10 +80,10 @@ class ConnectionMonitor(QObject):
             self.check()
 
     def stop(self) -> None:
-        """Stop polling and wait for an in-flight probe (must not outlive the app)."""
+        """Stop polling. An in-flight probe is not waited for: its daemon thread cannot keep
+        the app from exiting, and its result no longer reaches a deleted monitor."""
         self._stopped = True
         self._timer.stop()
-        self._pool.waitForDone(int(PROBE_TIMEOUT * 1000) + 500)
 
     @pyqtSlot()
     def check(self) -> None:
@@ -93,10 +91,17 @@ class ConnectionMonitor(QObject):
             return
         self._probing = True
         self._last_probe = time.monotonic()
-        runnable = _Probe(self.cluster.host, self.cluster.port)
-        runnable.signals.done.connect(self._on_probe)
-        self._probes.append(runnable)  # keep the signal object alive until it fires
-        self._pool.start(runnable)
+        self._release_probes()
+        signals = _ProbeSignals()
+        signals.done.connect(self._on_probe)
+        thread = threading.Thread(
+            target=_run_probe,
+            args=(signals, self.cluster.host, self.cluster.port),
+            name="lain-probe",
+            daemon=True,
+        )
+        self._probes.append((thread, signals))
+        thread.start()
 
     def set_syncing(self, syncing: bool) -> None:
         self._syncing = syncing
@@ -108,13 +113,12 @@ class ConnectionMonitor(QObject):
 
     def _on_probe(self, reachable: bool) -> None:
         self._probing = False
-        # Release finished probes later: this slot runs on the probe's own signal object.
-        QTimer.singleShot(0, self._release_probes)
         self.report(reachable)
 
     def _release_probes(self) -> None:
-        if not self._probing:
-            self._probes.clear()
+        # Only ended threads: the last reference to a signal object must go on this thread,
+        # and not while its slot runs, so this is called from check(), never from _on_probe.
+        self._probes = [(t, s) for t, s in self._probes if t.is_alive()]
 
     def _set(self, state: ConnectionState) -> None:
         changed = state != self._state

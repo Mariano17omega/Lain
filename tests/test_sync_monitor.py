@@ -1,6 +1,11 @@
 import socket
+import threading
+import time
+
+from PyQt6 import sip
 
 from qe_studio.core.config import parse_config
+from qe_studio.core.sync import monitor as monitor_module
 from qe_studio.core.sync.monitor import ConnectionMonitor, ConnectionState, probe
 
 
@@ -47,3 +52,25 @@ def test_monitor_disabled_without_cluster():
     monitor.start()
     monitor.check()
     assert monitor.state is ConnectionState.DISABLED
+
+
+def test_stuck_probe_blocks_neither_stop_nor_delete(qtbot, monkeypatch):
+    """The connect timeout does not cover DNS: reload and exit must not wait for a lookup."""
+    release = threading.Event()
+    started = threading.Event()
+
+    def stuck(host, port):
+        started.set()
+        return release.wait(10)
+
+    monkeypatch.setattr(monitor_module, "probe", stuck)
+    cluster = parse_config({"cluster": {"host": "cluster.test", "user": "me"}}).cluster
+    monitor = ConnectionMonitor(cluster, enabled=True)
+    monitor.start()
+    assert started.wait(5)
+    begin = time.monotonic()
+    monitor.stop()
+    sip.delete(monitor)  # what reload_config's deleteLater does
+    assert time.monotonic() - begin < 0.5
+    release.set()
+    qtbot.wait(50)  # the late result must not reach the deleted monitor
