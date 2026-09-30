@@ -8,6 +8,7 @@ from pathlib import Path
 from PyQt6.QtCore import (
     QModelIndex,
     QObject,
+    QPoint,
     QRect,
     QRectF,
     QRunnable,
@@ -17,7 +18,7 @@ from PyQt6.QtCore import (
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QActionGroup, QFont, QPainter, QPen
+from PyQt6.QtGui import QActionGroup, QFont, QKeySequence, QPainter, QPen, QShortcut
 from PyQt6.QtWidgets import (
     QListView,
     QMenu,
@@ -94,8 +95,14 @@ class FileCardDelegate(QStyledItemDelegate):
         painter.setBrush(background)
         painter.drawRoundedRect(rect, 4, 4)
 
-        icon_name, token = file_visual(path, is_dir)
-        meta, meta_token = self._meta(path, is_dir, proxy.fs.size(proxy.mapToSource(index)))
+        if proxy.is_up(index):  # the "folder above" shortcut (spec 5 R2)
+            title = ".."
+            icon_name, token = "drive_folder_upload", "icon_folder"
+            meta, meta_token = "pasta acima", "text_dim"
+        else:
+            title = path.name
+            icon_name, token = file_visual(path, is_dir)
+            meta, meta_token = self._meta(path, is_dir, proxy.fs.size(proxy.mapToSource(index)))
         name_color = theme.color("accent_text" if selected or is_dir else "text")
         name_font = mono_font(12, QFont.Weight.Bold if selected else QFont.Weight.Normal)
         if self.panel.grid_mode:
@@ -114,7 +121,7 @@ class FileCardDelegate(QStyledItemDelegate):
                 int(rect.left()) + 6, int(tile.bottom()) + 4, int(rect.width()) - 12, 16
             )
             name = painter.fontMetrics().elidedText(
-                path.name, Qt.TextElideMode.ElideMiddle, name_rect.width()
+                title, Qt.TextElideMode.ElideMiddle, name_rect.width()
             )
             painter.drawText(name_rect, Qt.AlignmentFlag.AlignCenter, name)
             painter.setFont(mono_font(10))
@@ -140,7 +147,7 @@ class FileCardDelegate(QStyledItemDelegate):
             painter.setPen(name_color)
             name_rect = rect.toRect().adjusted(28, 0, -meta_width - 8, 0)
             name = painter.fontMetrics().elidedText(
-                path.name, Qt.TextElideMode.ElideMiddle, name_rect.width()
+                title, Qt.TextElideMode.ElideMiddle, name_rect.width()
             )
             painter.drawText(
                 name_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, name
@@ -148,10 +155,13 @@ class FileCardDelegate(QStyledItemDelegate):
         painter.restore()
 
     def _meta(self, path: Path, is_dir: bool, size: int) -> tuple[str, str]:
+        """Folders: entry count. Files: state only on cards, size (and state) in list mode."""
         if is_dir:
             count = self.panel.item_count(path)
             return (f"{count} itens" if count is not None else "pasta"), "text_dim"
         label = status_label(path, size, self.panel.service.file_sniff(path))
+        if self.panel.grid_mode:
+            return label or ("", "text_dim")
         if label is None:
             return human_size(size), "text_dim"
         return f"{human_size(size)} · {label[0]}", label[1]
@@ -161,6 +171,7 @@ class FilePanel(QWidget):
     file_activated = pyqtSignal(Path)
     folder_activated = pyqtSignal(Path)
     file_selected = pyqtSignal(Path)
+    item_menu_requested = pyqtSignal(Path, QPoint)  # item, global position
 
     def __init__(
         self,
@@ -196,7 +207,7 @@ class FilePanel(QWidget):
         self.sort_button.setMenu(self._sort_menu())
         layout.addWidget(self.header)
 
-        self.model = make_fs_model(root, self)
+        self.model = make_fs_model(root, self, dot_dot=True)
         self.proxy = FileFilterProxy(hidden_dirs, parent=self)
         self.proxy.setSourceModel(self.model)
         self.proxy.set_root(Path(root))
@@ -207,6 +218,7 @@ class FilePanel(QWidget):
         self.view.setMouseTracking(True)
         self.view.setUniformItemSizes(True)
         self.view.setSelectionMode(QListView.SelectionMode.SingleSelection)
+        self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.proxy.sort(0, Qt.SortOrder.AscendingOrder)
         layout.addWidget(self.view, 1)
         self._apply_mode()
@@ -214,6 +226,11 @@ class FilePanel(QWidget):
         self.grid_button.clicked.connect(lambda: self.set_grid_mode(True))
         self.list_button.clicked.connect(lambda: self.set_grid_mode(False))
         self.view.activated.connect(self._on_activated)
+        self.view.customContextMenuRequested.connect(self._on_context_menu)
+        for keys in ("Backspace", "Alt+Up"):
+            shortcut = QShortcut(QKeySequence(keys), self.view)
+            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            shortcut.activated.connect(self.go_up)
         self.view.selectionModel().currentChanged.connect(self._on_current)
         self.model.directoryLoaded.connect(self._update_count)
         self.proxy.rowsInserted.connect(self._update_count)
@@ -319,9 +336,17 @@ class FilePanel(QWidget):
         order = Qt.SortOrder.AscendingOrder if column == SORT_NAME else Qt.SortOrder.DescendingOrder
         self.proxy.sort(0, order)
 
+    def go_up(self) -> None:
+        """Folder above, never leaving the project root."""
+        if self.proxy.root is not None and self._folder != self.proxy.root:
+            self.folder_activated.emit(self._folder.parent)
+
     def _update_count(self, *_args) -> None:
         root = self.view.rootIndex()
-        self.header.count.setText(f"({self.proxy.rowCount(root)})")
+        rows = self.proxy.rowCount(root)
+        if rows and self.proxy.is_up(self.proxy.index(0, 0, root)):
+            rows -= 1  # ".." is a shortcut, not an entry
+        self.header.count.setText(f"({rows})")
 
     def _on_activated(self, index: QModelIndex) -> None:
         if not index.isValid():
@@ -335,3 +360,10 @@ class FilePanel(QWidget):
     def _on_current(self, current: QModelIndex, _previous: QModelIndex) -> None:
         if current.isValid() and not self.proxy.is_dir(current):
             self.file_selected.emit(self.proxy.path(current))
+
+    def _on_context_menu(self, pos: QPoint) -> None:
+        index = self.view.indexAt(pos)
+        if index.isValid() and not self.proxy.is_up(index):
+            self.item_menu_requested.emit(
+                self.proxy.path(index), self.view.viewport().mapToGlobal(pos)
+            )

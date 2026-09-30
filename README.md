@@ -76,7 +76,11 @@ a pull.
 1. Pick a simulation folder in the explorer; badges show what was detected
    (BANDS, PDOS, RELAX, SCF, CALC), and outputs show `OK` / `INCOMPLETO`. Queue logs
    (`job.o12345`, `job.e12345`) show `SEM ERROS` when empty and `ERRO` otherwise; they and the
-   submission scripts (`.qsub`, `.slurm`, `.pbs`) open read-only in a tab.
+   submission scripts (`.qsub`, `.slurm`, `.pbs`) open read-only in a tab. The grid cards show
+   only that state (list mode also shows sizes); `..`, Backspace or Alt+↑ go up a folder.
+   Right-click a file or folder for **Abrir local de origem**, **Abrir com** (installed programs
+   for its type, or any other), **Copiar** (paste it in the file manager or a terminal) and
+   **Renomear** (never overwrites; tabs showing the item are closed).
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the

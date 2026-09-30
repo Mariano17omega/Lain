@@ -54,6 +54,7 @@ ICONS = [
     # file types
     "folder",
     "folder_open",
+    "drive_folder_upload",
     "description",
     "terminal",
     "analytics",

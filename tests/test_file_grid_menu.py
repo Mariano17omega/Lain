@@ -1,0 +1,379 @@
+"""Spec 5: grid cards without sizes, the ".." shortcut and the file/folder context menu."""
+
+from pathlib import Path
+
+import pytest
+from PyQt6.QtCore import QPoint, QProcess, Qt, QUrl
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox
+
+from qe_studio.core.desktop_apps import AppCatalog
+from qe_studio.core.plotting.plot_file import read_plot_file
+from qe_studio.core.sniff import FileKind, FileSniff
+from qe_studio.ui.dialogs.open_with import OpenWithDialog
+from qe_studio.ui.dialogs.rename import RenameDialog
+from qe_studio.ui.widgets import context_menu
+from qe_studio.ui.widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
+
+MENU = ["Abrir local de origem", "Abrir com", "Copiar", "Renomear"]
+
+
+def rows(panel):
+    root = panel.view.rootIndex()
+    return [panel.proxy.index(r, 0, root) for r in range(panel.proxy.rowCount(root))]
+
+
+def show_folder(qtbot, window, folder: Path, up: bool = True) -> None:
+    """Select ``folder`` in the tree and wait until the grid lists it (with ".." first)."""
+    window.explorer.select_path(folder)
+
+    def listed():
+        items = rows(window.files)
+        return (
+            window.files.folder == folder
+            and len(items) > 1
+            and (window.files.proxy.is_up(items[0]) == up)
+        )
+
+    qtbot.waitUntil(listed, timeout=5000)
+
+
+def generate(qtbot, window, folder):
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+        window.generate_plot_for(folder, auto_export=False)
+    return blocker.args[0]
+
+
+# -- R1: grid without sizes ----------------------------------------------------------------------
+def test_grid_cards_show_the_state_only(qtbot, main_window, demo_project, monkeypatch):
+    window = main_window
+    files = window.files
+    delegate = files.view.itemDelegate()
+    folder = demo_project / "03_bands"
+    output = folder / "scf.out"
+    cut = FileSniff(output, FileKind.PW_OUT, job_done=False)
+    monkeypatch.setattr(window.service, "file_sniff", lambda p: cut if p == output else None)
+    assert delegate._meta(folder / "bands.in", False, 5000) == ("", "text_dim")
+    assert delegate._meta(output, False, 5000) == ("INCOMPLETO", "warning")
+
+    show_folder(qtbot, window, folder)
+    entries = [(files.proxy.path(i), files.proxy.fs.size(files.proxy.mapToSource(i))) for i in
+               rows(files)[1:] if not files.proxy.is_dir(i)]  # fmt: skip
+    metas = [delegate._meta(path, False, size)[0] for path, size in entries]
+    assert metas and not any(unit in meta for meta in metas for unit in ("B", "KB", "MB"))
+    files.set_grid_mode(False)  # list mode keeps the size (spec 5 R1.3)
+    assert all("B" in delegate._meta(path, False, size)[0] for path, size in entries)
+    assert delegate._meta(output, False, 5000) == ("4.9 KB · INCOMPLETO", "warning")
+
+
+# -- R2: ".." ------------------------------------------------------------------------------------
+def test_up_entry_is_first_in_any_order(qtbot, main_window, demo_project):
+    window = main_window
+    files = window.files
+    show_folder(qtbot, window, demo_project / "03_bands")
+    for column in (SORT_SIZE, SORT_DATE, SORT_NAME):
+        files.set_sort(column)
+        items = rows(files)
+        assert files.proxy.is_up(items[0]) and files.proxy.path(items[0]) == demo_project
+        assert not any(files.proxy.is_up(i) for i in items[1:])
+    assert files.header.count.text() == f"({len(rows(files)) - 1})"  # ".." is not counted
+
+    show_folder(qtbot, window, demo_project, up=False)  # the project root has no ".."
+    assert not any(files.proxy.is_up(i) for i in rows(files))
+    assert files.header.count.text() == f"({len(rows(files))})"
+
+
+def test_up_entry_goes_to_the_parent(qtbot, main_window, demo_project):
+    window = main_window
+    files = window.files
+    show_folder(qtbot, window, demo_project / "04_pdos" / "orbitals")
+    files.view.activated.emit(rows(files)[0])
+    assert files.folder == demo_project / "04_pdos"
+    assert window.explorer.current_path() == demo_project / "04_pdos"  # the tree follows
+    qtbot.waitUntil(lambda: files.proxy.is_up(rows(files)[0]), timeout=5000)
+    files.view.activated.emit(rows(files)[0])
+    assert files.folder == demo_project and window.current_folder() == demo_project
+    assert window.status.path.text() == "."
+
+
+def test_keyboard_goes_up(qtbot, main_window, demo_project):
+    window = main_window
+    window.show()
+    qtbot.waitExposed(window)
+    show_folder(qtbot, window, demo_project / "04_pdos" / "orbitals")
+    window.files.view.setFocus()
+    qtbot.keyClick(window.files.view, Qt.Key.Key_Backspace)
+    assert window.files.folder == demo_project / "04_pdos"
+    qtbot.keyClick(window.files.view, Qt.Key.Key_Up, Qt.KeyboardModifier.AltModifier)
+    assert window.files.folder == demo_project
+    qtbot.keyClick(window.files.view, Qt.Key.Key_Backspace)  # never above the project
+    assert window.files.folder == demo_project
+
+
+# -- R3: context menu ----------------------------------------------------------------------------
+def test_right_click_requests_a_menu(qtbot, main_window, demo_project, monkeypatch):
+    menus = []
+    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: menus.append(pos))  # never blocks
+    window = main_window
+    window.show()
+    qtbot.waitExposed(window)
+    files = window.files
+    show_folder(qtbot, window, demo_project / "03_bands")
+    up, item = rows(files)[:2]
+    viewport = files.view.viewport()
+    with qtbot.assertNotEmitted(files.item_menu_requested):
+        files._on_context_menu(files.view.visualRect(up).center())
+        files._on_context_menu(QPoint(viewport.width() - 2, viewport.height() - 2))  # empty
+    with qtbot.waitSignal(files.item_menu_requested) as blocker:
+        files._on_context_menu(files.view.visualRect(item).center())
+    assert blocker.args[0] == files.proxy.path(item)
+
+    tree = window.explorer
+    index = tree.proxy.index_for(demo_project / "02_scf")
+    with qtbot.waitSignal(tree.item_menu_requested) as blocker:
+        tree._on_context_menu(tree.tree.visualRect(index).center())
+    assert blocker.args[0] == demo_project / "02_scf"
+    assert len(menus) == 2  # the main window showed both
+
+
+def test_menu_has_exactly_the_four_actions(main_window, demo_project, monkeypatch):
+    shown = []
+    monkeypatch.setattr(
+        QMenu, "exec", lambda menu, pos: shown.append([(a.text(), a.isEnabled()) for a in menu.actions()])
+    )  # fmt: skip
+    window = main_window
+    window.files.item_menu_requested.emit(demo_project / "03_bands" / "bands.in", QPoint(5, 5))
+    window.explorer.item_menu_requested.emit(demo_project / "04_pdos", QPoint(5, 5))
+    window._show_item_menu(demo_project, QPoint())
+    assert [[text for text, _ in menu] for menu in shown] == [MENU, MENU, MENU]
+    assert [enabled for _, enabled in shown[1]] == [True, True, True, True]
+    assert [enabled for _, enabled in shown[2]] == [True, True, True, False]  # the root
+
+
+@pytest.fixture
+def fake_apps(tmp_path, monkeypatch):
+    """Two programs for text files; "Other" is the mimeapps.list default and opens folders."""
+    data, config = tmp_path / "apps-data", tmp_path / "apps-config"
+    (data / "applications").mkdir(parents=True)
+    (data / "applications" / "fake.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Fake\nExec=fake-editor %f\nMimeType=text/plain;\n"
+    )
+    (data / "applications" / "other.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Other\nExec=other --open %U\n"
+        "MimeType=text/plain;inode/directory;\n"
+    )
+    config.mkdir()
+    (config / "mimeapps.list").write_text("[Default Applications]\ntext/plain=other.desktop\n")
+    monkeypatch.setattr(context_menu, "catalog", lambda: AppCatalog([data], [config], []))
+
+
+@pytest.fixture
+def launched(monkeypatch):
+    """QProcess.startDetached calls; nothing is started."""
+    calls = []
+
+    def start(program, args=(), cwd=""):
+        calls.append((program, list(args), cwd))
+        return calls[-1][0] != "broken", 4242
+
+    monkeypatch.setattr(QProcess, "startDetached", staticmethod(start))
+    return calls
+
+
+def open_with_menu(window, path):
+    menu = window.item_actions.menu(path)
+    submenu = menu.actions()[1].menu()
+    submenu.aboutToShow.emit()
+    return menu, submenu
+
+
+def test_open_with(main_window, demo_project, fake_apps, launched, monkeypatch):
+    window = main_window
+    path = demo_project / "03_bands" / "bands.in"
+    _menu, submenu = open_with_menu(window, path)
+    texts = ["Other (padrão)", "Fake", "", "Outro programa…"]
+    assert [a.text() for a in submenu.actions()] == texts
+    submenu.aboutToShow.emit()  # opening again does not add entries
+    assert [a.text() for a in submenu.actions()] == texts
+    submenu.actions()[1].trigger()
+    submenu.actions()[0].trigger()
+    folder = str(path.parent)
+    assert launched == [
+        ("fake-editor", [str(path)], folder),
+        ("other", ["--open", path.as_uri()], folder),
+    ]
+    monkeypatch.setattr(context_menu, "ask_command", lambda parent, name: ["my prog", "--x"])
+    submenu.actions()[3].trigger()
+    assert launched[-1] == ("my prog", ["--x", str(path)], folder)
+    monkeypatch.setattr(context_menu, "ask_command", lambda parent, name: ["broken"])
+    submenu.actions()[3].trigger()
+    assert window.status.message.text() == "Não foi possível abrir bands.in com broken."
+
+    _menu, submenu = open_with_menu(window, demo_project / "04_pdos")  # inode/directory
+    assert [a.text() for a in submenu.actions()] == ["Other (padrão)", "", "Outro programa…"]
+    image = demo_project / "fig.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+    _menu, submenu = open_with_menu(window, image)
+    first = submenu.actions()[0]
+    assert first.text() == "Nenhum programa encontrado" and not first.isEnabled()
+
+
+def test_windows_variants(main_window, demo_project, launched, monkeypatch):
+    monkeypatch.setattr(context_menu, "IS_WINDOWS", True)
+    path = demo_project / "03_bands" / "bands.in"
+    _menu, submenu = open_with_menu(main_window, path)
+    assert [a.text() for a in submenu.actions()] == ["Escolher programa…"]
+    submenu.actions()[0].trigger()
+    main_window.item_actions.reveal(path)
+    assert launched == [
+        ("rundll32", ["shell32.dll,OpenAs_RunDLL", str(path)], str(path.parent)),
+        ("explorer", [f"/select,{path}"], ""),
+    ]
+
+
+def test_copy_puts_the_item_on_the_clipboard(main_window, demo_project):
+    path = demo_project / "03_bands" / "bands.in"
+    main_window.item_actions.copy(path)
+    data = QApplication.clipboard().mimeData()
+    assert [url.toLocalFile() for url in data.urls()] == [str(path)]
+    assert data.text() == str(path)
+    assert bytes(data.data("x-special/gnome-copied-files")) == f"copy\n{path.as_uri()}".encode()
+    assert main_window.status.message.text() == "Copiado: bands.in"
+
+
+def test_reveal_in_file_manager(main_window, demo_project, monkeypatch):
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(opened.append))
+    actions = main_window.item_actions
+    path = demo_project / "03_bands" / "bands.in"
+    asked = []
+    monkeypatch.setattr(actions, "_show_items_dbus", lambda p: asked.append(p) or True)
+    actions.reveal(path)
+    assert asked == [path] and opened == []
+
+    class FailedCall:  # no FileManager1 on this desktop: the answer is an error
+        def isError(self):
+            return True
+
+        def error(self):
+            return type("Error", (), {"message": lambda self: "ServiceUnknown"})()
+
+        def deleteLater(self):
+            pass
+
+    call = FailedCall()
+    actions._reveals[call] = path
+    actions._on_reveal_finished(call)
+    assert opened == [QUrl.fromLocalFile(str(path.parent))]
+    monkeypatch.setattr(actions, "_show_items_dbus", lambda p: False)  # no session bus
+    actions.reveal(demo_project / "04_pdos")
+    assert opened[-1] == QUrl.fromLocalFile(str(demo_project))
+
+
+@pytest.fixture
+def new_names(monkeypatch):
+    """Answers of the rename dialog, in order."""
+    answers = []
+    monkeypatch.setattr("qe_studio.ui.main_window.ask_rename", lambda parent, path: answers.pop(0))
+    return answers
+
+
+def selected_in_grid(window) -> Path | None:
+    index = window.files.view.currentIndex()
+    return window.files.proxy.path(index) if index.isValid() else None
+
+
+def test_rename_file(qtbot, main_window, demo_project, new_names):
+    window = main_window
+    folder = demo_project / "03_bands"
+    old, new = folder / "bands.in", folder / "bands-si.in"
+    show_folder(qtbot, window, folder)
+    window.open_file(old)
+    new_names.extend([None, "bands-si.in"])
+    window.rename_path(old)  # cancelled
+    assert old.exists() and window.workspace.widget_for(str(old)) is not None
+    window.rename_path(old)
+    assert new.is_file() and not old.exists()
+    assert window.workspace.widget_for(str(old)) is None  # its tab is closed
+    assert window.status.message.text() == "Renomeado: bands.in → bands-si.in"
+    qtbot.waitUntil(lambda: selected_in_grid(window) == new, timeout=5000)
+
+
+def test_rename_folder_keeps_plot_settings_and_memory(qtbot, main_window, demo_project, new_names):
+    window = main_window
+    folder = demo_project / "03_bands"
+    window.memory.set_labels(folder, ["G", "X"])
+    session = generate(qtbot, window, folder)
+    window.params._set("emin", -3.0)  # pending: the debounced write has not run yet
+    assert session.key in window._unsaved
+    new_names.append("03_bands_si")
+    window.rename_path(folder)
+    new = demo_project / "03_bands_si"
+    stored, _ = read_plot_file(new, "bands")
+    assert stored["emin"] == -3.0 and not window._unsaved
+    assert window.workspace.widget_for(session.key) is None
+    assert window.memory.labels(new) == ["G", "X"] and window.memory.labels(folder) is None
+
+
+def test_rename_the_current_folder(qtbot, main_window, demo_project, new_names):
+    window = main_window
+    old = demo_project / "04_pdos"
+    show_folder(qtbot, window, old / "orbitals")
+    new_names.append("04_dos")
+    window.rename_path(old)
+    new = demo_project / "04_dos"
+    qtbot.waitUntil(lambda: window.files.folder == new / "orbitals", timeout=5000)
+    assert window.current_folder() == new / "orbitals"
+
+
+def test_rename_failure_is_reported(main_window, demo_project, new_names, monkeypatch):
+    warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a: warnings.append(a[2])))
+
+    def refuse(path, name):
+        raise PermissionError(13, "Permission denied", str(path))
+
+    monkeypatch.setattr("qe_studio.ui.main_window.rename_item", refuse)
+    window = main_window
+    path = demo_project / "03_bands" / "bands.in"
+    window.open_file(path)
+    new_names.append("x.in")
+    window.rename_path(path)
+    assert warnings == ["Não foi possível renomear bands.in: Permission denied"]
+    assert path.exists() and window.workspace.widget_for(str(path)) is not None
+
+
+def test_rename_dialog_validates_in_place(qtbot, tmp_path):
+    (tmp_path / "bands.in").write_text("x")
+    (tmp_path / "scf.in").write_text("y")
+    dialog = RenameDialog(tmp_path / "bands.in")
+    qtbot.addWidget(dialog)
+    assert dialog.edit.selectedText() == "bands"  # the extension is kept when typing
+    dialog.edit.setText("scf.in")
+    dialog.accept()
+    assert not dialog.error.isHidden() and dialog.error.text() == "Já existe “scf.in” nesta pasta."
+    assert dialog.result() != QDialog.DialogCode.Accepted and dialog.new_name is None
+    dialog.edit.setText("nscf.in")
+    assert dialog.error.isHidden()
+    dialog.accept()
+    assert dialog.result() == QDialog.DialogCode.Accepted and dialog.new_name == "nscf.in"
+
+    folder = tmp_path / "run.v2"
+    folder.mkdir()
+    dialog = RenameDialog(folder)
+    qtbot.addWidget(dialog)
+    assert dialog.edit.selectedText() == "run.v2"
+    dialog.accept()  # unchanged: accepted, nothing to do
+    assert dialog.result() == QDialog.DialogCode.Accepted and dialog.new_name is None
+
+
+def test_open_with_dialog(qtbot):
+    dialog = OpenWithDialog("bands.in")
+    qtbot.addWidget(dialog)
+    assert not dialog.ok.isEnabled()
+    dialog.edit.setText('code "unclosed')
+    dialog.accept()
+    assert not dialog.error.isHidden() and dialog.argv is None
+    dialog.edit.setText('"/opt/My App/app" --new-window')
+    dialog.accept()
+    assert dialog.argv == ["/opt/My App/app", "--new-window"]

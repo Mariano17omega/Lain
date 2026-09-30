@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QModelIndex, QRect, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QModelIndex, QPoint, QRect, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QPainter
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -99,6 +99,7 @@ class ExplorerPanel(QWidget):
     folder_selected = pyqtSignal(Path)
     file_selected = pyqtSignal(Path)
     file_activated = pyqtSignal(Path)
+    item_menu_requested = pyqtSignal(Path, QPoint)  # item, global position
 
     def __init__(
         self,
@@ -133,6 +134,7 @@ class ExplorerPanel(QWidget):
         self.tree.setUniformRowHeights(True)
         self.tree.setAnimated(False)
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.setItemDelegate(ExplorerDelegate(theme, service, self.proxy))
         self.tree.setSortingEnabled(True)
         self.tree.sortByColumn(0, Qt.SortOrder.AscendingOrder)
@@ -141,6 +143,7 @@ class ExplorerPanel(QWidget):
         self.set_root(root)
         self.tree.selectionModel().currentChanged.connect(self._on_current)
         self.tree.activated.connect(self._on_activated)  # double click or Enter
+        self.tree.customContextMenuRequested.connect(self._on_context_menu)
         self.collapse_button.clicked.connect(self.tree.collapseAll)
         self.refresh_button.clicked.connect(self.refresh)
         service.detected.connect(lambda _folder: self.tree.viewport().update())
@@ -174,6 +177,11 @@ class ExplorerPanel(QWidget):
         return path if path.is_dir() else path.parent
 
     def select_path(self, path: Path) -> None:
+        if Path(path) == self._root:
+            # The root is the tree's root index, not a row: nothing to highlight.
+            self.tree.setCurrentIndex(QModelIndex())
+            self.folder_selected.emit(self._root)
+            return
         index = self.proxy.index_for(path)
         if index.isValid():
             self.tree.setCurrentIndex(index)
@@ -193,3 +201,10 @@ class ExplorerPanel(QWidget):
     def _on_activated(self, index: QModelIndex) -> None:
         if index.isValid() and not self.proxy.is_dir(index):
             self.file_activated.emit(self.proxy.path(index))
+
+    def _on_context_menu(self, pos: QPoint) -> None:
+        index = self.tree.indexAt(pos)
+        if index.isValid():
+            self.item_menu_requested.emit(
+                self.proxy.path(index), self.tree.viewport().mapToGlobal(pos)
+            )

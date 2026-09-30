@@ -9,7 +9,17 @@ import copy
 import logging
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRunnable, QSettings, Qt, QThreadPool, QTimer, QUrl, pyqtSignal
+from PyQt6.QtCore import (
+    QObject,
+    QPoint,
+    QRunnable,
+    QSettings,
+    Qt,
+    QThreadPool,
+    QTimer,
+    QUrl,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QAction, QCloseEvent, QDesktopServices, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
@@ -29,6 +39,7 @@ from ..core.calculations import REGISTRY, DetectionResult
 from ..core.calculations.base import LoadError
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.detection import FolderMemory, manual_result
+from ..core.file_ops import rename_item
 from ..core.plotting.export import existing_targets, export_figure, next_free_stem
 from ..core.plotting.plot_file import (
     apply_stored,
@@ -43,12 +54,14 @@ from ..core.sync.planner import PlanItem
 from ..core.sync.rsync import Endpoint, remote_dir_for
 from .dialogs.mapping import ask_mapping
 from .dialogs.overwrite import OverwriteChoice, ask_overwrite
+from .dialogs.rename import ask_rename
 from .dialogs.sync_dialog import ConflictDialog, SyncDialog
 from .file_types import viewer_kind
 from .plot_session import PlotSession, plot_key
 from .services import DetectionService
 from .theme.manager import ThemeManager
 from .widgets.bars import ActivityBar, StatusBar, TopBar
+from .widgets.context_menu import ItemActions
 from .widgets.explorer import ExplorerPanel
 from .widgets.file_grid import FilePanel
 from .widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
@@ -235,6 +248,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         self.status = StatusBar()
         self.setStatusBar(self.status)
+        self.item_actions = ItemActions(self)
 
     def _action(self, menu, text: str, slot, shortcut: str | None = None) -> QAction:
         action = menu.addAction(text)
@@ -270,6 +284,10 @@ class MainWindow(QMainWindow):
         self.files.file_activated.connect(self.open_file)
         self.files.folder_activated.connect(self.explorer.select_path)
         self.files.file_selected.connect(lambda p: self.status.set_path(self._relative(p)))
+        self.explorer.item_menu_requested.connect(self._show_item_menu)
+        self.files.item_menu_requested.connect(self._show_item_menu)
+        self.item_actions.message.connect(self._on_item_message)
+        self.item_actions.rename_requested.connect(self.rename_path)
         self.activity.explorer_requested.connect(lambda: self.set_left_mode("tree"))
         self.activity.grid_toggled.connect(lambda on: self.set_panel_visible("grid", on))
         self.activity.plot_requested.connect(self.toggle_plot)
@@ -371,6 +389,53 @@ class MainWindow(QMainWindow):
             return
         self.workspace.open_file(path, kind)
         self.set_panel_visible("workspace", True)
+
+    # -- context menu (spec 5 R3) -------------------------------------------------------------------
+    def _show_item_menu(self, path: Path, pos: QPoint) -> None:
+        menu = self.item_actions.menu(path, can_rename=path != self.root)
+        menu.exec(pos)
+        menu.deleteLater()
+
+    def _on_item_message(self, text: str, level: str) -> None:
+        self.status.set_message(text, level, 4000)
+
+    def rename_path(self, path: Path) -> None:
+        """Rename a file or folder; tabs showing anything inside it are closed (spec 5 R3.4)."""
+        name = ask_rename(self, path)
+        if name is None:
+            return
+
+        def inside(other: Path) -> bool:
+            return other.is_relative_to(path)
+
+        # Pending plot settings go into the folder before it moves, so they travel with it.
+        for key, session in list(self._unsaved.items()):
+            if inside(session.folder):
+                self._flush_plot_files(key)
+        current = self.current_folder()
+        tree_had_it = self.explorer.current_path() == path
+        old_resolved = path.resolve()
+        try:
+            new = rename_item(path, name)
+        except OSError as exc:
+            log.warning("rename %s → %s failed: %s", path, name, exc)
+            QMessageBox.warning(
+                self, "Renomear", f"Não foi possível renomear {path.name}: {exc.strerror or exc}"
+            )
+            return
+        for key, widget in self.workspace.items():
+            shown = widget.session.folder if isinstance(widget, PlotView) else widget.path
+            if inside(shown):
+                self.workspace.close_key(key)
+        self.memory.rename(old_resolved, new.resolve())
+        self.service.invalidate(path.parent)
+        if inside(current):
+            self.explorer.select_path(new / current.relative_to(path))
+        elif tree_had_it:
+            self.explorer.select_path(new)
+        if new.parent == self.files.folder:
+            self.files.select_file(new)
+        self.status.set_message(f"Renomeado: {path.name} → {new.name}", timeout_ms=4000)
 
     def toggle_plot(self) -> None:
         """Activity bar "Plot": the first click shows the plot and its settings, the next hides

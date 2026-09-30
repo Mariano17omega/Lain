@@ -7,6 +7,9 @@ QDialog QLabel[variant="dialogTitle"] {
 QDialog QLabel[variant="dialogText"] {
     color: ${text_secondary};
 }
+QDialog QLabel[variant="dialogError"] {
+    color: ${error};
+}
 QDialog QLabel[variant="mono"] {
     font-family: "JetBrains Mono";
     font-size: 11px;

@@ -146,6 +146,25 @@ def test_manual_mapping_memory(tmp_path):
     assert reloaded.mapping(folder, "bands") is None
 
 
+def test_folder_memory_follows_renames(tmp_path):
+    run, sibling = tmp_path / "run", tmp_path / "run2"
+    (run / "sub").mkdir(parents=True)
+    sibling.mkdir()
+    memory = FolderMemory(tmp_path / "memory.json")
+    memory.set_mapping(run / "sub", "bands", {"gnu": [run / "sub" / "bands.dat.gnu"]})
+    memory.set_labels(run, ["G", "X"])
+    memory.set_labels(sibling, ["L"])  # shares the prefix "run", not the folder
+    renamed = tmp_path / "renamed"
+    run.rename(renamed)
+    memory.rename(run, renamed)
+    reloaded = FolderMemory(tmp_path / "memory.json")
+    assert reloaded.labels(renamed) == ["G", "X"] and reloaded.labels(run) is None
+    assert reloaded.mapping(renamed / "sub", "bands") == {
+        "gnu": [renamed / "sub" / "bands.dat.gnu"]
+    }
+    assert reloaded.labels(sibling) == ["L"]
+
+
 def test_multiple_pdos_sets_warn(al_pdos_orbitals):
     for path in (al_pdos_orbitals / "orbitals").iterdir():
         shutil.copy(path, al_pdos_orbitals / "orbitals" / path.name.replace("pdos.dat", "old"))

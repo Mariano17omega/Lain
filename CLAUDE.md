@@ -119,6 +119,18 @@ conflicts → transfer) that never opens dialogs: it emits `conflict_needed` and
 (`askpass.py`, installed as `qe-studio-askpass`) through the child env, never argv or logs; unknown
 host keys are always refused.
 
+### Context menu (spec 5)
+
+`ui/widgets/context_menu.py:ItemActions` builds the right-click menu for the tree and the grid
+(both panels emit `item_menu_requested(path, pos)` → `MainWindow._show_item_menu`). "Abrir com"
+lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
+cached `catalog()` per session) and starts them with `QProcess.startDetached(argv)`, never a
+shell. Renaming goes through `MainWindow.rename_path` because it touches global state: flush the
+item's `.plot` settings, `core/file_ops.rename_item` (refuses existing targets), close affected
+tabs, `FolderMemory.rename`, invalidate detection. Tests must patch `QMenu.exec` (the
+`main_window` fixture makes an unpatched one fail) and never reach the real session D-Bus
+(`ItemActions._show_items_dbus`).
+
 ### Theming
 
 `ui/theme/manager.py` assembles modular QSS from `ui/resources/styles/<domain>/*.qss` (domains

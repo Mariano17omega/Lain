@@ -203,6 +203,9 @@ class Workspace(QStackedWidget):
     def keys(self) -> list[str]:
         return list(self._keys)
 
+    def items(self) -> list[tuple[str, QWidget]]:
+        return list(self._keys.items())
+
     def add(self, key: str, widget: QWidget, title: str, icon: tuple[str, str], tooltip: str = ""):
         existing = self._keys.get(key)
         if existing is not None:

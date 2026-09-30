@@ -179,6 +179,9 @@ def test_job_logs_open_with_a_state_banner(qtbot, main_window, tmp_path):
 
 def test_job_log_label_in_grid(main_window, tmp_path):
     delegate = main_window.files.view.itemDelegate()
+    assert delegate._meta(tmp_path / "job.o1", False, 0) == ("SEM ERROS", "success")
+    assert delegate._meta(tmp_path / "job.o1", False, 2048) == ("ERRO", "error")
+    main_window.files.set_grid_mode(False)  # list mode keeps the size (spec 5 R1.3)
     assert delegate._meta(tmp_path / "job.o1", False, 0) == ("0 B · SEM ERROS", "success")
     assert delegate._meta(tmp_path / "job.o1", False, 2048) == ("2.0 KB · ERRO", "error")
     assert delegate._meta(tmp_path / "notes.txt", False, 10) == ("10 B", "text_dim")

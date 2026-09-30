@@ -68,6 +68,34 @@ class FolderMemory:
                 entry.pop("labels", None)
             self._save()
 
+    def rename(self, old: Path, new: Path) -> None:
+        """Follow a renamed file or folder (call after the move): the entries of ``old`` and its
+        subfolders, and mapped file paths inside it, move to ``new``."""
+        old, new = Path(old), Path(new)
+        pairs = [(old, new), (old.resolve(), new.resolve())]  # keys are resolved, mappings not
+
+        def moved(value: str) -> str:
+            path = Path(value)
+            for before, after in pairs:
+                if path.is_relative_to(before):
+                    return str(after / path.relative_to(before))
+            return value
+
+        with self._lock:
+            data = self._load()
+            changed = False
+            for key, entry in list(data.items()):
+                for roles in entry.get("mappings", {}).values():
+                    for role, paths in roles.items():
+                        updated = [moved(p) for p in paths]
+                        changed |= updated != paths
+                        roles[role] = updated
+                if (new_key := moved(key)) != key:
+                    data[new_key] = data.pop(key)
+                    changed = True
+            if changed:
+                self._save()
+
 
 def detect_folder(
     folder: Path,

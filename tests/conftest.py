@@ -74,8 +74,15 @@ def demo_project(tmp_path) -> Path:
 
 
 @pytest.fixture
-def main_window(qtbot, demo_project, tmp_path):
+def main_window(qtbot, demo_project, tmp_path, monkeypatch):
     from PyQt6.QtCore import QSettings
+    from PyQt6.QtWidgets import QMenu
+
+    def blocking_menu(menu, *args):
+        # A real popup would wait for a click forever (pytest-timeout cannot interrupt it).
+        raise AssertionError("QMenu.exec would block the test; patch it")
+
+    monkeypatch.setattr(QMenu, "exec", blocking_menu)
 
     from qe_studio.core.config import LoadedConfig, parse_config
     from qe_studio.core.detection import FolderMemory
