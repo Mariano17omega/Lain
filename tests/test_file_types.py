@@ -16,6 +16,7 @@ from qe_studio.ui.file_types import file_visual, human_size, viewer_kind
         ("bands.svg", "polyline"),
         ("bands.pdf", "picture_as_pdf"),
         ("job.qsub", "code"),
+        ("bands.plot", "tune"),
         ("whatever", "draft"),
     ],
 )
@@ -36,6 +37,7 @@ def test_viewer_kind(tmp_path):
     assert viewer_kind(Path("a.png")) == "image"
     assert viewer_kind(Path("a.svg")) == "svg"
     assert viewer_kind(Path("a.pdf")) == "external"
+    assert viewer_kind(Path("bands.plot")) == "text"
     assert viewer_kind(text) == "text"
     assert viewer_kind(binary) == "external"
 

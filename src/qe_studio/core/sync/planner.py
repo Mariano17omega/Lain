@@ -3,8 +3,8 @@
 Reading of PRD §5.2 ("cluster newer → download, local newer → no transfer + warning"):
 timestamps are compared per file, only for files present on both sides. A directory counts as
 "local newer" when it has differing shared files, all newer locally, and nothing new or newer
-on the cluster. Files that exist only locally (e.g. figures in ``plots/``) never take part, so
-generating plots does not block future pulls.
+on the cluster. Files that exist only locally (e.g. figures in ``plots/``, ``<kind>.plot``
+settings) never take part, so generating or tuning plots does not block future pulls.
 """
 
 from __future__ import annotations

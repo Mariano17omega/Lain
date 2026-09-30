@@ -147,6 +147,7 @@ class Workspace(QStackedWidget):
     """Tabs keyed by an identifier (file path or plot key); empty state when none is open."""
 
     current_changed = pyqtSignal(object)  # the current tab widget or None
+    tab_closing = pyqtSignal(object)  # tab widget about to be removed
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
@@ -203,6 +204,7 @@ class Workspace(QStackedWidget):
 
     def close_tab(self, index: int) -> None:
         widget = self.tabs.widget(index)
+        self.tab_closing.emit(widget)
         self.tabs.removeTab(index)
         for key, value in list(self._keys.items()):
             if value is widget:

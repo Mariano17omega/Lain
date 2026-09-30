@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from pathlib import Path
 
@@ -29,6 +30,13 @@ from ..core.calculations.base import LoadError
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.detection import FolderMemory, manual_result
 from ..core.plotting.export import existing_targets, export_figure, next_free_stem
+from ..core.plotting.plot_file import (
+    apply_stored,
+    delete_plot_file,
+    plot_file_path,
+    read_plot_file,
+    write_plot_file,
+)
 from ..core.sync.controller import SyncController, SyncReport, SyncStatus
 from ..core.sync.monitor import ConnectionMonitor
 from ..core.sync.planner import PlanItem
@@ -43,18 +51,20 @@ from .theme.manager import ThemeManager
 from .widgets.bars import ActivityBar, StatusBar, TopBar
 from .widgets.explorer import ExplorerPanel
 from .widgets.file_grid import FilePanel
+from .widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
 from .widgets.plot_params import ParamsPanel
 from .widgets.plot_view import PlotView
 from .widgets.workspace import Workspace
 
 log = logging.getLogger(__name__)
 RENDER_DEBOUNCE_MS = 120
+PLOT_SAVE_DEBOUNCE_MS = 1000
 PANELS = ("tree", "grid", "workspace")  # splitter order
 DEFAULT_PANEL_WIDTHS = {"tree": 280, "grid": 320, "workspace": 840}
 
 
 class _LoadSignals(QObject):
-    loaded = pyqtSignal(object, object)  # DetectionResult, dataset
+    loaded = pyqtSignal(object, object, object)  # DetectionResult, dataset, read_plot_file()
     failed = pyqtSignal(object, str)
 
 
@@ -68,13 +78,14 @@ class _LoadTask(QRunnable):
     def run(self) -> None:
         try:
             dataset = self.result.module.load_cached(self.result)
+            stored = read_plot_file(self.result.folder, self.result.kind)
         except LoadError as exc:
             self.signals.failed.emit(self.result, str(exc))
         except Exception as exc:  # parsing errors must reach the user, not kill the worker
             log.exception("load failed")
             self.signals.failed.emit(self.result, f"{type(exc).__name__}: {exc}")
         else:
-            self.signals.loaded.emit(self.result, dataset)
+            self.signals.loaded.emit(self.result, dataset, stored)
         finally:
             self.done = True
 
@@ -149,13 +160,20 @@ class MainWindow(QMainWindow):
         self._render_timer.setSingleShot(True)
         self._render_timer.setInterval(RENDER_DEBOUNCE_MS)
         self._render_timer.timeout.connect(self._render_current)
+        # Plot settings edited since their last write to <folder>/<kind>.plot, by plot key.
+        self._unsaved: dict[str, PlotSession] = {}
+        self._save_failed: set[str] = set()  # plot keys already warned about (once per run)
+        self._save_timer = QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.setInterval(PLOT_SAVE_DEBOUNCE_MS)
+        self._save_timer.timeout.connect(self._flush_plot_files)
 
         self._build()
         self._build_menus()
         self._connect()
         self._restore_state()
         self._apply_cluster_label(self.monitor.state.value)
-        self.on_folder_selected(self.root)
+        self._restore_folder()
         for warning in loaded.warnings:
             log.warning(warning)
         if loaded.warnings:
@@ -263,37 +281,68 @@ class MainWindow(QMainWindow):
         self.monitor.state_changed.connect(self._apply_cluster_label)
         self.service.detected.connect(self._on_detected)
         self.workspace.current_changed.connect(self._on_tab_changed)
+        self.workspace.tab_closing.connect(self._on_tab_closing)
         self.params.changed.connect(self._on_param_changed)
         self.params.back_requested.connect(lambda: self.set_left_mode("tree"))
         self.params.export_requested.connect(self.export_plot)
         self.params.generate_requested.connect(self.generate_plot)
         self.params.remap_requested.connect(self._remap_current)
-        self.params.labels_edited.connect(self._remember_labels)
+        self.params.restore_requested.connect(self._restore_defaults)
 
     # -- state ----------------------------------------------------------------------------------
     def _restore_state(self) -> None:
-        geometry = self.settings.value("window/geometry")
+        settings = self.settings
+        geometry = settings.value("window/geometry")
         if geometry is not None:
             self.restoreGeometry(geometry)
-        widths = [int(w) for w in self.settings.value("window/splitter", [], type=list)]
-        if len(widths) == len(PANELS) and min(widths) > 0:  # older saves hold 0 for hidden panels
-            self._panel_widths = dict(zip(PANELS, widths, strict=True))
-        grid_visible = self.settings.value("window/grid_visible", True, type=bool)
-        self.set_panel_visible("grid", grid_visible)
+        # Keys before spec 3: window/splitter (raw sizes, 0 for hidden panels), window/grid_visible.
+        for key in ("layout/panel_widths", "window/splitter"):
+            widths = [int(w) for w in settings.value(key, [], type=list)]
+            if len(widths) == len(PANELS) and min(widths) > 0:
+                self._panel_widths = dict(zip(PANELS, widths, strict=True))
+                break
+        grid_visible = settings.value("window/grid_visible", True, type=bool)
+        settings.remove("window/splitter")
+        settings.remove("window/grid_visible")
+        self.set_panel_visible("tree", settings.value("layout/tree_visible", True, type=bool))
+        self.set_panel_visible(
+            "grid", settings.value("layout/grid_visible", grid_visible, type=bool)
+        )
         # Tabs are not restored, so the workspace would open empty (spec 1 R1).
         self.set_panel_visible("workspace", False)
+        self.files.set_grid_mode(settings.value("files/grid_mode", True, type=bool))
+        sort = settings.value("files/sort", SORT_NAME, type=int)
+        self.files.set_sort(sort if sort in (SORT_NAME, SORT_SIZE, SORT_DATE) else SORT_NAME)
+
+    def _restore_folder(self) -> None:
+        """Select the folder used last, if it still exists inside the project."""
+        last = self.settings.value("explorer/last_folder", "", type=str)
+        folder = Path(last) if last else None
+        root = self.root.resolve()
+        if folder is not None and folder.is_dir() and folder.resolve().is_relative_to(root):
+            self.explorer.select_path(folder)
+            if self.files.folder == folder:
+                return
+        self.on_folder_selected(self.root)
 
     def _save_state(self) -> None:
-        self.settings.setValue("window/geometry", self.saveGeometry())
+        settings = self.settings
+        settings.setValue("window/geometry", self.saveGeometry())
         self._sync_panel_widths()
-        self.settings.setValue("window/splitter", [self._panel_widths[n] for n in PANELS])
-        self.settings.setValue("window/grid_visible", self.files.isVisible())
-        self.settings.setValue("ui/theme", self.theme.name)
-        self.settings.sync()
+        settings.setValue("layout/panel_widths", [self._panel_widths[n] for n in PANELS])
+        settings.setValue("layout/tree_visible", not self.left.isHidden())
+        settings.setValue("layout/grid_visible", not self.files.isHidden())
+        settings.setValue("files/grid_mode", self.files.grid_mode)
+        settings.setValue("files/sort", self.files.sort_column)
+        settings.setValue("explorer/last_folder", str(self.current_folder()))
+        settings.setValue("ui/theme", self.theme.name)
+        settings.sync()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self._sync is not None and self._sync.running:
             self._sync.shutdown()
+        self._save_timer.stop()
+        self._flush_plot_files()
         self._save_state()
         self.monitor.stop()
         self.service.wait(2000)
@@ -397,6 +446,10 @@ class MainWindow(QMainWindow):
         if not self.splitter.isVisible():
             return  # not laid out yet
         sizes = self.splitter.sizes()
+        if self._applied_sizes is None:
+            # First look after the window was shown: that layout came from the working widths.
+            self._applied_sizes = sizes
+            return
         if sizes == self._applied_sizes:
             return
         for name, size in zip(PANELS, sizes, strict=True):
@@ -555,8 +608,9 @@ class MainWindow(QMainWindow):
         key = plot_key(result.folder, result.kind)
         if key in self._loads and not self._loads[key].done:
             return
+        self._flush_plot_files(key)  # the worker reads the .plot: pending edits first
         task = _LoadTask(result)
-        task.signals.loaded.connect(lambda r, d: self._on_loaded(r, d, auto_export))
+        task.signals.loaded.connect(lambda r, d, s: self._on_loaded(r, d, s, auto_export))
         task.signals.failed.connect(self._on_load_failed)
         self._loads[key] = task
         self.status.set_message(f"Carregando {result.module.display_name.lower()}…")
@@ -576,20 +630,27 @@ class MainWindow(QMainWindow):
         QMessageBox.warning(self, "Não foi possível gerar o gráfico", error)
         self.plot_failed.emit(error)
 
-    def _on_loaded(self, result: DetectionResult, dataset, auto_export: bool) -> None:
+    def _on_loaded(self, result: DetectionResult, dataset, stored, auto_export: bool) -> None:
         self._finish_load(result)
         key = plot_key(result.folder, result.kind)
         existing = self.workspace.widget_for(key)
-        params = result.module.default_params(self.config, dataset)
-        labels = self.memory.labels(result.folder) if result.kind == "bands" else None
-        if labels:
+        module = result.module
+        params = module.default_params(self.config, dataset)
+        stored_params, stored_warnings = stored
+        # k-point labels typed before <kind>.plot existed (read-only fallback).
+        legacy = stored_params is None and result.kind == "bands"
+        if legacy and (labels := self.memory.labels(result.folder)):
             params.labels = ", ".join(labels)
-        session = PlotSession(result, dataset, params)
+        session = PlotSession(result, dataset, params)  # defaults: without the stored settings
+        if stored_params is not None:
+            ignored = apply_stored(params, stored_params, module.param_schema(dataset))
+            if ignored:
+                log.warning("%s.plot: ignored %s", result.kind, ", ".join(ignored))
         if existing is not None:
             self.workspace.close_key(key)
         view = PlotView(self.theme, session)
         view.rendered.connect(self._on_rendered)
-        view.limits_changed.connect(self.params.refresh_values)
+        view.limits_changed.connect(self._on_limits_changed)
         view.export_requested.connect(self.export_plot)
         self.workspace.add(key, view, session.title, ("bubble_chart", "accent"), str(result.folder))
         self.set_panel_visible("workspace", True)
@@ -599,6 +660,8 @@ class MainWindow(QMainWindow):
         self.status.set_message(
             f"{session.module.display_name}: {result.folder.name}", timeout_ms=4000
         )
+        if stored_warnings:
+            self.status.set_message(stored_warnings[0], "warning", 8000)
         if auto_export:
             self.export_plot()
         self.plot_ready.emit(session)
@@ -613,6 +676,65 @@ class MainWindow(QMainWindow):
 
     def _on_param_changed(self, _name: str) -> None:
         self._render_timer.start()
+        if self.params.session is not None:
+            self._mark_unsaved(self.params.session)
+
+    def _on_limits_changed(self) -> None:
+        # Pan/zoom or Reset in the plot toolbar (always the visible, current plot).
+        self.params.refresh_values()
+        view = self.current_plot()
+        if view is not None:
+            self._mark_unsaved(view.session)
+
+    # -- plot settings files (<folder>/<kind>.plot) ---------------------------------------------
+    def _mark_unsaved(self, session: PlotSession) -> None:
+        self._unsaved[session.key] = session
+        self._save_timer.start()
+
+    def _flush_plot_files(self, key: str | None = None) -> None:
+        """Write the pending settings (all, or only the plot ``key``)."""
+        keys = list(self._unsaved) if key is None else [key]
+        for session in filter(None, (self._unsaved.pop(k, None) for k in keys)):
+            try:
+                write_plot_file(session.folder, session.kind, session.params)
+            except OSError as exc:
+                log.warning("cannot save %s.plot in %s: %s", session.kind, session.folder, exc)
+                if session.key not in self._save_failed:
+                    self._save_failed.add(session.key)
+                    self.status.set_message(
+                        f"Não foi possível salvar {session.kind}.plot em {session.folder.name}: "
+                        f"{exc.strerror or exc}",
+                        "warning",
+                        8000,
+                    )
+
+    def _on_tab_closing(self, widget) -> None:
+        if isinstance(widget, PlotView):
+            self._flush_plot_files(widget.session.key)
+
+    def _restore_defaults(self) -> None:
+        session = self.params.session
+        if session is None:
+            return
+        name = plot_file_path(session.folder, session.kind).name
+        answer = QMessageBox.question(
+            self,
+            "Restaurar padrões",
+            f"Voltar todos os ajustes deste gráfico ao padrão e apagar {name}?",
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self._unsaved.pop(session.key, None)
+        session.params = copy.deepcopy(session.defaults)
+        try:
+            delete_plot_file(session.folder, session.kind)
+        except OSError as exc:
+            self.status.set_message(f"Não foi possível apagar {name}: {exc}", "warning", 8000)
+        self.params.bind(session)
+        self.params.refresh_values()
+        view = self.workspace.widget_for(session.key)
+        if view is not None:
+            view.render()
 
     def _render_current(self) -> None:
         view = self.current_plot()
@@ -647,11 +769,6 @@ class MainWindow(QMainWindow):
         result = self._map_manually(folder, [view.session.result])
         if result is not None:
             self._load(result, auto_export=False)
-
-    def _remember_labels(self, labels: list) -> None:
-        view = self.current_plot()
-        if view is not None and view.session.kind == "bands":
-            self.memory.set_labels(view.session.folder, labels or None)
 
     def export_plot(self) -> list[Path]:
         """Save the current plot to <folder>/plots/ in the configured formats (PRD §4.4)."""

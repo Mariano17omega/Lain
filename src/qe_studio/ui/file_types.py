@@ -9,7 +9,7 @@ from ..core.qe import projwfc
 TEXT_SUFFIXES = {
     ".in", ".inp", ".out", ".log", ".txt", ".dat", ".gnu", ".md", ".yaml", ".yml", ".json",
     ".xml", ".csv", ".py", ".sh", ".qsub", ".slurm", ".pbs", ".rap", ".xmgr", ".cif", ".xsf",
-    ".pwi", ".pwo", ".dos", ".upf",
+    ".pwi", ".pwo", ".dos", ".upf", ".plot",
 }  # fmt: skip
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 SVG_SUFFIXES = {".svg"}
@@ -23,6 +23,7 @@ _VISUALS = [
     ({".gnu", ".dat", ".csv", ".xmgr", ".dos", ".rap"}, ("analytics", "icon_data")),
     ({".yaml", ".yml", ".json", ".xml"}, ("data_object", "icon_other")),
     ({".py", ".sh", ".qsub", ".slurm", ".pbs", ".ipynb"}, ("code", "icon_other")),
+    ({".plot"}, ("tune", "icon_other")),  # saved plot settings
 ]
 
 

@@ -156,7 +156,7 @@ class ParamsPanel(QWidget):
     remap_requested = pyqtSignal()
     export_requested = pyqtSignal()
     generate_requested = pyqtSignal()
-    labels_edited = pyqtSignal(list)
+    restore_requested = pyqtSignal()
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
@@ -211,6 +211,13 @@ class ParamsPanel(QWidget):
                 button.clicked.connect(self.export_requested)
                 section.add_full(button)
             column.addWidget(section)
+        restore = QPushButton("Restaurar padrões")
+        restore.setToolTip(f"Voltar todos os ajustes ao padrão e apagar {session.kind}.plot")
+        restore.clicked.connect(self.restore_requested)
+        footer = QHBoxLayout()
+        footer.setContentsMargins(10, 10, 8, 10)
+        footer.addWidget(restore)
+        column.addLayout(footer)
         column.addStretch(1)
         self._set_body(body)
 
@@ -348,7 +355,6 @@ class ParamsPanel(QWidget):
                 edit.setProperty("variant", "mono")
                 detected = ", ".join(getattr(self.session.dataset, "labels", []) or [])
                 edit.setPlaceholderText(detected or "ex.: G, X, W, L, G")
-                edit.editingFinished.connect(lambda e=edit: self._labels_typed(e.text()))
             edit.editingFinished.connect(lambda e=edit: self._set(name, e.text()))
             self._setters[name] = lambda v, e=edit: e.setText(str(v))
             widget = edit
@@ -426,7 +432,3 @@ class ParamsPanel(QWidget):
             self._set(name, color.name())
         else:
             edit.setText(swatch.color)
-
-    def _labels_typed(self, text: str) -> None:
-        labels = [part.strip() for part in text.split(",")] if text.strip() else []
-        self.labels_edited.emit(labels)

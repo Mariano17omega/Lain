@@ -113,11 +113,14 @@ Decisão confirmada: **um arquivo por tipo de cálculo** na pasta da simulação
 - Guardar os `.plot` fora da pasta da simulação.
 - Histórico/versões de ajustes.
 
-## Extras propostos (confirmar na revisão: incluir ou não)
-Usam o mesmo `QSettings` e custam pouco. Atendem ao "mudanças em runtime persistidas":
-- [ ] modo da grade (grade/lista) e ordenação (nome/tamanho/data) do `FilePanel`;
-- [ ] última pasta selecionada na árvore, reaberta ao iniciar se ainda existir dentro de `local_root`;
-- [ ] modo do painel esquerdo (árvore/ajustes).
+## Extras propostos
+Usam o mesmo `QSettings` e custam pouco. Atendem ao "mudanças em runtime persistidas". Decidido em
+30/09/2026: incluir os dois primeiros.
+- [x] modo da grade (grade/lista) e ordenação (nome/tamanho/data) do `FilePanel`
+      (`files/grid_mode`, `files/sort`);
+- [x] última pasta selecionada na árvore, reaberta ao iniciar se ainda existir dentro de `local_root`
+      (`explorer/last_folder`);
+- [ ] ~~modo do painel esquerdo (árvore/ajustes)~~: não incluído (abriria os ajustes vazios).
 
 ## Decisões assumidas (confirmar na revisão)
 1. O `.plot` guarda **todos** os campos do dataclass, não só os alterados. Consequência: mudar o

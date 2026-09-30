@@ -221,7 +221,7 @@ class FilePanel(QWidget):
         self.proxy.rowsInserted.connect(self._update_count)
         self.proxy.rowsRemoved.connect(self._update_count)
         service.detected.connect(lambda _f: self.view.viewport().update())
-        theme.theme_changed.connect(lambda _n: self.view.viewport().update())
+        theme.theme_changed.connect(self._on_theme_changed)
         self.set_folder(root)
 
     @property
@@ -238,6 +238,9 @@ class FilePanel(QWidget):
 
     def refresh(self) -> None:
         self._clear_counts()
+        self.view.viewport().update()
+
+    def _on_theme_changed(self, _name: str) -> None:
         self.view.viewport().update()
 
     def set_grid_mode(self, grid: bool) -> None:
@@ -296,15 +299,23 @@ class FilePanel(QWidget):
     def _sort_menu(self) -> QMenu:
         menu = QMenu(self)
         group = QActionGroup(menu)
+        self._sort_actions = {}
         for label, column in (("Nome", SORT_NAME), ("Tamanho", SORT_SIZE), ("Data", SORT_DATE)):
             action = menu.addAction(label)
             action.setCheckable(True)
             action.setChecked(column == SORT_NAME)
             group.addAction(action)
-            action.triggered.connect(lambda _c=False, col=column: self._sort(col))
+            action.triggered.connect(lambda _c=False, col=column: self.set_sort(col))
+            self._sort_actions[column] = action
         return menu
 
-    def _sort(self, column: int) -> None:
+    @property
+    def sort_column(self) -> int:
+        return self.proxy.sort_column
+
+    def set_sort(self, column: int) -> None:
+        """Sort by name (A→Z), size or date (largest/newest first)."""
+        self._sort_actions[column].setChecked(True)
         self.proxy.sort_column = column
         self.proxy.invalidate()
         order = Qt.SortOrder.AscendingOrder if column == SORT_NAME else Qt.SortOrder.DescendingOrder

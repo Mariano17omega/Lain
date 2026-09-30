@@ -90,6 +90,12 @@ export match; `ThemeManager` only styles the widgets around the canvas. Toolbar 
 it. `core/plotting/export.py` writes into `<simulation>/plots/`; existing files are never
 overwritten without asking (PRD §7 data integrity).
 
+Plot settings persist in `<simulation>/<kind>.plot` (YAML, `core/plotting/plot_file.py`): read in
+`_LoadTask` next to `load_cached`, applied field by field over `default_params` (`PlotSession.defaults`
+stays the module default), written only after a user edit (params panel or pan/zoom), debounced 1 s
+and flushed on tab close, regenerate and exit. Window layout, grid mode/sort and the last folder are
+QSettings (`layout/*`, `files/*`, `explorer/last_folder`).
+
 ### Threading rules (GUI thread must never parse files)
 
 - `ui/services.py:DetectionService` caches detection per folder and runs misses in a 2-thread

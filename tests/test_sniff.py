@@ -81,3 +81,24 @@ def test_cache_invalidates_on_change(tmp_path):
     stat = path.stat()
     os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 10**9))
     assert cache.sniff(path).calculation == "bands"
+
+
+def test_plot_settings_files_are_never_read(tmp_path, monkeypatch):
+    from qe_studio.core import sniff as sniff_module
+    from qe_studio.core.calculations.bands import BandsParams
+    from qe_studio.core.detection import detect_folder
+    from qe_studio.core.plotting.plot_file import write_plot_file
+
+    from conftest import copy_fixture
+
+    folder = copy_fixture("al_bands", tmp_path)
+    before = [r.badge for r in detect_folder(folder, sniff=SniffCache().sniff)]
+    path = write_plot_file(folder, "bands", BandsParams())
+
+    def no_reading(*_args, **_kwargs):
+        raise AssertionError("a .plot file must not be read by the sniffer")
+
+    monkeypatch.setattr(sniff_module, "_read_head", no_reading)
+    assert sniff_module.sniff(path).kind is FileKind.UNKNOWN
+    monkeypatch.undo()
+    assert [r.badge for r in detect_folder(folder, sniff=SniffCache().sniff)] == before

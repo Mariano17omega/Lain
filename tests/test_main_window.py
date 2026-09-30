@@ -2,12 +2,13 @@ from pathlib import Path
 
 import pytest
 from PyQt6 import sip
-from PyQt6.QtCore import QCoreApplication, QEvent
+from PyQt6.QtCore import QCoreApplication, QEvent, QSettings
 from PyQt6.QtGui import QDesktopServices
 
 from qe_studio.core.config import LoadedConfig, parse_config
-from qe_studio.ui.main_window import fit_widths
+from qe_studio.ui.main_window import MainWindow, fit_widths
 from qe_studio.ui.widgets.bars import ActivityBar
+from qe_studio.ui.widgets.fs_model import SORT_DATE
 from qe_studio.ui.widgets.workspace import ImageViewer, TextViewer, read_for_viewer
 
 
@@ -255,6 +256,63 @@ def test_dragged_divider_is_remembered(qtbot, main_window):
 def test_close_saves_state(qtbot, main_window):
     window = main_window
     window.close()
-    widths = [int(w) for w in window.settings.value("window/splitter")]
+    widths = [int(w) for w in window.settings.value("layout/panel_widths")]
     assert len(widths) == 3 and min(widths) > 0
     assert widths[2] == 840  # never shown, but its width is kept
+    assert window.settings.value("layout/grid_visible", type=bool)
+
+
+def reopen(qtbot, window):
+    """A new MainWindow on the same settings file, like the next run of the app."""
+    window.close()
+    settings = QSettings(window.settings.fileName(), QSettings.Format.IniFormat)
+    new = MainWindow(window.loaded, window.theme, settings, window.memory)
+    qtbot.addWidget(new)
+    new.show()
+    return new
+
+
+def test_layout_and_navigation_survive_a_restart(qtbot, main_window, demo_project):
+    window = main_window
+    window.set_panel_visible("workspace", True)
+    total = sum(window.splitter.sizes())
+    window.splitter.setSizes([300, 250, total - 550])
+    window.set_panel_visible("grid", False)
+    window.files.set_grid_mode(False)
+    window.files.set_sort(SORT_DATE)
+    window.explorer.select_path(demo_project / "04_pdos")
+
+    new = reopen(qtbot, window)
+    assert new.workspace.isHidden() and new.files.isHidden() and not new.left.isHidden()
+    assert not new.files.grid_mode and new.files.sort_column == SORT_DATE
+    assert new.files._sort_actions[SORT_DATE].isChecked()
+    assert new.files.folder == demo_project / "04_pdos"
+    assert new.current_folder() == demo_project / "04_pdos"
+    new.set_panel_visible("grid", True)
+    new.set_panel_visible("workspace", True)
+    tree, grid, workspace = new.splitter.sizes()
+    assert tree == pytest.approx(300, abs=2) and grid == pytest.approx(250, abs=2)
+    new.close()
+
+
+def test_old_splitter_key_is_migrated(qtbot, main_window):
+    window = main_window
+    window.settings.setValue("window/splitter", [300, 300, 0])
+    window.settings.setValue("window/grid_visible", False)
+    window._restore_state()
+    assert window._panel_widths["workspace"] == 840  # the zero was ignored
+    assert window.files.isHidden()
+    assert window.settings.value("window/splitter") is None
+    assert window.settings.value("window/grid_visible") is None
+    window.settings.setValue("window/splitter", [310, 290, 700])
+    window._restore_state()
+    assert window._panel_widths == {"tree": 310, "grid": 290, "workspace": 700}
+
+
+@pytest.mark.parametrize("last", ["missing", "outside"])
+def test_unusable_last_folder_falls_back_to_the_root(qtbot, main_window, demo_project, last):
+    window = main_window
+    folder = demo_project / "gone" if last == "missing" else demo_project.parent
+    window.settings.setValue("explorer/last_folder", str(folder))
+    window._restore_folder()
+    assert window.files.folder == demo_project

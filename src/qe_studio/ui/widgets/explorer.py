@@ -151,7 +151,10 @@ class ExplorerPanel(QWidget):
         self.collapse_button.clicked.connect(self.tree.collapseAll)
         self.refresh_button.clicked.connect(self.refresh)
         service.detected.connect(lambda _folder: self.tree.viewport().update())
-        theme.theme_changed.connect(lambda _name: self.tree.viewport().update())
+        theme.theme_changed.connect(self._on_theme_changed)
+
+    def _on_theme_changed(self, _name: str) -> None:
+        self.tree.viewport().update()
 
     @property
     def root(self) -> Path:

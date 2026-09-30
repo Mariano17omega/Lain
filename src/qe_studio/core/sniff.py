@@ -27,7 +27,7 @@ GNU_READ_LIMIT = 64 * 1024 * 1024
 SKIP_SUFFIXES = {
     ".png", ".jpg", ".jpeg", ".svg", ".pdf", ".eps", ".ps", ".gif", ".ipynb", ".py", ".sh",
     ".qsub", ".slurm", ".pbs", ".md", ".csv", ".json", ".yaml", ".yml", ".xml", ".upf",
-    ".cif", ".xsf", ".zip", ".gz", ".tar", ".bz2", ".xz", ".rap", ".xmgr", ".html",
+    ".cif", ".xsf", ".zip", ".gz", ".tar", ".bz2", ".xz", ".rap", ".xmgr", ".html", ".plot",
 }  # fmt: skip
 
 

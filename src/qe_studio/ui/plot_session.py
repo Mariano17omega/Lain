@@ -65,6 +65,7 @@ class PlotSession:
     def apply_limits(self, xlim: tuple[float, float], ylim: tuple[float, float]) -> None:
         """Store toolbar pan/zoom limits in the parameters so edits and exports keep them."""
         params = self.params
+        xlim, ylim = tuple(map(float, xlim)), tuple(map(float, ylim))  # not numpy scalars
         if self.kind == "bands":
             params.emin, params.emax = ylim
             params.xmin, params.xmax = xlim

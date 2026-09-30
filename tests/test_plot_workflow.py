@@ -1,8 +1,10 @@
 import gc
+import os
 import shutil
 import weakref
 
 import pytest
+import yaml
 from matplotlib.colors import to_hex
 from matplotlib.image import imread
 from PyQt6.QtCore import QCoreApplication, QEvent, QSize
@@ -234,14 +236,111 @@ def test_choose_between_kinds(qtbot, main_window, demo_project, no_dialogs, monk
     assert offered == ["BANDS", "PDOS"] and session.kind == "pdos"
 
 
-def test_typed_labels_are_remembered(qtbot, main_window, demo_project, no_dialogs):
+def test_typed_labels_are_saved_in_the_plot_file(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    session = generate(qtbot, window, folder, auto_export=False)
+    window.params._set("labels", "W, G, X, K, G")
+    window.workspace.close_key(session.key)  # flushes bands.plot
+    assert window.memory.labels(folder) is None  # no longer written to FolderMemory
+    session = generate(qtbot, window, folder, auto_export=False)
+    assert session.params.labels == "W, G, X, K, G"
+
+
+def test_legacy_labels_only_without_plot_file(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    window.memory.set_labels(folder, ["L", "G", "X", "U", "G"])
+    session = generate(qtbot, window, folder, auto_export=False)
+    assert session.params.labels == "L, G, X, U, G"
+    window.params._set("labels", "")
+    window._flush_plot_files()
+    session = generate(qtbot, window, folder, auto_export=False)
+    assert session.params.labels == ""
+
+
+def test_plot_settings_persist(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    path = folder / "bands.plot"
+    session = generate(qtbot, window, folder, auto_export=False)
+    window._flush_plot_files()
+    assert not path.exists()  # generating alone never writes
+    window.params._set("emin", -3.0)
+    qtbot.waitUntil(path.exists, timeout=3000)  # debounced write
+    window.workspace.close_key(session.key)
+    session = generate(qtbot, window, folder, auto_export=False)
+    assert session.params.emin == -3.0 and session.defaults.emin == -5.0
+    window.params._set("emax", 2.0)
+    session = generate(qtbot, window, folder, auto_export=False)  # regenerate flushes first
+    assert (session.params.emin, session.params.emax) == (-3.0, 2.0)
+
+
+def test_pan_zoom_is_saved(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     folder = demo_project / "03_bands"
     generate(qtbot, window, folder, auto_export=False)
-    window.params._labels_typed("W, G, X, K, G")
-    assert window.memory.labels(folder) == ["W", "G", "X", "K", "G"]
+    ax = window.current_plot().figure.axes[0]
+    ax.set_ylim(-2.0, 1.0)
+    ax.set_xlim(0.5, 2.0)
+    window.current_plot()._on_release(None)
+    window._flush_plot_files()
+    stored = yaml.safe_load((folder / "bands.plot").read_text())["params"]
+    assert (stored["emin"], stored["emax"], stored["xmin"], stored["xmax"]) == (-2.0, 1.0, 0.5, 2.0)
+
+
+def test_restore_defaults(qtbot, main_window, demo_project, no_dialogs, monkeypatch):
+    window = main_window
+    folder = demo_project / "03_bands"
     session = generate(qtbot, window, folder, auto_export=False)
-    assert session.params.labels == "W, G, X, K, G"
+    window.params._set("emin", -3.0)
+    window.params._set("background", "#000000")
+    window._flush_plot_files()
+    asked = []
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        staticmethod(lambda *a, **k: asked.append(a[2]) or QMessageBox.StandardButton.Yes),
+    )
+    button = next(
+        b for b in window.params.body.findChildren(QPushButton) if b.text() == "Restaurar padrões"
+    )
+    button.click()
+    assert "bands.plot" in asked[0]
+    assert session.params == session.defaults and not (folder / "bands.plot").exists()
+    figure = window.current_plot().figure
+    assert figure.axes[0].get_ylim() == (-5.0, 5.0) and to_hex(figure.get_facecolor()) == "#ffffff"
+    window._flush_plot_files()
+    assert not (folder / "bands.plot").exists()
+
+
+def test_invalid_plot_file_is_reported(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    (folder / "bands.plot").write_text("lain_plot: 1\nkind: bands\nparams: [broken")
+    session = generate(qtbot, window, folder, auto_export=False)
+    assert session.params == session.defaults
+    assert window.status.message.text() == "bands.plot inválido; usando ajustes padrão."
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores directory permissions")
+def test_read_only_folder_warns_once(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    generate(qtbot, window, folder, auto_export=False)
+    folder.chmod(0o555)
+    try:
+        window.params._set("emin", -3.0)
+        window._flush_plot_files()
+        message = window.status.message.text()
+        assert message.startswith("Não foi possível salvar bands.plot em 03_bands")
+        window.status.set_message("")
+        window.params._set("emin", -2.0)
+        window._flush_plot_files()
+        assert window.status.message.text() == ""  # once per plot and run
+    finally:
+        folder.chmod(0o755)
+    assert not (folder / "bands.plot").exists()
 
 
 def test_plot_button_previews_without_saving(qtbot, main_window, demo_project, no_dialogs):

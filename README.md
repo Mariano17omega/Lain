@@ -81,7 +81,9 @@ a pull.
    folder without saving anything (a plot already open is just brought to front); clicking it
    again hides the plot and its parameters.
 3. Tune the plot. Zooming or panning with the toolbar updates the energy window, and
-   **Exportar** (Ctrl+E) saves again.
+   **Exportar** (Ctrl+E) saves again. Your settings are kept in `<kind>.plot` (e.g. `bands.plot`)
+   inside the simulation folder and come back the next time you plot it; **Restaurar padrões**
+   deletes it.
 4. **Rsync** pulls the folder from the cluster.
 
 ## Development

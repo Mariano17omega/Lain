@@ -42,7 +42,10 @@ class StatusLed(QWidget):
         self.theme = theme
         self.state = "unknown"
         self.setFixedSize(10, 10)
-        theme.theme_changed.connect(lambda _n: self.update())
+        theme.theme_changed.connect(self._on_theme_changed)
+
+    def _on_theme_changed(self, _name: str) -> None:
+        self.update()
 
     def set_state(self, state: str) -> None:
         self.state = state
@@ -212,7 +215,8 @@ class StatusBar(QStatusBar):
         self.addPermanentWidget(self.path)
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
-        self._timer.timeout.connect(lambda: self.set_message(""))
+        # Bound methods, not lambdas: a lambda slot outliving the widget's wrapper crashes.
+        self._timer.timeout.connect(self._clear_message)
 
     def set_message(self, text: str, level: str = "info", timeout_ms: int = 0) -> None:
         self.message.setText(text)
@@ -223,6 +227,9 @@ class StatusBar(QStatusBar):
             self._timer.start(timeout_ms)
         else:
             self._timer.stop()
+
+    def _clear_message(self) -> None:
+        self.set_message("")
 
     def set_readout(self, text: str) -> None:
         self.readout.setText(text)
