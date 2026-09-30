@@ -7,7 +7,16 @@ from typing import Literal
 
 FieldKind = Literal["float", "int", "bool", "color", "choice", "text", "labels", "series"]
 
-SECTIONS = ("Energia", "Eixo X", "Estilo", "Projeções", "Legenda", "Figura", "Exportar")
+SECTIONS = (
+    "Energia",
+    "Relaxamento",
+    "Eixo X",
+    "Estilo",
+    "Projeções",
+    "Legenda",
+    "Figura",
+    "Exportar",
+)
 
 
 @dataclass(frozen=True)

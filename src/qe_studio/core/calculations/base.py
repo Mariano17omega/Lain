@@ -270,6 +270,10 @@ class CalculationModule:
     def param_changed(self, dataset: Any, params: Any, name: str, old: Any) -> None:
         """Hook to adjust dependent parameters after the user edits ``name``."""
 
+    def export_stem(self, params: Any) -> str:
+        """File name (without extension) of the exported figure in ``plots/``."""
+        return self.kind
+
     def load(self, result: DetectionResult) -> Any:
         raise NotImplementedError
 

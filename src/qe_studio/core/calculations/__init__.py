@@ -2,8 +2,9 @@
 
 from .bands import BandsModule
 from .base import CalculationModule, DetectionResult, FileRole, FolderListing, Method
-from .info import CalcModule, RelaxModule, ScfModule
+from .info import CalcModule, ScfModule
 from .pdos import PdosModule
+from .relax import RelaxModule
 
 REGISTRY: tuple[CalculationModule, ...] = (
     BandsModule(),

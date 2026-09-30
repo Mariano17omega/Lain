@@ -197,13 +197,37 @@ def test_manual_mapping_when_scf_missing(qtbot, main_window, demo_project, no_di
     assert window.memory.mapping(folder, "bands")["scf_out"] == [elsewhere / "run.log"]
 
 
-def test_relax_folder_asks_and_can_cancel(qtbot, main_window, demo_project, no_dialogs):
+def test_relax_plot(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
-    window.generate_plot_for(demo_project / "01_relax")
+    folder = demo_project / "01_relax"
+    session = generate(qtbot, window, folder)
+    assert no_dialogs["mapping"] == []  # plottable now: no manual mapping
+    tabs = window.workspace.tabs
+    assert tabs.tabText(tabs.currentIndex()) == "Otimização estrutural · 01_relax"
+    assert sorted(p.name for p in (folder / "plots").iterdir()) == [
+        "relax.pdf",
+        "relax.png",
+        "relax.svg",
+    ]
+    assert window.status.readout.text().startswith("01_relax · Relaxado ✓ · 6 passos BFGS")
+    window.params._set("panels", "energy")
+    assert [p.name for p in window.export_plot()] == [
+        "relax_energia.png",
+        "relax_energia.svg",
+        "relax_energia.pdf",
+    ]
+    session.apply_limits((1.0, 4.0), (1e-6, 1e-2))  # toolbar zoom: only the step range
+    assert (session.params.xmin, session.params.xmax) == (1.0, 4.0)
+    session.reset_view()
+    assert (session.params.xmin, session.params.xmax) == (None, None)
+
+
+def test_scf_folder_asks_for_a_mapping(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    window.generate_plot_for(demo_project / "02_scf")
     qtbot.waitUntil(lambda: bool(no_dialogs["mapping"]), timeout=5000)
-    assert len(no_dialogs["mapping"]) == 1
     message = no_dialogs["mapping"][0][4]
-    assert "RELAX" in message
+    assert "SCF" in message and "relaxamento" in message
     assert window.current_plot() is None
 
 

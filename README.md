@@ -11,7 +11,8 @@ simulations. See [`Documentation/PRD.md`](Documentation/PRD.md) for the product 
   missing can be mapped by hand (remembered per folder).
 - **Publication plots** (matplotlib) with Γ-labelled high-symmetry paths, E − E_F zeroing (or
   VBM / mid-gap / absolute), gap readout, PDOS grouped by species and/or orbital (spin-down
-  mirrored), and a tuning panel. Figures go to each simulation's `plots/` folder as PNG
+  mirrored), relax / vc-relax progress (|ΔE| and total force per BFGS step against the
+  convergence thresholds, log or linear), and a tuning panel. Figures go to each simulation's `plots/` folder as PNG
   (300/600 DPI), SVG and PDF; existing files are never replaced without asking.
 - **Pull-only cluster sync** over rsync + ssh with configurable excludes (`tmp/`, `*.save/`,
   wavefunctions, …), a per-file conflict prompt and a cancellable progress dialog.
@@ -113,7 +114,9 @@ Fonts (Inter, JetBrains Mono: OFL) and Material Symbols icons (Apache-2.0) are v
 
 ### Known MVP limitations
 
-- Pull only (no push). Relaxations are detected but not plotted.
+- Pull only (no push).
+- Relaxation plots show energy and force only (no structure view; vc-relax |ΔE| uses the total
+  energy, not the enthalpy).
 - Spin-polarized band structures show a single `.gnu` channel. k-resolved PDOS files are
   reported as unsupported.
 - On Windows, rsync/ssh must come from cwRsync or MSYS2 (`sync.rsync_binary`,

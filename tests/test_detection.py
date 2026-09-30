@@ -71,7 +71,7 @@ def test_pdos_spin_names():
 
 def test_relax():
     (result,) = detect(FIXTURES / "si_relax")
-    assert result.badge == "RELAX" and result.complete and not result.plottable
+    assert result.badge == "RELAX" and result.complete and result.plottable
 
 
 def test_scf_from_sibling_folder(tmp_path):

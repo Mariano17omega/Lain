@@ -73,6 +73,8 @@ class PlotSession:
             energy, dos = (ylim, xlim) if params.orientation == "vertical" else (xlim, ylim)
             params.emin, params.emax = energy
             params.dos_max = max(abs(dos[0]), abs(dos[1]))
+        elif self.kind == "relax":  # the step range only; Y stays automatic in each panel
+            params.xmin, params.xmax = xlim
 
 
 def plot_key(folder: Path, kind: str) -> str:

@@ -651,8 +651,8 @@ class MainWindow(QMainWindow):
         message = ""
         if detected and not any(r.module.plottable for r in results):
             message = (
-                f"Esta pasta foi identificada como {', '.join(detected)}, que ainda não tem "
-                "gráfico no MVP. Para plotar bandas ou PDOS, indique os arquivos."
+                f"Esta pasta foi identificada como {', '.join(detected)}, que não tem gráfico "
+                "próprio. Para plotar bandas, PDOS ou relaxamento, indique os arquivos."
             )
         elif not results:
             message = (
@@ -847,7 +847,7 @@ class MainWindow(QMainWindow):
         if not formats:
             self.status.set_message("Selecione ao menos um formato de exportação.", "warning", 4000)
             return []
-        stem = session.kind
+        stem = session.module.export_stem(params)
         existing = existing_targets(session.folder, stem, formats)
         if existing and not self._overwrite_always:
             new_stem = next_free_stem(session.folder, stem, formats)

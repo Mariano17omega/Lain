@@ -1,4 +1,4 @@
-"""Detect-only calculation types: structural relaxations and informational SCF/CALC tags."""
+"""Detect-only calculation types: informational SCF/CALC tags (no plot of their own)."""
 
 from __future__ import annotations
 
@@ -6,29 +6,6 @@ from typing import ClassVar
 
 from ..sniff import FileKind, FileSniff
 from .base import CalculationModule, FileRole, output_of
-
-
-class RelaxModule(CalculationModule):
-    kind: ClassVar[str] = "relax"
-    badge: ClassVar[str] = "RELAX"
-    display_name: ClassVar[str] = "Otimização estrutural"
-    roles: ClassVar[tuple[FileRole, ...]] = (
-        FileRole(
-            "relax_in",
-            "Entrada relax/vc-relax (pw.x)",
-            output_of(FileKind.PW_IN, "relax", "vc-relax"),
-            ("relax*.in", "vc-relax*.in"),
-            anchor=True,
-        ),
-        FileRole(
-            "relax_out",
-            "Saída relax/vc-relax (pw.x)",
-            output_of(FileKind.PW_OUT, "relax", "vc-relax"),
-            ("relax*.out", "vc-relax*.out"),
-            required=True,
-            anchor=True,
-        ),
-    )
 
 
 class ScfModule(CalculationModule):
