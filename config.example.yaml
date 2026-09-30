@@ -53,6 +53,8 @@ plot:
     valence: "#2563eb"
     conduction: "#00d2ff"
   fermi_color: "#f43f5e"
+  # Figure background (preview and exported files); text and axes switch to light on dark colors.
+  background: "#ffffff"
   orbital_colors:
     s: "#fbbf24"
     p: "#06b6d4"
@@ -63,8 +65,6 @@ plot:
     formats: [png, svg, pdf]
     # PNG resolution: 300 or 600
     dpi: 300
-    # Figure colors on export: current (follow app theme), light or dark.
-    theme: current
 
 ui:
   # dark or light (the toggle in the app remembers your last choice).

@@ -118,6 +118,7 @@ class SyncConfig(_Section):
 class ExportConfig(_Section):
     formats: list[ExportFormat] = Field(default_factory=lambda: ["png", "svg", "pdf"])
     dpi: int = Field(300, ge=72, le=2400)
+    # Deprecated, no effect (figures use plot.background); still accepted so old configs load.
     theme: Literal["current", "light", "dark"] = "current"
 
     @field_validator("formats")
@@ -141,6 +142,7 @@ class PlotConfig(_Section):
     line_width: float = Field(1.2, gt=0, le=10)
     band_colors: BandColors = Field(default_factory=BandColors)
     fermi_color: Color = "#f43f5e"
+    background: Color = "#ffffff"
     orbital_colors: dict[Orbital, Color] = Field(
         default_factory=lambda: dict(DEFAULT_ORBITAL_COLORS)
     )
@@ -268,6 +270,10 @@ def _warnings(config: AppConfig) -> list[str]:
     else:
         warnings.append(
             "Cluster não configurado (host/user/remote_root): sincronização desativada."
+        )
+    if "theme" in config.plot.export.model_fields_set:
+        warnings.append(
+            "plot.export.theme foi descontinuado: as figuras usam plot.background (padrão branco)."
         )
     return warnings
 

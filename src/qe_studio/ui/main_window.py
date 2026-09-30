@@ -29,7 +29,6 @@ from ..core.calculations.base import LoadError
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.detection import FolderMemory, manual_result
 from ..core.plotting.export import existing_targets, export_figure, next_free_stem
-from ..core.plotting.style import style_for
 from ..core.sync.controller import SyncController, SyncReport, SyncStatus
 from ..core.sync.monitor import ConnectionMonitor
 from ..core.sync.planner import PlanItem
@@ -677,11 +676,9 @@ class MainWindow(QMainWindow):
             if choice is OverwriteChoice.NEW_VERSION:
                 stem = new_stem
             self._overwrite_always = remember
-        export_theme = self.config.plot.export.theme
-        style = self.theme.plot_style if export_theme == "current" else style_for(export_theme)
         try:
             written = export_figure(
-                session.module, session.dataset, params, style, session.folder, stem
+                session.module, session.dataset, params, session.style, session.folder, stem
             )
         except (OSError, ValueError) as exc:
             QMessageBox.warning(self, "Falha ao exportar", str(exc))

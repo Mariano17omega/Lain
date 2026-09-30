@@ -79,7 +79,9 @@ O fundo não é transparente: **a figura inteira segue o tema do app**.
 ## Decisões assumidas (confirmar na revisão)
 1. O contraste automático (R3) inclui a paleta das projeções PDOS: num fundo escuro a paleta automática
    passa a ser a do estilo DARK. A alternativa seria manter sempre a paleta LIGHT.
-2. O limiar de "escuro" é luminância relativa < 0,5 (`matplotlib.colors.to_rgb` + fórmula WCAG).
+2. ~~O limiar de "escuro" é luminância relativa < 0,5~~. Implementado: escolhe-se o estilo (LIGHT ou
+   DARK) cujo texto tem o maior contraste WCAG com o fundo. Dá o mesmo resultado para branco, preto e
+   `#123456`; em tons médios (ex.: `#808080`) mantém o texto escuro, que fica mais legível.
 3. O "Reset" da barra do gráfico continua restaurando só os limites dos eixos, sem mexer na cor de fundo.
 4. `ThemeManager.plot_style` deixa de ser usado para figuras e pode ser removido se ficar sem uso.
 

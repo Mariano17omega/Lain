@@ -398,9 +398,7 @@ class ParamsPanel(QWidget):
         if self._series is None or self.session is None:
             return
         session = self.session
-        colors = session.module.series_colors(
-            session.dataset, session.params, self.theme.plot_style
-        )
+        colors = session.module.series_colors(session.dataset, session.params, session.style)
         self._series.rebuild(colors, session.params.hidden_series, session.params.series_colors)
 
     # -- edits ----------------------------------------------------------------------------------
@@ -413,7 +411,7 @@ class ParamsPanel(QWidget):
             return
         setattr(params, name, value)
         self.session.module.param_changed(self.session.dataset, params, name, old)
-        if name in ("reference", "shift_to_fermi", "fermi_source", "grouping"):
+        if name in ("reference", "shift_to_fermi", "fermi_source", "grouping", "background"):
             self.refresh_values()
         self._emit(name)
 

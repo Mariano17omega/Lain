@@ -33,6 +33,7 @@ class CommonParams:
     figure_width: float = 6.0
     figure_height: float = 4.5
     font_size: float = 11.0
+    background: str = "#ffffff"  # figure and axes; text follows it (figure_style)
     line_width: float = 1.2
     show_legend: bool = False
     legend_loc: str = "best"
@@ -64,6 +65,7 @@ def apply_common_config(params: CommonParams, config) -> None:
     plot = config.plot
     params.figure_width, params.figure_height = plot.figure_size
     params.line_width = plot.line_width
+    params.background = plot.background
     params.export_png = "png" in plot.export.formats
     params.export_svg = "svg" in plot.export.formats
     params.export_pdf = "pdf" in plot.export.formats
@@ -93,6 +95,7 @@ COMMON_FIELDS = (
         "figure_height", "Altura", "Figura", "float", minimum=1, maximum=30, step=0.5, suffix="in"
     ),
     ParamField("font_size", "Fonte", "Figura", "float", minimum=5, maximum=30, step=1, suffix="pt"),
+    ParamField("background", "Cor de fundo", "Figura", "color"),
     ParamField("export_png", "PNG", "Exportar", "bool"),
     ParamField("export_svg", "SVG", "Exportar", "bool"),
     ParamField("export_pdf", "PDF", "Exportar", "bool"),

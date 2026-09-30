@@ -85,4 +85,3 @@ def test_toggle_emits(qapp, qtbot):
     with qtbot.waitSignal(manager.theme_changed) as blocker:
         assert manager.toggle() == "light"
     assert blocker.args == ["light"]
-    assert manager.plot_style.name == "light"

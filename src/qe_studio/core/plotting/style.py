@@ -1,15 +1,17 @@
-"""Figure styles for the dark and light themes.
+"""Figure styles: dark or light text, axes and guides for the plot's background colour.
 
-Styles are applied with ``matplotlib.rc_context`` around rendering (never by mutating the
-global ``rcParams``), so the preview canvas and off-screen exports can use different themes.
+Figures do not follow the app theme: the style comes from ``params.background`` (default white),
+so preview and exported files look the same. Styles are applied with ``matplotlib.rc_context``
+around rendering, never by mutating the global ``rcParams``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib.resources import as_file, files
 
 from matplotlib import font_manager
+from matplotlib.colors import to_rgb
 
 UI_FONT = "Inter"
 MONO_FONT = "JetBrains Mono"
@@ -104,8 +106,19 @@ LIGHT = PlotStyle(
     palette=("#2563eb", "#0284c7", "#059669", "#d97706", "#7c3aed", "#db2777", "#dc2626"),
 )
 
-STYLES = {"dark": DARK, "light": LIGHT}
+
+def relative_luminance(color: str) -> float:
+    """WCAG 2 relative luminance (0 = black, 1 = white)."""
+    r, g, b = (c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in to_rgb(color))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
-def style_for(theme: str) -> PlotStyle:
-    return STYLES.get(theme, DARK)
+def contrast_ratio(a: str, b: str) -> float:
+    high, low = sorted((relative_luminance(a), relative_luminance(b)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+def figure_style(background: str) -> PlotStyle:
+    """Style for a figure background: the base (light or dark) whose text reads best on it."""
+    base = max((LIGHT, DARK), key=lambda style: contrast_ratio(style.text, background))
+    return replace(base, figure_bg=background, axes_bg=background)

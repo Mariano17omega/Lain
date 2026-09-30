@@ -82,6 +82,7 @@ def test_empty_file_uses_defaults(tmp_path):
     [
         ("plot: {energy_min: 3, energy_max: 1}", "energy_min deve ser menor"),
         ("plot: {fermi_color: notacolor}", "plot.fermi_color"),
+        ("plot: {background: notacolor}", "plot.background"),
         ("plot: {export: {formats: [jpg]}}", "plot.export.formats"),
         ("plot: {export: {formats: []}}", "ao menos um formato"),
         ("plot: {figure_size: [0, 4]}", "plot.figure_size"),
@@ -136,3 +137,15 @@ cluster: {{host: h, user: u, auth: password, password_env: NOPE_PW, password: x}
     assert "Pasta local não encontrada" in joined
     assert "texto puro" in joined
     assert loaded.config.sync_enabled
+
+
+def test_export_theme_is_deprecated(tmp_path):
+    def warnings(text):
+        loaded = load_config(write(tmp_path / "c.yaml", text), environ={}, cwd=tmp_path)
+        return [w for w in loaded.warnings if "plot.export.theme" in w]
+
+    assert warnings("plot: {export: {theme: dark}}") == [
+        "plot.export.theme foi descontinuado: as figuras usam plot.background (padrão branco)."
+    ]
+    assert warnings("plot: {export: {dpi: 600}}") == []
+    assert parse_config({"plot": {"background": "#000000"}}).plot.background == "#000000"

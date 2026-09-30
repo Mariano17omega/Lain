@@ -18,7 +18,6 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QApplication
 
 from ...core.appdirs import cache_dir
-from ...core.plotting.style import PlotStyle, style_for
 
 THEMES = ("dark", "light")
 # Icons referenced from QSS as url(${token}): (token, icon, color token, size px)
@@ -144,10 +143,6 @@ class ThemeManager(QObject):
     # -- lookups -------------------------------------------------------------------------------
     def color(self, token: str) -> QColor:
         return parse_color(self.tokens[token])
-
-    @property
-    def plot_style(self) -> PlotStyle:
-        return style_for(self.name)
 
     def palette(self) -> QPalette:
         c = self.color

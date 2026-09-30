@@ -3,8 +3,10 @@ import shutil
 import weakref
 
 import pytest
+from matplotlib.colors import to_hex
+from matplotlib.image import imread
 from PyQt6.QtCore import QCoreApplication, QEvent, QSize
-from PyQt6.QtWidgets import QMessageBox, QPushButton
+from PyQt6.QtWidgets import QLabel, QMessageBox, QPushButton
 
 from qe_studio.core.calculations.base import Method
 from qe_studio.ui.dialogs.overwrite import OverwriteChoice
@@ -54,6 +56,7 @@ def test_generate_bands_exports_to_plots(qtbot, main_window, demo_project, no_di
     ]
     assert "E_F = 8.0584 eV" in window.status.readout.text()
     assert no_dialogs["overwrite"] == []
+    assert to_hex(imread(folder / "plots" / "bands.png")[0, 0]) == "#ffffff"  # dark app theme
 
     written = window.export_plot()  # files exist now: dialog → new version
     assert no_dialogs["overwrite"] == [["bands.png", "bands.svg", "bands.pdf"]]
@@ -124,12 +127,28 @@ def test_canvas_keeps_export_inches(qtbot, main_window, demo_project, no_dialogs
         assert rect.width() / rect.height() == pytest.approx(6.0 / 4.5, rel=0.02)
 
 
-def test_theme_toggle_rerenders_plot(qtbot, main_window, demo_project, no_dialogs):
+def test_figure_stays_white_whatever_the_theme(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
+    assert window.theme.name == "dark"
     generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    figure = window.current_plot().figure
+    assert to_hex(figure.get_facecolor()) == "#ffffff"
     window.toggle_theme()
-    assert window.current_plot().figure.get_facecolor()[:3] == (1.0, 1.0, 1.0)
+    assert to_hex(figure.get_facecolor()) == "#ffffff"
     window.toggle_theme()
+    assert to_hex(figure.get_facecolor()) == "#ffffff"
+
+
+@pytest.mark.parametrize("folder", ["03_bands", "04_pdos"])
+def test_background_parameter_rerenders(qtbot, main_window, demo_project, no_dialogs, folder):
+    window = main_window
+    generate(qtbot, window, demo_project / folder, auto_export=False)
+    labels = [label.text() for label in window.params.body.findChildren(QLabel)]
+    assert "Cor de fundo" in labels and "background" in window.params._setters
+    figure = window.current_plot().figure
+    window.params._set("background", "#123456")
+    qtbot.waitUntil(lambda: to_hex(figure.get_facecolor()) == "#123456", timeout=3000)
+    assert to_hex(figure.axes[0].get_facecolor()) == "#123456"
 
 
 def test_closed_plot_is_released(qtbot, main_window, demo_project, no_dialogs):

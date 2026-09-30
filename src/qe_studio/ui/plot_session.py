@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 
 from ..core.calculations import CalculationModule, DetectionResult
 from ..core.calculations.params import RenderInfo
-from ..core.plotting.style import PlotStyle
+from ..core.plotting.style import PlotStyle, figure_style
 
 
 @dataclass
@@ -41,6 +41,11 @@ class PlotSession:
     @property
     def key(self) -> str:
         return plot_key(self.folder, self.kind)
+
+    @property
+    def style(self) -> PlotStyle:
+        """Figure colors from the background parameter, the same for preview and export."""
+        return figure_style(self.params.background)
 
     @property
     def title(self) -> str:

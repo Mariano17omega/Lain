@@ -84,8 +84,9 @@ from the `ParamField` list in `param_schema`, so no UI code is needed for new fi
 ### Plotting
 
 `ui/plot_session.py:PlotSession` = detection result + dataset + params (+ copy of defaults).
-`render()` wraps the module's `render` in `PlotStyle.rc(...)` (`core/plotting/style.py`, derived
-from the app theme). Toolbar pan/zoom is written back into params (`apply_limits`) so exports keep
+`render()` wraps the module's `render` in `PlotStyle.rc(...)`. The style is `PlotSession.style` =
+`figure_style(params.background)` (`core/plotting/style.py`), never the app theme, so preview and
+export match; `ThemeManager` only styles the widgets around the canvas. Toolbar pan/zoom is written back into params (`apply_limits`) so exports keep
 it. `core/plotting/export.py` writes into `<simulation>/plots/`; existing files are never
 overwritten without asking (PRD §7 data integrity).
 

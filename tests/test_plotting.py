@@ -19,9 +19,8 @@ from qe_studio.core.plotting.export import (
     existing_targets,
     export_figure,
     next_free_stem,
-    render_figure,
 )
-from qe_studio.core.plotting.style import DARK, LIGHT
+from qe_studio.core.plotting.style import DARK, LIGHT, figure_style
 from qe_studio.core.sniff import SniffCache
 
 from conftest import FIXTURES, copy_fixture
@@ -196,12 +195,35 @@ def test_versioning(tmp_path):
     assert next_free_stem(tmp_path, "bands", formats) == "bands_3"
 
 
-def test_export_theme_colors():
+def test_figure_style_follows_the_background():
+    white, black = figure_style("#ffffff"), figure_style("#000000")
+    assert (white.text, white.guide, white.figure_bg) == (LIGHT.text, LIGHT.guide, "#ffffff")
+    assert (black.text, black.palette, black.axes_bg) == (DARK.text, DARK.palette, "#000000")
+    navy = figure_style("#123456")
+    assert navy.text == DARK.text and navy.figure_bg == navy.axes_bg == "#123456"
+
+
+def test_export_background(tmp_path):
     module, ds, params = load(FIXTURES / "al_bands")
-    light = render_figure(module, ds, params, LIGHT, 50)
-    dark = render_figure(module, ds, params, DARK, 50)
-    assert matplotlib.colors.to_hex(light.get_facecolor()) == "#ffffff"
-    assert matplotlib.colors.to_hex(dark.get_facecolor()) == DARK.figure_bg
+    assert params.background == "#ffffff"
+    (png,) = export_figure(
+        module, ds, params, figure_style(params.background), tmp_path, "a", ["png"], 50
+    )
+    assert matplotlib.colors.to_hex(imread(png)[0, 0]) == "#ffffff"
+    params.background = "#123456"
+    style = figure_style(params.background)
+    png, svg = export_figure(module, ds, params, style, tmp_path, "b", ["png", "svg"], 50)
+    assert matplotlib.colors.to_hex(imread(png)[0, 0]) == "#123456"
+    assert "fill: #123456" in svg.read_text()
+
+
+def test_pdos_palette_follows_the_background():
+    module, ds, params = load(FIXTURES / "ni_pdos_spin")
+    params.grouping = "species"
+    light = module.series_colors(ds, params, figure_style("#ffffff"))
+    dark = module.series_colors(ds, params, figure_style("#000000"))
+    assert list(light.values()) == [LIGHT.palette[0]]
+    assert list(dark.values()) == [DARK.palette[0]]
 
 
 def test_load_cache_reuses_dataset():

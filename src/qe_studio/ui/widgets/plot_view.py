@@ -178,11 +178,6 @@ class PlotView(QWidget):
         self.toolbar.reset_requested.connect(self._reset)
         self.canvas.mpl_connect("button_release_event", self._on_release)
         self.canvas.mpl_connect("scroll_event", self._on_release)
-        # A bound method (not a lambda): PyQt drops the connection when the tab is deleted.
-        theme.theme_changed.connect(self._on_theme_changed)
-        self.render()
-
-    def _on_theme_changed(self, _name: str) -> None:
         self.render()
 
     def render(self) -> None:
@@ -190,7 +185,7 @@ class PlotView(QWidget):
         if self.canvas._inches != params.figure_size:
             self.canvas.set_inches(*params.figure_size)
             self.box.set_ratio(params.figure_width / params.figure_height)
-        style = self.theme.plot_style
+        style = self.session.style  # not the app theme: the figure looks like the export
         self.canvas.rc = style.rc(params.font_size)
         info = self.session.render(self.figure, style)
         self.canvas.draw_idle()
