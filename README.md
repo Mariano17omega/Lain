@@ -77,8 +77,9 @@ a pull.
    (BANDS, PDOS, RELAX, SCF, CALC), and outputs show `OK` / `INCOMPLETO`.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
-   opens when a plot is generated or a file is opened; **Plot** in the activity bar shows the
-   open plots and their parameters without plotting anything.
+   opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the
+   folder without saving anything (a plot already open is just brought to front); clicking it
+   again hides the plot and its parameters.
 3. Tune the plot. Zooming or panning with the toolbar updates the energy window, and
    **Exportar** (Ctrl+E) saves again.
 4. **Rsync** pulls the folder from the cluster.

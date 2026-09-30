@@ -103,7 +103,9 @@ class ActivityBar(QWidget):
         layout.setSpacing(4)
         self.tree = ActivityButton(theme, "account_tree", "Árvore", "Explorador de pastas", True)
         self.grid = ActivityButton(theme, "grid_view", "Grade", "Mostrar/ocultar arquivos", True)
-        self.plot = ActivityButton(theme, "bolt", "Plot", "Gráficos e ajuste do gráfico", True)
+        self.plot = ActivityButton(
+            theme, "bolt", "Plot", "Mostrar/ocultar o gráfico (sem salvar)", True
+        )
         self.rsync = ActivityButton(theme, "sync", "Rsync", "Sincronizar com o cluster")
         self.theme_button = ActivityButton(theme, "light_mode", "Tema", "Alternar tema (Ctrl+T)")
         for button in (self.tree, self.grid, self.plot, self.rsync):

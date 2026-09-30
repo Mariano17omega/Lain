@@ -255,7 +255,7 @@ class MainWindow(QMainWindow):
         self.files.file_selected.connect(lambda p: self.status.set_path(self._relative(p)))
         self.activity.explorer_requested.connect(lambda: self.set_left_mode("tree"))
         self.activity.grid_toggled.connect(lambda on: self.set_panel_visible("grid", on))
-        self.activity.plot_requested.connect(self.open_plot_panels)
+        self.activity.plot_requested.connect(self.toggle_plot)
         self.activity.sync_requested.connect(self.start_sync)
         self.activity.theme_requested.connect(self.toggle_theme)
         self.top_bar.generate_requested.connect(self.generate_plot)
@@ -324,15 +324,36 @@ class MainWindow(QMainWindow):
         self.workspace.open_file(path, kind)
         self.set_panel_visible("workspace", True)
 
-    def open_plot_panels(self) -> None:
-        """Activity bar "Plot": show the plot tabs and their settings, without plotting."""
+    def toggle_plot(self) -> None:
+        """Activity bar "Plot": the first click shows the plot and its settings, the next hides
+        them (the left panel goes back to the tree)."""
+        showing = (
+            not self.workspace.isHidden()
+            and not self.left.isHidden()
+            and self.left.currentWidget() is self.params
+        )
+        if showing:
+            self.set_panel_visible("workspace", False)
+            self.set_left_mode("tree")
+        else:
+            self.preview_plot()
+
+    def preview_plot(self) -> None:
+        """Plot the selected folder in the workspace without saving it.
+
+        A plot of that folder already open is only brought to front, keeping its edits.
+        """
+        folder = self.current_folder()
         self.set_panel_visible("workspace", True)
-        if self.current_plot() is None:
-            recent = (w for w in self.workspace.recent() if isinstance(w, PlotView))
-            view = next(recent, None)
-            if view is not None:
-                self.workspace.set_current(view)
         self.set_left_mode("params")
+        view = self.current_plot()
+        if view is None or view.session.folder != folder:
+            keys = (plot_key(folder, m.kind) for m in REGISTRY if m.plottable)
+            view = next((w for w in map(self.workspace.widget_for, keys) if w is not None), None)
+        if view is not None:
+            self.workspace.set_current(view)
+        else:
+            self.generate_plot_for(folder, auto_export=False)
 
     def open_folder_externally(self) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.current_folder())))

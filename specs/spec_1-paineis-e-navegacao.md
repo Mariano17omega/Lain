@@ -101,18 +101,22 @@ Arquivos `external` (abertos pelo sistema) **não** exibem o workspace.
 3. `ActivityBar.set_left_mode` passa a marcar "Árvore" no modo `tree` e "Plot" no modo `params`
    (Plot vira botão checkable que indica o painel de ajustes ativo).
 
-### R5: Botão "Plot" só abre, não gera
+### R5: Botão "Plot" visualiza sem salvar
+Revisado em 30/09/2026 a pedido do usuário: o Plot também gera a visualização, mas nunca salva.
+
 Ao clicar em "Plot":
 1. exibe o workspace, se estiver oculto;
 2. exibe o painel esquerdo, se estiver oculto, no modo ajustes (`set_left_mode("params")`);
-3. se a aba atual do workspace não é um gráfico mas existe alguma aba de gráfico aberta, ativa a
-   aba de gráfico usada por último, para que o painel de ajustes mostre os parâmetros dela;
-4. **não** detecta, não carrega, não plota e não exporta nada.
+3. se já existe uma aba de gráfico da pasta selecionada, apenas a ativa (mantém os ajustes editados);
+4. senão, detecta, carrega e plota a pasta selecionada (`generate_plot_for(folder, auto_export=False)`),
+   **sem** exportar para `plots/` e **sem** o diálogo de sobrescrever;
+5. se workspace e painel de ajustes já estão visíveis (botão marcado), o clique os oculta: o
+   workspace some e o painel esquerdo volta para a árvore. Um clique abre, o seguinte oculta.
 
 Ctrl+G, o menu "Gráficos → Gerar gráfico" e o botão "Gerar Gráfico" da barra superior continuam
-gerando e exportando como hoje. O tooltip do Plot passa a ser "Gráficos e ajuste do gráfico". Sem
+gerando **e salvando** como hoje. O tooltip do Plot passa a ser "Mostrar/ocultar o gráfico (sem salvar)". Sem
 gráfico aberto, o `ParamsPanel` mostra o placeholder atual, que ganha um botão "Gerar gráfico"
-(mesma ação do botão da barra superior).
+(mesma ação do botão da barra superior, que salva).
 
 ### R6: Rodapé sempre coerente com o que está na tela
 1. O `readout` do rodapé mostra o resumo do gráfico (`RenderInfo.summary` · px · DPI) **somente**
@@ -149,8 +153,6 @@ gráfico aberto, o `ParamsPanel` mostra o placeholder atual, que ganha um botão
   trabalho não podem vir só de `sizes()`.
 - `set_panel_visible("workspace", ...)` deve atualizar o `readout` (R6.3/R6.4). A troca de aba já passa
   por `_on_tab_changed`; aproveitar para limpar o `readout` quando `widget` não é `PlotView`.
-- "Última aba de gráfico usada" (R5.3): guardar a ordem de ativação em `Workspace` (ex.: lista de chaves
-  `plot:*` atualizada em `_on_current`).
 - Sinais de longa duração conectados a métodos, não a lambdas (regra do CLAUDE.md).
 
 ## Critérios de aceite e testes
@@ -162,9 +164,10 @@ Em `tests/test_main_window.py` / `tests/test_plot_workflow.py` (headless, fixtur
       ±2 px), e reexibir restaura os três tamanhos originais.
 - [ ] Ocultar e reexibir a grade com o workspace visível preserva a razão árvore/workspace.
 - [ ] A `ActivityBar` não tem mais o atributo `params` nem o sinal `params_requested`.
-- [ ] Clicar em Plot numa pasta com bandas: nenhuma detecção pedida (`_detecting` vazio), nenhum
-      arquivo novo em `plots/`, workspace visível, `left.currentIndex() == 1`.
-- [ ] Com uma aba de gráfico e uma de texto abertas (texto atual), Plot ativa a aba de gráfico.
+- [ ] Clicar em Plot numa pasta com bandas: gráfico aberto, nenhum arquivo em `plots/`, nenhum diálogo
+      de sobrescrever (mesmo com figuras já salvas), workspace visível, `left.currentIndex() == 1`.
+- [ ] Com o gráfico da pasta já aberto (e editado), Plot só ativa a aba, sem recarregar.
+- [ ] Segundo clique em Plot oculta o workspace e volta à árvore; o terceiro reabre a mesma aba.
 - [ ] Depois de gerar um gráfico, fechar a aba limpa `status.readout`. Trocar para uma aba de texto
       também limpa, e voltar para a aba do gráfico restaura o texto.
 - [ ] O `readout` começa com o nome da pasta do gráfico.

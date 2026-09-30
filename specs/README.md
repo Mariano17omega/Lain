@@ -12,7 +12,7 @@ prioridade. Cada spec é autossuficiente e pode virar um `/plan` de implementaç
 
 | # | Spec | Resumo | Depende de | Esforço |
 |---|---|---|---|---|
-| 1 | [spec_1-paineis-e-navegacao.md](spec_1-paineis-e-navegacao.md) | Workspace oculto no início, abre sozinho; divisores mantêm a proporção; sem botão "Ajuste"; "Plot" só abre; rodapé coerente | nenhuma | M |
+| 1 | [spec_1-paineis-e-navegacao.md](spec_1-paineis-e-navegacao.md) | Workspace oculto no início, abre sozinho; divisores mantêm a proporção; sem botão "Ajuste"; "Plot" plota sem salvar; rodapé coerente | nenhuma | M |
 | 2 | [spec_2-fundo-das-figuras.md](spec_2-fundo-das-figuras.md) | Figura sempre com fundo branco, independente do tema; parâmetro "Cor de fundo" | nenhuma | P |
 | 3 | [spec_3-persistencia-de-estado.md](spec_3-persistencia-de-estado.md) | Divisores persistidos; ajustes do gráfico em `<tipo>.plot` na pasta da simulação | 1, 2 | M |
 | 4 | [spec_4-arquivos-de-job-do-cluster.md](spec_4-arquivos-de-job-do-cluster.md) | `job.o<id>` como texto com SEM ERROS/ERRO; `.qsub` somente leitura | nenhuma | P |
@@ -35,7 +35,7 @@ Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 | 3 | Divisórias mantêm a proporção ao abrir ou fechar abas | spec 1, R3 |
 | 4 | Remover o botão "Ajuste" da barra lateral | spec 1, R4 |
 | 5 | Grade: remover o tamanho do arquivo, manter OK/incompleto | spec 5, R1 |
-| 6 | Botão "Plot" só abre o workspace e os ajustes, sem gerar | spec 1, R5 |
+| 6 | Botão "Plot" abre o workspace e os ajustes e plota sem salvar | spec 1, R5 |
 | 7 | Clique direito: Abrir local de origem, Abrir com, Copiar, Renomear | spec 5, R3 |
 | 8 | Grade: atalho `..` como primeiro elemento | spec 5, R2 |
 | 9 | Rodapé com informações do gráfico desatualizadas | spec 1, R6 |

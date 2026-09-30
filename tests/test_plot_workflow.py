@@ -225,40 +225,78 @@ def test_typed_labels_are_remembered(qtbot, main_window, demo_project, no_dialog
     assert session.params.labels == "W, G, X, K, G"
 
 
-def test_plot_button_only_opens_panels(qtbot, main_window, demo_project, no_dialogs):
+def test_plot_button_previews_without_saving(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     folder = demo_project / "03_bands"
     window.explorer.select_path(folder)
-    window.activity.plot.click()
-    assert window._detecting == {} and window._loads == {}
-    qtbot.wait(100)
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+        window.activity.plot.click()
+    assert blocker.args[0].folder == folder and window.current_plot() is not None
     assert not (folder / "plots").exists()
-    assert window.workspace.isVisible() and window.workspace.current() is None
-    assert window.left.currentIndex() == 1 and window.activity.plot.isChecked()
+    assert window.workspace.isVisible() and window.left.currentIndex() == 1
+    assert window.activity.plot.isChecked()
 
 
-def test_plot_button_activates_last_plot_tab(qtbot, main_window, demo_project, no_dialogs):
+def test_plot_button_never_asks_to_overwrite(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    generate(qtbot, window, folder)  # "Gerar Gráfico": plots and saves
+    saved = sorted(p.name for p in (folder / "plots").iterdir())
+    window.workspace.close_key(window.current_plot().session.key)
+    window.set_left_mode("tree")  # plot closed, back to the tree: next Plot click opens
+    window.explorer.select_path(folder)
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        window.activity.plot.click()
+    assert no_dialogs["overwrite"] == []
+    assert sorted(p.name for p in (folder / "plots").iterdir()) == saved
+
+
+def test_plot_button_reuses_the_open_plot(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     folder = demo_project / "03_bands"
     generate(qtbot, window, folder, auto_export=False)
     view = window.current_plot()
+    window.params._set("emin", -3.0)
     window.open_file(folder / "bands.in")
     window.set_left_mode("tree")
-    assert window.current_plot() is None
-    window.activity.plot.click()
-    assert window.current_plot() is view and window.params.session is view.session
-    assert window.left.currentIndex() == 1
+    window.explorer.select_path(folder)
+    with qtbot.assertNotEmitted(window.plot_ready, wait=200):
+        window.activity.plot.click()
+    assert window._detecting == {}
+    assert window.current_plot() is view and view.session.params.emin == -3.0
+    assert window.params.session is view.session and window.left.currentIndex() == 1
 
 
-def test_placeholder_generates_plot(qtbot, main_window, demo_project, no_dialogs):
+def test_second_plot_click_hides_the_plot(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
+    plot = window.activity.plot
     window.explorer.select_path(demo_project / "03_bands")
-    window.activity.plot.click()
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        plot.click()
+    view = window.current_plot()
+    assert window.workspace.isVisible() and window.left.currentIndex() == 1 and plot.isChecked()
+
+    plot.click()
+    assert not window.workspace.isVisible() and not window.top_bar.toggles["workspace"].isChecked()
+    assert window.left.isVisible() and window.left.currentIndex() == 0
+    assert not plot.isChecked() and window.activity.tree.isChecked()
+
+    with qtbot.assertNotEmitted(window.plot_ready, wait=200):
+        plot.click()  # opens again, reusing the tab
+    assert window.workspace.isVisible() and window.left.currentIndex() == 1 and plot.isChecked()
+    assert window.current_plot() is view
+
+
+def test_placeholder_generates_and_saves(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    window.explorer.select_path(folder)
+    window.set_left_mode("params")
     button = window.params.body.findChild(QPushButton)
     assert button.text() == "Gerar gráfico"
     with qtbot.waitSignal(window.plot_ready, timeout=10_000):
         button.click()
-    assert window.current_plot() is not None
+    assert (folder / "plots" / "bands.png").exists()
 
 
 def test_readout_follows_the_plot_on_screen(qtbot, main_window, demo_project, no_dialogs):
