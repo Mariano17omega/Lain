@@ -4,7 +4,7 @@ import weakref
 
 import pytest
 from PyQt6.QtCore import QCoreApplication, QEvent, QSize
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QMessageBox, QPushButton
 
 from qe_studio.core.calculations.base import Method
 from qe_studio.ui.dialogs.overwrite import OverwriteChoice
@@ -223,3 +223,69 @@ def test_typed_labels_are_remembered(qtbot, main_window, demo_project, no_dialog
     assert window.memory.labels(folder) == ["W", "G", "X", "K", "G"]
     session = generate(qtbot, window, folder, auto_export=False)
     assert session.params.labels == "W, G, X, K, G"
+
+
+def test_plot_button_only_opens_panels(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    window.explorer.select_path(folder)
+    window.activity.plot.click()
+    assert window._detecting == {} and window._loads == {}
+    qtbot.wait(100)
+    assert not (folder / "plots").exists()
+    assert window.workspace.isVisible() and window.workspace.current() is None
+    assert window.left.currentIndex() == 1 and window.activity.plot.isChecked()
+
+
+def test_plot_button_activates_last_plot_tab(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    generate(qtbot, window, folder, auto_export=False)
+    view = window.current_plot()
+    window.open_file(folder / "bands.in")
+    window.set_left_mode("tree")
+    assert window.current_plot() is None
+    window.activity.plot.click()
+    assert window.current_plot() is view and window.params.session is view.session
+    assert window.left.currentIndex() == 1
+
+
+def test_placeholder_generates_plot(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    window.explorer.select_path(demo_project / "03_bands")
+    window.activity.plot.click()
+    button = window.params.body.findChild(QPushButton)
+    assert button.text() == "Gerar gráfico"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        button.click()
+    assert window.current_plot() is not None
+
+
+def test_readout_follows_the_plot_on_screen(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"
+    session = generate(qtbot, window, folder, auto_export=False)
+    readout = window.status.readout
+    text = readout.text()
+    assert text.startswith("03_bands · E_F = 8.0584 eV") and "px (300 DPI)" in text
+
+    window.open_file(folder / "bands.in")
+    assert readout.text() == ""
+    window.workspace.set_current(window.workspace.widget_for(session.key))
+    assert readout.text() == text
+
+    window.set_panel_visible("workspace", False)
+    assert readout.text() == ""
+    window.set_panel_visible("workspace", True)
+    assert readout.text() == text
+
+    window.explorer.select_path(demo_project / "04_pdos")
+    assert window.files.folder == demo_project / "04_pdos" and readout.text() == text
+
+    window.workspace.close_key(session.key)  # the text tab becomes current
+    assert readout.text() == ""
+    session = generate(qtbot, window, folder, auto_export=False)
+    window.workspace.close_key(str(folder / "bands.in"))
+    assert readout.text() == text
+    window.workspace.close_key(session.key)  # no tabs left
+    assert readout.text() == "" and window.workspace.isVisible()

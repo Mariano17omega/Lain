@@ -1,9 +1,13 @@
 from pathlib import Path
 
+import pytest
 from PyQt6 import sip
 from PyQt6.QtCore import QCoreApplication, QEvent
+from PyQt6.QtGui import QDesktopServices
 
 from qe_studio.core.config import LoadedConfig, parse_config
+from qe_studio.ui.main_window import fit_widths
+from qe_studio.ui.widgets.bars import ActivityBar
 from qe_studio.ui.widgets.workspace import ImageViewer, TextViewer, read_for_viewer
 
 
@@ -143,12 +147,114 @@ def test_panel_toggles(qtbot, main_window):
     window.activity.grid.click()
     assert window.files.isVisible()
     window.set_left_mode("params")
-    assert window.left.currentIndex() == 1 and window.activity.params.isChecked()
+    assert window.left.currentIndex() == 1
+    assert window.activity.plot.isChecked() and not window.activity.tree.isChecked()
     window.set_left_mode("tree")
     assert window.left.currentIndex() == 0
+    assert window.activity.tree.isChecked() and not window.activity.plot.isChecked()
+
+
+def test_activity_bar_has_no_params_button(qtbot, main_window):
+    assert not hasattr(main_window.activity, "params")
+    assert not hasattr(ActivityBar, "params_requested")
+
+
+def test_workspace_starts_hidden(qtbot, main_window):
+    window = main_window
+    assert not window.workspace.isVisible()
+    assert not window.top_bar.toggles["workspace"].isChecked()
+    tree, grid, workspace = window.splitter.sizes()
+    assert workspace == 0
+    assert tree + grid == window.splitter.width() - window.splitter.handleWidth()
+    assert tree == pytest.approx((tree + grid) * 280 / 600, abs=2)
+
+
+def test_viewable_files_open_the_workspace(qtbot, main_window, demo_project, tmp_path, monkeypatch):
+    window = main_window
+    window.open_file(demo_project / "03_bands" / "bands.in")
+    assert window.workspace.isVisible() and window.top_bar.toggles["workspace"].isChecked()
+
+    from PyQt6.QtGui import QColor, QImage
+
+    window.set_panel_visible("workspace", False)
+    image = QImage(4, 4, QImage.Format.Format_RGB32)
+    image.fill(QColor("red"))
+    png = tmp_path / "fig.png"
+    image.save(str(png))
+    window.open_file(png)
+    assert window.workspace.isVisible()
+
+    window.set_panel_visible("workspace", False)
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(opened.append))
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    window.open_file(pdf)
+    assert len(opened) == 1 and not window.workspace.isVisible()
+
+    scf = demo_project / "02_scf" / "scf.out"
+    window.explorer.tree.activated.emit(window.explorer.proxy.index_for(scf))  # Enter
+    assert window.workspace.isVisible() and window.workspace.widget_for(str(scf)) is not None
+
+
+def test_fit_widths():
+    minimums = {"tree": 200, "grid": 170, "workspace": 320}
+    assert fit_widths({"tree": 280, "grid": 320}, minimums, 1440) == {"tree": 672, "grid": 768}
+    widths = {"tree": 672, "grid": 768, "workspace": 840}
+    reopened = fit_widths(widths, minimums, 1440, keep="workspace")
+    assert reopened == {"workspace": 840, "tree": 280, "grid": 320}
+    # Not enough room: the restored width shrinks and nobody goes below its minimum.
+    tight = fit_widths(widths, minimums, 700, keep="workspace")
+    assert tight == {"workspace": 330, "tree": 200, "grid": 170}
+    assert fit_widths({"tree": 100, "grid": 900}, minimums, 1000) == {"tree": 200, "grid": 800}
+
+
+def test_hiding_the_workspace_keeps_the_ratio(qtbot, main_window):
+    window = main_window
+    splitter = window.splitter
+    window.set_panel_visible("workspace", True)
+    total = sum(splitter.sizes())
+    splitter.setSizes([280, 320, total - 600])
+    before = splitter.sizes()
+    assert before == [280, 320, total - 600]
+    window.set_panel_visible("workspace", False)
+    tree, grid, workspace = splitter.sizes()
+    assert workspace == 0 and tree + grid == total + splitter.handleWidth()
+    assert tree == pytest.approx((tree + grid) * 280 / 600, abs=2)
+    window.top_bar.toggles["workspace"].click()
+    assert splitter.sizes() == before
+
+
+def test_hiding_the_grid_keeps_the_ratio(qtbot, main_window):
+    window = main_window
+    splitter = window.splitter
+    window.set_panel_visible("workspace", True)
+    total = sum(splitter.sizes())
+    splitter.setSizes([300, 300, total - 600])
+    before = splitter.sizes()
+    window.activity.grid.click()
+    tree, grid, workspace = splitter.sizes()
+    assert grid == 0 and tree + workspace == total + splitter.handleWidth()
+    assert tree == pytest.approx((tree + workspace) * 300 / (total - 300), abs=2)
+    window.activity.grid.click()
+    assert splitter.sizes() == before
+
+
+def test_dragged_divider_is_remembered(qtbot, main_window):
+    window = main_window
+    splitter = window.splitter
+    window.set_panel_visible("workspace", True)
+    total = sum(splitter.sizes())
+    splitter.setSizes([250, 250, total - 500])
+    splitter.splitterMoved.emit(250, 1)
+    window.set_panel_visible("workspace", False)
+    window.set_panel_visible("workspace", True)
+    assert splitter.sizes() == [250, 250, total - 500]
 
 
 def test_close_saves_state(qtbot, main_window):
     window = main_window
     window.close()
-    assert window.settings.value("window/splitter") is not None
+    widths = [int(w) for w in window.settings.value("window/splitter")]
+    assert len(widths) == 3 and min(widths) > 0
+    assert widths[2] == 840  # never shown, but its width is kept

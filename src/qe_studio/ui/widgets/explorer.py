@@ -147,7 +147,7 @@ class ExplorerPanel(QWidget):
 
         self.set_root(root)
         self.tree.selectionModel().currentChanged.connect(self._on_current)
-        self.tree.doubleClicked.connect(self._on_double_click)
+        self.tree.activated.connect(self._on_activated)  # double click or Enter
         self.collapse_button.clicked.connect(self.tree.collapseAll)
         self.refresh_button.clicked.connect(self.refresh)
         service.detected.connect(lambda _folder: self.tree.viewport().update())
@@ -194,6 +194,6 @@ class ExplorerPanel(QWidget):
             self.folder_selected.emit(path.parent)
             self.file_selected.emit(path)
 
-    def _on_double_click(self, index: QModelIndex) -> None:
+    def _on_activated(self, index: QModelIndex) -> None:
         if index.isValid() and not self.proxy.is_dir(index):
             self.file_activated.emit(self.proxy.path(index))

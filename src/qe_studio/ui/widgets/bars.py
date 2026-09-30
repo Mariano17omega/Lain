@@ -87,7 +87,6 @@ class ActivityButton(IconButton):
 
 class ActivityBar(QWidget):
     explorer_requested = pyqtSignal()
-    params_requested = pyqtSignal()
     grid_toggled = pyqtSignal(bool)
     plot_requested = pyqtSignal()
     sync_requested = pyqtSignal()
@@ -104,11 +103,10 @@ class ActivityBar(QWidget):
         layout.setSpacing(4)
         self.tree = ActivityButton(theme, "account_tree", "Árvore", "Explorador de pastas", True)
         self.grid = ActivityButton(theme, "grid_view", "Grade", "Mostrar/ocultar arquivos", True)
-        self.plot = ActivityButton(theme, "bolt", "Plot", "Gerar gráfico (Ctrl+G)")
+        self.plot = ActivityButton(theme, "bolt", "Plot", "Gráficos e ajuste do gráfico", True)
         self.rsync = ActivityButton(theme, "sync", "Rsync", "Sincronizar com o cluster")
-        self.params = ActivityButton(theme, "tune", "Ajuste", "Parâmetros do gráfico", True)
         self.theme_button = ActivityButton(theme, "light_mode", "Tema", "Alternar tema (Ctrl+T)")
-        for button in (self.tree, self.grid, self.plot, self.rsync, self.params):
+        for button in (self.tree, self.grid, self.plot, self.rsync):
             layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch(1)
         layout.addWidget(self.theme_button, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -116,7 +114,6 @@ class ActivityBar(QWidget):
         self.grid.setChecked(True)
 
         self.tree.clicked.connect(self.explorer_requested)
-        self.params.clicked.connect(self.params_requested)
         self.grid.toggled.connect(self.grid_toggled)
         self.plot.clicked.connect(self.plot_requested)
         self.rsync.clicked.connect(self.sync_requested)
@@ -126,7 +123,7 @@ class ActivityBar(QWidget):
 
     def set_left_mode(self, mode: str) -> None:
         self.tree.setChecked(mode == "tree")
-        self.params.setChecked(mode == "params")
+        self.plot.setChecked(mode == "params")
 
     def _sync_theme_icon(self, *_args) -> None:
         self.theme_button.set_icon_name("light_mode" if self.theme.name == "dark" else "dark_mode")

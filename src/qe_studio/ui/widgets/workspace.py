@@ -170,6 +170,7 @@ class Workspace(QStackedWidget):
         self.addWidget(self.tabs)
         self._keys: dict[str, QWidget] = {}
         self._icons: dict[QWidget, tuple[str, str]] = {}
+        self._recent: list[QWidget] = []  # activation order, most recent last
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.tabs.currentChanged.connect(self._on_current)
         theme.theme_changed.connect(self._refresh_icons)
@@ -208,6 +209,8 @@ class Workspace(QStackedWidget):
             if value is widget:
                 del self._keys[key]
         self._icons.pop(widget, None)
+        if widget in self._recent:
+            self._recent.remove(widget)
         widget.deleteLater()
         if self.tabs.count() == 0:
             self.setCurrentWidget(self.empty)
@@ -221,6 +224,13 @@ class Workspace(QStackedWidget):
     def current(self) -> QWidget | None:
         return self.tabs.currentWidget() if self.tabs.count() else None
 
+    def set_current(self, widget: QWidget) -> None:
+        self.tabs.setCurrentWidget(widget)
+
+    def recent(self) -> list[QWidget]:
+        """Open tabs, most recently activated first."""
+        return self._recent[::-1]
+
     def _icon(self, icon: tuple[str, str]) -> QIcon:
         return self.theme.icon(icon[0], icon[1], size=14)
 
@@ -229,4 +239,9 @@ class Workspace(QStackedWidget):
             self.tabs.setTabIcon(self.tabs.indexOf(widget), self._icon(icon))
 
     def _on_current(self, _index: int) -> None:
-        self.current_changed.emit(self.current())
+        widget = self.current()
+        if widget is not None:
+            if widget in self._recent:
+                self._recent.remove(widget)
+            self._recent.append(widget)
+        self.current_changed.emit(widget)

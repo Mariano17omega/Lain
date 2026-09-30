@@ -155,6 +155,7 @@ class ParamsPanel(QWidget):
     back_requested = pyqtSignal()
     remap_requested = pyqtSignal()
     export_requested = pyqtSignal()
+    generate_requested = pyqtSignal()
     labels_edited = pyqtSignal(list)
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
@@ -235,7 +236,13 @@ class ParamsPanel(QWidget):
             QLabel("Gere um gráfico para ajustar\nos parâmetros de plotagem."), "fieldLabel"
         )
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(hint, 1)
+        button = set_variant(QPushButton("Gerar gráfico"), "primary")
+        button.setToolTip("Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)")
+        button.clicked.connect(self.generate_requested)
+        layout.addStretch(1)
+        layout.addWidget(hint)
+        layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addStretch(1)
         self._set_body(body)
 
     def _set_body(self, body: QWidget) -> None:

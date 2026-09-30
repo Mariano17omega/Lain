@@ -50,6 +50,8 @@ from .widgets.workspace import Workspace
 
 log = logging.getLogger(__name__)
 RENDER_DEBOUNCE_MS = 120
+PANELS = ("tree", "grid", "workspace")  # splitter order
+DEFAULT_PANEL_WIDTHS = {"tree": 280, "grid": 320, "workspace": 840}
 
 
 class _LoadSignals(QObject):
@@ -83,6 +85,37 @@ def choose_result(parent: QWidget, results: list[DetectionResult]) -> DetectionR
     labels = [r.module.display_name for r in results]
     label, ok = QInputDialog.getItem(parent, "Gerar gráfico", "Tipo de cálculo:", labels, 0, False)
     return results[labels.index(label)] if ok else None
+
+
+def fit_widths(
+    weights: dict[str, int], minimums: dict[str, int], available: int, keep: str | None = None
+) -> dict[str, int]:
+    """Split ``available`` px among panels in proportion to ``weights``, none below its minimum.
+
+    ``keep`` (a panel shown again) gets its weight as width, reduced until the others fit.
+    """
+    rest = dict(weights)
+    sizes: dict[str, int] = {}
+    if keep is not None:
+        room = available - sum(minimums[name] for name in rest if name != keep)
+        sizes[keep] = max(min(rest.pop(keep), room), minimums[keep])
+        available -= sizes[keep]
+    while True:
+        total = sum(rest.values()) or 1
+        pinned = [name for name, w in rest.items() if available * w / total < minimums[name]]
+        if not pinned:
+            break
+        for name in pinned:
+            sizes[name] = minimums[name]
+            available -= minimums[name]
+            del rest[name]
+    names = list(rest)
+    total = sum(rest.values()) or 1
+    for name in names[:-1]:
+        sizes[name] = round(available * rest[name] / total)
+    if names:  # the last one takes the rounding remainder, so the sum is exact
+        sizes[names[-1]] = available - sum(sizes[name] for name in names[:-1])
+    return sizes
 
 
 class MainWindow(QMainWindow):
@@ -173,10 +206,13 @@ class MainWindow(QMainWindow):
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setHandleWidth(1)
         self.splitter.setChildrenCollapsible(False)
-        for widget in (self.left, self.files, self.workspace):
-            self.splitter.addWidget(widget)
-        self.splitter.setStretchFactor(2, 1)
-        self.splitter.setSizes([280, 320, 840])
+        self._panels = {"tree": self.left, "grid": self.files, "workspace": self.workspace}
+        for name in PANELS:
+            self.splitter.addWidget(self._panels[name])
+        # Working width of each panel, kept while it is hidden (spec 1 R3). Sizes set by
+        # _apply_panel_layout; while the splitter still shows them, the working widths stand.
+        self._panel_widths = dict(DEFAULT_PANEL_WIDTHS)
+        self._applied_sizes: list[int] | None = None
         body.addWidget(self.splitter, 1)
         outer.addLayout(body, 1)
         self.setCentralWidget(central)
@@ -218,19 +254,20 @@ class MainWindow(QMainWindow):
         self.files.folder_activated.connect(self.explorer.select_path)
         self.files.file_selected.connect(lambda p: self.status.set_path(self._relative(p)))
         self.activity.explorer_requested.connect(lambda: self.set_left_mode("tree"))
-        self.activity.params_requested.connect(lambda: self.set_left_mode("params"))
         self.activity.grid_toggled.connect(lambda on: self.set_panel_visible("grid", on))
-        self.activity.plot_requested.connect(self.generate_plot)
+        self.activity.plot_requested.connect(self.open_plot_panels)
         self.activity.sync_requested.connect(self.start_sync)
         self.activity.theme_requested.connect(self.toggle_theme)
         self.top_bar.generate_requested.connect(self.generate_plot)
         self.top_bar.panel_toggled.connect(self.set_panel_visible)
+        self.splitter.splitterMoved.connect(self._on_splitter_moved)
         self.monitor.state_changed.connect(self._apply_cluster_label)
         self.service.detected.connect(self._on_detected)
         self.workspace.current_changed.connect(self._on_tab_changed)
         self.params.changed.connect(self._on_param_changed)
         self.params.back_requested.connect(lambda: self.set_left_mode("tree"))
         self.params.export_requested.connect(self.export_plot)
+        self.params.generate_requested.connect(self.generate_plot)
         self.params.remap_requested.connect(self._remap_current)
         self.params.labels_edited.connect(self._remember_labels)
 
@@ -239,15 +276,18 @@ class MainWindow(QMainWindow):
         geometry = self.settings.value("window/geometry")
         if geometry is not None:
             self.restoreGeometry(geometry)
-        sizes = self.settings.value("window/splitter")
-        if sizes:
-            self.splitter.setSizes([int(s) for s in sizes])
+        widths = [int(w) for w in self.settings.value("window/splitter", [], type=list)]
+        if len(widths) == len(PANELS) and min(widths) > 0:  # older saves hold 0 for hidden panels
+            self._panel_widths = dict(zip(PANELS, widths, strict=True))
         grid_visible = self.settings.value("window/grid_visible", True, type=bool)
         self.set_panel_visible("grid", grid_visible)
+        # Tabs are not restored, so the workspace would open empty (spec 1 R1).
+        self.set_panel_visible("workspace", False)
 
     def _save_state(self) -> None:
         self.settings.setValue("window/geometry", self.saveGeometry())
-        self.settings.setValue("window/splitter", self.splitter.sizes())
+        self._sync_panel_widths()
+        self.settings.setValue("window/splitter", [self._panel_widths[n] for n in PANELS])
         self.settings.setValue("window/grid_visible", self.files.isVisible())
         self.settings.setValue("ui/theme", self.theme.name)
         self.settings.sync()
@@ -284,6 +324,16 @@ class MainWindow(QMainWindow):
         self.workspace.open_file(path, kind)
         self.set_panel_visible("workspace", True)
 
+    def open_plot_panels(self) -> None:
+        """Activity bar "Plot": show the plot tabs and their settings, without plotting."""
+        self.set_panel_visible("workspace", True)
+        if self.current_plot() is None:
+            recent = (w for w in self.workspace.recent() if isinstance(w, PlotView))
+            view = next(recent, None)
+            if view is not None:
+                self.workspace.set_current(view)
+        self.set_left_mode("params")
+
     def open_folder_externally(self) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.current_folder())))
 
@@ -299,8 +349,11 @@ class MainWindow(QMainWindow):
         self.set_panel_visible("tree", True)
 
     def set_panel_visible(self, panel: str, visible: bool) -> None:
-        widget = {"tree": self.left, "grid": self.files, "workspace": self.workspace}[panel]
-        widget.setVisible(visible)
+        widget = self._panels[panel]
+        if widget.isHidden() == visible:
+            self._sync_panel_widths()
+            widget.setVisible(visible)
+            self._apply_panel_layout(panel)
         toggle = self.top_bar.toggles[panel]
         toggle.blockSignals(True)
         toggle.setChecked(visible)
@@ -309,6 +362,49 @@ class MainWindow(QMainWindow):
             self.activity.grid.blockSignals(True)
             self.activity.grid.setChecked(visible)
             self.activity.grid.blockSignals(False)
+        if panel == "workspace":
+            self._update_readout()
+
+    def _on_splitter_moved(self, _pos: int, _index: int) -> None:
+        self._sync_panel_widths()
+
+    def _sync_panel_widths(self) -> None:
+        """Take sizes the user changed (dragged divider, resized window) as working widths.
+
+        While the splitter still shows the sizes set by ``_apply_panel_layout`` the working
+        widths stand, so hiding and showing a panel back restores the layout exactly.
+        """
+        if not self.splitter.isVisible():
+            return  # not laid out yet
+        sizes = self.splitter.sizes()
+        if sizes == self._applied_sizes:
+            return
+        for name, size in zip(PANELS, sizes, strict=True):
+            if size > 0:  # hidden panels report 0
+                self._panel_widths[name] = size
+
+    def _apply_panel_layout(self, changed: str) -> None:
+        """Resize the panels after ``changed`` was shown or hidden (spec 1 R3).
+
+        A hidden panel's space goes to the visible ones in proportion to their widths; a panel
+        shown again gets its working width back and the others shrink in proportion.
+        """
+        shown = [name for name in PANELS if not self._panels[name].isHidden()]
+        # The workspace absorbs window resizes; without it (no stretch factor at all) QSplitter
+        # shares them in proportion to the panel sizes.
+        self.splitter.setStretchFactor(PANELS.index("workspace"), int("workspace" in shown))
+        self.splitter.refresh()  # handle visibility now, not on the next LayoutRequest
+        widths = {name: self._panel_widths[name] for name in shown}
+        visible = self.splitter.isVisible()
+        if visible and shown:
+            handles = self.splitter.handleWidth() * (len(shown) - 1)
+            available = self.splitter.contentsRect().width() - handles
+            minimums = {name: self._panels[name].minimumWidth() for name in shown}
+            keep = changed if changed in shown else None
+            widths = fit_widths(widths, minimums, available, keep)
+        # Before the first show the working widths go in as is; the first layout scales them.
+        self.splitter.setSizes([widths.get(name, 0) for name in PANELS])
+        self._applied_sizes = self.splitter.sizes() if visible else None
 
     # -- theme & config -------------------------------------------------------------------------
     def toggle_theme(self) -> None:
@@ -491,9 +587,9 @@ class MainWindow(QMainWindow):
         if isinstance(widget, PlotView):
             self.params.bind(widget.session)
             self.params.refresh_values()
-            self._on_rendered(widget.session.info)
         elif widget is None:
             self.params.bind(None)
+        self._update_readout()
 
     def _on_param_changed(self, _name: str) -> None:
         self._render_timer.start()
@@ -503,15 +599,25 @@ class MainWindow(QMainWindow):
         if view is not None:
             view.render()
 
-    def _on_rendered(self, info) -> None:
+    def _on_rendered(self, _info) -> None:
+        # Any open plot re-renders on a theme change: show what the current one says.
+        self._update_readout()
         view = self.current_plot()
-        if info is None or view is None:
+        if view is not None and view.session is self.params.session and view.session.info:
+            self.params.readout.setText(view.session.info.summary)
+
+    def _update_readout(self) -> None:
+        """Footer summary of the plot on screen, empty when none is (spec 1 R6)."""
+        view = None if self.workspace.isHidden() else self.current_plot()
+        info = view.session.info if view is not None else None
+        if info is None:
+            self.status.set_readout("")
             return
         params = view.session.params
-        px = f"{round(params.figure_width * params.export_dpi)}×{round(params.figure_height * params.export_dpi)} px"
-        self.status.set_readout(f"{info.summary} · {px} ({params.export_dpi} DPI)")
-        if hasattr(self.params, "readout"):
-            self.params.readout.setText(info.summary)
+        dpi = params.export_dpi
+        px = f"{round(params.figure_width * dpi)}×{round(params.figure_height * dpi)} px"
+        name = view.session.folder.name
+        self.status.set_readout(f"{name} · {info.summary} · {px} ({dpi} DPI)")
 
     def _remap_current(self) -> None:
         view = self.current_plot()

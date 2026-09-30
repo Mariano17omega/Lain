@@ -76,7 +76,9 @@ a pull.
 1. Pick a simulation folder in the explorer; badges show what was detected
    (BANDS, PDOS, RELAX, SCF, CALC), and outputs show `OK` / `INCOMPLETO`.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
-   panel to the plot parameters (toggle back with **Árvore**).
+   panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
+   opens when a plot is generated or a file is opened; **Plot** in the activity bar shows the
+   open plots and their parameters without plotting anything.
 3. Tune the plot. Zooming or panning with the toolbar updates the energy window, and
    **Exportar** (Ctrl+E) saves again.
 4. **Rsync** pulls the folder from the cluster.
