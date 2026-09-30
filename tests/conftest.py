@@ -11,6 +11,11 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def pytest_collection_modifyitems(items):
+    # Last, so the fixtures check also sees what this run's tests wrote.
+    items.sort(key=lambda item: item.name == "test_fixtures_are_untouched")
+
+
 @pytest.fixture(autouse=True)
 def _isolated_user_dirs(tmp_path_factory, monkeypatch):
     """Keep app data/config/cache writes out of the real home directory."""

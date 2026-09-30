@@ -46,7 +46,8 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   quirks, e.g. `al.scf.out` crashes ASE's reader on purpose as a regression). PRD-style layouts
   (`scf.out`, `nscf.out`, `orbitals/`) are built at test time by the `al_pdos_orbitals` and
   `demo_project` fixtures; don't add renamed copies of fixtures. Never write into
-  `tests/fixtures/` (copy with `copy_fixture` first).
+  `tests/fixtures/` (copy with `copy_fixture` first): `test_fixtures_untouched.py`, sorted last
+  by `conftest.py`, fails on any untracked or modified file there.
 - `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`.
 - Sync integration tests run the **real `rsync` binary** (skipped if absent) against a temp
   "remote"; `tests/fake_ssh.py` stands in for ssh by running the remote command locally.
