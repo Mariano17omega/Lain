@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project
 
 Lain: QE Studio: a PyQt6 desktop app to browse, pull-sync (rsync + ssh) and plot Quantum ESPRESSO
-simulations (band structures, PDOS). Requirements live in `Documentation/PRD.md`; code comments
-cite it as "PRD §x.y". The UI follows `Documentation/design system (UX)/`.
+simulations (band structures, PDOS). Requirements live in `specs/spec_0-PRD.md`; code comments
+cite it as "PRD §x.y". Change specs derived from `specs/Ideias.md` are `specs/spec_N-*.md`
+(prioritized index in `specs/README.md`). The UI follows `Documentation/design system (UX)/`.
 
 User-facing strings (labels, dialogs, error messages, even `Method` enum values like `"conteúdo"`)
 are **Portuguese**. Code, comments, docstrings and commit messages are English.
