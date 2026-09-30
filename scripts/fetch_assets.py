@@ -64,6 +64,7 @@ ICONS = [
     "bar_chart",
     "table_chart",
     "data_object",
+    "assignment_late",
     # explorer / grid toolbars
     "chevron_right",
     "expand_more",

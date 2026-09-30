@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..file_types import file_visual, human_size
+from ..file_types import file_visual, human_size, status_label
 from ..painting import mono_font, paint_badge, ui_font
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
@@ -82,16 +82,9 @@ class ExplorerDelegate(QStyledItemDelegate):
     def _paint_file_meta(
         self, painter: QPainter, path: Path, size: int, right: float, rect: QRect
     ) -> float:
-        sniff = self.service.file_sniff(path)
         painter.setFont(mono_font(10))
-        if sniff is not None and sniff.is_output and sniff.job_done is not None:
-            text, token = (
-                ("OK", "success")
-                if sniff.job_done and not sniff.warnings
-                else (("INCOMPLETO", "warning") if not sniff.job_done else ("AVISO", "warning"))
-            )
-        else:
-            text, token = human_size(size), "text_dim"
+        label = status_label(path, size, self.service.file_sniff(path))
+        text, token = label or (human_size(size), "text_dim")
         width = painter.fontMetrics().horizontalAdvance(text)
         painter.setPen(self.theme.color(token))
         painter.drawText(

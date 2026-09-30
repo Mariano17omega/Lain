@@ -74,7 +74,9 @@ a pull.
 ## Usage
 
 1. Pick a simulation folder in the explorer; badges show what was detected
-   (BANDS, PDOS, RELAX, SCF, CALC), and outputs show `OK` / `INCOMPLETO`.
+   (BANDS, PDOS, RELAX, SCF, CALC), and outputs show `OK` / `INCOMPLETO`. Queue logs
+   (`job.o12345`, `job.e12345`) show `SEM ERROS` when empty and `ERRO` otherwise; they and the
+   submission scripts (`.qsub`, `.slurm`, `.pbs`) open read-only in a tab.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the

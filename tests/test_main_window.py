@@ -9,7 +9,14 @@ from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.ui.main_window import MainWindow, fit_widths
 from qe_studio.ui.widgets.bars import ActivityBar
 from qe_studio.ui.widgets.fs_model import SORT_DATE
-from qe_studio.ui.widgets.workspace import ImageViewer, TextViewer, read_for_viewer
+from qe_studio.ui.widgets.workspace import (
+    ImageViewer,
+    TextViewer,
+    load_for_viewer,
+    read_for_viewer,
+)
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def wait_detected(qtbot, window, folder: Path):
@@ -129,6 +136,60 @@ def test_large_file_shows_head_and_tail(tmp_path):
     text, banner = read_for_viewer(big)
     assert text.startswith("HEAD") and text.rstrip().endswith("JOB DONE.")
     assert "trecho omitido" in text and "Arquivo grande" in banner
+    assert load_for_viewer(big)[1:] == (banner, "warning")
+    log = tmp_path / "job.o9"
+    big.rename(log)
+    _text, banner, level = load_for_viewer(log)
+    assert banner.startswith("O job registrou mensagens de erro. Arquivo grande")
+    assert level == "error"
+
+
+def open_text(qtbot, window, path: Path) -> TextViewer:
+    window.open_file(path)
+    viewer = window.workspace.widget_for(str(path))
+    assert isinstance(viewer, TextViewer)
+    # The worker's result reaches the viewer through a queued connection: not delivered yet.
+    with qtbot.waitSignal(viewer.loaded, timeout=5000):
+        pass
+    return viewer
+
+
+def test_job_logs_open_with_a_state_banner(qtbot, main_window, tmp_path):
+    window = main_window
+    empty = tmp_path / "job.o1"
+    empty.write_text("")
+    viewer = open_text(qtbot, window, empty)
+    assert not viewer.banner.isHidden() and viewer.banner.property("level") == "success"
+    assert viewer.banner.text() == "Arquivo vazio: o job não registrou erros."
+    assert not window.workspace.isHidden()
+
+    failed = tmp_path / "job.e2"
+    failed.write_text("forrtl: severe (174): SIGSEGV, segmentation fault occurred\n")
+    viewer = open_text(qtbot, window, failed)
+    assert viewer.banner.property("level") == "error"
+    assert viewer.banner.text() == "O job registrou mensagens de erro."
+    assert "SIGSEGV" in viewer.editor.toPlainText()
+
+    # pw.x without output redirection writes into the queue log: no job verdict.
+    redirected = tmp_path / "run.o3"
+    redirected.write_bytes((FIXTURES / "si_relax" / "si.rel.out").read_bytes())
+    viewer = open_text(qtbot, window, redirected)
+    assert "JOB DONE" in viewer.editor.toPlainText() and viewer.banner.isHidden()
+
+
+def test_job_log_label_in_grid(main_window, tmp_path):
+    delegate = main_window.files.view.itemDelegate()
+    assert delegate._meta(tmp_path / "job.o1", False, 0) == ("0 B · SEM ERROS", "success")
+    assert delegate._meta(tmp_path / "job.o1", False, 2048) == ("2.0 KB · ERRO", "error")
+    assert delegate._meta(tmp_path / "notes.txt", False, 10) == ("10 B", "text_dim")
+
+
+@pytest.mark.parametrize("name", ["job.qsub", "job.slurm", "job.pbs", "run.sh"])
+def test_submission_scripts_are_read_only(qtbot, main_window, tmp_path, name):
+    script = tmp_path / name
+    script.write_text("#!/bin/bash\n#PBS -N si\nmpirun pw.x -in scf.in > scf.out\n")
+    viewer = open_text(qtbot, main_window, script)
+    assert viewer.editor.isReadOnly() and "mpirun" in viewer.editor.toPlainText()
 
 
 def test_theme_toggle_persists(qtbot, main_window):

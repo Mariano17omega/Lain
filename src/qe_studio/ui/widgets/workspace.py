@@ -16,7 +16,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..file_types import file_visual, human_size
+from ...core.sniff import sniff
+from ..file_types import file_visual, human_size, is_job_log
 from ..theme.manager import ThemeManager
 
 LARGE_FILE = 4 * 1024 * 1024
@@ -41,8 +42,24 @@ def read_for_viewer(path: Path) -> tuple[str, str]:
     return head + marker + tail, banner
 
 
+def load_for_viewer(path: Path) -> tuple[str, str, str]:
+    """(text, banner, banner level). Queue logs say whether the job wrote errors (spec 4 R4)."""
+    text, banner = read_for_viewer(path)
+    level = "warning"
+    if is_job_log(path):
+        qe = sniff(path)
+        # A redirected QE output is judged by the run itself, as in the file label.
+        if not (qe.is_output and qe.job_done is not None):
+            if text:
+                job, level = "O job registrou mensagens de erro.", "error"
+            else:
+                job, level = "Arquivo vazio: o job não registrou erros.", "success"
+            banner = f"{job} {banner}".rstrip()
+    return text, banner, level
+
+
 class _LoadSignals(QObject):
-    loaded = pyqtSignal(str, str)
+    loaded = pyqtSignal(str, str, str)
     failed = pyqtSignal(str)
 
 
@@ -54,11 +71,11 @@ class _LoadText(QRunnable):
 
     def run(self) -> None:
         try:
-            text, banner = read_for_viewer(self.path)
+            loaded = load_for_viewer(self.path)
         except OSError as exc:
             self.signals.failed.emit(str(exc))
             return
-        self.signals.loaded.emit(text, banner)
+        self.signals.loaded.emit(*loaded)
 
 
 class TextViewer(QWidget):
@@ -88,18 +105,23 @@ class TextViewer(QWidget):
         QThreadPool.globalInstance().start(self._task)
 
     def reload(self) -> None:
-        self._on_loaded(*read_for_viewer(self.path))
+        self._on_loaded(*load_for_viewer(self.path))
 
-    def _on_loaded(self, text: str, banner: str) -> None:
+    def _on_loaded(self, text: str, banner: str, level: str) -> None:
         self.editor.setPlainText(text)
-        self.banner.setText(banner)
-        self.banner.setVisible(bool(banner))
+        self._set_banner(banner, level)
         self.loaded.emit()
 
     def _on_failed(self, error: str) -> None:
-        self.banner.setText(f"Não foi possível abrir o arquivo: {error}")
-        self.banner.show()
+        self._set_banner(f"Não foi possível abrir o arquivo: {error}", "warning")
         self.loaded.emit()
+
+    def _set_banner(self, text: str, level: str) -> None:
+        self.banner.setText(text)
+        self.banner.setProperty("level", level)
+        self.banner.style().unpolish(self.banner)
+        self.banner.style().polish(self.banner)
+        self.banner.setVisible(bool(text))
 
 
 class ImageViewer(QWidget):

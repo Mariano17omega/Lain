@@ -14,6 +14,12 @@
     font-size: 11px;
     padding: 4px 8px;
 }
+#viewerBanner[level="success"] {
+    color: ${success};
+}
+#viewerBanner[level="error"] {
+    color: ${error};
+}
 #imageViewer {
     background: ${workspace};
 }

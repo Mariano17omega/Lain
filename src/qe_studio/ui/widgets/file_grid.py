@@ -28,7 +28,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..file_types import file_visual, human_size
+from ..file_types import file_visual, human_size, status_label
 from ..painting import mono_font
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
@@ -151,12 +151,10 @@ class FileCardDelegate(QStyledItemDelegate):
         if is_dir:
             count = self.panel.item_count(path)
             return (f"{count} itens" if count is not None else "pasta"), "text_dim"
-        sniff = self.panel.service.file_sniff(path)
-        if sniff is not None and sniff.is_output and sniff.job_done is not None:
-            if not sniff.job_done:
-                return f"{human_size(size)} · incompleto", "warning"
-            return f"{human_size(size)} · OK", "success"
-        return human_size(size), "text_dim"
+        label = status_label(path, size, self.panel.service.file_sniff(path))
+        if label is None:
+            return human_size(size), "text_dim"
+        return f"{human_size(size)} · {label[0]}", label[1]
 
 
 class FilePanel(QWidget):
