@@ -4,121 +4,28 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRectF, QRunnable, QSize, Qt, QThreadPool, pyqtSignal
+from PyQt6.QtCore import QPoint, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
+    QApplication,
     QLabel,
-    QPlainTextEdit,
+    QMenu,
     QStackedWidget,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from ...core.sniff import sniff
-from ..file_types import file_visual, human_size, is_job_log
+from ..file_types import file_visual
 from ..theme.manager import ThemeManager
-
-LARGE_FILE = 4 * 1024 * 1024
-HEAD_BYTES = 1024 * 1024
-TAIL_BYTES = 2 * 1024 * 1024
+from .text_viewer import TextViewer
+from .workspace_tabs import DocumentTabs, add_action
 
 
-def read_for_viewer(path: Path) -> tuple[str, str]:
-    """(text, banner). Large files show their beginning and end (QE logs matter at both ends)."""
-    size = path.stat().st_size
-    with open(path, "rb") as handle:
-        if size <= LARGE_FILE:
-            return handle.read().decode("utf-8", "replace"), ""
-        head = handle.read(HEAD_BYTES).decode("utf-8", "replace")
-        handle.seek(size - TAIL_BYTES)
-        tail = handle.read().decode("utf-8", "replace")
-    banner = (
-        f"Arquivo grande ({human_size(size)}): exibindo o primeiro {human_size(HEAD_BYTES)} "
-        f"e os últimos {human_size(TAIL_BYTES)}."
-    )
-    marker = "\n\n    [ … trecho omitido pelo visualizador … ]\n\n"
-    return head + marker + tail, banner
-
-
-def load_for_viewer(path: Path) -> tuple[str, str, str]:
-    """(text, banner, banner level). Queue logs say whether the job wrote errors (spec 4 R4)."""
-    text, banner = read_for_viewer(path)
-    level = "warning"
-    if is_job_log(path):
-        qe = sniff(path)
-        # A redirected QE output is judged by the run itself, as in the file label.
-        if not (qe.is_output and qe.job_done is not None):
-            if text:
-                job, level = "O job registrou mensagens de erro.", "error"
-            else:
-                job, level = "Arquivo vazio: o job não registrou erros.", "success"
-            banner = f"{job} {banner}".rstrip()
-    return text, banner, level
-
-
-class _LoadSignals(QObject):
-    loaded = pyqtSignal(str, str, str)
-    failed = pyqtSignal(str)
-
-
-class _LoadText(QRunnable):
-    def __init__(self, path: Path):
-        super().__init__()
-        self.path = path
-        self.signals = _LoadSignals()
-
-    def run(self) -> None:
-        try:
-            loaded = load_for_viewer(self.path)
-        except OSError as exc:
-            self.signals.failed.emit(str(exc))
-            return
-        self.signals.loaded.emit(*loaded)
-
-
-class TextViewer(QWidget):
-    """Read-only preview of QE inputs and logs (PRD §2.1.3 text viewer tab)."""
-
-    loaded = pyqtSignal()
-
-    def __init__(self, path: Path, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.path = path
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        self.banner = QLabel()
-        self.banner.setObjectName("viewerBanner")
-        self.banner.hide()
-        self.editor = QPlainTextEdit()
-        self.editor.setObjectName("textViewer")
-        self.editor.setReadOnly(True)
-        self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.editor.setPlaceholderText("Carregando…")
-        layout.addWidget(self.banner)
-        layout.addWidget(self.editor, 1)
-        self._task = _LoadText(path)
-        self._task.signals.loaded.connect(self._on_loaded)
-        self._task.signals.failed.connect(self._on_failed)
-        QThreadPool.globalInstance().start(self._task)
-
-    def _on_loaded(self, text: str, banner: str, level: str) -> None:
-        self.editor.setPlainText(text)
-        self._set_banner(banner, level)
-        self.loaded.emit()
-
-    def _on_failed(self, error: str) -> None:
-        self._set_banner(f"Não foi possível abrir o arquivo: {error}", "warning")
-        self.loaded.emit()
-
-    def _set_banner(self, text: str, level: str) -> None:
-        self.banner.setText(text)
-        self.banner.setProperty("level", level)
-        self.banner.style().unpolish(self.banner)
-        self.banner.style().polish(self.banner)
-        self.banner.setVisible(bool(text))
+def copy_text(text: str) -> None:
+    clipboard = QApplication.clipboard()
+    if clipboard is not None:
+        clipboard.setText(text)
 
 
 class ImageViewer(QWidget):
@@ -157,7 +64,7 @@ class ImageViewer(QWidget):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if self.svg is not None:
             self.svg.render(painter, target)
-        else:
+        elif self.pixmap is not None:
             painter.drawPixmap(target.toRect(), self.pixmap)
         painter.end()
 
@@ -167,6 +74,8 @@ class Workspace(QStackedWidget):
 
     current_changed = pyqtSignal(object)  # the current tab widget or None
     tab_closing = pyqtSignal(object)  # tab widget about to be removed
+    external_open_requested = pyqtSignal(Path)  # a text viewer asks for the default program
+    reveal_requested = pyqtSignal(Path)  # tab menu "Revelar no explorador"
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
@@ -180,7 +89,7 @@ class Workspace(QStackedWidget):
         )
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(hint)
-        self.tabs = QTabWidget()
+        self.tabs = DocumentTabs()
         self.tabs.setObjectName("workspaceTabs")
         self.tabs.setTabsClosable(True)
         self.tabs.setMovable(True)
@@ -191,6 +100,8 @@ class Workspace(QStackedWidget):
         self._keys: dict[str, QWidget] = {}
         self._icons: dict[QWidget, tuple[str, str]] = {}
         self.tabs.tabCloseRequested.connect(self.close_tab)
+        self.tabs.bar.middle_clicked.connect(self.close_tab)
+        self.tabs.bar.menu_requested.connect(self._show_tab_menu)
         self.tabs.currentChanged.connect(self._on_current)
         theme.theme_changed.connect(self._refresh_icons)
 
@@ -221,11 +132,17 @@ class Workspace(QStackedWidget):
         if key in self._keys:
             self.tabs.setCurrentWidget(self._keys[key])
             return self._keys[key]
-        widget = TextViewer(path) if kind == "text" else ImageViewer(path)
+        if kind == "text":
+            widget = TextViewer(path, self.theme)
+            widget.external_requested.connect(self.external_open_requested)
+        else:
+            widget = ImageViewer(path)
         return self.add(key, widget, path.name, file_visual(path), str(path))
 
     def close_tab(self, index: int) -> None:
         widget = self.tabs.widget(index)
+        if widget is None:
+            return
         self.tab_closing.emit(widget)
         self.tabs.removeTab(index)
         for key, value in list(self._keys.items()):
@@ -236,6 +153,45 @@ class Workspace(QStackedWidget):
         if self.tabs.count() == 0:
             self.setCurrentWidget(self.empty)
             self.current_changed.emit(None)
+
+    # Every way of closing goes through close_tab: tab_closing flushes the plot settings.
+    def close_current(self) -> None:
+        if self.tabs.count():
+            self.close_tab(self.tabs.currentIndex())
+
+    def close_others(self, index: int) -> None:
+        keep = self.tabs.widget(index)
+        self._close_widgets([w for w in self._in_order() if w is not keep])
+
+    def close_right(self, index: int) -> None:
+        """The tabs after ``index`` in the order shown (tabs can be dragged around)."""
+        self._close_widgets(self._in_order()[index + 1 :])
+
+    def close_all(self) -> None:
+        self._close_widgets(self._in_order())
+
+    def _in_order(self) -> list[QWidget]:
+        widgets = (self.tabs.widget(i) for i in range(self.tabs.count()))
+        return [widget for widget in widgets if widget is not None]
+
+    def _close_widgets(self, widgets: list[QWidget]) -> None:
+        for widget in widgets:
+            self.close_tab(self.tabs.indexOf(widget))
+
+    def _show_tab_menu(self, index: int, pos: QPoint) -> None:
+        path = self.tabs.tabToolTip(index)  # the file, or the folder of a plot
+        last = self.tabs.count() - 1
+        menu = QMenu(self)
+        # The shortcut is only shown (after the tab): the real one is the main window's.
+        add_action(menu, "Fechar\tCtrl+W", lambda: self.close_tab(index))
+        add_action(menu, "Fechar outras", lambda: self.close_others(index), enabled=last > 0)
+        add_action(menu, "Fechar à direita", lambda: self.close_right(index), enabled=index < last)
+        add_action(menu, "Fechar todas", self.close_all)
+        menu.addSeparator()
+        add_action(menu, "Copiar caminho", lambda: copy_text(path))
+        add_action(menu, "Revelar no explorador", lambda: self.reveal_requested.emit(Path(path)))
+        menu.exec(pos)
+        menu.deleteLater()
 
     def close_key(self, key: str) -> None:
         widget = self._keys.get(key)

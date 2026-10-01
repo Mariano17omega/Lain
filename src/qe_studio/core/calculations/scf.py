@@ -30,6 +30,7 @@ from ..qe.scf import ScfData, read_scf
 from ..sniff import FileKind
 from .base import AxesLimits, CalculationModule, DetectionResult, FileRole, LoadError, output_of
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
+from .readout import signed
 
 if TYPE_CHECKING:
     from ..config import AppConfig
@@ -163,6 +164,37 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
         """The iteration range only: Y stays automatic in each panel."""
         if axes_limits:
             params.xmin, params.xmax = axes_limits[0][0]
+
+    def format_coordinates(
+        self, x: float, y: float, axes_index: int, dataset: ScfDataset, params: ScfParams
+    ) -> str:
+        """The value at the nearest iteration: ``iteração 6 · precisão = 2.5e-05 Ry`` (or the
+        energy / magnetization of the panel under the cursor)."""
+        shown = panels_shown(params, dataset.data)
+        if axes_index >= len(shown):
+            return ""
+        iterations = dataset.data.iterations
+        n = round(x)
+        position = next((i for i, it in enumerate(iterations) if it.index == n), None)
+        if position is None:
+            return ""
+        it, text = iterations[position], f"iteração {n}"
+        panel = shown[axes_index]
+        if panel == "accuracy":
+            return f"{text} · precisão = {it.accuracy_ry:.1e} Ry"
+        if panel == "energy":
+            if params.energy_mode == "total":
+                return f"{text} · E = {signed(it.energy_ry, '.6f')} Ry"
+            if position == 0:  # |ΔE| starts at the second iteration
+                return ""
+            delta = abs(it.energy_ry - iterations[position - 1].energy_ry)
+            return f"{text} · |ΔE| = {delta:.1e} Ry"
+        parts = [
+            f"{name} = {signed(value, '.2f')} μB"
+            for name, value in (("magnetização total", it.total_mag), ("absoluta", it.abs_mag))
+            if value is not None
+        ]
+        return " · ".join([text, *parts])
 
     def render(
         self, figure: Figure, dataset: ScfDataset, params: ScfParams, style: PlotStyle

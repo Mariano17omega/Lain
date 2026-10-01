@@ -28,6 +28,7 @@ from .base import (
     output_of,
 )
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
+from .readout import nearest_tick_label, signed
 
 if TYPE_CHECKING:
     from ..config import AppConfig
@@ -41,6 +42,12 @@ REFERENCES = (
     ("midgap", "Meio do gap"),
     ("absolute", "Absoluta"),
 )
+ENERGY_NAMES = {  # plain text of Y_LABELS, for the cursor readout
+    "fermi": "E − E_F",
+    "vbm": "E − E_VBM",
+    "midgap": "E − E_gap/2",
+    "absolute": "E",
+}
 Y_LABELS = {
     "fermi": r"$E - E_F$ (eV)",
     "vbm": r"$E - E_{VBM}$ (eV)",
@@ -470,6 +477,19 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
         ax.tick_params(axis="y", which="both", right=True)
         finish(figure, ax, params, handles)
         return RenderInfo(xlim, (params.emin, params.emax), self.summary(dataset))
+
+    def format_coordinates(
+        self, x: float, y: float, axes_index: int, dataset: BandsDataset, params: BandsParams
+    ) -> str:
+        """``k = 0.5120 · E − E_F = −1.234 eV``, plus the label of a high-symmetry point near."""
+        path = dataset.bands.x
+        low = params.xmin if params.xmin is not None else float(path[0])
+        high = params.xmax if params.xmax is not None else float(path[-1])
+        ticks, labels = merged_ticks(dataset.ticks, self.tick_labels(dataset, params))
+        name = ENERGY_NAMES.get(params.reference, ENERGY_NAMES["absolute"])
+        text = f"k = {x:.4f} · {name} = {signed(y, '.3f')} eV"
+        near = nearest_tick_label(x, ticks, labels, high - low)
+        return f"{text} · {near}" if near else text
 
     @staticmethod
     def tick_labels(dataset: BandsDataset, params: BandsParams) -> list[str]:

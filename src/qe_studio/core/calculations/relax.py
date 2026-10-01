@@ -148,6 +148,27 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         """The step range only: Y stays automatic in each panel."""
         params.xmin, params.xmax = axes_limits[0][0]
 
+    @staticmethod
+    def panels_shown(params: RelaxParams) -> list[str]:
+        """The panels drawn, top to bottom (``axes_index`` is the position in this list)."""
+        return [p for p in ("energy", "force") if params.panels in (p, "both")]
+
+    def format_coordinates(
+        self, x: float, y: float, axes_index: int, dataset: RelaxDataset, params: RelaxParams
+    ) -> str:
+        """The value at the nearest step (a log axis makes the cursor's Y meaningless):
+        ``passo 4 · |ΔE| = 1.2e-05 Ry`` or ``passo 4 · F = 3.1e-04 Ry/Bohr``."""
+        shown = self.panels_shown(params)
+        if axes_index >= len(shown):
+            return ""
+        data, step = dataset.data, round(x)
+        if shown[axes_index] == "energy":
+            if 1 <= step <= len(data.energy_deltas):  # bar i is |E_i − E_(i-1)|
+                return f"passo {step} · |ΔE| = {data.energy_deltas[step - 1]:.1e} Ry"
+        elif 0 <= step < len(data.steps):
+            return f"passo {step} · F = {data.steps[step].force_ry_bohr:.1e} Ry/Bohr"
+        return ""
+
     def export_stem(self, params: RelaxParams) -> str:
         return EXPORT_STEMS.get(params.panels, self.kind)
 
@@ -155,7 +176,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         self, figure: Figure, dataset: RelaxDataset, params: RelaxParams, style: PlotStyle
     ) -> RenderInfo:
         data = dataset.data
-        shown = [p for p in ("energy", "force") if params.panels in (p, "both")]
+        shown = self.panels_shown(params)
         axes = stacked_axes(figure, style, len(shown))
         log = params.scale == "log"
         legends = []

@@ -232,8 +232,11 @@ class FilePanel(QWidget):
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             shortcut.activated.connect(self.go_up)
         self.view.selectionModel().currentChanged.connect(self._on_current)
+        self._pending_select: Path | None = None  # a file to select once its folder is listed
         self.model.directoryLoaded.connect(self._update_count)
+        self.model.directoryLoaded.connect(self._select_pending)
         self.proxy.rowsInserted.connect(self._update_count)
+        self.proxy.rowsInserted.connect(self._select_pending)
         self.proxy.rowsRemoved.connect(self._update_count)
         service.detected.connect(lambda _f: self.view.viewport().update())
         theme.theme_changed.connect(self._on_theme_changed)
@@ -245,6 +248,8 @@ class FilePanel(QWidget):
 
     def set_folder(self, folder: Path) -> None:
         self._folder = Path(folder)
+        if self._pending_select is not None and self._pending_select.parent != self._folder:
+            self._pending_select = None
         self._clear_counts()
         self.model.setRootPath(str(folder))
         self.view.setRootIndex(self.proxy.index_for(folder))
@@ -273,7 +278,14 @@ class FilePanel(QWidget):
     def select_file(self, path: Path) -> None:
         index = self.proxy.index_for(path)
         if index.isValid():
+            self._pending_select = None
             self.view.setCurrentIndex(index)
+        else:
+            self._pending_select = Path(path)  # the model is still reading the folder
+
+    def _select_pending(self, *_args) -> None:
+        if self._pending_select is not None:
+            self.select_file(self._pending_select)
 
     def item_count(self, folder: Path) -> int | None:
         """Cached entry count (None while counting in the pool, or if unreadable)."""

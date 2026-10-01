@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 10 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: a leitura de coordenadas do matplotlib já aparecia no `#plotMessage` (o `set_message` do `_Navigation` ignora `coordinates`), então `coordinates=False` ficou e o trabalho do R6 é o `format_coord` por módulo; relax e SCF mostram o valor do passo/iteração mais próximo, não o Y do cursor; `SearchBar` ficou em `search_bar.py` e o `TextViewer` em `text_viewer.py` |
 | **Depende de** | spec 8 (`format_coordinates`) |
 | **Usada por** | spec 11 (o visualizador de input estende o `TextViewer`), spec 12 (abas de resumo), spec 16 (Ctrl+F por foco) |
 | **Esforço** | M |

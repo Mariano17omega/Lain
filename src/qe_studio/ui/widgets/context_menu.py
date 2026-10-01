@@ -98,6 +98,15 @@ class ItemActions(QObject):
     def open_with(self, path: Path, app: DesktopApp) -> None:
         self._launch(expand_exec(app, path), path, app.name)
 
+    def open_default(self, path: Path) -> None:
+        """Open ``path`` with the program its type opens with (text viewer's "Abrir no editor
+        externo"); the desktop decides when none is registered."""
+        app = None if IS_WINDOWS else catalog().default_app(mime_types_for(path))
+        if app is None:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        else:
+            self.open_with(path, app)
+
     def open_with_other(self, path: Path) -> None:
         argv = ask_command(self.window, path.name)
         if argv:

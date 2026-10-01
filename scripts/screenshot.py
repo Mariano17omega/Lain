@@ -1,6 +1,6 @@
 """Render the main window off-screen to PNG (both themes) for visual checks against the mockups.
 
-    uv run python scripts/screenshot.py [--out DIR] [--plot]
+    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text]
 
 Builds a demo project from the test fixtures (01_relax, 02_scf, 03_bands, 04_pdos).
 """
@@ -56,6 +56,9 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(ROOT / "screenshots"))
     parser.add_argument("--plot", action="store_true", help="also generate a band plot")
+    parser.add_argument(
+        "--text", action="store_true", help="show an output in the text viewer, search open"
+    )
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -104,6 +107,18 @@ def main() -> int:
             QTimer.singleShot(15000, loop.quit)
             window.generate_plot_for(project / "03_bands", auto_export=False)
             loop.exec()
+        if args.text:
+            from PyQt6.QtCore import QEventLoop, QTimer
+
+            window.open_file(project / "02_scf" / "scf.out")
+            viewer = window.workspace.current()
+            loop = QEventLoop()
+            viewer.loaded.connect(loop.quit)
+            QTimer.singleShot(5000, loop.quit)
+            loop.exec()
+            viewer.search.field.setText("total energy")
+            viewer.open_search()
+            viewer.search.next_match()
         for _ in range(30):
             app.processEvents()
         window.service.wait(3000)

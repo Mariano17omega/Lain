@@ -6,11 +6,10 @@ import shutil
 from pathlib import Path
 
 import pytest
-from PyQt6.QtCore import QPoint, QProcess, Qt, QUrl
+from PyQt6.QtCore import QPoint, Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox
 
-from qe_studio.core.desktop_apps import AppCatalog
 from qe_studio.core.plotting.plot_file import read_plot_file
 from qe_studio.core.sniff import FileKind, FileSniff
 from qe_studio.ui.dialogs.open_with import OpenWithDialog
@@ -234,36 +233,6 @@ def test_renaming_an_scf_output_closes_its_plot_tab(qtbot, main_window, demo_pro
     window.rename_path(folder / "scf.out")
     assert (folder / "scf-si.out").is_file() and window.workspace.widget_for(session.key) is None
     assert read_plot_file(folder, "scf")[0]["scale"] == "linear"
-
-
-@pytest.fixture
-def fake_apps(tmp_path, monkeypatch):
-    """Two programs for text files; "Other" is the mimeapps.list default and opens folders."""
-    data, config = tmp_path / "apps-data", tmp_path / "apps-config"
-    (data / "applications").mkdir(parents=True)
-    (data / "applications" / "fake.desktop").write_text(
-        "[Desktop Entry]\nType=Application\nName=Fake\nExec=fake-editor %f\nMimeType=text/plain;\n"
-    )
-    (data / "applications" / "other.desktop").write_text(
-        "[Desktop Entry]\nType=Application\nName=Other\nExec=other --open %U\n"
-        "MimeType=text/plain;inode/directory;\n"
-    )
-    config.mkdir()
-    (config / "mimeapps.list").write_text("[Default Applications]\ntext/plain=other.desktop\n")
-    monkeypatch.setattr(context_menu, "catalog", lambda: AppCatalog([data], [config], []))
-
-
-@pytest.fixture
-def launched(monkeypatch):
-    """QProcess.startDetached calls; nothing is started."""
-    calls = []
-
-    def start(program, args=(), cwd=""):
-        calls.append((program, list(args), cwd))
-        return calls[-1][0] != "broken", 4242
-
-    monkeypatch.setattr(QProcess, "startDetached", staticmethod(start))
-    return calls
 
 
 def open_with_menu(window, path):

@@ -59,3 +59,14 @@ icon_image: "#00d2ff"
 icon_vector: "#fbbf24"
 icon_folder: "#00d2ff"
 icon_other: "#859399"
+search_match_bg: "rgba(245, 158, 11, 0.30)"   # text viewer: every search hit
+search_current_bg: "rgba(245, 158, 11, 0.65)"  # text viewer: the current hit
+hl_energy: "#a5e7ff"       # output highlight: "!    total energy" (bold)
+hl_success: "#69f6b9"
+hl_error: "#f43f5e"
+hl_warning: "#f59e0b"
+hl_info: "#c084fc"
+hl_header: "#6d9bff"
+gutter_bg: "#101319"       # line number margin
+gutter_fg: "#5c6b72"
+gutter_current_fg: "#bbc9cf"

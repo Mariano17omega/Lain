@@ -5,20 +5,49 @@
     background: ${workspace};
     color: ${text};
     border: none;
-    padding: 6px;
 }
-#viewerBanner {
+#viewerBannerBar {
     background: ${panel_alt};
     border-bottom: 1px solid ${border};
+}
+#viewerBannerBar QPushButton {
+    font-size: 11px;
+    padding: 1px 10px;
+    min-height: 16px;
+}
+#viewerBanner {
     color: ${warning};
     font-size: 11px;
-    padding: 4px 8px;
 }
 #viewerBanner[level="success"] {
     color: ${success};
 }
 #viewerBanner[level="error"] {
     color: ${error};
+}
+#viewerBar, #searchBar {
+    background: ${chrome};
+    border-bottom: 1px solid ${border};
+}
+#searchCounter {
+    color: ${text_muted};
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+}
+QToolButton[variant="viewerTool"] {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: ${text_secondary};
+    padding: 2px 8px;
+    font-size: 11px;
+}
+QToolButton[variant="viewerTool"]:hover {
+    background: ${hover};
+    color: ${text};
+}
+QToolButton[variant="viewerTool"]:disabled {
+    color: ${text_dim};
 }
 #imageViewer {
     background: ${workspace};

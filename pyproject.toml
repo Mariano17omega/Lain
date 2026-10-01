@@ -77,5 +77,4 @@ ignore = [
     "src/qe_studio/ui/widgets/context_menu.py",
     "src/qe_studio/ui/widgets/explorer.py",
     "src/qe_studio/ui/widgets/file_grid.py",
-    "src/qe_studio/ui/widgets/workspace.py",
 ]

@@ -99,13 +99,20 @@ a pull.
    there is also **Plotar**, which previews its convergence (estimated accuracy against
    `conv_thr`, |ΔE| or total energy, and the magnetization of spin runs) without saving; the
    **Plotar SCF** button next to **Gerar Gráfico** does the same for the SCF output open in a tab.
+   Text files open in a viewer with line numbers, **Ctrl+F** search (F3 / Shift+F3 for the next and
+   previous hit), coloured QE outputs (energies, errors, warnings, convergence) and **Ir à linha…**
+   (Ctrl+L). A file above 4 MB shows its first 1 MB and last 2 MB (line numbers stay real); the
+   banner offers **Abrir no editor externo** and **Carregar tudo** (up to 64 MB). Right-click a tab
+   (or middle-click it to close it) for **Fechar** (Ctrl+W), **Fechar outras / à direita / todas**,
+   **Copiar caminho** and **Revelar no explorador**.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the
    folder without saving anything (a plot already open is just brought to front); clicking it
    again hides the plot and its parameters.
 3. Tune the plot. Zooming or panning with the toolbar updates the energy window, and
-   **Exportar** (Ctrl+E) saves again. Your settings are kept in `<kind>.plot` (e.g. `bands.plot`)
+   **Exportar** (Ctrl+E) saves again. Hovering the plot shows the values under the cursor in the
+   toolbar (k and energy with the nearest high-symmetry point, PDOS, relax step, SCF iteration). Your settings are kept in `<kind>.plot` (e.g. `bands.plot`)
    inside the simulation folder and come back the next time you plot it; **Restaurar padrões**
    deletes it.
 4. **Rsync** pulls the folder from the cluster.
@@ -118,7 +125,7 @@ uv run pytest -m "not realdata and not perf"   # what CI runs
 uv run pytest -m perf    # NFR §7 latency budget (CI reports it without blocking)
 uv run ruff check . && uv run ruff format --check .
 QE_STUDIO_REAL_DATA=/path/to/runs:/other/runs uv run pytest -m realdata   # your own runs
-uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/
+uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--text: text viewer)
 uv run python scripts/build_icons.py         # re-render the app icon PNGs after editing the SVG
 ```
 

@@ -77,7 +77,8 @@ from .widgets.file_grid import FilePanel
 from .widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
 from .widgets.plot_params import ParamsPanel
 from .widgets.plot_view import PlotView
-from .widgets.workspace import TextViewer, Workspace
+from .widgets.text_viewer import TextViewer
+from .widgets.workspace import Workspace
 
 log = logging.getLogger(__name__)
 RENDER_DEBOUNCE_MS = 120
@@ -296,6 +297,7 @@ class MainWindow(QMainWindow):
         files = bar.addMenu("Arquivo")
         self._action(files, "Atualizar", self.refresh, "F5")
         self._action(files, "Abrir pasta no gerenciador de arquivos", self.open_folder_externally)
+        self._action(files, "Fechar aba", self.workspace.close_current, "Ctrl+W")
         files.addSeparator()
         self._action(files, "Sair", self.close, "Ctrl+Q")
         cluster = bar.addMenu("Cluster")
@@ -336,6 +338,8 @@ class MainWindow(QMainWindow):
         self.service.detected.connect(self._on_detected)
         self.workspace.current_changed.connect(self._on_tab_changed)
         self.workspace.tab_closing.connect(self._on_tab_closing)
+        self.workspace.external_open_requested.connect(self.item_actions.open_default)
+        self.workspace.reveal_requested.connect(self.reveal_in_explorer)
         self.params.changed.connect(self._on_param_changed)
         self.params.back_requested.connect(lambda: self.set_left_mode("tree"))
         self.params.export_requested.connect(self.export_plot)
@@ -426,6 +430,12 @@ class MainWindow(QMainWindow):
             return
         self.workspace.open_file(path, kind)
         self.set_panel_visible("workspace", True)
+
+    def reveal_in_explorer(self, path: Path) -> None:
+        """Tab menu "Revelar no explorador": select the item in the tree and the grid."""
+        self.set_left_mode("tree")
+        self.set_panel_visible("grid", True)
+        self.explorer.select_path(path)
 
     # -- context menu (spec 5 R3) -------------------------------------------------------------------
     def _show_item_menu(self, path: Path, pos: QPoint) -> None:

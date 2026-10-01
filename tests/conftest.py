@@ -117,6 +117,41 @@ def main_window(qtbot, demo_project, tmp_path, monkeypatch):
     window.close()
 
 
+@pytest.fixture
+def fake_apps(tmp_path, monkeypatch):
+    """Two programs for text files; "Other" is the mimeapps.list default and opens folders."""
+    from qe_studio.core.desktop_apps import AppCatalog
+    from qe_studio.ui.widgets import context_menu
+
+    data, config = tmp_path / "apps-data", tmp_path / "apps-config"
+    (data / "applications").mkdir(parents=True)
+    (data / "applications" / "fake.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Fake\nExec=fake-editor %f\nMimeType=text/plain;\n"
+    )
+    (data / "applications" / "other.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Other\nExec=other --open %U\n"
+        "MimeType=text/plain;inode/directory;\n"
+    )
+    config.mkdir()
+    (config / "mimeapps.list").write_text("[Default Applications]\ntext/plain=other.desktop\n")
+    monkeypatch.setattr(context_menu, "catalog", lambda: AppCatalog([data], [config], []))
+
+
+@pytest.fixture
+def launched(monkeypatch):
+    """QProcess.startDetached calls; nothing is started."""
+    from PyQt6.QtCore import QProcess
+
+    calls = []
+
+    def start(program, args=(), cwd=""):
+        calls.append((program, list(args), cwd))
+        return calls[-1][0] != "broken", 4242
+
+    monkeypatch.setattr(QProcess, "startDetached", staticmethod(start))
+    return calls
+
+
 @pytest.fixture(scope="session")
 def ssh_keys(tmp_path_factory) -> ServerKeys:
     """Host and client keys of the test SSH server, generated once per session."""

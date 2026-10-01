@@ -27,6 +27,7 @@ from .base import (
     output_of,
 )
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
+from .readout import signed
 
 if TYPE_CHECKING:
     from ..config import AppConfig
@@ -279,6 +280,15 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
         energy, dos = (ylim, xlim) if params.orientation == "vertical" else (xlim, ylim)
         params.emin, params.emax = energy
         params.dos_max = max(abs(dos[0]), abs(dos[1]))
+
+    def format_coordinates(
+        self, x: float, y: float, axes_index: int, dataset: PdosDataset, params: PdosParams
+    ) -> str:
+        """``E − E_F = −1.234 eV · PDOS = 0.873 est./eV``; the DOS is on X when vertical."""
+        energy, dos = (y, x) if params.orientation == "vertical" else (x, y)
+        shifted = params.shift_to_fermi and dataset.fermi(params.fermi_source) is not None
+        name = "E − E_F" if shifted else "E"
+        return f"{name} = {signed(energy, '.3f')} eV · PDOS = {signed(dos, '.3f')} est./eV"
 
     def load(self, result: DetectionResult) -> PdosDataset:
         tot = result.file("pdos_tot")

@@ -87,7 +87,7 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 
 - **No files over ~500 lines that centralize everything.** Split by responsibility before a module
   grows past that. Current offenders: `ui/main_window.py` (~1050 lines, split by spec 15) and
-  `core/calculations/bands.py` (~530, split by spec 13).
+  `core/calculations/bands.py` (~550, split by spec 13).
 - **`ui/` holds interface logic only.** Widgets, layout, dialogs, and wiring signals to `core/`.
   Parsing, detection, physics, file operations, sync decisions and any other backend logic belong in
   `core/`, where they are testable without Qt. If a UI method computes something that doesn't depend
@@ -129,7 +129,9 @@ on the base class:
   `module_for_file(sniff)`, never a module name).
 - Hooks: `apply_limits(params, axes_limits)` (pan/zoom of *every* figure axes into the params),
   `legacy_params` (old `FolderMemory` data when there is no `<kind>.plot`), `default_labels`,
-  `series_colors` (for a `"series"` field), `format_coordinates` (cursor readout), `plot_target(folder,
+  `series_colors` (for a `"series"` field), `format_coordinates(x, y, axes_index, dataset, params)`
+  (cursor readout of each axes; `PlotView` installs it as `ax.format_coord` after every render, through
+  `PlotSession.format_coordinates`, which swallows module errors), `plot_target(folder,
   files)` (what one plot shows: the folder, or the output file of a single-file module such as SCF;
   it keys and names the tab, `<kind>.plot` stays per folder).
 - `ParamField`: `refreshes=True` makes the panel re-read all values after an edit (dependent
@@ -160,6 +162,21 @@ Plot settings persist in `<simulation>/<kind>.plot` (YAML, `core/plotting/plot_f
 stays the module default), written only after a user edit (params panel or pan/zoom), debounced 1 s
 and flushed on tab close, regenerate and exit. Window layout, grid mode/sort and the last folder are
 QSettings (`layout/*`, `files/*`, `explorer/last_folder`).
+
+### Text viewer and tabs (spec 10)
+
+`ui/widgets/text_viewer.py:TextViewer` = banner bar ("Abrir no editor externo", "Carregar tudo"),
+a small navigation bar, `SearchBar` and `CodeView` (`code_view.py`: `QPlainTextEdit` + line number
+margin + search highlights as `ExtraSelection`s). `core/textfile.py:read_slice` returns the whole text
+or, above 4 MB, head + tail with a marker; a `LineMap` keeps real line numbers after the marker (it
+counts the omitted newlines in streaming, in the worker). The worker also decides the highlighter:
+`highlighters.py:OutputHighlighter` for QE outputs and job logs (rules are theme tokens `hl_*`; only
+the `%%%%` error block keeps state between lines). The viewer's shortcuts (Ctrl+F, F3, Ctrl+L,
+Ctrl+Home/End, Esc) are `QShortcut`s with `WidgetWithChildrenShortcut`, so Ctrl+F in the explorer or
+the grid never reaches it. Tabs: `workspace_tabs.py` (`TabBar` emits `middle_clicked` and
+`menu_requested`); every close path of `Workspace` goes through `close_tab`, so `tab_closing` still
+flushes `<kind>.plot`. "Revelar no explorador" and "Abrir no editor externo" are signals of
+`Workspace`; `MainWindow` answers them (`reveal_in_explorer`, `ItemActions.open_default`).
 
 ### Threading rules (GUI thread must never parse files)
 

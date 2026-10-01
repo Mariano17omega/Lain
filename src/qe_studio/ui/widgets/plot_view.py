@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import partial
 
 import matplotlib
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
@@ -90,6 +91,10 @@ class AspectBox(QWidget):
         self.child.setGeometry(rect)
         self.frame.setGeometry(rect.adjusted(-1, -1, 1, 1))
         self.frame.lower()
+
+
+def _readout(session: PlotSession, axes_index: int, x: float, y: float) -> str:
+    return session.format_coordinates(x, y, axes_index)
 
 
 class _Navigation(NavigationToolbar2QT):
@@ -206,10 +211,21 @@ class PlotView(QWidget):
         style = self.session.style  # not the app theme: the figure looks like the export
         self.canvas.rc = style.rc(params.font_size)
         info = self.session.render(self.figure, style)
+        self._install_readout()
         self._limits = self._axis_limits()
         self.canvas.draw_idle()
         self.toolbar.nav.update()  # drop the pan/zoom history of the previous drawing
         self.rendered.emit(info)
+
+    def _install_readout(self) -> None:
+        """The module words the cursor readout of every axes (the toolbar shows it in
+        ``#plotMessage``). Rendering rebuilds the axes, so this runs after every render.
+
+        The closures hold the session, never the view: the figure belongs to the view, and a
+        reference back to it would keep a closed tab alive.
+        """
+        for index, ax in enumerate(self.figure.axes):
+            ax.format_coord = partial(_readout, self.session, index)  # type: ignore[method-assign]
 
     def _reset(self) -> None:
         self.session.reset_view()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Generic
@@ -15,6 +16,8 @@ from ..core.calculations.base import AxesLimits, CalculationModule, D, P
 from ..core.calculations.params import RenderInfo
 from ..core.plotting.style import PlotStyle, figure_style
 
+log = logging.getLogger(__name__)
+
 
 @dataclass
 class PlotSession(Generic[D, P]):
@@ -23,6 +26,7 @@ class PlotSession(Generic[D, P]):
     params: P
     defaults: P = field(init=False)
     info: RenderInfo | None = None
+    _readout_failed: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.defaults = copy.deepcopy(self.params)
@@ -61,6 +65,17 @@ class PlotSession(Generic[D, P]):
         with matplotlib.rc_context(style.rc(self.params.font_size)):
             self.info = self.module.render(figure, self.dataset, self.params, style)
         return self.info
+
+    def format_coordinates(self, x: float, y: float, axes_index: int) -> str:
+        """Cursor readout of the module. It runs inside a mouse event: a failure is logged once
+        and the readout stays empty, it never reaches Qt."""
+        try:
+            return self.module.format_coordinates(x, y, axes_index, self.dataset, self.params)
+        except Exception:
+            if not self._readout_failed:
+                self._readout_failed = True
+                log.exception("cursor readout of %s failed", self.kind)
+            return ""
 
     def reset_view(self) -> None:
         """Axis limits back to their initial values (keeps colors and other edits)."""

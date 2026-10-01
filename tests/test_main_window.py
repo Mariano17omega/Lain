@@ -12,12 +12,8 @@ from qe_studio.core.sync.rsync import Endpoint
 from qe_studio.ui.main_window import MainWindow, fit_widths
 from qe_studio.ui.widgets.bars import ActivityBar
 from qe_studio.ui.widgets.fs_model import SORT_DATE
-from qe_studio.ui.widgets.workspace import (
-    ImageViewer,
-    TextViewer,
-    load_for_viewer,
-    read_for_viewer,
-)
+from qe_studio.ui.widgets.text_viewer import TextViewer, load_for_viewer
+from qe_studio.ui.widgets.workspace import ImageViewer
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -136,15 +132,16 @@ def test_open_text_and_image(qtbot, main_window, demo_project, tmp_path):
 def test_large_file_shows_head_and_tail(tmp_path):
     big = tmp_path / "big.out"
     big.write_bytes(b"HEAD\n" + b"x" * (5 * 1024 * 1024) + b"\nTAIL JOB DONE.\n")
-    text, banner = read_for_viewer(big)
+    loaded = load_for_viewer(big)
+    text = loaded.text
     assert text.startswith("HEAD") and text.rstrip().endswith("JOB DONE.")
-    assert "trecho omitido" in text and "Arquivo grande" in banner
-    assert load_for_viewer(big)[1:] == (banner, "warning")
+    assert "trecho omitido" in text and "Arquivo grande" in loaded.banner
+    assert (loaded.level, loaded.truncated) == ("warning", True)
     log = tmp_path / "job.o9"
     big.rename(log)
-    _text, banner, level = load_for_viewer(log)
-    assert banner.startswith("O job registrou mensagens de erro. Arquivo grande")
-    assert level == "error"
+    job = load_for_viewer(log)
+    assert job.banner.startswith("O job registrou mensagens de erro. Arquivo grande")
+    assert job.level == "error" and job.highlight
 
 
 def open_text(qtbot, window, path: Path) -> TextViewer:
