@@ -1,7 +1,10 @@
 # Lain: QE Studio
 
+[![CI](https://github.com/Mariano17omega/Lain/actions/workflows/ci.yml/badge.svg)](https://github.com/Mariano17omega/Lain/actions/workflows/ci.yml)
+
 Desktop app (PyQt6) to browse, sync and plot [Quantum ESPRESSO](https://www.quantum-espresso.org/)
-simulations. See [`Documentation/PRD.md`](Documentation/PRD.md) for the product requirements and
+simulations (QE 7.1 or newer). See [`specs/spec_0-PRD.md`](specs/spec_0-PRD.md) for the product
+requirements, [`specs/README.md`](specs/README.md) for the index of change specs and
 `Documentation/design system (UX)/` for the design system the UI follows.
 
 - **Automatic detection** of band-structure, PDOS and relax runs. File names are only hints:
@@ -40,6 +43,17 @@ lain
 
 Outside the repository `./config.yaml` is not found, so keep your config in
 `~/.config/qe-studio/config.yaml` (or point `$QE_STUDIO_CONFIG` at it).
+
+### Desktop integration (optional)
+
+So the window manager shows Lain's icon in the taskbar and the application menu lists it, install
+the launcher and icons for your user (nothing is installed unless you run this; it needs the
+`lain` command on `PATH`, see above):
+
+```bash
+uv run python scripts/install_desktop.py              # into $XDG_DATA_HOME (~/.local/share)
+uv run python scripts/install_desktop.py --prefix DIR # or into another data directory
+```
 
 All settings live in `config.yaml` (there is no settings window); see
 [`config.example.yaml`](config.example.yaml) for every key. Lain looks for it in `--config`,
@@ -96,11 +110,22 @@ a pull.
 ## Development
 
 ```bash
-uv run pytest            # unit, integration (real rsync) and headless UI tests
+uv run pytest            # unit, integration (real rsync and ssh) and headless UI tests
+uv run pytest -m "not realdata and not perf"   # what CI runs
+uv run pytest -m perf    # NFR §7 latency budget (CI reports it without blocking)
 uv run ruff check . && uv run ruff format --check .
 QE_STUDIO_REAL_DATA=/path/to/runs:/other/runs uv run pytest -m realdata   # your own runs
 uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/
+uv run python scripts/build_icons.py         # re-render the app icon PNGs after editing the SVG
 ```
+
+CI (`.github/workflows/ci.yml`) runs lint, formatting and the tests on Python 3.11 and 3.12, and
+a non-blocking `perf` job. `HYPOTHESIS_PROFILE=ci` makes the property tests lighter.
+
+The sync tests drive the real `rsync` and `ssh` against a local SSH server built with paramiko
+(`tests/ssh_server.py`) that serves a temp folder as the cluster; `ssh` runs with a temporary
+`ssh_config`, so the tests never read your `~/.ssh`. They are skipped if `rsync` or `ssh` is
+missing.
 
 Code map: `src/qe_studio/core` holds the Qt-free logic: config loading (`core/config.py`), QE
 parsers (`core/qe`), detection, calculation modules (`core/calculations`; add new plot types

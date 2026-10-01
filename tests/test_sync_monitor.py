@@ -28,6 +28,26 @@ def test_probe():
     assert not probe("127.0.0.1", free_port(), timeout=1)
 
 
+def test_probe_ssh_server(ssh_server):
+    server, _remote = ssh_server
+    assert probe(server.host, server.port, timeout=2)
+    assert not probe("127.0.0.1", free_port(), timeout=1)
+
+
+def test_monitor_online_for_the_ssh_server(qtbot, ssh_server):
+    server, _remote = ssh_server
+    # The probe goes to cluster.host:port, so the monitor is given the address, not the alias.
+    cluster = parse_config(server.config_data(host=server.host)).cluster
+    monitor = ConnectionMonitor(cluster, enabled=True)
+    with qtbot.waitSignal(monitor.state_changed, timeout=5000) as blocker:
+        monitor.start()
+    assert blocker.args == [ConnectionState.ONLINE.value]
+    monitor.stop()
+    server.close()
+    monitor.report(probe(server.host, server.port, timeout=1))
+    assert monitor.state is ConnectionState.OFFLINE
+
+
 def test_monitor_states(qtbot):
     with listening_socket() as server:
         cluster = parse_config(

@@ -144,6 +144,15 @@ def test_parse_progress():
         ("me@h: Permission denied (publickey,password).", "Autenticação recusada"),
         ("ssh: connect to host h port 22: Connection timed out", "inacessível"),
         ('rsync: [sender] change_dir "/x" failed: No such file or directory (2)', "não encontrada"),
+        (
+            "rsync: connection unexpectedly closed (1048576 bytes received so far) [Receiver]\n"
+            "rsync error: error in rsync protocol data stream (code 12)",
+            "Conexão interrompida (o cluster encerrou",
+        ),
+        (
+            "bash: rsync: command not found\nrsync: connection unexpectedly closed (0 bytes)",
+            "rsync não está instalado",
+        ),  # the real cause wins over rsync's last words
         ("something odd\n", "código 12: something odd"),
     ],
 )
@@ -174,6 +183,9 @@ def test_endpoint_spec():
         (255, "me@h: Permission denied (publickey).", False),
         (23, 'rsync: change_dir "/x" failed: No such file or directory (2)', False),
         (30, "rsync error: timeout in data send/receive (code 30)", True),
+        (12, "rsync: connection unexpectedly closed (1048576 bytes received so far)", True),
+        (12, "bash: rsync: command not found\nrsync: connection unexpectedly closed (0 b)", False),
+        (12, "Permission denied (publickey).\nrsync: connection unexpectedly closed (0 b)", False),
     ],
 )
 def test_connection_failure_classification(code, stderr, expected):

@@ -1,13 +1,12 @@
 """End-to-end pulls through the real rsync binary.
 
-Remote side: a temp folder reached either as a local path or through ``fake_ssh.py``
-(exercises the ``-e`` remote-shell path and argument quoting without an ssh server).
+Remote side: a temp folder reached either as a local path or through the ``ssh_server`` fixture,
+a real ssh connection to a local paramiko server (see ``ssh_server.py``). Authentication and
+connection-failure cases are in ``test_sync_ssh.py``.
 """
 
 import os
 import shutil
-import sys
-from pathlib import Path
 
 import pytest
 from PyQt6.QtCore import QTimer
@@ -17,30 +16,14 @@ from qe_studio.core.sync.controller import SyncController, SyncStatus
 from qe_studio.core.sync.planner import Decision
 from qe_studio.core.sync.rsync import Endpoint
 
+from ssh_server import HOST_ALIAS, USER
+from sync_helpers import T0, run_sync, write
+
 pytestmark = pytest.mark.skipif(shutil.which("rsync") is None, reason="rsync not installed")
 
-FAKE_SSH = Path(__file__).parent / "fake_ssh.py"
-T0 = 1_700_000_000
 
-
-def make_config(exclude=None):
-    return parse_config(
-        {
-            "cluster": {"host": "cluster.test", "user": "me", "auth": "key"},
-            "sync": {
-                "ssh_binary": f"{sys.executable} {FAKE_SSH}",
-                **({"exclude": exclude} if exclude is not None else {}),
-            },
-        }
-    )
-
-
-def write(root: Path, rel: str, content: str, mtime: float = T0) -> Path:
-    path = root / rel
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    os.utime(path, (mtime, mtime))
-    return path
+def make_config():
+    return parse_config({})  # the remote is a local path in these tests: no cluster, no ssh
 
 
 @pytest.fixture
@@ -51,36 +34,17 @@ def dirs(tmp_path):
     return remote, local
 
 
-def run_sync(qtbot, controller, local, endpoint, decisions=None, on_stage=None):
-    prompts = []
-
-    def answer(item):
-        prompts.append(item.path)
-        decision = (decisions or {}).get(item.path, Decision.SKIP)
-        QTimer.singleShot(0, lambda: controller.resolve(decision))
-
-    controller.conflict_needed.connect(answer)
-    if on_stage:
-        controller.stage_changed.connect(on_stage)
-    with qtbot.waitSignal(controller.finished, timeout=30_000) as blocker:
-        controller.start(local, endpoint)
-    report = blocker.args[0]
-    return report, prompts
-
-
-def test_pull_through_fake_ssh_with_excludes(qtbot, dirs, tmp_path, monkeypatch):
-    remote, local = dirs
-    log = tmp_path / "ssh.log"
-    monkeypatch.setenv("FAKE_SSH_LOG", str(log))
+def test_pull_through_ssh_with_excludes(qtbot, tmp_path, ssh_server):
+    server, remote = ssh_server
+    local = tmp_path / "local"
     write(remote, "scf.out", "scf")
     write(remote, "orbitals/pdos.dat.pdos_atm#1(Al)_wfc#1(s)", "pdos")
     write(remote, "ação.out", "unicode")
     write(remote, "tmp/al.save/data-file.xml", "heavy")
     write(remote, "al.wfc1", "heavy")
-    controller = SyncController(make_config())
-    report, prompts = run_sync(
-        qtbot, controller, local, Endpoint(str(remote), "cluster.test", "me")
-    )
+    config = parse_config(server.config_data())
+    endpoint = Endpoint(str(remote), HOST_ALIAS, USER)
+    report, prompts = run_sync(qtbot, SyncController(config), local, endpoint)
 
     assert report.status is SyncStatus.DONE, report.error
     assert sorted(report.transferred) == [
@@ -92,12 +56,12 @@ def test_pull_through_fake_ssh_with_excludes(qtbot, dirs, tmp_path, monkeypatch)
     assert (local / "ação.out").read_text(encoding="utf-8") == "unicode"
     assert not (local / "tmp").exists() and not (local / "al.wfc1").exists()
     assert abs((local / "scf.out").stat().st_mtime - T0) < 1  # mtimes preserved
-    assert "cluster.test" in log.read_text(encoding="utf-8")
     assert "baixado" in report.message
+    assert {r.method for r in server.log} == {"publickey"}
+    assert all(r.user == USER and r.command.startswith("rsync --server") for r in server.log)
+    assert len(server.log) == 2  # the dry run and the transfer
 
-    again, _ = run_sync(
-        qtbot, SyncController(make_config()), local, Endpoint(str(remote), "cluster.test", "me")
-    )
+    again, _ = run_sync(qtbot, SyncController(config), local, endpoint)
     assert again.status is SyncStatus.UP_TO_DATE
 
 

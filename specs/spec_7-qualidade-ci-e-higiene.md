@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 7 (base mínima: protege todas as specs seguintes) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada, falta o primeiro run do CI e a conferência manual do ícone |
 | **Depende de** | nenhuma |
 | **Usada por** | spec 8 (pyright no CI), spec 14 (job de desempenho), spec 17 (testes de sync), todas as demais (CI) |
 | **Esforço** | G (o servidor SSH de teste é a maior parte) |
@@ -209,11 +209,35 @@ Decisão de arquitetura do usuário, registrada no `CLAUDE.md` (30/09/2026):
    (`ssh_command`) não muda por causa dos testes.
 
 ## Pendência
-- **Fixtures QE 7.2 e 7.4:** o usuário precisa fornecer saídas reais (scf + bands.x + projwfc de um
-  sistema pequeno) dessas versões. Sem elas, o R4.2 e o R4.3 ficam só com 7.1 e 7.3.1.
-- **WIP não commitado** (remoção do `Documentation/Relax-Viewer-/`, docstrings, `extend-exclude`): deve
-  ser commitado pelo usuário antes de começar a implementação, para o primeiro CI rodar sobre uma base
-  limpa.
+- **Fixtures QE 7.1 (bands.x e projwfc), 7.2 e 7.4:** o usuário precisa fornecer saídas reais (scf +
+  bands.x + projwfc de um sistema pequeno). Cada pasta nova é uma linha na tabela de
+  `tests/test_qe_versions.py`; sem elas, o R4.3 cobre só o pw.x do 7.1 e tudo do 7.3.1.
+- ~~WIP não commitado~~: já estava commitado (árvore limpa no início da implementação).
+- **Commitar** esta implementação (a árvore está com as mudanças sem commit).
+
+## Resultado da implementação
+Feito e verificado localmente (433 testes passam em Python 3.11 e 3.12; o único que falha é
+`test_fixtures_are_untouched`, enquanto o `tests/fixtures/README.md` alterado não estiver commitado).
+Falta, por depender de um push: o primeiro run do GitHub Actions (versões das actions e pacotes do
+sistema podem pedir um ajuste) e ver o ícone na barra de tarefas de verdade.
+
+Diferenças em relação ao texto da spec:
+- **R2.3:** `Exec=lain`, sem `%F`. O `lain` não aceita arquivos como argumento (o argparse sairia com
+  erro 2 ao arrastar um arquivo para o lançador).
+- **R7.3:** o `ssh_config` ganhou `IdentityFile <inexistente>`, `IdentityAgent none` e
+  `PreferredAuthentications`, porque o `ssh` ainda lê `~/.ssh/id_*` e o agent com `-F`. Também há a
+  variante `StrictHostKeyChecking ask`: com `yes` o ssh nunca pergunta, e o "no" do askpass não seria
+  exercitado.
+- **R7 (produção):** a queda no meio da transferência (`connection unexpectedly closed`) caía na mensagem
+  genérica "código 12" e não contava como falha de conexão. `core/sync/rsync.py` ganhou uma dica e a
+  classificação (só quando nenhuma outra causa explica a falha, porque essa frase também acompanha
+  chave de host, autenticação e rsync ausente).
+- **R6.2:** `parse_config(data, path, warnings=None)` devolve o aviso por esse argumento opcional, e o
+  `load_config` o põe à frente dos demais.
+- **R4:** só o arcabouço (`tests/test_qe_versions.py` + política no README das fixtures). O QE 7.1 tem
+  apenas as saídas de relax do pw.x (`kao_*`); não há bands.x nem projwfc do 7.1, nem nada do 7.2/7.4.
+- **Limite do `read_gnu` (não corrigido):** sem `nks ≥ 2` (ou com uma banda reduzida a um ponto em
+  x = 0) as bandas não se separam, porque o corte é onde x diminui. As propriedades evitam esses casos.
 
 ## Notas de implementação
 - Novos: `.github/workflows/ci.yml`, `packaging/lain.desktop`, `scripts/install_desktop.py`,
@@ -232,19 +256,19 @@ Decisão de arquitetura do usuário, registrada no `CLAUDE.md` (30/09/2026):
 ## Critérios de aceite e testes
 - [ ] Um push abre o workflow, e lint, formatação e testes passam em 3.11 e 3.12.
 - [ ] O job `perf` roda e o seu resultado aparece, sem bloquear.
-- [ ] `QApplication.windowIcon()` não é nulo e `desktopFileName()` é `"lain"`, verificado em teste.
-- [ ] `scripts/install_desktop.py --prefix <tmp>` instala o `.desktop` e os ícones nos caminhos XDG,
+- [x] `QApplication.windowIcon()` não é nulo e `desktopFileName()` é `"lain"`, verificado em teste.
+- [x] `scripts/install_desktop.py --prefix <tmp>` instala o `.desktop` e os ícones nos caminhos XDG,
       verificado com diretório temporário.
-- [ ] O link do PRD no README aponta para um arquivo existente (teste simples ou checagem no CI).
-- [ ] `tests/test_properties.py` passa com o perfil `ci`.
-- [ ] Um config com `plot.export.theme: current` carrega com aviso, e um config com outra chave
+- [x] O link do PRD no README aponta para um arquivo existente (teste simples ou checagem no CI).
+- [x] `tests/test_properties.py` passa com o perfil `ci`.
+- [x] Um config com `plot.export.theme: current` carrega com aviso, e um config com outra chave
       desconhecida continua falhando.
-- [ ] `grep -rn "def reload" src/qe_studio/ui/widgets/workspace.py` não encontra nada.
-- [ ] `tests/fake_ssh.py` não existe, e `grep -rn fake_ssh tests` não encontra nada.
-- [ ] Pull pelo `ssh_server` com chave e com senha (askpass): status DONE, arquivos e datas
+- [x] `grep -rn "def reload" src/qe_studio/ui/widgets/workspace.py` não encontra nada.
+- [x] `tests/fake_ssh.py` não existe, e `grep -rn fake_ssh tests` não encontra nada.
+- [x] Pull pelo `ssh_server` com chave e com senha (askpass): status DONE, arquivos e datas
       preservados, e o log do servidor registra `rsync --server` com o método de autenticação certo.
-- [ ] Chave de host desconhecida ou trocada, senha errada, porta fechada, banner travado e queda no meio
+- [x] Chave de host desconhecida ou trocada, senha errada, porta fechada, banner travado e queda no meio
       da transferência terminam todos em FAILED, com a mensagem correspondente e sem arquivos parciais.
-- [ ] Um comando fora da lista de permitidos enviado ao servidor recebe 127 e não é executado.
-- [ ] Nenhum teste lê ou escreve em `~/.ssh` (o `ssh` roda com `-F <tmp>/ssh_config`).
-- [ ] O fixture encerra o servidor sem threads vivos no fim da sessão.
+- [x] Um comando fora da lista de permitidos enviado ao servidor recebe 127 e não é executado.
+- [x] Nenhum teste lê ou escreve em `~/.ssh` (o `ssh` roda com `-F <tmp>/ssh_config`).
+- [x] O fixture encerra o servidor sem threads vivos no fim da sessão.

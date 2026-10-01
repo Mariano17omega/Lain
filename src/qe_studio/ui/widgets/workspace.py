@@ -104,9 +104,6 @@ class TextViewer(QWidget):
         self._task.signals.failed.connect(self._on_failed)
         QThreadPool.globalInstance().start(self._task)
 
-    def reload(self) -> None:
-        self._on_loaded(*load_for_viewer(self.path))
-
     def _on_loaded(self, text: str, banner: str, level: str) -> None:
         self.editor.setPlainText(text)
         self._set_banner(banner, level)

@@ -19,6 +19,8 @@ qe-studio-askpass = "qe_studio.core.sync.askpass:main"
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.168.3",
+    "paramiko>=5.0.0",
     "pytest>=8",
     "pytest-qt>=4.4",
     "pytest-timeout>=2.3",
@@ -52,4 +54,4 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["qe_studio"]
-known-local-folder = ["conftest"]
+known-local-folder = ["conftest", "ssh_server", "sync_helpers"]

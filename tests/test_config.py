@@ -139,13 +139,49 @@ cluster: {{host: h, user: u, auth: password, password_env: NOPE_PW, password: x}
     assert loaded.config.sync_enabled
 
 
-def test_export_theme_is_deprecated(tmp_path):
+REMOVED_THEME_WARNING = (
+    "plot.export.theme foi removido e é ignorado: apague a linha do config.yaml."
+)
+
+
+def test_removed_export_theme_loads_with_a_warning(tmp_path):
     def warnings(text):
         loaded = load_config(write(tmp_path / "c.yaml", text), environ={}, cwd=tmp_path)
         return [w for w in loaded.warnings if "plot.export.theme" in w]
 
-    assert warnings("plot: {export: {theme: dark}}") == [
-        "plot.export.theme foi descontinuado: as figuras usam plot.background (padrão branco)."
-    ]
+    assert warnings("plot: {export: {theme: current}}") == [REMOVED_THEME_WARNING]
+    assert warnings("plot: {export: {theme: purple}}") == [REMOVED_THEME_WARNING]  # value unchecked
     assert warnings("plot: {export: {dpi: 600}}") == []
+    assert warnings("plot: {background: '#000000'}") == []
     assert parse_config({"plot": {"background": "#000000"}}).plot.background == "#000000"
+    assert not hasattr(parse_config({}).plot.export, "theme")
+
+
+def test_removed_key_is_stripped_not_mutated():
+    data = {"plot": {"export": {"theme": "dark", "dpi": 600}}}
+    collected: list[str] = []
+    config = parse_config(data, warnings=collected)
+    assert config.plot.export.dpi == 600
+    assert collected == [REMOVED_THEME_WARNING]
+    assert data == {"plot": {"export": {"theme": "dark", "dpi": 600}}}  # caller's dict untouched
+    parse_config(data)  # the warnings argument is optional
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"plot": {"export": {"bogus": 1}}},
+        {"plot": {"export": {"theme": "dark", "bogus": 1}}},
+        {"plot": {"bogus": 1}},
+        {"bogus": 1},
+    ],
+)
+def test_other_unknown_keys_are_still_errors(data):
+    with pytest.raises(ConfigError, match="chave desconhecida"):
+        parse_config(data)
+
+
+@pytest.mark.parametrize("data", [{"plot": 3}, {"plot": {"export": "png"}}])
+def test_removed_key_with_wrong_parent_type_is_left_to_validation(data):
+    with pytest.raises(ConfigError):
+        parse_config(data)

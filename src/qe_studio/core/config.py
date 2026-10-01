@@ -118,8 +118,6 @@ class SyncConfig(_Section):
 class ExportConfig(_Section):
     formats: list[ExportFormat] = Field(default_factory=lambda: ["png", "svg", "pdf"])
     dpi: int = Field(300, ge=72, le=2400)
-    # Deprecated, no effect (figures use plot.background); still accepted so old configs load.
-    theme: Literal["current", "light", "dark"] = "current"
 
     @field_validator("formats")
     @classmethod
@@ -239,11 +237,43 @@ def _format_validation(exc: ValidationError) -> list[str]:
     return problems
 
 
-def parse_config(data: object, path: Path | None = None) -> AppConfig:
+# Keys that no longer exist: dropped before validation (with a warning) so old files still load.
+REMOVED_KEYS = (("plot", "export", "theme"),)
+
+
+def _drop_removed_keys(data: dict, warnings: list[str]) -> dict:
+    """Copy of ``data`` without ``REMOVED_KEYS``; each one found adds a warning."""
+    for keys in REMOVED_KEYS:
+        parents = [data]
+        for key in keys[:-1]:
+            parent = parents[-1].get(key)
+            if not isinstance(parent, dict):  # wrong type: pydantic reports it
+                break
+            parents.append(parent)
+        else:
+            if keys[-1] in parents[-1]:
+                data = _without(data, keys)
+                name = ".".join(keys)
+                warnings.append(f"{name} foi removido e é ignorado: apague a linha do config.yaml.")
+    return data
+
+
+def _without(data: dict, keys: tuple[str, ...]) -> dict:
+    head, *rest = keys
+    if not rest:
+        return {k: v for k, v in data.items() if k != head}
+    return {k: (_without(v, tuple(rest)) if k == head else v) for k, v in data.items()}
+
+
+def parse_config(
+    data: object, path: Path | None = None, warnings: list[str] | None = None
+) -> AppConfig:
+    """Validate ``data``. Warnings about removed keys are appended to ``warnings`` if given."""
     if data is None:
         data = {}
     if not isinstance(data, dict):
         raise ConfigError(path, ["o arquivo deve conter um mapeamento YAML (chave: valor)"])
+    data = _drop_removed_keys(data, [] if warnings is None else warnings)
     try:
         return AppConfig.model_validate(data)
     except ValidationError as exc:
@@ -271,10 +301,6 @@ def _warnings(config: AppConfig) -> list[str]:
         warnings.append(
             "Cluster não configurado (host/user/remote_root): sincronização desativada."
         )
-    if "theme" in config.plot.export.model_fields_set:
-        warnings.append(
-            "plot.export.theme foi descontinuado: as figuras usam plot.background (padrão branco)."
-        )
     return warnings
 
 
@@ -297,5 +323,6 @@ def load_config(
         raise ConfigError(path, [f"não foi possível ler o arquivo: {exc}"]) from exc
     except yaml.YAMLError as exc:
         raise ConfigError(path, [f"YAML inválido: {exc}"]) from exc
-    config = parse_config(data, path)
-    return LoadedConfig(config, path, _warnings(config))
+    removed: list[str] = []
+    config = parse_config(data, path, removed)
+    return LoadedConfig(config, path, [*removed, *_warnings(config)])

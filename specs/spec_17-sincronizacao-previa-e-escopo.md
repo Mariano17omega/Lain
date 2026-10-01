@@ -106,7 +106,7 @@
   - `ui/dialogs/sync_dialog.py` (`PlanPreviewDialog`, cabeçalho com escopo);
   - `ui/widgets/bars.py` (tooltip do Rsync).
 - Novo: `ui/widgets/toast.py`.
-- Testes de integração com o `rsync` real e o `tests/fake_ssh.py` (como os atuais): o teste responde a
+- Testes de integração com o `rsync` real e o fixture `ssh_server` (como os atuais, spec 7): o teste responde a
   `plan_ready` com `confirm_plan(True/False)` da mesma forma que responde a `conflict_needed`.
 
 ## Critérios de aceite e testes

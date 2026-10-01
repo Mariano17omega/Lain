@@ -14,6 +14,7 @@ from .. import APP_NAME, __version__
 from ..core.appdirs import cache_dir
 from ..core.config import ConfigError, load_config
 from ..core.plotting.style import register_fonts
+from .app_identity import configure_application
 from .theme.manager import THEMES, ThemeManager
 
 
@@ -63,9 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(args.verbose)
     install_excepthook()
     app = QApplication(sys.argv[:1])
-    app.setApplicationName("QE Studio")
-    app.setOrganizationName("qe-studio")
-    app.setApplicationVersion(__version__)
+    configure_application(app)
     register_fonts()
 
     settings = QSettings()

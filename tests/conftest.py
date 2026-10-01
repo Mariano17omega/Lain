@@ -3,12 +3,21 @@ import shutil
 from pathlib import Path
 
 import pytest
+from hypothesis import settings
+
+from ssh_server import LocalSSHServer, ServerKeys
 
 # Must be set before any PyQt6 import so tests run headless.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+# Runner time varies, so Hypothesis never fails a test on its deadline. CI sets
+# HYPOTHESIS_PROFILE=ci for fewer examples and no example database.
+settings.register_profile("dev", deadline=None)
+settings.register_profile("ci", max_examples=25, deadline=None, database=None)
+settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "dev"))
 
 
 def pytest_collection_modifyitems(items):
@@ -105,3 +114,28 @@ def main_window(qtbot, demo_project, tmp_path, monkeypatch):
     window.show()
     yield window
     window.close()
+
+
+@pytest.fixture(scope="session")
+def ssh_keys(tmp_path_factory) -> ServerKeys:
+    """Host and client keys of the test SSH server, generated once per session."""
+    return ServerKeys.generate(tmp_path_factory.mktemp("ssh_keys"))
+
+
+@pytest.fixture
+def ssh_server(ssh_keys, tmp_path):
+    """``(server, remote_root)``: a local SSH server whose "cluster" is the folder ``remote_root``.
+
+    Needs the real ``rsync`` and ``ssh`` binaries (tests skip without them). The server is shut
+    down at teardown and no thread of it may outlive the test.
+    """
+    if shutil.which("rsync") is None or shutil.which("ssh") is None:
+        pytest.skip("rsync and ssh are required")
+    remote_root = tmp_path / "cluster"
+    remote_root.mkdir()
+    workdir = tmp_path / "ssh"
+    workdir.mkdir()
+    server = LocalSSHServer(remote_root, ssh_keys, workdir)
+    yield server, remote_root
+    server.close()
+    assert not (alive := server.alive_threads()), f"SSH server threads left running: {alive}"

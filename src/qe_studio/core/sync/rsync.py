@@ -256,6 +256,10 @@ FAILURE_HINTS = (
 )  # fmt: skip
 
 
+# rsync's last words when the stream ends early. It also trails real causes (host key refused,
+# authentication, rsync missing on the cluster), so it only counts when nothing explains the failure.
+INTERRUPTED = "connection unexpectedly closed"
+
 CONNECTION_NEEDLES = (
     "Connection timed out",
     "Connection refused",
@@ -267,10 +271,16 @@ CONNECTION_NEEDLES = (
 )
 
 
+def _known_cause(stderr: str) -> bool:
+    return any(needle in stderr for needle, _hint in FAILURE_HINTS)
+
+
 def is_connection_failure(exit_code: int, stderr: str) -> bool:
     """ssh could not reach/keep the cluster (as opposed to a remote error)."""
-    return any(needle in stderr for needle in CONNECTION_NEEDLES) or (
-        exit_code == 255 and "Permission denied" not in stderr
+    return (
+        any(needle in stderr for needle in CONNECTION_NEEDLES)
+        or (exit_code == 255 and "Permission denied" not in stderr)
+        or (INTERRUPTED in stderr and not _known_cause(stderr))
     )
 
 
@@ -278,5 +288,7 @@ def explain_failure(exit_code: int, stderr: str) -> str:
     for needle, hint in FAILURE_HINTS:
         if needle in stderr:
             return hint
+    if INTERRUPTED in stderr:
+        return "Conexão interrompida (o cluster encerrou a conexão durante a transferência)."
     last = next((ln.strip() for ln in reversed(stderr.splitlines()) if ln.strip()), "")
     return f"rsync terminou com código {exit_code}" + (f": {last}" if last else ".")

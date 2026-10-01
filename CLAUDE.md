@@ -9,6 +9,8 @@ simulations (band structures, PDOS, relax/vc-relax progress). Requirements live 
 cite it as "PRD §x.y". Change specs derived from `specs/Ideias.md` are `specs/spec_N-*.md`
 (prioritized index in `specs/README.md`). The UI follows `Documentation/design system (UX)/`.
 
+Supported Quantum ESPRESSO versions: **7.1 or newer**. No code or fixture handles older formats.
+
 User-facing strings (labels, dialogs, error messages, even `Method` enum values like `"conteúdo"`)
 are **Portuguese**. Code, comments, docstrings and commit messages are English.
 
@@ -23,13 +25,16 @@ Managed with uv (Python ≥ 3.11).
 ```bash
 uv sync                                          # install deps + dev group
 uv run lain [--config path/to/config.yaml] [--verbose]
-uv run pytest                                    # full suite (~12 s), headless
+uv run pytest                                    # full suite (~40 s), headless
+uv run pytest -m "not realdata and not perf"     # what CI runs (.github/workflows/ci.yml)
 uv run pytest tests/test_detection.py::test_name # single test
 uv run pytest -m perf                            # NFR §7 latency budget (<500 ms, 100 bands)
 QE_STUDIO_REAL_DATA=/runs:/other uv run pytest -m realdata   # user's own QE runs (off by default)
 uv run ruff check . && uv run ruff format --check .
 uv run python scripts/screenshot.py --plot       # off-screen PNGs of both themes → screenshots/
 uv run python scripts/fetch_assets.py            # refresh vendored fonts/icons
+uv run python scripts/build_icons.py             # re-render the app icon PNGs from ui/resources/app/lain.svg
+uv run python scripts/install_desktop.py         # optional: .desktop + icons for the user (--prefix DIR)
 ```
 
 Config lookup order: `--config`, `$QE_STUDIO_CONFIG`, `./config.yaml`,
@@ -48,14 +53,28 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   `demo_project` fixtures; don't add renamed copies of fixtures. Never write into
   `tests/fixtures/` (copy with `copy_fixture` first): `test_fixtures_untouched.py`, sorted last
   by `conftest.py`, fails on any untracked or modified file there.
+- `test_qe_versions.py` keeps one table with a row per fixture folder and checks each version's
+  Fermi/HOMO line, `.gnu` separators, bands.x output and PDOS headers. Adding a QE version =
+  a real trimmed run in `tests/fixtures/qe<ver>_<system>/` + a row there (see the fixtures README).
+- `test_properties.py` holds the Hypothesis tests of the parsers (`read_gnu`, `parse_relax`; specs 9,
+  11, 12 add theirs). `conftest.py` registers profiles `dev` and `ci` (`HYPOTHESIS_PROFILE=ci`:
+  fewer examples, no deadline, no example database).
 - `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`.
-- Sync integration tests run the **real `rsync` binary** (skipped if absent) against a temp
-  "remote"; `tests/fake_ssh.py` stands in for ssh by running the remote command locally.
-- **Decision for sync tests:** cluster sync must be tested against a **local SSH server built with
-  paramiko** (dev dependency), started by a fixture on a free localhost port and serving a temp folder
-  of test files as the remote. It handles the exec requests that rsync sends (`rsync --server …`), and
-  authentication (key and password) runs through it. This replaces `tests/fake_ssh.py`; new sync tests
-  use the paramiko server.
+- Sync integration tests run the **real `rsync` and `ssh` binaries** (skipped if either is absent).
+  Cluster sync is tested against `tests/ssh_server.py`, a **local SSH server built with paramiko**
+  (dev dependency): the `ssh_server` fixture yields `(server, remote_root)`, a server on a free
+  `127.0.0.1` port serving the temp folder `remote_root` as the "cluster". Key and password
+  authentication run through it, `exec` requests run as local subprocesses (no shell) from an
+  allowlist (`rsync --server …`, `true`, `echo`; anything else gets status 127, is logged and is
+  not run), and `server.log` / `server.attempts` record who ran what with which auth method.
+  Failure modes a test switches on before connecting: `reject_auth`, `stall_banner`,
+  `drop_after_bytes`. `server.config_data(auth=, strict=, known_hosts=, **cluster)` gives the
+  config dict (`known_hosts`: `server` / `empty` / `other`; `strict`: `yes` / `ask`).
+  OpenSSH reads the passwd home, not `$HOME`, so `server.ssh_binary()` pins `ssh` to a temp
+  `ssh_config` (`-F`): no `~/.ssh`, no agent, no default identities. Do not bypass it. The server
+  tests itself in `test_ssh_server.py`; real pulls over it are in `test_sync_ssh.py`,
+  `test_sync_integration.py` and `test_sync_ui.py` (shared helpers: `tests/sync_helpers.py`).
+  Tests whose remote is a plain local path (`Endpoint(path)` without host) need no server.
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
@@ -160,3 +179,11 @@ listed in `STYLE_DOMAINS`), substituting `${token}` colours from `ui/resources/t
 Any new colour must be added as a token to **both** theme files. Custom-painted widgets read
 `ThemeManager.color(token)` and refresh on `theme_changed`. Icons are Material Symbols SVGs tinted
 at runtime; fonts (Inter for UI, JetBrains Mono for numbers/paths) are vendored.
+
+### App identity and desktop
+
+`ui/app_identity.py:configure_application` (called by `ui/app.py:main`) sets the application and
+organization names (old product name, see Naming), `setDesktopFileName("lain")` and the window
+icon from `ui/resources/app/` (`lain.svg` + `lain-<N>.png`, rendered by `scripts/build_icons.py`
+and committed). `packaging/lain.desktop` and `scripts/install_desktop.py` are the optional,
+user-run desktop integration; nothing installs them automatically.

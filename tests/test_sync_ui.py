@@ -1,6 +1,5 @@
 import os
 import shutil
-import sys
 from pathlib import Path
 
 import pytest
@@ -17,7 +16,6 @@ from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.spinner import CircularProgress
 
 pytestmark = pytest.mark.skipif(shutil.which("rsync") is None, reason="rsync not installed")
-FAKE_SSH = Path(__file__).parent / "fake_ssh.py"
 T0 = 1_700_000_000
 
 
@@ -37,19 +35,14 @@ def messages(monkeypatch):
     return shown
 
 
-def make_window(qtbot, tmp_path, demo_project, **cluster):
-    remote = tmp_path / "cluster_project"
-    config = parse_config(
-        {
-            "paths": {"local_root": str(demo_project), "remote_root": str(remote)},
-            "cluster": {"host": "cluster.test", "user": "me", **cluster},
-            "sync": {"ssh_binary": f"{sys.executable} {FAKE_SSH}"},
-        }
-    )
+def make_window(qtbot, tmp_path, demo_project, ssh_server, **cluster):
+    server, remote = ssh_server
+    data = server.config_data(**cluster)
+    data["paths"]["local_root"] = str(demo_project)
     theme = ThemeManager("dark")
     theme.apply()
     window = MainWindow(
-        LoadedConfig(config, None),
+        LoadedConfig(parse_config(data), None),
         theme,
         QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat),
         FolderMemory(tmp_path / "memory.json"),
@@ -59,8 +52,8 @@ def make_window(qtbot, tmp_path, demo_project, **cluster):
     return window, remote
 
 
-def test_sync_with_conflict_prompt(qtbot, tmp_path, demo_project, messages):
-    window, remote = make_window(qtbot, tmp_path, demo_project)
+def test_sync_with_conflict_prompt(qtbot, tmp_path, demo_project, ssh_server, messages):
+    window, remote = make_window(qtbot, tmp_path, demo_project, ssh_server)
     local = demo_project / "03_bands"
     os.utime(local / "scf.out", (T0, T0))
     touch(remote / "03_bands" / "scf.out", "cluster version", T0 + 3600)
@@ -87,8 +80,8 @@ def test_sync_with_conflict_prompt(qtbot, tmp_path, demo_project, messages):
         assert not window.findChildren(kind)
 
 
-def test_sync_local_newer_warns(qtbot, tmp_path, demo_project, messages):
-    window, remote = make_window(qtbot, tmp_path, demo_project)
+def test_sync_local_newer_warns(qtbot, tmp_path, demo_project, ssh_server, messages):
+    window, remote = make_window(qtbot, tmp_path, demo_project, ssh_server)
     local = demo_project / "02_scf"
     os.utime(local / "scf.out", (T0 + 7200, T0 + 7200))
     touch(remote / "02_scf" / "scf.out", "older on cluster", T0)
@@ -105,9 +98,11 @@ def test_sync_disabled_explains(qtbot, main_window, messages):
     assert main_window._sync is None
 
 
-def test_password_prompt_is_used_once(qtbot, tmp_path, demo_project, monkeypatch, messages):
+def test_password_prompt_is_used_once(
+    qtbot, tmp_path, demo_project, ssh_server, monkeypatch, messages
+):
     window, _remote = make_window(
-        qtbot, tmp_path, demo_project, auth="password", password_env="NOPE_X"
+        qtbot, tmp_path, demo_project, ssh_server, auth="password", password_env="NOPE_X"
     )
     asked, runs = [], []
     monkeypatch.setattr(
