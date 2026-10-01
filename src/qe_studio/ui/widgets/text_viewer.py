@@ -1,4 +1,5 @@
-"""Text viewer tab: QE inputs and logs, with search, highlighting and line numbers (spec 10)."""
+"""Text viewer tab: QE inputs and logs, with search, highlighting and line numbers (spec 10).
+QE inputs also get write-error marks and navigation (spec 11)."""
 
 from __future__ import annotations
 
@@ -18,12 +19,15 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core import textfile
-from ...core.sniff import FileSniff, sniff
+from ...core.qe.input_extract import Chip, extract
+from ...core.qe.input_lint import InputDoc, lint
+from ...core.sniff import INPUT_READ_LIMIT, FileSniff, looks_like_input, sniff
 from ...core.textfile import LineMap
 from ..file_types import human_size, is_job_log
 from ..theme.manager import ThemeManager
 from .code_view import CodeView
-from .highlighters import OutputHighlighter
+from .highlighters import InputHighlighter, OutputHighlighter, ThemedHighlighter
+from .input_view import InputView
 from .search_bar import SearchBar
 
 TOO_BIG = "Arquivo grande demais para o visualizador: use o editor externo"
@@ -39,6 +43,9 @@ class Loaded:
     line_map: LineMap
     size: int
     highlight: bool  # QE output or job log: color it
+    is_input: bool = False  # a QE input: color it as one
+    input_doc: InputDoc | None = None  # its lint; None when too big to check (R4.2)
+    chips: tuple[Chip, ...] = ()  # its extract
 
     @property
     def truncated(self) -> bool:
@@ -75,7 +82,26 @@ def load_for_viewer(path: Path, full: bool = False) -> Loaded:
         else:
             job, level = "Arquivo vazio: o job não registrou erros.", "success"
         banner = f"{job} {banner}".rstrip()
-    return Loaded(piece.text, banner, level, piece.line_map, piece.size, job_log or output)
+    is_input = not (job_log or output) and looks_like_input(path)
+    doc = None
+    if is_input:
+        if piece.size <= INPUT_READ_LIMIT:  # below the viewer's own limit: the text is whole
+            doc = lint(piece.text)
+        else:
+            note = f"Input grande ({human_size(piece.size)}): a escrita não foi verificada, só o realce."
+            banner = f"{note} {banner}".rstrip()
+    chips = extract(doc) if doc is not None else ()
+    return Loaded(
+        piece.text,
+        banner,
+        level,
+        piece.line_map,
+        piece.size,
+        job_log or output,
+        is_input,
+        doc,
+        chips,
+    )
 
 
 class _LoadSignals(QObject):
@@ -111,13 +137,14 @@ class TextViewer(QWidget):
 
     loaded = pyqtSignal()
     external_requested = pyqtSignal(Path)  # "Abrir no editor externo"
+    compare_requested = pyqtSignal(Path)  # "Comparar com…" of an input: this file
 
     def __init__(self, path: Path, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
         self.path = path
         self.theme = theme
         self._loading = False
-        self._highlighter: OutputHighlighter | None = None
+        self._highlighter: ThemedHighlighter | None = None
         self._task: _LoadText | None = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -153,11 +180,13 @@ class TextViewer(QWidget):
 
         self.editor = CodeView(theme)
         self.search = SearchBar(self.editor)
-        for widget in (self.banner_bar, self.tools, self.search):
+        self.input_view = InputView(self.editor)
+        for widget in (self.banner_bar, self.input_view, self.tools, self.search):
             layout.addWidget(widget)
         layout.addWidget(self.editor, 1)
 
         self.external_button.clicked.connect(self._open_external)
+        self.input_view.compare_requested.connect(self._request_compare)
         self.load_all_button.clicked.connect(self.load_all)
         self.start_button.clicked.connect(self.editor.go_start)
         self.end_button.clicked.connect(self.editor.go_end)
@@ -171,6 +200,8 @@ class TextViewer(QWidget):
             ("line", "Ctrl+L", self.ask_line),
             ("start", "Ctrl+Home", self.editor.go_start),
             ("end", "Ctrl+End", self.editor.go_end),
+            ("next_issue", "F8", self.input_view.goto_next),
+            ("previous_issue", "Shift+F8", self.input_view.goto_previous),
             ("escape", "Esc", self.search.dismiss),
         ):
             self._shortcuts[name] = self._shortcut(keys, slot)
@@ -223,8 +254,19 @@ class TextViewer(QWidget):
         self._loading = False
         self.editor.setPlainText(loaded.text)
         self.editor.set_line_map(loaded.line_map)
-        if loaded.highlight and self._highlighter is None:
+        issues = loaded.input_doc.issues if loaded.input_doc is not None else []
+        if loaded.is_input:
+            by_block = self.editor.issues_by_block(issues)
+            if isinstance(self._highlighter, InputHighlighter):
+                self._highlighter.set_issues(by_block)
+            elif self._highlighter is None:
+                self._highlighter = InputHighlighter(
+                    self.editor.text_document(), self.theme, by_block
+                )
+        elif loaded.highlight and self._highlighter is None:
             self._highlighter = OutputHighlighter(self.editor.text_document(), self.theme)
+        self.editor.set_diagnostics(issues)
+        self.input_view.bind(loaded.input_doc, loaded.chips)
         self._set_banner(loaded.banner, loaded.level)
         large = loaded.size > textfile.LARGE_FILE
         self.external_button.setVisible(large)
@@ -257,6 +299,9 @@ class TextViewer(QWidget):
 
     def _open_external(self) -> None:
         self.external_requested.emit(self.path)
+
+    def _request_compare(self) -> None:
+        self.compare_requested.emit(self.path)
 
     # -- search and navigation ---------------------------------------------------------------
     def open_search(self) -> None:

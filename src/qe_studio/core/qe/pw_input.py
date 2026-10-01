@@ -9,13 +9,30 @@ from __future__ import annotations
 
 import io
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 from ase.io.espresso import read_fortran_namelist
 
-PW_NAMELISTS = {"control", "system", "electrons", "ions", "cell"}
+# Namelists each program reads, in the order ``deduce_program`` tries them.
+PROGRAM_NAMELISTS: dict[str, frozenset[str]] = {
+    "pw": frozenset({"control", "system", "electrons", "ions", "cell", "fcp", "rism"}),
+    "bands": frozenset({"bands"}),
+    "projwfc": frozenset({"projwfc"}),
+    "dos": frozenset({"dos"}),
+}
+PW_NAMELISTS = PROGRAM_NAMELISTS["pw"]
+
+
+def deduce_program(names: Iterable[str]) -> str | None:
+    """``pw``, ``bands``, ``projwfc``, ``dos`` or None, from lowercase namelist names."""
+    present = set(names)
+    for program, known in PROGRAM_NAMELISTS.items():
+        if present & known:
+            return program
+    return None
 
 
 @dataclass(frozen=True)
@@ -52,13 +69,7 @@ class QEInput:
     @property
     def program(self) -> str | None:
         """``pw``, ``bands``, ``projwfc``, ``dos`` or None."""
-        names = set(self.namelists)
-        if names & PW_NAMELISTS:
-            return "pw"
-        for program in ("bands", "projwfc", "dos"):
-            if program in names:
-                return program
-        return None
+        return deduce_program(self.namelists)
 
     @property
     def calculation(self) -> str | None:
@@ -72,11 +83,22 @@ class QEInput:
         return self.namelists.get(namelist, {}).get(key.lower(), default)
 
 
-_NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eEdD][-+]?\d+)?")
+NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eEdD][-+]?\d+)?")
+
+
+def fortran_float(text: str) -> float | None:
+    """``1d-8``, ``1.E-8``, ``.5``: the float a Fortran namelist number means, else None.
+
+    Guarded by ``NUMBER`` because Python's ``float`` also takes ``nan``, ``inf`` and ``1_0``.
+    """
+    token = text.strip()
+    if not NUMBER.fullmatch(token):
+        return None
+    return float(token.replace("d", "e").replace("D", "e"))
 
 
 def _floats(text: str) -> list[float]:
-    return [float(tok.replace("d", "e").replace("D", "e")) for tok in _NUMBER.findall(text)]
+    return [float(tok.replace("d", "e").replace("D", "e")) for tok in NUMBER.findall(text)]
 
 
 def parse_kpoints(card_lines: list[str] | tuple[str, ...]) -> KPointsCard | None:

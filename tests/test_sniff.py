@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from qe_studio.core.sniff import FileKind, SniffCache
+from qe_studio.core.sniff import FileKind, SniffCache, looks_like_input
 
 from conftest import FIXTURES
 
@@ -102,3 +102,44 @@ def test_plot_settings_files_are_never_read(tmp_path, monkeypatch):
     assert sniff_module.sniff(path).kind is FileKind.UNKNOWN
     monkeypatch.undo()
     assert [r.badge for r in detect_folder(folder, sniff=SniffCache().sniff)] == before
+
+
+@pytest.mark.parametrize(
+    ("rel", "expected"),
+    [
+        ("al_bands/al.scf.in", True),
+        ("al_bands/bands.in", True),
+        ("al_pdos_flat/al.projwfc.in", True),
+        ("al_bands/al.scf.out", False),
+        # bands.x filband: its head is ` &plot nbnd=…, nks=… /`, which is not an input.
+        ("al_bands/bands.dat", False),
+        ("al_bands/bands.dat.gnu", False),
+        ("al_pdos_flat/pdos.dat.pdos_tot", False),
+    ],
+)
+def test_looks_like_input_on_fixtures(rel, expected):
+    assert looks_like_input(FIXTURES / rel) is expected
+
+
+def test_looks_like_input_rescues_what_sniff_gives_up_on(tmp_path):
+    # ASE raises on a quote before the `=`: sniff says UNKNOWN, the viewer still shows an input.
+    broken = tmp_path / "broken.in"
+    broken.write_text("&control\n pre'fix = 'x'\n/\n&system\n/\n")
+    assert SniffCache().sniff(broken).kind is FileKind.UNKNOWN
+    assert looks_like_input(broken)
+    odd_suffix = tmp_path / "si.pw"
+    odd_suffix.write_text("&control\n/\n")
+    assert looks_like_input(odd_suffix)
+
+
+def test_looks_like_input_refuses_look_alikes(tmp_path):
+    page = tmp_path / "page.html"
+    page.write_text("&nbsp; not an input\n")
+    binary = tmp_path / "blob"
+    binary.write_bytes(b"&control\n\x00\x01")
+    notes = tmp_path / "notes.txt"
+    notes.write_text("just words\n! total energy\n")
+    assert not looks_like_input(page)
+    assert not looks_like_input(binary)
+    assert not looks_like_input(notes)
+    assert not looks_like_input(tmp_path / "missing.in")

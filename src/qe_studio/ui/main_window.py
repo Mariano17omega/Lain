@@ -72,6 +72,7 @@ from .services import DetectionService
 from .theme.manager import ThemeManager
 from .widgets.bars import ActivityBar, StatusBar, TopBar
 from .widgets.context_menu import ItemActions
+from .widgets.diff_view import DiffView
 from .widgets.explorer import ExplorerPanel
 from .widgets.file_grid import FilePanel
 from .widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
@@ -483,8 +484,13 @@ class MainWindow(QMainWindow):
             )
             return
         for key, widget in self.workspace.items():
-            shown = widget.session.plot_target if isinstance(widget, PlotView) else widget.path
-            if inside(shown):
+            if isinstance(widget, PlotView):
+                shown = (widget.session.plot_target,)
+            elif isinstance(widget, DiffView):
+                shown = widget.paths  # either file of a comparison
+            else:
+                shown = (widget.path,)
+            if any(inside(file) for file in shown):
                 self.workspace.close_key(key)
         self.memory.rename(old_resolved, new.resolve())
         self.service.invalidate(path.parent)

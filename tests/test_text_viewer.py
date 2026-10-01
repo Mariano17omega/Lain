@@ -9,30 +9,12 @@ from PyQt6.QtWidgets import QInputDialog
 from qe_studio.core import textfile
 from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.highlighters import OutputHighlighter
-from qe_studio.ui.widgets.text_viewer import TOO_BIG, TextViewer, load_for_viewer
+from qe_studio.ui.widgets.text_viewer import TOO_BIG, load_for_viewer
 
 from conftest import FIXTURES
+from viewer_helpers import CTRL, SHIFT, key, open_text
 
 AL_SCF = FIXTURES / "al_bands" / "al.scf.out"
-ENTER = 0x01000004  # Qt.Key.Key_Return
-ESCAPE = 0x01000000
-CTRL = 0x04000000  # Qt.KeyboardModifier.ControlModifier
-SHIFT = 0x02000000
-
-
-def open_text(qtbot, window, path: Path) -> TextViewer:
-    window.open_file(path)
-    viewer = window.workspace.widget_for(str(path))
-    assert isinstance(viewer, TextViewer)
-    with qtbot.waitSignal(viewer.loaded, timeout=5000):
-        pass
-    return viewer
-
-
-def key(qtbot, widget, name: str, modifiers: int = 0) -> None:
-    from PyQt6.QtCore import Qt
-
-    qtbot.keyClick(widget, getattr(Qt.Key, f"Key_{name}"), Qt.KeyboardModifier(modifiers))
 
 
 @pytest.fixture

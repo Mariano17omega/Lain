@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 11 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: o tokenizador ficou em `input_lexer.py` (compartilhado com o realce) e `input_lint.py` só junta as regras de arquivo inteiro; a lógica do extrato e do diff ficou em `core/qe/input_extract.py` e `input_diff.py` (a UI só desenha); `INPUT_READ_LIMIT` já existia em `core/sniff.py`; o R4.1 virou `looks_like_input` (só a cabeça, sem ASE) e `viewer_kind` o usa para sufixos desconhecidos; `&end` e `&nome chave=valor /` na mesma linha são aceitos; cartões conhecidos casam sem diferenciar maiúsculas; limiar de "quis dizer" é 1 (e não 2) para nomes de até 3 letras; a comparação vive em `Workspace.compare_with/open_diff`, não no `MainWindow`; `FlowLayout` novo para os chips; ícone `difference` vendorizado |
 | **Depende de** | spec 10 (`CodeView`: margem, barra do visualizador, realce) |
 | **Usada por** | spec 16 (multi-seleção: "Comparar" com 2 inputs) |
 | **Esforço** | G |

@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from ..core.qe import projwfc
-from ..core.sniff import FileSniff
+from ..core.sniff import FileSniff, looks_like_input
 
 TEXT_SUFFIXES = {
     ".in", ".inp", ".out", ".log", ".txt", ".dat", ".gnu", ".md", ".yaml", ".yml", ".json",
@@ -71,7 +71,8 @@ def viewer_kind(path: Path) -> str:
                 return "external" if b"\x00" in handle.read(4096) else "text"
         except OSError:
             return "external"
-    return "external"
+    # An input with a suffix of its own (``si.pw``) is still text: its head says so (spec 11 R4.1).
+    return "text" if looks_like_input(path) else "external"
 
 
 def status_label(path: Path, size: int, sniff: FileSniff | None) -> tuple[str, str] | None:

@@ -105,6 +105,14 @@ a pull.
    banner offers **Abrir no editor externo** and **Carregar tudo** (up to 64 MB). Right-click a tab
    (or middle-click it to close it) for **Fechar** (Ctrl+W), **Fechar outras / à direita / todas**,
    **Copiar caminho** and **Revelar no explorador**.
+   QE inputs get syntax colours and a check of how they are *written* (not of what the
+   parameters mean): an unclosed quote, a namelist without its `/`, a line without `=`, an
+   unbalanced parenthesis, a malformed logical or number, a misspelled namelist or card
+   name, a bad card option. Problems are underlined in red, marked in the margin (hover for the
+   message) and counted in a banner (**Ir ao primeiro**, **F8** / **Shift+F8**). Above the text, a
+   strip of chips shows `calculation`, cutoffs, the `K_POINTS` grid and other key parameters (click
+   one to go to its line). **Comparar com…** opens a tab that lists the parameters that differ
+   (`1d-8` and `1.0e-8` are the same number) or shows the two files side by side.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the
@@ -125,7 +133,7 @@ uv run pytest -m "not realdata and not perf"   # what CI runs
 uv run pytest -m perf    # NFR §7 latency budget (CI reports it without blocking)
 uv run ruff check . && uv run ruff format --check .
 QE_STUDIO_REAL_DATA=/path/to/runs:/other/runs uv run pytest -m realdata   # your own runs
-uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--text: text viewer)
+uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--text: text viewer, --input: an input with errors, --diff [text]: input comparison)
 uv run python scripts/build_icons.py         # re-render the app icon PNGs after editing the SVG
 ```
 

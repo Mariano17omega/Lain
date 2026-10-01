@@ -1,4 +1,4 @@
-"""Central workspace: document tabs for text files, images and plots (PRD §2.1.3)."""
+"""Central workspace: document tabs for text files, images, plots and input diffs (PRD §2.1.3)."""
 
 from __future__ import annotations
 
@@ -9,17 +9,23 @@ from PyQt6.QtGui import QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QLabel,
     QMenu,
+    QMessageBox,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from ...core.sniff import looks_like_input
 from ..file_types import file_visual
 from ..theme.manager import ThemeManager
+from .diff_view import DiffView, diff_key, diff_title
 from .text_viewer import TextViewer
 from .workspace_tabs import DocumentTabs, add_action
+
+INPUT_FILTER = "Inputs do QE (*.in *.inp *.pw*);;Todos os arquivos (*)"
 
 
 def copy_text(text: str) -> None:
@@ -135,9 +141,35 @@ class Workspace(QStackedWidget):
         if kind == "text":
             widget = TextViewer(path, self.theme)
             widget.external_requested.connect(self.external_open_requested)
+            widget.compare_requested.connect(self.compare_with)
         else:
             widget = ImageViewer(path)
         return self.add(key, widget, path.name, file_visual(path), str(path))
+
+    def open_diff(self, a: Path, b: Path) -> QWidget:
+        """The tab that compares input ``a`` with ``b`` (spec 11 R6); an open one is shown again."""
+        return self.add(
+            diff_key(a, b),
+            DiffView(a, b, self.theme),
+            diff_title(a, b),
+            ("difference", "accent"),
+            str(a),
+        )
+
+    def compare_with(self, path: Path) -> None:
+        """ "Comparar com…": ask for the other input, which must look like one too."""
+        chosen, _filter = QFileDialog.getOpenFileName(
+            self, "Comparar com…", str(path.parent), INPUT_FILTER
+        )
+        if not chosen:
+            return
+        other = Path(chosen)
+        if not looks_like_input(other):
+            QMessageBox.warning(
+                self, "Comparar inputs", f"{other.name} não parece um input do Quantum ESPRESSO."
+            )
+            return
+        self.open_diff(path, other)
 
     def close_tab(self, index: int) -> None:
         widget = self.tabs.widget(index)

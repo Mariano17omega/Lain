@@ -1,12 +1,15 @@
-"""Syntax highlighters of the text viewer (spec 10 R2). Colors are theme tokens, never literals."""
+"""Syntax highlighters of the text viewer (specs 10 R2, 11 R3). Colors are theme tokens, never
+literals."""
 
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
 from PyQt6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat, QTextDocument
 
+from ...core.qe.input_lexer import LexState, LintIssue, scan_line
 from ..theme.manager import ThemeManager
 
 
@@ -94,3 +97,42 @@ class OutputHighlighter(ThemedHighlighter):
             for match in rule.pattern.finditer(text):
                 start, end = (0, len(text)) if rule.whole_line else match.span()
                 self.setFormat(start, end - start, self.fmt(rule.token, rule.bold))
+
+
+class InputHighlighter(ThemedHighlighter):
+    """QE inputs: namelists, keys, strings, numbers, logicals, comments and cards, plus a wavy
+    underline on the span of every write error (``error`` color) or warning (``warning``).
+
+    The coloring is the lexer's (``scan_line``), one line at a time, with the lexer state in the
+    block state, so the highlighter and the linter agree on what a token is. The issues come from
+    the worker (``lint``) as ``{block: [issue, ...]}``: files too big to lint have none.
+    """
+
+    def __init__(
+        self,
+        document: QTextDocument,
+        theme: ThemeManager,
+        issues: Mapping[int, Sequence[LintIssue]] | None = None,
+    ):
+        super().__init__(document, theme)
+        # The first pass is queued, so it sees the issues set right after the constructor.
+        self._issues: Mapping[int, Sequence[LintIssue]] = issues or {}
+
+    def set_issues(self, issues: Mapping[int, Sequence[LintIssue]]) -> None:
+        self._issues = issues
+        self.rehighlight()
+
+    def highlightBlock(self, text: str | None) -> None:
+        text = text or ""
+        block = self.currentBlock().blockNumber()
+        scan = scan_line(text, LexState.from_code(self.previousBlockState()), block + 1)
+        self.setCurrentBlockState(scan.state.code)
+        for token in scan.tokens:
+            self.setFormat(token.start, token.end - token.start, self.fmt(token.kind.value))
+        for issue in self._issues.get(block, ()):
+            color = self.theme.color(issue.severity)
+            for column in range(issue.col_start, min(issue.col_end, len(text))):
+                fmt = QTextCharFormat(self.format(column))  # keep the syntax color
+                fmt.setUnderlineStyle(QTextCharFormat.UnderlineStyle.WaveUnderline)
+                fmt.setUnderlineColor(color)
+                self.setFormat(column, 1, fmt)

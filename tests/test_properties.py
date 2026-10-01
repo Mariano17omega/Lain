@@ -16,6 +16,8 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from qe_studio.core.qe.bands_x import BandsFormatError, read_gnu
+from qe_studio.core.qe.input_lexer import LexState, scan_line
+from qe_studio.core.qe.input_lint import _lint
 from qe_studio.core.qe.relax import parse_relax
 from qe_studio.core.qe.scf import parse_scf
 
@@ -226,3 +228,57 @@ def test_parse_scf_cut_anywhere_never_raises_and_keeps_a_prefix(run, draw):
     assert got == expected[: len(got)]
     assert data.truncated <= 1 and data.cycles <= 1
     assert [it.index for it in data.iterations] == list(range(1, len(got) + 1))
+
+
+# -- QE inputs (spec 11) -----------------------------------------------------------------------
+# Pieces that matter to the lexer, so that random text reaches its branches.
+INPUT_PIECES = st.sampled_from(
+    ["&", "&control", "&end", "/", "=", ",", "(", ")", "'", '"', "!", "#", " ", "\n", "\r\n", ".true.",
+     "1.0e", "1d-8", "K_POINTS", "ATOMIC_POSITIONS", "{crystal}", "key", "x(1)", "3*", "\t", "é"]
+)  # fmt: skip
+INPUT_TEXT = st.one_of(st.text(max_size=200), st.lists(INPUT_PIECES, max_size=60).map("".join))
+
+
+@given(INPUT_TEXT)
+def test_lint_never_raises_and_its_issues_point_inside_the_text(text):
+    doc = _lint(text)  # not `lint`: that one swallows bugs
+    lines = text.split("\n")
+    for issue in doc.issues:
+        assert 1 <= issue.line <= len(lines)
+        shown = lines[issue.line - 1].removesuffix("\r")
+        assert 0 <= issue.col_start <= issue.col_end <= len(shown)
+    assert [(i.line, i.col_start) for i in doc.issues] == sorted(
+        (i.line, i.col_start) for i in doc.issues
+    )
+
+
+@given(st.text(max_size=120), st.integers(-1, 20))
+def test_scan_line_is_total_for_any_line_and_block_state(line, code):
+    state = LexState.from_code(code)
+    scan = scan_line(line, state, 1)
+    assert LexState.from_code(scan.state.code) == scan.state
+    for token in scan.tokens:
+        assert 0 <= token.start < token.end <= len(line)
+
+
+KEYS = st.sampled_from(
+    ["ecutwfc", "conv_thr", "nat", "degauss", "celldm(1)", "starting_magnetization(2)"]
+)
+VALUES = st.one_of(
+    st.floats(-1e6, 1e6, allow_nan=False).map(repr),
+    st.integers(-999, 999).map(str),
+    st.sampled_from([".true.", ".false.", ".T.", "1.0d-8", "1.E-8", "'si'", '"x y"', "'a/b'"]),
+)
+
+
+@given(
+    st.lists(st.tuples(KEYS, VALUES), min_size=1, max_size=12),
+    st.sampled_from([",\n", "\n", ", ", " "]),
+    st.sampled_from(["\n", "\r\n"]),
+)
+def test_well_formed_namelists_have_no_issues(pairs, separator, newline):
+    body = "".join(f"  {key} = {value}{separator}" for key, value in pairs)
+    text = f"&control{newline}{body}{newline}/{newline}&system{newline}/{newline}"
+    doc = _lint(text)
+    assert doc.issues == []
+    assert [e.key for e in doc.namelists["control"]] == [key for key, _ in pairs]

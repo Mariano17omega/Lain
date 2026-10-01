@@ -1,7 +1,13 @@
 import numpy as np
 import pytest
 
-from qe_studio.core.qe.pw_input import format_kpoint_label, parse_input, parse_kpoints
+from qe_studio.core.qe.pw_input import (
+    deduce_program,
+    format_kpoint_label,
+    fortran_float,
+    parse_input,
+    parse_kpoints,
+)
 
 from conftest import FIXTURES
 
@@ -89,3 +95,44 @@ def test_other_modes():
 )
 def test_format_label(raw, formatted):
     assert format_kpoint_label(raw) == formatted
+
+
+@pytest.mark.parametrize(
+    ("names", "program"),
+    [
+        (["control", "system"], "pw"),
+        (["fcp"], "pw"),
+        (["rism"], "pw"),
+        (["bands"], "bands"),
+        (["projwfc"], "projwfc"),
+        (["dos"], "dos"),
+        (["control", "dos"], "pw"),
+        (["inputph"], None),
+        ([], None),
+    ],
+)
+def test_deduce_program(names, program):
+    assert deduce_program(names) == program
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [
+        ("1d-8", 1e-8),
+        ("1.0e-8", 1e-8),
+        ("1.E-8", 1e-8),
+        ("1.189179909610978E+002", 118.9179909610978),
+        (" .5 ", 0.5),
+        ("+3", 3.0),
+        ("1.", 1.0),
+        ("1.0e", None),
+        ("10..5", None),
+        ("1.0d-", None),
+        ("nan", None),
+        ("inf", None),
+        ("1_0", None),
+        ("", None),
+    ],
+)
+def test_fortran_float(text, value):
+    assert fortran_float(text) == value

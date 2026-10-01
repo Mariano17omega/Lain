@@ -70,3 +70,14 @@ hl_header: "#6d9bff"
 gutter_bg: "#101319"       # line number margin
 gutter_fg: "#5c6b72"
 gutter_current_fg: "#bbc9cf"
+syn_namelist: "#6d9bff"    # input highlight: &NAMELIST and the closing /
+syn_key: "#a5e7ff"         # parameter name, with its index
+syn_string: "#69f6b9"
+syn_number: "#fbbf24"      # includes d/D exponents
+syn_logical: "#c084fc"
+syn_comment: "#6b7b84"
+syn_card: "#f472b6"        # ATOMIC_POSITIONS, K_POINTS…
+syn_card_option: "#fcd34d" # {crystal}, automatic…
+diff_add_bg: "rgba(105, 246, 185, 0.16)"    # input diff: line only in B
+diff_del_bg: "rgba(244, 63, 94, 0.18)"      # line only in A
+diff_change_bg: "rgba(245, 158, 11, 0.18)"  # line that differs

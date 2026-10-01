@@ -1,6 +1,6 @@
 """Render the main window off-screen to PNG (both themes) for visual checks against the mockups.
 
-    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text]
+    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff]
 
 Builds a demo project from the test fixtures (01_relax, 02_scf, 03_bands, 04_pdos).
 """
@@ -52,6 +52,32 @@ def build_project(base: Path) -> Path:
     return project
 
 
+def write_inputs(project: Path) -> tuple[Path, Path, Path]:
+    """An input with write errors and a changed copy of the SCF input, for --input and --diff."""
+    scf = project / "02_scf" / "scf.in"
+    text = scf.read_text()
+    broken = project / "02_scf" / "scf_broken.in"
+    broken.write_text(
+        text.replace("prefix='al',", "prefix='al,").replace("ecutwfc = 100,", "ecutwfc = 100e,")
+        .replace("&electrons", "&electron").replace("K_POINTS automatic", "K_POINTS automatc")
+    )  # fmt: skip
+    changed = project / "02_scf" / "scf_ecut.in"
+    changed.write_text(
+        text.replace("ecutwfc = 100", "ecutwfc = 80").replace("1.0d-8", "1.0e-8")
+        .replace("10 10 10 0 0 0", "8 8 8 0 0 0").replace("calculation = 'scf'", "calculation = 'scf' ! test")
+    )  # fmt: skip
+    return scf, broken, changed
+
+
+def wait_for(signal, timeout_ms: int = 5000) -> None:
+    from PyQt6.QtCore import QEventLoop, QTimer
+
+    loop = QEventLoop()
+    signal.connect(loop.quit)
+    QTimer.singleShot(timeout_ms, loop.quit)
+    loop.exec()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(ROOT / "screenshots"))
@@ -59,6 +85,11 @@ def main() -> int:
     parser.add_argument(
         "--text", action="store_true", help="show an output in the text viewer, search open"
     )
+    parser.add_argument("--input", action="store_true", help="an input with write errors (spec 11)")
+    parser.add_argument(
+        "--diff", nargs="?", const="params", choices=["params", "text"],
+        help="compare two inputs in the diff tab (spec 11)",
+    )  # fmt: skip
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -119,6 +150,18 @@ def main() -> int:
             viewer.search.field.setText("total energy")
             viewer.open_search()
             viewer.search.next_match()
+        if args.input or args.diff:
+            scf, broken, changed = write_inputs(project)
+            if args.input:
+                window.open_file(broken)
+                wait_for(window.workspace.current().loaded)
+                window.workspace.current().editor.go_to_line(1)
+            if args.diff:
+                diff = window.workspace.open_diff(scf, changed)
+                wait_for(diff.loaded)
+                if args.diff == "text":
+                    diff.show_text()
+                window.set_panel_visible("workspace", True)
         for _ in range(30):
             app.processEvents()
         window.service.wait(3000)

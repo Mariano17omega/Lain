@@ -57,9 +57,11 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 - `test_qe_versions.py` keeps one table with a row per fixture folder and checks each version's
   Fermi/HOMO line, `.gnu` separators, bands.x output and PDOS headers. Adding a QE version =
   a real trimmed run in `tests/fixtures/qe<ver>_<system>/` + a row there (see the fixtures README).
-- `test_properties.py` holds the Hypothesis tests of the parsers (`read_gnu`, `parse_relax`; specs 9,
-  11, 12 add theirs). `conftest.py` registers profiles `dev` and `ci` (`HYPOTHESIS_PROFILE=ci`:
-  fewer examples, no deadline, no example database).
+- `test_properties.py` holds the Hypothesis tests of the parsers (`read_gnu`, `parse_relax`, the input
+  lexer/linter; specs 9, 12 add theirs). `conftest.py` registers profiles `dev` and `ci`
+  (`HYPOTHESIS_PROFILE=ci`: fewer examples, no deadline, no example database).
+- `viewer_helpers.py` (`open_text`, `key`) is shared by the text viewer tests, like `sync_helpers.py`
+  is by the sync ones.
 - `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`.
 - Sync integration tests run the **real `rsync` and `ssh` binaries** (skipped if either is absent).
   Cluster sync is tested against `tests/ssh_server.py`, a **local SSH server built with paramiko**
@@ -177,6 +179,26 @@ the grid never reaches it. Tabs: `workspace_tabs.py` (`TabBar` emits `middle_cli
 `menu_requested`); every close path of `Workspace` goes through `close_tab`, so `tab_closing` still
 flushes `<kind>.plot`. "Revelar no explorador" and "Abrir no editor externo" are signals of
 `Workspace`; `MainWindow` answers them (`reveal_in_explorer`, `ItemActions.open_default`).
+
+### Input viewer (spec 11)
+
+A QE input opens in the same `TextViewer`. `core/qe/input_lexer.py:scan_line(text, LexState, lineno)`
+is the one lexer (tolerant, never raises; `LexState.code` fits a Qt block state): `core/qe/input_lint.py:lint`
+walks a file with it and adds the whole-file rules (unclosed namelist, repeated/unknown namelist or card,
+card options), and `highlighters.py:InputHighlighter` colors blocks with it (theme tokens `syn_*`), so
+both agree on what a token is. It checks how things are *written* only: an unknown parameter name is
+advanced validation, not done. `LintIssue.line` is 1-based and columns 0-based half-open. `lint` is not
+`parse_input` (ASE), which detection and plots keep using. `core/sniff.py:looks_like_input(path)` (head
+only, no ASE, GUI-thread safe) decides what is an input, even when sniff says UNKNOWN because ASE
+choked; `ui/file_types.py:viewer_kind` uses it for unknown suffixes. `load_for_viewer` (worker) lints
+inputs up to `INPUT_READ_LIMIT` (above it: colors only, banner says so) and extracts key parameters
+(`core/qe/input_extract.py`); `ui/widgets/input_view.py:InputView` shows the issues row (F8 /
+Shift+F8), the chip strip (`ui/widgets/flow_layout.py`) and "Comparar com…". `CodeView` has generic
+diagnostics (`set_diagnostics`: margin marker + tooltips; the wavy underline is the highlighter's),
+`set_numbers` and `set_row_backgrounds` for padded side-by-side panes. `Workspace.open_diff(a, b)`
+(tab key `diff:<a>|<b>`; `compare_with` asks for the file) opens `ui/widgets/diff_view.py:DiffView`,
+which only lays out `core/qe/input_diff.py:compare_files` (worker): by parameter (`normalize_value`:
+numbers as floats, logicals as bools, strings casefolded) or line by line (`text_rows`, `difflib`).
 
 ### Threading rules (GUI thread must never parse files)
 

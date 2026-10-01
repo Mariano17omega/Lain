@@ -92,6 +92,30 @@ def _read_head(path: Path, size: int = HEAD_BYTES) -> bytes:
         return handle.read(size)
 
 
+def looks_like_input(path: Path) -> bool:
+    """Is ``path`` a QE input, judged by its head only (spec 11 R4.1)?
+
+    True when the head has a ``&name`` line, even if ``sniff`` says UNKNOWN because ASE choked on
+    it: a broken input is still an input, shown with its errors marked. Never parses the file,
+    so it is cheap enough for the GUI thread. bands.x ``filband`` files (``&plot nbnd=…``), QE
+    outputs and text-like suffixes that `sniff` skips do not count.
+    """
+    if projwfc.parse_atm_name(path.name) or projwfc.is_pdos_tot_name(path.name):
+        return False
+    if path.suffix.lower() in SKIP_SUFFIXES:
+        return False
+    try:
+        raw = _read_head(path)
+    except OSError:
+        return False
+    if b"\x00" in raw:
+        return False
+    head = raw.decode("utf-8", errors="replace")
+    if _PROGRAM.search(head[:2048]) or bands_x.read_filband_header(head):
+        return False
+    return _NAMELIST.search(head) is not None
+
+
 def _read_text(path: Path, file_size: int, limit: int, tail: int = TAIL_BYTES) -> str:
     """Whole file if small enough, else head + tail (markers live at both ends)."""
     with open(path, "rb") as handle:
