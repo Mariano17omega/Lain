@@ -7,8 +7,9 @@ from hypothesis import settings
 
 from ssh_server import LocalSSHServer, ServerKeys
 
-# Must be set before any PyQt6 import so tests run headless.
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# Must be set before any PyQt6 import so tests run headless. Forced, not defaulted: a shell with
+# QT_QPA_PLATFORM=xcb would run the tests on the real display, with other screen sizes than CI.
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 FIXTURES = Path(__file__).parent / "fixtures"

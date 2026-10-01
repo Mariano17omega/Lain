@@ -355,6 +355,10 @@ def test_layout_and_navigation_survive_a_restart(qtbot, main_window, demo_projec
     assert new.files._sort_actions[SORT_DATE].isChecked()
     assert new.files.folder == demo_project / "04_pdos"
     assert new.current_folder() == demo_project / "04_pdos"
+    assert new._panel_widths["tree"] == 300 and new._panel_widths["grid"] == 250
+    # Restored geometry is clamped to the screen (800 px wide when offscreen), and panels shrink
+    # to fit a narrower window, so lay the sizes out in a window as wide as the one they came from.
+    new.resize(1440, 900)
     new.set_panel_visible("grid", True)
     new.set_panel_visible("workspace", True)
     tree, grid, workspace = new.splitter.sizes()
