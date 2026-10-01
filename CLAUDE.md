@@ -51,12 +51,30 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 - `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`.
 - Sync integration tests run the **real `rsync` binary** (skipped if absent) against a temp
   "remote"; `tests/fake_ssh.py` stands in for ssh by running the remote command locally.
+- **Decision for sync tests:** cluster sync must be tested against a **local SSH server built with
+  paramiko** (dev dependency), started by a fixture on a free localhost port and serving a temp folder
+  of test files as the remote. It handles the exec requests that rsync sends (`rsync --server …`), and
+  authentication (key and password) runs through it. This replaces `tests/fake_ssh.py`; new sync tests
+  use the paramiko server.
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
 
 `src/qe_studio/core` is logic without widgets (only `core/sync/controller.py` and
 `core/sync/monitor.py` use Qt, for `QProcess`/signals); `src/qe_studio/ui` is the PyQt6 app.
+
+### Architecture rules
+
+- **No files over ~500 lines that centralize everything.** Split by responsibility before a module
+  grows past that. Current offenders: `ui/main_window.py` (~990 lines, split by spec 15) and
+  `core/calculations/bands.py` (~500).
+- **`ui/` holds interface logic only.** Widgets, layout, dialogs, and wiring signals to `core/`.
+  Parsing, detection, physics, file operations, sync decisions and any other backend logic belong in
+  `core/`, where they are testable without Qt. If a UI method computes something that doesn't depend
+  on a widget, move it to `core/`.
+- **Keep the program modular to ease maintenance.** Each module has one job, and depends on small
+  explicit interfaces (hooks, signals, injected services) instead of reaching into other modules'
+  internals. New behaviour is a new module plus a registration, not another branch in a central class.
 
 ### Detection pipeline (PRD §3)
 
