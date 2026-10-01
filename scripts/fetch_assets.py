@@ -46,6 +46,7 @@ ICONS = [
     "account_tree",
     "grid_view",
     "bolt",
+    "monitoring",
     "sync",
     "tune",
     "dark_mode",

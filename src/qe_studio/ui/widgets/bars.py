@@ -136,6 +136,7 @@ class ActivityBar(QWidget):
 
 class TopBar(QWidget):
     generate_requested = pyqtSignal()
+    plot_file_requested = pyqtSignal()
     panel_toggled = pyqtSignal(str, bool)  # "tree" | "grid" | "workspace"
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
@@ -184,6 +185,13 @@ class TopBar(QWidget):
         self.generate.setToolTip("Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)")
         self.generate.clicked.connect(self.generate_requested)
         layout.addWidget(self.generate)
+        # Only while an output one module can plot on its own is open (the window decides).
+        self.plot_file = QPushButton("Plotar SCF")
+        self.plot_file.setObjectName("plotFileButton")
+        self.plot_file.setToolTip("Plotar a convergência do SCF do arquivo aberto")
+        self.plot_file.clicked.connect(self.plot_file_requested)
+        self.plot_file.hide()
+        layout.addWidget(self.plot_file)
         theme.theme_changed.connect(self._refresh_icons)
         self._refresh_icons()
 
@@ -200,6 +208,7 @@ class TopBar(QWidget):
 
     def _refresh_icons(self, *_args) -> None:
         self.generate.setIcon(self.theme.icon("bolt", "primary_fg", size=14))
+        self.plot_file.setIcon(self.theme.icon("monitoring", "text_secondary", size=14))
 
 
 class StatusBar(QStatusBar):

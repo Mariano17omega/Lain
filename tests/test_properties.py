@@ -17,6 +17,7 @@ from hypothesis import strategies as st
 
 from qe_studio.core.qe.bands_x import BandsFormatError, read_gnu
 from qe_studio.core.qe.relax import parse_relax
+from qe_studio.core.qe.scf import parse_scf
 
 # An empty or whitespace-only cut makes numpy warn "input contained no data" before read_gnu
 # reports it as a format error.
@@ -165,3 +166,63 @@ def test_parse_relax_cut_anywhere_never_raises_and_keeps_a_prefix(run, draw):
     assert got == expected[: len(got)]
     assert data.truncated_steps <= 1
     assert [s.index for s in data.steps] == list(range(len(got)))
+
+
+# -- pw.x SCF output ---------------------------------------------------------------------------
+SCF_HEADER = """\
+     Program PWSCF v.7.3.1 starts on 30Sep2026 at 12:00:00
+
+     scf convergence threshold =      1.0E-08
+     mixing beta               =       0.7000
+     number of iterations used =            8  plain     mixing
+
+     Self-consistent Calculation
+
+"""
+
+
+@st.composite
+def scf_runs(draw):
+    """``(text, iterations)`` of a run: ``iterations`` is a list of (energy, accuracy)."""
+    count = draw(st.integers(1, 8))
+    energies = [
+        round(v, 8) for v in draw(st.lists(st.floats(-500, -1), min_size=count, max_size=count))
+    ]
+    accuracies = [
+        f"{v:.3E}" for v in draw(st.lists(st.floats(1e-12, 1.0), min_size=count, max_size=count))
+    ]
+    converged = draw(st.booleans())
+    text = SCF_HEADER
+    for k, (energy, accuracy) in enumerate(zip(energies, accuracies, strict=True), start=1):
+        mark = "!" if converged and k == count else " "
+        text += (
+            f"     iteration #{k:3d}     ecut=    30.00 Ry     beta= 0.70\n"
+            f"     total cpu time spent up to now is {k:10.1f} secs\n\n"
+            f"{mark}    total energy              =  {energy:14.8f} Ry\n"
+            f"     estimated scf accuracy    <  {accuracy} Ry\n\n"
+        )
+    if converged:
+        text += f"     convergence has been achieved in {count:3d} iterations\n"
+    if draw(st.booleans()):
+        text += "     JOB DONE.\n"
+    return text, [(e, float(a)) for e, a in zip(energies, accuracies, strict=True)]
+
+
+@given(scf_runs())
+def test_parse_scf_reads_every_iteration(run):
+    text, expected = run
+    data = parse_scf(text.splitlines(keepends=True))
+    assert [(it.energy_ry, it.accuracy_ry) for it in data.iterations] == expected
+    assert [it.index for it in data.iterations] == list(range(1, len(expected) + 1))
+    assert data.truncated == 0 and data.cycles == 1 and data.threshold_ry == 1e-8
+
+
+@given(scf_runs(), st.data())
+def test_parse_scf_cut_anywhere_never_raises_and_keeps_a_prefix(run, draw):
+    text, expected = run
+    cut = draw.draw(st.integers(0, len(text)))
+    data = parse_scf(text[:cut].splitlines(keepends=True))
+    got = [(it.energy_ry, it.accuracy_ry) for it in data.iterations]
+    assert got == expected[: len(got)]
+    assert data.truncated <= 1 and data.cycles <= 1
+    assert [it.index for it in data.iterations] == list(range(1, len(got) + 1))

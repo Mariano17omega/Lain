@@ -95,7 +95,10 @@ a pull.
    only that state (list mode also shows sizes); `..`, Backspace or Alt+↑ go up a folder.
    Right-click a file or folder for **Abrir local de origem**, **Abrir com** (installed programs
    for its type, or any other), **Copiar** (paste it in the file manager or a terminal) and
-   **Renomear** (never overwrites; tabs showing the item are closed).
+   **Renomear** (never overwrites; tabs showing the item are closed). On an SCF output
+   there is also **Plotar**, which previews its convergence (estimated accuracy against
+   `conv_thr`, |ΔE| or total energy, and the magnetization of spin runs) without saving; the
+   **Plotar SCF** button next to **Gerar Gráfico** does the same for the SCF output open in a tab.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the

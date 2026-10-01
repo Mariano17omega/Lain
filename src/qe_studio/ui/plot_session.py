@@ -40,8 +40,13 @@ class PlotSession(Generic[D, P]):
         return self.result.kind
 
     @property
+    def plot_target(self) -> Path:
+        """What the plot shows: the folder, or the one file of a single-output module."""
+        return self.result.plot_target
+
+    @property
     def key(self) -> str:
-        return plot_key(self.folder, self.kind)
+        return plot_key(self.plot_target, self.kind)
 
     @property
     def style(self) -> PlotStyle:
@@ -50,7 +55,7 @@ class PlotSession(Generic[D, P]):
 
     @property
     def title(self) -> str:
-        return f"{self.module.display_name} · {self.folder.name}"
+        return f"{self.module.display_name} · {self.plot_target.name}"
 
     def render(self, figure: Figure, style: PlotStyle) -> RenderInfo:
         with matplotlib.rc_context(style.rc(self.params.font_size)):
@@ -70,5 +75,5 @@ class PlotSession(Generic[D, P]):
         self.module.apply_limits(self.params, floats)
 
 
-def plot_key(folder: Path, kind: str) -> str:
-    return f"plot:{kind}:{folder}"
+def plot_key(target: Path, kind: str) -> str:
+    return f"plot:{kind}:{target}"

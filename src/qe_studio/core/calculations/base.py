@@ -149,6 +149,11 @@ class DetectionResult:
         return self.module.plottable and self.complete
 
     @property
+    def plot_target(self) -> Path:
+        """What a plot of this result shows (see ``CalculationModule.plot_target``)."""
+        return self.module.plot_target(self.folder, self.files)
+
+    @property
     def method(self) -> Method:
         """Least certain method used for any role (manual > inferred > content > name).
 
@@ -185,6 +190,8 @@ class CalculationModule(Generic[D, P]):
     view_fields: ClassVar[tuple[str, ...]] = ()
     # Own sections of the tuning panel as (name, section to insert before); see ``ordered_sections``.
     sections: ClassVar[tuple[tuple[str, str | None], ...]] = ()
+    # Role whose single file can be plotted on its own (right-click "Plotar"); see ``module_for_file``.
+    single_file_role: ClassVar[str | None] = None
 
     def role(self, role_id: str) -> FileRole:
         return next(r for r in self.roles if r.id == role_id)
@@ -295,6 +302,11 @@ class CalculationModule(Generic[D, P]):
 
     def param_changed(self, dataset: D, params: P, name: str, old: Any) -> None:
         """Hook to adjust dependent parameters after the user edits ``name``."""
+
+    def plot_target(self, folder: Path, files: dict[str, list[Path]]) -> Path:
+        """What one plot shows, and so what keys its tab: the folder, or one file for modules
+        that plot a single output (several of them can then be open from the same folder)."""
+        return folder
 
     def export_stem(self, params: P) -> str:
         """File name (without extension) of the exported figure in ``plots/``."""

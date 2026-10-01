@@ -1,5 +1,8 @@
-"""Spec 5: grid cards without sizes, the ".." shortcut and the file/folder context menu."""
+"""Spec 5: grid cards without sizes, the ".." shortcut and the file/folder context menu.
 
+Spec 9 adds "Plotar" to the menu of an SCF output."""
+
+import shutil
 from pathlib import Path
 
 import pytest
@@ -14,6 +17,8 @@ from qe_studio.ui.dialogs.open_with import OpenWithDialog
 from qe_studio.ui.dialogs.rename import RenameDialog
 from qe_studio.ui.widgets import context_menu
 from qe_studio.ui.widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
+
+from conftest import FIXTURES
 
 MENU = ["Abrir local de origem", "Abrir com", "Copiar", "Renomear"]
 
@@ -148,6 +153,87 @@ def test_menu_has_exactly_the_four_actions(main_window, demo_project, monkeypatc
     assert [[text for text, _ in menu] for menu in shown] == [MENU, MENU, MENU]
     assert [enabled for _, enabled in shown[1]] == [True, True, True, True]
     assert [enabled for _, enabled in shown[2]] == [True, True, True, False]  # the root
+
+
+def menu_texts(menu) -> list[str]:
+    return [a.text() for a in menu.actions() if not a.isSeparator()]
+
+
+def detected(window, folder: Path) -> None:
+    window.service.detect_now(folder)  # fills the sniff cache the menu reads
+
+
+def test_scf_output_menu_starts_with_plotar(main_window, demo_project, monkeypatch):
+    shown = []
+    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: shown.append(menu))
+    window = main_window
+    for folder in ("02_scf", "03_bands"):  # a bands folder also holds an SCF output
+        detected(window, demo_project / folder)
+        window._show_item_menu(demo_project / folder / "scf.out", QPoint())
+    assert [menu_texts(menu) for menu in shown] == [["Plotar", *MENU]] * 2
+    assert shown[0].actions()[1].isSeparator() and len(shown[0].actions()) == 6
+
+
+@pytest.mark.parametrize(
+    "folder, name",
+    [
+        ("03_bands", "bands.out"),  # pw.x bands
+        ("03_bands", "bands_pp.out"),  # bands.x
+        ("03_bands", "bands.in"),
+        ("04_pdos", "nscf.out"),
+        ("01_relax", "si.rel.out"),
+        ("01_relax", "si.rel.in"),
+    ],
+)
+def test_other_files_have_no_plotar(main_window, demo_project, monkeypatch, folder, name):
+    shown = []
+    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: shown.append(menu_texts(menu)))
+    detected(main_window, demo_project / folder)
+    main_window._show_item_menu(demo_project / folder / name, QPoint())
+    assert shown == [MENU]
+    main_window._show_item_menu(demo_project / folder, QPoint())  # folders neither
+    assert shown[1] == MENU
+
+
+def test_unsniffed_file_has_no_plotar_but_asks_for_detection(
+    main_window, demo_project, monkeypatch
+):
+    window = main_window
+    folder = demo_project / "02_scf"
+    shown, requested = [], []
+    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: shown.append(menu_texts(menu)))
+    monkeypatch.setattr(window.service, "file_sniff", lambda path: None)  # not in the cache
+    monkeypatch.setattr(window.service, "results", lambda f: requested.append(f))
+    window._show_item_menu(folder / "scf.out", QPoint())
+    assert shown == [MENU] and requested == [folder]
+
+
+def test_plotar_opens_the_convergence_tab_without_saving(
+    qtbot, main_window, demo_project, monkeypatch
+):
+    window = main_window
+    folder = demo_project / "02_scf"
+    shutil.copy(FIXTURES / "al_bands/al.scf.out", folder / "al.scf.out")
+    detected(window, folder)
+    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: menu.actions()[0].trigger())  # "Plotar"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        window._show_item_menu(folder / "al.scf.out", QPoint())
+    tabs = window.workspace.tabs
+    assert tabs.tabText(tabs.currentIndex()) == "Convergência SCF · al.scf.out"
+    assert not (folder / "plots").exists()
+
+
+def test_renaming_an_scf_output_closes_its_plot_tab(qtbot, main_window, demo_project, new_names):
+    window = main_window
+    folder = demo_project / "02_scf"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+        window.plot_file(folder / "scf.out", "scf")
+    session = blocker.args[0]
+    window.params.set_param("scale", "linear")  # pending settings travel with the rename
+    new_names.append("scf-si.out")
+    window.rename_path(folder / "scf.out")
+    assert (folder / "scf-si.out").is_file() and window.workspace.widget_for(session.key) is None
+    assert read_plot_file(folder, "scf")[0]["scale"] == "linear"
 
 
 @pytest.fixture

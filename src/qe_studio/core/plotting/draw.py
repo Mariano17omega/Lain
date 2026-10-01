@@ -8,6 +8,9 @@ from matplotlib.figure import Figure
 from ..calculations.params import CommonParams
 from .style import PlotStyle
 
+DASHED = (0, (5, 3))  # threshold lines
+MAX_TICKS = 20  # integer X ticks are thinned above this many
+
 
 def new_axes(figure: Figure, style: PlotStyle) -> Axes:
     figure.clear()
@@ -48,3 +51,31 @@ def finish(figure: Figure, ax: Axes, params: CommonParams, handles: list | None 
         ax.set_title(params.title.strip(), fontsize=params.font_size * 1.1, pad=8)
     add_legend(ax, params, handles)
     figure.tight_layout(pad=0.6)
+
+
+def positive_for_log(values: list[float]) -> list[float]:
+    """Non-positive values (e.g. |ΔE| = 0 between identical energies) as a floor below the data,
+    so a log axis can show them (the reference's ``_positive_for_log``)."""
+    positive = [v for v in values if v > 0]
+    floor = min(positive) / 10 if positive else 1e-12
+    return [v if v > 0 else floor for v in values]
+
+
+def style_axes(ax: Axes, style: PlotStyle) -> None:
+    ax.grid(axis="y", color=style.grid, lw=0.6, ls=":", zorder=0)
+    ax.tick_params(axis="y", which="both", right=True)
+
+
+def empty_panel(ax: Axes, message: str, style: PlotStyle) -> None:
+    """Placeholder text in a panel without data (no axes drawn)."""
+    ax.set_axis_off()
+    ax.text(
+        0.5,
+        0.5,
+        message,
+        transform=ax.transAxes,
+        ha="center",
+        va="center",
+        wrap=True,
+        color=style.muted,
+    )

@@ -12,6 +12,7 @@ from PyQt6.QtCore import QCoreApplication, QEvent, QSize
 from PyQt6.QtWidgets import QCheckBox, QDoubleSpinBox, QLabel, QMessageBox, QPushButton
 
 from qe_studio.core.calculations.base import Method
+from qe_studio.core.plotting.plot_file import read_plot_file
 from qe_studio.ui import main_window as main_window_module
 from qe_studio.ui.dialogs.overwrite import OverwriteChoice
 from qe_studio.ui.widgets.param_widgets import Section, SeriesList
@@ -273,13 +274,90 @@ def test_relax_plot(qtbot, main_window, demo_project, no_dialogs):
     assert (session.params.xmin, session.params.xmax) == (None, None)
 
 
-def test_scf_folder_asks_for_a_mapping(qtbot, main_window, demo_project, no_dialogs):
+def test_scf_folder_plots_the_convergence_without_a_mapping(
+    qtbot, main_window, demo_project, no_dialogs
+):
     window = main_window
-    window.generate_plot_for(demo_project / "02_scf")
-    qtbot.waitUntil(lambda: bool(no_dialogs["mapping"]), timeout=5000)
-    message = no_dialogs["mapping"][0][4]
-    assert "SCF" in message and "otimização estrutural" in message
-    assert window.current_plot() is None
+    folder = demo_project / "02_scf"
+    session = generate(qtbot, window, folder)  # "Gerar Gráfico" saves, as for any plot
+    assert session.kind == "scf" and no_dialogs["mapping"] == []
+    tabs = window.workspace.tabs
+    assert tabs.tabText(tabs.currentIndex()) == "Convergência SCF · scf.out"
+    assert session.key == f"plot:scf:{folder / 'scf.out'}"
+    assert (folder / "plots" / "scf.png").exists()
+    assert window.status.readout.text().startswith("scf.out · Convergiu ✓ em 4 iterações")
+
+
+def test_plot_file_previews_one_output_without_saving(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "03_bands"  # a bands folder: Ctrl+G would plot the bands
+    output = folder / "scf.out"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+        window.plot_file(output, "scf")
+    session = blocker.args[0]
+    assert session.kind == "scf" and session.result.methods["scf_out"] is Method.MANUAL
+    tabs = window.workspace.tabs
+    assert tabs.tabText(tabs.currentIndex()) == "Convergência SCF · scf.out"
+    assert not (folder / "plots").exists() and no_dialogs["mapping"] == []
+    assert window.workspace.isVisible() and window.left.currentWidget() is window.params
+    assert window.status.readout.text().startswith("scf.out · Convergiu ✓")
+
+    window.params.set_param("scale", "linear")  # the settings go to <folder>/scf.plot
+    window._flush_plot_files()
+    stored, _ = read_plot_file(folder, "scf")
+    assert stored["scale"] == "linear"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        window.plot_file(output, "scf")  # again: the same tab, settings read back
+    assert window.workspace.keys().count(session.key) == 1
+    assert window.current_plot().session.params.scale == "linear"
+
+
+def test_two_outputs_of_one_folder_get_a_tab_each(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    folder = demo_project / "02_scf"
+    shutil.copy(FIXTURES / "al_bands/al.scf.out", folder / "al.scf.out")
+    keys = []
+    for name in ("scf.out", "al.scf.out"):
+        with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+            window.plot_file(folder / name, "scf")
+        keys.append(blocker.args[0].key)
+    assert len(set(keys)) == 2 and all(window.workspace.widget_for(k) for k in keys)
+    assert window.workspace.tabs.tabText(1) == "Convergência SCF · al.scf.out"
+    # the one scf.plot of the folder is shared by both
+    assert {s.folder for s in (window.workspace.widget_for(k).session for k in keys)} == {folder}
+
+
+def test_plot_button_is_only_for_an_open_scf_output(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    button = window.top_bar.plot_file
+    assert button.text() == "Plotar SCF" and not button.isVisible()  # no tabs
+    folder = demo_project / "03_bands"
+    window.service.detect_now(folder)
+    window.open_file(folder / "scf.out")
+    assert button.isVisible()
+    window.open_file(folder / "bands.in")  # an input
+    assert not button.isVisible()
+    window.workspace.set_current(window.workspace.widget_for(str(folder / "scf.out")))
+    assert button.isVisible()
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+        button.click()
+    assert blocker.args[0].kind == "scf" and not button.isVisible()  # now on the plot tab
+    assert not (folder / "plots").exists()
+    window.workspace.set_current(window.workspace.widget_for(str(folder / "scf.out")))
+    assert button.isVisible()
+    window.workspace.close_key(str(folder / "scf.out"))  # closing the current tab
+    assert not button.isVisible()
+    window.workspace.close_key(blocker.args[0].key)
+    window.workspace.close_key(str(folder / "bands.in"))
+    assert window.workspace.current() is None and not button.isVisible()
+
+
+def test_plot_button_follows_the_detection_of_a_new_folder(qtbot, main_window, demo_project):
+    window = main_window
+    folder = demo_project / "02_scf"
+    window.service.invalidate(folder)
+    window.open_file(folder / "scf.out")
+    qtbot.waitUntil(lambda: window.top_bar.plot_file.isVisible(), timeout=5000)
 
 
 def test_load_failure_is_reported(qtbot, main_window, demo_project, no_dialogs):

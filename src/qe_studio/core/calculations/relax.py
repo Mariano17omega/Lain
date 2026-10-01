@@ -15,7 +15,16 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
-from ..plotting.draw import add_legend, finish, stacked_axes
+from ..plotting.draw import (
+    DASHED,
+    MAX_TICKS,
+    add_legend,
+    empty_panel,
+    finish,
+    positive_for_log,
+    stacked_axes,
+    style_axes,
+)
 from ..plotting.style import PlotStyle
 from ..qe.pw_input import parse_input
 from ..qe.relax import QE_DEFAULT, RelaxData, read_relax
@@ -31,8 +40,6 @@ SCALES = (("log", "Log"), ("linear", "Linear"))
 EXPORT_STEMS = {"both": "relax", "energy": "relax_energia", "force": "relax_forca"}
 NO_DELTAS = "São necessários pelo menos dois passos completos para calcular |ΔE|."
 NO_STEPS = "Nenhum passo completo de relaxamento encontrado."
-DASHED = (0, (5, 3))
-MAX_TICKS = 20
 
 
 @dataclass
@@ -69,14 +76,6 @@ def input_thresholds(path: Path | None) -> tuple[float | None, float | None]:
         float(etot) if isinstance(etot, int | float) else None,
         float(forc) if isinstance(forc, int | float) else None,
     )
-
-
-def positive_for_log(values: list[float]) -> list[float]:
-    """Non-positive values (e.g. |ΔE| = 0 between identical energies) as a floor below the data,
-    so a log axis can show them (the reference's ``_positive_for_log``)."""
-    positive = [v for v in values if v > 0]
-    floor = min(positive) / 10 if positive else 1e-12
-    return [v if v > 0 else floor for v in values]
 
 
 class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
@@ -195,7 +194,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     ) -> list:
         deltas = data.energy_deltas
         if not deltas:
-            _empty(ax, NO_DELTAS, style)
+            empty_panel(ax, NO_DELTAS, style)
             return []
         if log:
             ax.set_yscale("log")
@@ -203,7 +202,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         x = range(1, len(deltas) + 1)
         ax.bar(x, values, width=0.72, color=params.energy_color, zorder=2)
         ax.set_ylabel("|ΔE| (Ry)")
-        _style_axes(ax, style)
+        style_axes(ax, style)
         return self._threshold(
             ax, data.energy_threshold, data.energy_threshold_source, "etot_conv_thr", "Ry", params
         )
@@ -212,7 +211,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         self, ax: Axes, data: RelaxData, params: RelaxParams, style: PlotStyle, log: bool
     ) -> list:
         if not data.steps:
-            _empty(ax, NO_STEPS, style)
+            empty_panel(ax, NO_STEPS, style)
             return []
         if log:
             ax.set_yscale("log")
@@ -228,7 +227,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
             zorder=3,
         )
         ax.set_ylabel("Força total (Ry/Bohr)")
-        _style_axes(ax, style)
+        style_axes(ax, style)
         return self._threshold(
             ax,
             data.force_threshold,
@@ -255,23 +254,3 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         if data.final_scf_energy is not None:
             parts.append(f"E final (SCF final) {data.final_scf_energy:.6f} Ry")
         return " · ".join(parts)
-
-
-def _style_axes(ax: Axes, style: PlotStyle) -> None:
-    ax.grid(axis="y", color=style.grid, lw=0.6, ls=":", zorder=0)
-    ax.tick_params(axis="y", which="both", right=True)
-
-
-def _empty(ax: Axes, message: str, style: PlotStyle) -> None:
-    """Placeholder text in a panel without data (no axes drawn)."""
-    ax.set_axis_off()
-    ax.text(
-        0.5,
-        0.5,
-        message,
-        transform=ax.transAxes,
-        ha="center",
-        va="center",
-        wrap=True,
-        color=style.muted,
-    )

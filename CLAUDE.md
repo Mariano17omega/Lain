@@ -86,7 +86,7 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 ### Architecture rules
 
 - **No files over ~500 lines that centralize everything.** Split by responsibility before a module
-  grows past that. Current offenders: `ui/main_window.py` (~990 lines, split by spec 15) and
+  grows past that. Current offenders: `ui/main_window.py` (~1050 lines, split by spec 15) and
   `core/calculations/bands.py` (~530, split by spec 13).
 - **`ui/` holds interface logic only.** Widgets, layout, dialogs, and wiring signals to `core/`.
   Parsing, detection, physics, file operations, sync decisions and any other backend logic belong in
@@ -124,10 +124,14 @@ on the base class:
 
 - ClassVars: `view_fields` (params the toolbar Reset restores), `sections` (own panel sections as
   `(name, insert before)`, ordered by `ordered_sections`), `badge_token` (theme colors
-  `badge_<token>_{bg,fg,border}`; none → the generic `badge_other_*`).
+  `badge_<token>_{bg,fg,border}`; none → the generic `badge_other_*`), `single_file_role` (a role
+  whose one file can be plotted alone: the right-click "Plotar" and the "Plotar SCF" button ask
+  `module_for_file(sniff)`, never a module name).
 - Hooks: `apply_limits(params, axes_limits)` (pan/zoom of *every* figure axes into the params),
   `legacy_params` (old `FolderMemory` data when there is no `<kind>.plot`), `default_labels`,
-  `series_colors` (for a `"series"` field), `format_coordinates` (cursor readout).
+  `series_colors` (for a `"series"` field), `format_coordinates` (cursor readout), `plot_target(folder,
+  files)` (what one plot shows: the folder, or the output file of a single-file module such as SCF;
+  it keys and names the tab, `<kind>.plot` stays per folder).
 - `ParamField`: `refreshes=True` makes the panel re-read all values after an edit (dependent
   fields); `colors=` names the color-override dict of a `"series"` field. `plot_file` validates stored
   values by field kind (`color`, `choice`, series colors), never by name: a parameter without a

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 9 (primeira feature nova; a mais pedida para depurar cálculos) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada; falta a fixture real de SCF não convergido (testes usam texto derivado de `al.scf.out`) |
 | **Depende de** | spec 8 (contrato do módulo), spec 5 (menu de contexto), spec 6 (padrão de painéis/escala log do relax) |
 | **Usada por** | spec 12 (ordem das ações no menu de contexto) |
 | **Esforço** | M |

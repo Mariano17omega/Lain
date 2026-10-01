@@ -37,7 +37,14 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import APP_NAME, __version__
-from ..core.calculations import REGISTRY, CalculationModule, DetectionResult, describe_plottable
+from ..core.calculations import (
+    REGISTRY,
+    CalculationModule,
+    DetectionResult,
+    describe_plottable,
+    module_for,
+    module_for_file,
+)
 from ..core.calculations.base import LoadError
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.detection import FolderMemory, manual_result
@@ -70,7 +77,7 @@ from .widgets.file_grid import FilePanel
 from .widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
 from .widgets.plot_params import ParamsPanel
 from .widgets.plot_view import PlotView
-from .widgets.workspace import Workspace
+from .widgets.workspace import TextViewer, Workspace
 
 log = logging.getLogger(__name__)
 RENDER_DEBOUNCE_MS = 120
@@ -91,6 +98,10 @@ class _Manual(NamedTuple):
     @property
     def kind(self) -> str:
         return self.module.kind
+
+    @property
+    def plot_target(self) -> Path:
+        return self.module.plot_target(self.folder, self.mapping)
 
     def build(self) -> DetectionResult:
         return manual_result(self.module, self.folder, self.mapping, self.sniff)
@@ -187,6 +198,7 @@ class MainWindow(QMainWindow):
         self._loads: dict[str, _LoadTask] = {}
         self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
         self._overwrite_always = False
+        self._plot_file_source: tuple[Path, str] | None = None  # what "Plotar SCF" plots
         self._sync: SyncController | None = None
         self._sync_dialog: SyncDialog | None = None
         self.conflict_dialog: ConflictDialog | None = None
@@ -310,12 +322,14 @@ class MainWindow(QMainWindow):
         self.files.item_menu_requested.connect(self._show_item_menu)
         self.item_actions.message.connect(self._on_item_message)
         self.item_actions.rename_requested.connect(self.rename_path)
+        self.item_actions.plot_file_requested.connect(self.plot_file)
         self.activity.explorer_requested.connect(lambda: self.set_left_mode("tree"))
         self.activity.grid_toggled.connect(lambda on: self.set_panel_visible("grid", on))
         self.activity.plot_requested.connect(self.toggle_plot)
         self.activity.sync_requested.connect(self.start_sync)
         self.activity.theme_requested.connect(self.toggle_theme)
         self.top_bar.generate_requested.connect(self.generate_plot)
+        self.top_bar.plot_file_requested.connect(self._plot_open_file)
         self.top_bar.panel_toggled.connect(self.set_panel_visible)
         self.splitter.splitterMoved.connect(self._on_splitter_moved)
         self.monitor.state_changed.connect(self._apply_cluster_label)
@@ -415,9 +429,21 @@ class MainWindow(QMainWindow):
 
     # -- context menu (spec 5 R3) -------------------------------------------------------------------
     def _show_item_menu(self, path: Path, pos: QPoint) -> None:
-        menu = self.item_actions.menu(path, can_rename=path != self.root)
+        menu = self.item_actions.menu(
+            path, can_rename=path != self.root, plot_kind=self._plot_kind_of(path)
+        )
         menu.exec(pos)
         menu.deleteLater()
+
+    def _plot_kind_of(self, path: Path) -> str | None:
+        """Kind of the module that plots ``path`` alone, from the cached sniff only: the GUI
+        thread never reads the file. On a miss detection is requested, so the next menu knows."""
+        sniff = self.service.file_sniff(path)
+        if sniff is None:
+            self.service.results(path.parent)
+            return None
+        module = module_for_file(sniff)
+        return module.kind if module else None
 
     def _on_item_message(self, text: str, level: str) -> None:
         self.status.set_message(text, level, 4000)
@@ -447,7 +473,7 @@ class MainWindow(QMainWindow):
             )
             return
         for key, widget in self.workspace.items():
-            shown = widget.session.folder if isinstance(widget, PlotView) else widget.path
+            shown = widget.session.plot_target if isinstance(widget, PlotView) else widget.path
             if inside(shown):
                 self.workspace.close_key(key)
         self.memory.rename(old_resolved, new.resolve())
@@ -484,8 +510,14 @@ class MainWindow(QMainWindow):
         self.set_left_mode("params")
         view = self.current_plot()
         if view is None or view.session.folder != folder:
-            keys = (plot_key(folder, m.kind) for m in REGISTRY if m.plottable)
-            view = next((w for w in map(self.workspace.widget_for, keys) if w is not None), None)
+            view = next(
+                (
+                    w
+                    for _key, w in self.workspace.items()
+                    if isinstance(w, PlotView) and w.session.folder == folder
+                ),
+                None,
+            )
         if view is not None:
             self.workspace.set_current(view)
         else:
@@ -629,6 +661,34 @@ class MainWindow(QMainWindow):
     def generate_plot(self) -> None:
         self.generate_plot_for(self.current_folder())
 
+    def plot_file(self, path: Path, kind: str) -> None:
+        """Preview the plot of one output file (context-menu "Plotar", "Plotar SCF" button).
+
+        Not saved to plots/: "Salvar em plots/" / Ctrl+E does that, as for the "Plot" button.
+        """
+        module = module_for(kind)
+        assert module.single_file_role is not None
+        mapping = {module.single_file_role: [path]}
+        target = _Manual(module, path.parent, mapping, self.service.sniff_cache.sniff)
+        self._load(target, auto_export=False)
+
+    def _plot_open_file(self) -> None:
+        if self._plot_file_source is not None:
+            self.plot_file(*self._plot_file_source)
+
+    def _update_plot_file_button(self) -> None:
+        """Show "Plotar SCF" while the current tab is an output one module can plot alone."""
+        widget = self.workspace.current()
+        source = None
+        if isinstance(widget, TextViewer):
+            sniff = self.service.file_sniff(widget.path)
+            if sniff is None:  # not detected yet: the button follows when it arrives
+                self.service.results(widget.path.parent)
+            if module := module_for_file(sniff):
+                source = (widget.path, module.kind)
+        self._plot_file_source = source
+        self.top_bar.plot_file.setVisible(source is not None)
+
     def generate_plot_for(self, folder: Path, auto_export: bool = True) -> None:
         """Detect → (choose / map manually) → load in a worker → plot tab → save to plots/.
 
@@ -644,6 +704,7 @@ class MainWindow(QMainWindow):
         self.service.request(Path(folder), fresh=True)
 
     def _on_detected(self, key: str) -> None:
+        self._update_plot_file_button()
         if key not in self._detecting:
             return
         # Taken now: by the next loop turn a refresh or sync may have invalidated the cache.
@@ -698,7 +759,7 @@ class MainWindow(QMainWindow):
         return _Manual(module, folder, mapping, self.service.sniff_cache.sniff)
 
     def _load(self, target: DetectionResult | _Manual, auto_export: bool) -> None:
-        key = plot_key(target.folder, target.kind)
+        key = plot_key(target.plot_target, target.kind)
         if key in self._loads and not self._loads[key].done:
             return
         self._flush_plot_files(key)  # the worker reads the .plot: pending edits first
@@ -712,7 +773,7 @@ class MainWindow(QMainWindow):
 
     def _finish_load(self, target: DetectionResult | _Manual) -> None:
         # Released on the next loop turn: we are inside a slot of the task's own signal object.
-        key = plot_key(target.folder, target.kind)
+        key = plot_key(target.plot_target, target.kind)
         QTimer.singleShot(0, lambda: self._loads.pop(key, None))
         if QApplication.overrideCursor() is not None:
             QApplication.restoreOverrideCursor()
@@ -725,7 +786,7 @@ class MainWindow(QMainWindow):
 
     def _on_loaded(self, result: DetectionResult, dataset, stored, auto_export: bool) -> None:
         self._finish_load(result)
-        key = plot_key(result.folder, result.kind)
+        key = plot_key(result.plot_target, result.kind)
         existing = self.workspace.widget_for(key)
         module = result.module
         params = module.default_params(self.config, dataset)
@@ -747,11 +808,13 @@ class MainWindow(QMainWindow):
         view.rendered.connect(self._on_rendered)
         view.limits_changed.connect(self._on_limits_changed)
         view.export_requested.connect(self.export_plot)
-        self.workspace.add(key, view, session.title, ("bubble_chart", "accent"), str(result.folder))
+        self.workspace.add(
+            key, view, session.title, ("bubble_chart", "accent"), str(session.plot_target)
+        )
         self.set_panel_visible("workspace", True)  # workspace.add made the tab current: bound
         self.set_left_mode("params")
         self.status.set_message(
-            f"{session.module.display_name}: {result.folder.name}", timeout_ms=4000
+            f"{session.module.display_name}: {session.plot_target.name}", timeout_ms=4000
         )
         if stored_warnings:
             self.status.set_message(stored_warnings[0], "warning", 8000)
@@ -765,6 +828,7 @@ class MainWindow(QMainWindow):
         elif widget is None:
             self.params.bind(None)
         self._update_readout()
+        self._update_plot_file_button()
 
     def _on_param_changed(self, _name: str) -> None:
         self._render_timer.start()
@@ -850,7 +914,7 @@ class MainWindow(QMainWindow):
         params = view.session.params
         dpi = params.export_dpi
         px = f"{round(params.figure_width * dpi)}×{round(params.figure_height * dpi)} px"
-        name = view.session.folder.name
+        name = view.session.plot_target.name
         self.status.set_readout(f"{name} · {info.summary} · {px} ({dpi} DPI)")
 
     def _remap_current(self) -> None:

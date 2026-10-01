@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from PyQt6.QtGui import QImage, QPainter
 
-from qe_studio.core.calculations import REGISTRY, describe_plottable
+from qe_studio.core.calculations import REGISTRY, describe_plottable, module_for_file
 from qe_studio.core.calculations.base import (
     AxesLimits,
     CalculationModule,
@@ -180,7 +180,7 @@ def test_no_file_of_the_ui_knows_the_dummy_module():
 def test_ui_does_not_branch_on_plot_kinds():
     for path in UI_DIR.rglob("*.py"):
         text = path.read_text()
-        for kind in ("bands", "pdos", "relax"):
+        for kind in ("bands", "pdos", "relax", "scf"):
             assert f'kind == "{kind}"' not in text, path.name
 
 
@@ -219,6 +219,15 @@ def test_sections_are_ordered_from_the_module_declarations():
     ]
 
 
+def test_a_module_plots_its_folder_unless_it_says_otherwise(dummy_folder):
+    result = detect_dummy(dummy_folder)
+    assert result.plot_target == dummy_folder and DUMMY.single_file_role is None
+    session = PlotSession(result, DUMMY.load(result), DummyParams())
+    assert session.key == f"plot:dummy:{dummy_folder}"
+    assert session.title == "Cálculo de teste · dummy_sim"
+    assert module_for_file(SniffCache().sniff(dummy_folder / "a.dummy"), (DUMMY,)) is None
+
+
 def test_base_hooks_have_neutral_defaults(dummy_folder):
     dataset = DUMMY.load(detect_dummy(dummy_folder))
     params = DummyParams()
@@ -231,7 +240,8 @@ def test_base_hooks_have_neutral_defaults(dummy_folder):
 
 def test_the_message_for_manual_mapping_names_every_plottable_module():
     assert describe_plottable() == (
-        "estrutura de bandas, densidade de estados projetada ou otimização estrutural"
+        "estrutura de bandas, densidade de estados projetada, otimização estrutural "
+        "ou convergência scf"
     )
     assert describe_plottable((DUMMY,)) == "cálculo de teste"
 

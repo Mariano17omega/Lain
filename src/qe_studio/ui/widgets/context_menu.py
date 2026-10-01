@@ -1,7 +1,8 @@
 """Right-click menu for files and folders in the explorer tree and the file grid (spec 5 R3).
 
-Exactly four actions: Abrir local de origem, Abrir com ▸, Copiar, Renomear. Renaming touches
-global state (tabs, plot settings, folder memory), so it is handed to the main window.
+Four actions: Abrir local de origem, Abrir com ▸, Copiar, Renomear. A file one module can plot on
+its own (spec 9) also gets "Plotar" on top. Renaming and plotting touch global state (tabs, plot
+settings, folder memory), so they are handed to the main window.
 """
 
 from __future__ import annotations
@@ -42,14 +43,20 @@ def app_icon(app: DesktopApp) -> QIcon:
 class ItemActions(QObject):
     message = pyqtSignal(str, str)  # footer text, level
     rename_requested = pyqtSignal(Path)
+    plot_file_requested = pyqtSignal(Path, str)  # file, kind of the module that plots it
 
     def __init__(self, window: QWidget):
         super().__init__(window)
         self.window = window
         self._reveals: dict[QObject, Path] = {}  # pending D-Bus calls → item
 
-    def menu(self, path: Path, can_rename: bool = True) -> QMenu:
+    def menu(self, path: Path, can_rename: bool = True, plot_kind: str | None = None) -> QMenu:
         menu = QMenu(self.window)
+        if plot_kind is not None:
+            menu.addAction("Plotar").triggered.connect(
+                lambda _c=False: self.plot_file_requested.emit(path, plot_kind)
+            )
+            menu.addSeparator()
         menu.addAction("Abrir local de origem").triggered.connect(
             lambda _c=False: self.reveal(path)
         )
