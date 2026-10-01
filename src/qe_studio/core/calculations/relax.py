@@ -1,7 +1,8 @@
 """Structural relaxation progress (relax / vc-relax): |ΔE| and total force per BFGS step.
 
-One figure with up to two stacked panels sharing the step axis, after the reference app
-``Documentation/Relax-Viewer-`` (colours and background follow the plot parameters instead).
+One figure with up to two stacked panels sharing the step axis, after the Relax-Viewer
+reference app (removed from ``Documentation/``, see git history); colours and background
+follow the plot parameters instead.
 """
 
 from __future__ import annotations

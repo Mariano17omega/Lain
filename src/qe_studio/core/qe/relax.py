@@ -1,7 +1,8 @@
 """Relaxation progress (relax / vc-relax) from a pw.x output: energy and force per BFGS step.
 
-Ported from the step/threshold part of ``Documentation/Relax-Viewer-`` (``parser.py``,
-``diagnostics.py``). The file is read line by line: vc-relax outputs can be hundreds of MB.
+Ported from the step/threshold part of the Relax-Viewer reference app (``parser.py``,
+``diagnostics.py``; removed from ``Documentation/``, see git history). The file is read line by
+line: vc-relax outputs can be hundreds of MB.
 
 A step is complete once its ``!`` total energy, ``Total force`` and step identification are
 read. The identification is ``number of bfgs steps = k`` or, for the last SCF of a run,
