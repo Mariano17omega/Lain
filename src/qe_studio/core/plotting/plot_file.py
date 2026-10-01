@@ -18,6 +18,7 @@ import yaml
 from matplotlib.colors import is_color_like
 
 from ..appdirs import atomic_write_text
+from ..calculations.params import ParamField
 
 log = logging.getLogger(__name__)
 
@@ -78,21 +79,35 @@ def delete_plot_file(folder: Path, kind: str) -> None:
     plot_file_path(folder, kind).unlink(missing_ok=True)
 
 
-def apply_stored(params: Any, stored: dict[str, Any], schema: typing.Iterable = ()) -> list[str]:
+def apply_stored(
+    params: Any, stored: dict[str, Any], schema: typing.Iterable[ParamField] = ()
+) -> list[str]:
     """Set the valid stored values on ``params``; returns the names of the ignored fields.
 
-    ``schema`` (the module's ``ParamField`` list) restricts ``choice`` fields to their choices.
+    ``schema`` (the module's ``ParamField`` list) says how to validate each value: ``choice``
+    fields only take their choices, ``color`` fields a color, and the color overrides named by a
+    ``series`` field (``ParamField.colors``) colors again. Parameters without a schema field can
+    declare ``metadata={"kind": "color" | "colors"}`` on their dataclass field instead.
     """
     hints = typing.get_type_hints(type(params))
+    schema = list(schema)
+    kinds: dict[str, str] = {f.name: f.kind for f in schema}
+    kinds.update({f.colors: "colors" for f in schema if f.kind == "series" and f.colors})
+    declared = fields(params)
+    for f in declared:
+        if kind := f.metadata.get("kind"):
+            kinds.setdefault(f.name, kind)
     choices = {f.name: [c[0] for c in f.choices] for f in schema if f.kind == "choice"}
-    names = {f.name for f in fields(params)}
+    names = {f.name for f in declared}
     ignored = []
     for name, value in stored.items():
         if name not in names:
             log.debug("plot file: unknown field %r ignored", name)
             continue
         default = getattr(params, name)
-        valid = _fits(hints[name], value) and _valid_value(name, value, default, choices)
+        valid = _fits(hints[name], value) and _valid_value(
+            kinds.get(name), value, default, choices.get(name)
+        )
         if not valid:
             log.warning("plot file: %s = %r ignored (default %r)", name, value, default)
             ignored.append(name)
@@ -136,12 +151,12 @@ def _fits(hint: Any, value: Any) -> bool:
     return False
 
 
-def _valid_value(name: str, value: Any, default: Any, choices: dict[str, list]) -> bool:
-    """Values that would make ``render`` fail: unknown choices and invalid colours."""
-    if name in choices:
-        return value in choices[name]
-    if name == "background" or name.endswith("color"):
+def _valid_value(kind: str | None, value: Any, default: Any, choices: list | None) -> bool:
+    """Values that would make ``render`` fail: unknown choices and invalid colors."""
+    if kind == "choice":
+        return value in (choices or [])
+    if kind == "color":
         return (value == "" and default == "") or is_color_like(value)
-    if name.endswith("_colors"):
+    if kind == "colors":
         return all(is_color_like(color) for color in value.values())
     return True

@@ -7,7 +7,7 @@ from PyQt6.QtGui import QFont, QFontMetrics, QPainter, QPen
 
 from .theme.manager import ThemeManager
 
-BADGE_KINDS = {"BANDS": "bands", "PDOS": "pdos", "RELAX": "relax", "SCF": "scf", "CALC": "calc"}
+BADGE_FALLBACK = "other"  # token family for modules without (or with an unthemed) badge_token
 
 
 def mono_font(pixel_size: int = 11, weight: QFont.Weight = QFont.Weight.Normal) -> QFont:
@@ -29,10 +29,19 @@ def badge_width(text: str) -> int:
 
 
 def paint_badge(
-    painter: QPainter, right: float, center_y: float, text: str, theme: ThemeManager
+    painter: QPainter,
+    right: float,
+    center_y: float,
+    text: str,
+    theme: ThemeManager,
+    token: str | None = None,
 ) -> float:
-    """Draw a heuristic tag (BANDS, PDOS…) ending at ``right``; returns its left edge."""
-    kind = BADGE_KINDS.get(text, "calc")
+    """Draw a heuristic tag (BANDS, PDOS…) ending at ``right``; returns its left edge.
+
+    ``token`` selects the theme colors ``badge_<token>_{bg,fg,border}`` (the module's
+    ``badge_token``); without one, or without those tokens in the theme, the generic ones.
+    """
+    kind = token if token and theme.has_color(f"badge_{token}_bg") else BADGE_FALLBACK
     width = badge_width(text)
     rect = QRectF(right - width, center_y - 7, width, 14)
     painter.save()

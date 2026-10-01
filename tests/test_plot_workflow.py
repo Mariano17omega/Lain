@@ -9,11 +9,12 @@ import yaml
 from matplotlib.colors import to_hex
 from matplotlib.image import imread
 from PyQt6.QtCore import QCoreApplication, QEvent, QSize
-from PyQt6.QtWidgets import QLabel, QMessageBox, QPushButton
+from PyQt6.QtWidgets import QCheckBox, QDoubleSpinBox, QLabel, QMessageBox, QPushButton
 
 from qe_studio.core.calculations.base import Method
 from qe_studio.ui import main_window as main_window_module
 from qe_studio.ui.dialogs.overwrite import OverwriteChoice
+from qe_studio.ui.widgets.param_widgets import Section, SeriesList
 from qe_studio.ui.widgets.plot_view import PlotView
 
 from conftest import FIXTURES
@@ -96,11 +97,11 @@ def test_params_edit_rerenders(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     generate(qtbot, window, demo_project / "03_bands", auto_export=False)
     view = window.current_plot()
-    window.params._set("emin", -3.0)
+    window.params.set_param("emin", -3.0)
     qtbot.waitUntil(lambda: view.figure.axes[0].get_ylim()[0] == -3.0, timeout=3000)
-    window.params._set("reference", "absolute")  # keeps the absolute window
+    window.params.set_param("reference", "absolute")  # keeps the absolute window
     assert view.session.params.emin == pytest.approx(-3.0 + 8.0584)
-    window.params._set("export_png", False)
+    window.params.set_param("export_png", False)
     assert view.session.params.export_formats == ["svg", "pdf"]
 
 
@@ -186,9 +187,9 @@ def test_background_parameter_rerenders(qtbot, main_window, demo_project, no_dia
     window = main_window
     generate(qtbot, window, demo_project / folder, auto_export=False)
     labels = [label.text() for label in window.params.body.findChildren(QLabel)]
-    assert "Cor de fundo" in labels and "background" in window.params._setters
+    assert "Cor de fundo" in labels and "background" in window.params.body._setters
     figure = window.current_plot().figure
-    window.params._set("background", "#123456")
+    window.params.set_param("background", "#123456")
     qtbot.waitUntil(lambda: to_hex(figure.get_facecolor()) == "#123456", timeout=3000)
     assert to_hex(figure.axes[0].get_facecolor()) == "#123456"
 
@@ -211,7 +212,7 @@ def test_pdos_plot(qtbot, main_window, demo_project, no_dialogs):
     session = generate(qtbot, window, demo_project / "04_pdos", auto_export=False)
     assert session.kind == "pdos"
     assert session.result.method is Method.NAME
-    window.params._set("grouping", "orbital")
+    window.params.set_param("grouping", "orbital")
     qtbot.wait(200)
     labels = [ln.get_label() for ln in window.current_plot().figure.axes[0].get_lines()]
     assert "s" in labels and "p" in labels
@@ -259,13 +260,14 @@ def test_relax_plot(qtbot, main_window, demo_project, no_dialogs):
         "relax.svg",
     ]
     assert window.status.readout.text().startswith("01_relax · Relaxado ✓ · 6 passos BFGS")
-    window.params._set("panels", "energy")
+    window.params.set_param("panels", "energy")
     assert [p.name for p in window.export_plot()] == [
         "relax_energia.png",
         "relax_energia.svg",
         "relax_energia.pdf",
     ]
-    session.apply_limits((1.0, 4.0), (1e-6, 1e-2))  # toolbar zoom: only the step range
+    # toolbar zoom of the two stacked panels: only the step range of the first is kept
+    session.apply_limits([((1.0, 4.0), (1e-6, 1e-2)), ((1.0, 4.0), (0.0, 1.0))])
     assert (session.params.xmin, session.params.xmax) == (1.0, 4.0)
     session.reset_view()
     assert (session.params.xmin, session.params.xmax) == (None, None)
@@ -276,7 +278,7 @@ def test_scf_folder_asks_for_a_mapping(qtbot, main_window, demo_project, no_dial
     window.generate_plot_for(demo_project / "02_scf")
     qtbot.waitUntil(lambda: bool(no_dialogs["mapping"]), timeout=5000)
     message = no_dialogs["mapping"][0][4]
-    assert "SCF" in message and "relaxamento" in message
+    assert "SCF" in message and "otimização estrutural" in message
     assert window.current_plot() is None
 
 
@@ -313,7 +315,7 @@ def test_typed_labels_are_saved_in_the_plot_file(qtbot, main_window, demo_projec
     window = main_window
     folder = demo_project / "03_bands"
     session = generate(qtbot, window, folder, auto_export=False)
-    window.params._set("labels", "W, G, X, K, G")
+    window.params.set_param("labels", "W, G, X, K, G")
     window.workspace.close_key(session.key)  # flushes bands.plot
     assert window.memory.labels(folder) is None  # no longer written to FolderMemory
     session = generate(qtbot, window, folder, auto_export=False)
@@ -326,7 +328,7 @@ def test_legacy_labels_only_without_plot_file(qtbot, main_window, demo_project, 
     window.memory.set_labels(folder, ["L", "G", "X", "U", "G"])
     session = generate(qtbot, window, folder, auto_export=False)
     assert session.params.labels == "L, G, X, U, G"
-    window.params._set("labels", "")
+    window.params.set_param("labels", "")
     window._flush_plot_files()
     session = generate(qtbot, window, folder, auto_export=False)
     assert session.params.labels == ""
@@ -339,12 +341,12 @@ def test_plot_settings_persist(qtbot, main_window, demo_project, no_dialogs):
     session = generate(qtbot, window, folder, auto_export=False)
     window._flush_plot_files()
     assert not path.exists()  # generating alone never writes
-    window.params._set("emin", -3.0)
+    window.params.set_param("emin", -3.0)
     qtbot.waitUntil(path.exists, timeout=3000)  # debounced write
     window.workspace.close_key(session.key)
     session = generate(qtbot, window, folder, auto_export=False)
     assert session.params.emin == -3.0 and session.defaults.emin == -5.0
-    window.params._set("emax", 2.0)
+    window.params.set_param("emax", 2.0)
     session = generate(qtbot, window, folder, auto_export=False)  # regenerate flushes first
     assert (session.params.emin, session.params.emax) == (-3.0, 2.0)
 
@@ -366,8 +368,8 @@ def test_restore_defaults(qtbot, main_window, demo_project, no_dialogs, monkeypa
     window = main_window
     folder = demo_project / "03_bands"
     session = generate(qtbot, window, folder, auto_export=False)
-    window.params._set("emin", -3.0)
-    window.params._set("background", "#000000")
+    window.params.set_param("emin", -3.0)
+    window.params.set_param("background", "#000000")
     window._flush_plot_files()
     asked = []
     monkeypatch.setattr(
@@ -403,12 +405,12 @@ def test_read_only_folder_warns_once(qtbot, main_window, demo_project, no_dialog
     generate(qtbot, window, folder, auto_export=False)
     folder.chmod(0o555)
     try:
-        window.params._set("emin", -3.0)
+        window.params.set_param("emin", -3.0)
         window._flush_plot_files()
         message = window.status.message.text()
         assert message.startswith("Não foi possível salvar bands.plot em 03_bands")
         window.status.set_message("")
-        window.params._set("emin", -2.0)
+        window.params.set_param("emin", -2.0)
         window._flush_plot_files()
         assert window.status.message.text() == ""  # once per plot and run
     finally:
@@ -447,7 +449,7 @@ def test_plot_button_reuses_the_open_plot(qtbot, main_window, demo_project, no_d
     folder = demo_project / "03_bands"
     generate(qtbot, window, folder, auto_export=False)
     view = window.current_plot()
-    window.params._set("emin", -3.0)
+    window.params.set_param("emin", -3.0)
     window.open_file(folder / "bands.in")
     window.set_left_mode("tree")
     window.explorer.select_path(folder)
@@ -518,3 +520,106 @@ def test_readout_follows_the_plot_on_screen(qtbot, main_window, demo_project, no
     assert readout.text() == text
     window.workspace.close_key(session.key)  # no tabs left
     assert readout.text() == "" and window.workspace.isVisible()
+
+
+# -- the parameters panel keeps one body per open plot (spec 8, R5) -----------------------------
+def section_of(body, title):
+    return next(s for s in body.findChildren(Section) if s.title == title)
+
+
+def test_generating_a_plot_binds_the_panel_once(
+    qtbot, main_window, demo_project, no_dialogs, monkeypatch
+):
+    window = main_window
+    bound = []
+    original = window.params.bind
+    monkeypatch.setattr(window.params, "bind", lambda s: (bound.append(s), original(s))[1])
+    session = generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    assert bound == [session]
+
+
+def test_switching_plot_tabs_keeps_each_body_and_its_closed_sections(
+    qtbot, main_window, demo_project, no_dialogs
+):
+    window = main_window
+    bands = generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    bands_body = window.params.body
+    pdos = generate(qtbot, window, demo_project / "04_pdos", auto_export=False)
+    pdos_body = window.params.body
+    assert pdos_body is not bands_body and window.params.session is pdos
+
+    section = section_of(bands_body, "Estilo")
+    assert section.header.isChecked()
+    section.header.setChecked(False)
+    window.workspace.set_current(window.workspace.widget_for(bands.key))
+    assert window.params.body is bands_body and window.params.session is bands
+    assert section.body.isHidden() and not section.header.isChecked()
+    window.workspace.set_current(window.workspace.widget_for(pdos.key))
+    assert window.params.body is pdos_body
+
+
+def test_section_state_is_remembered_per_kind_across_bodies(
+    qtbot, main_window, demo_project, no_dialogs
+):
+    window = main_window
+    first = generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    section_of(window.params.body, "Estilo").header.setChecked(False)
+    assert window.settings.value("params/sections/bands/Estilo", type=bool) is False
+    window.workspace.close_key(first.key)  # the body dies with its tab
+    assert window.params.session is None
+    generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    assert not section_of(window.params.body, "Estilo").header.isChecked()
+    assert not section_of(window.params.body, "Arquivos").header.isChecked()  # closed by default
+    assert section_of(window.params.body, "Figura").header.isChecked()
+
+
+def test_regenerating_a_plot_builds_a_new_body(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    body = window.params.body
+    generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    assert window.params.body is not body
+
+
+def test_a_changed_schema_rebuilds_the_body(qtbot, main_window, demo_project, no_dialogs):
+    window = main_window
+    session = generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    body = window.params.body
+    window.params.bind(session)  # same session, same schema: nothing is rebuilt
+    assert window.params.body is body
+    session.dataset.fermi = None  # fewer energy references → another schema
+    window.params.bind(session)
+    assert window.params.body is not body
+
+
+def test_the_dependent_fields_refresh_after_an_edit(qtbot, main_window, demo_project, no_dialogs):
+    """``ParamField.refreshes``: changing the reference moves emin/emax in their widgets."""
+    window = main_window
+    generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    spin = next(
+        s
+        for s in window.params.body.findChildren(QDoubleSpinBox)
+        if s.suffix().strip() == "eV" and s.value() == -5.0
+    )
+    window.params.set_param("reference", "absolute")
+    assert spin.value() == pytest.approx(-5.0 + 8.0584, abs=1e-3)  # 3 decimals
+
+
+def test_series_rows_are_updated_in_place(qtbot):
+    series = SeriesList()
+    qtbot.addWidget(series)
+    overrides: dict[str, str] = {}
+    series.set_series({"Al s": "#111111", "Al p": "#222222"}, [], overrides)
+    checks = series.findChildren(QCheckBox)
+    assert [c.text() for c in checks] == ["Al s", "Al p"] and all(c.isChecked() for c in checks)
+
+    hidden = ["Al p"]
+    with qtbot.assertNotEmitted(series.changed):
+        series.set_series({"Al s": "#333333", "Al p": "#222222"}, hidden, overrides)
+    assert series.findChildren(QCheckBox) == checks  # same widgets
+    assert [c.isChecked() for c in checks] == [True, False]
+
+    checks[0].setChecked(False)  # the user hides a series: it lands in the parameter's list
+    assert hidden == ["Al p", "Al s"]
+    series.set_series({"Al d": "#444444"}, hidden, overrides)  # other labels: rows rebuilt
+    qtbot.waitUntil(lambda: [c.text() for c in series.findChildren(QCheckBox)] == ["Al d"])

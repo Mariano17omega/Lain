@@ -1,12 +1,14 @@
 import logging
+from dataclasses import dataclass
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 import yaml
 
-from qe_studio.core.calculations.bands import BandsParams
-from qe_studio.core.calculations.params import COMMON_FIELDS
-from qe_studio.core.calculations.pdos import PdosParams
+from qe_studio.core.calculations.bands import BandsModule, BandsParams
+from qe_studio.core.calculations.params import CommonParams, ParamField
+from qe_studio.core.calculations.pdos import PdosModule, PdosParams
 from qe_studio.core.plotting.plot_file import (
     HEADER,
     apply_stored,
@@ -15,6 +17,14 @@ from qe_studio.core.plotting.plot_file import (
     read_plot_file,
     write_plot_file,
 )
+
+
+def bands_schema():
+    return BandsModule().param_schema(SimpleNamespace(fermi=1.0, gap=1.0))
+
+
+def pdos_schema():
+    return PdosModule().param_schema(SimpleNamespace(fermi_scf=1.0, fermi_nscf=None))
 
 
 def test_round_trip_bands(tmp_path):
@@ -77,7 +87,7 @@ def test_field_validation(caplog):
         "unknown_field": 1,
     }
     with caplog.at_level(logging.DEBUG, logger="qe_studio.core.plotting.plot_file"):
-        ignored = apply_stored(params, stored, COMMON_FIELDS)
+        ignored = apply_stored(params, stored, bands_schema())
     assert sorted(ignored) == [
         "emax",
         "legend_loc",
@@ -102,9 +112,37 @@ def test_colour_collections_and_empty_colours():
             "total_color": "",
             "fermi_color": "",
         },
+        pdos_schema(),
     )
     assert sorted(ignored) == ["fermi_color", "hidden_series", "series_colors"]
     assert params.total_color == "" and params.series_colors == {}
+
+
+def test_colours_without_a_schema_field_are_validated_by_their_metadata():
+    params = PdosParams()
+    ignored = apply_stored(
+        params, {"total_color": "nope", "orbital_colors": {"s": "nope"}}, pdos_schema()
+    )
+    assert sorted(ignored) == ["orbital_colors", "total_color"]
+    assert apply_stored(params, {"total_color": "red", "orbital_colors": {"s": "#fff"}}) == []
+    assert (params.total_color, params.orbital_colors["s"]) == ("red", "#fff")
+
+
+@dataclass
+class _Params(CommonParams):
+    label_color: str = "plain"  # a text field whose name merely ends in "color"
+    accent: str = "#000000"
+
+
+def test_validation_follows_the_field_kind_not_its_name():
+    schema = [
+        ParamField("label_color", "Rótulo", "Estilo", "text"),
+        ParamField("accent", "Destaque", "Estilo", "color"),
+    ]
+    params = _Params()
+    ignored = apply_stored(params, {"label_color": "not a colour", "accent": "nope"}, schema)
+    assert ignored == ["accent"]
+    assert (params.label_color, params.accent) == ("not a colour", "#000000")
 
 
 def test_file_is_readable_yaml_and_delete(tmp_path):

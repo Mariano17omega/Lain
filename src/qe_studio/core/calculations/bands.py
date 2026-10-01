@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 from matplotlib.collections import LineCollection
@@ -18,6 +18,7 @@ from ..qe.pw_input import format_kpoint_label, parse_input
 from ..qe.pw_output import PwOutput, read_structure
 from ..sniff import FileKind, FileSniff, sniff
 from .base import (
+    AxesLimits,
     CalculationModule,
     DetectionResult,
     FileRole,
@@ -27,6 +28,10 @@ from .base import (
     output_of,
 )
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
+
+if TYPE_CHECKING:
+    from ..config import AppConfig
+    from ..detection import FolderMemory
 
 EIGEN_SOURCES = ("gnu", "filband", "bands_out")
 BOHR_TO_ANGSTROM = 0.529177210903
@@ -69,7 +74,7 @@ class BandsDataset:
     def reference(self, mode: str) -> float:
         if mode == "vbm" and self.vbm is not None:
             return self.vbm
-        if mode == "midgap" and self.gap is not None:
+        if mode == "midgap" and self.vbm is not None and self.cbm is not None:
             return (self.vbm + self.cbm) / 2
         if mode == "absolute" or self.fermi is None:
             return 0.0
@@ -100,9 +105,11 @@ def read_bands_input(path: Path | None):
         return None
 
 
-class BandsModule(CalculationModule):
+class BandsModule(CalculationModule[BandsDataset, BandsParams]):
     kind: ClassVar[str] = "bands"
     badge: ClassVar[str] = "BANDS"
+    badge_token: ClassVar[str | None] = "bands"
+    view_fields: ClassVar[tuple[str, ...]] = ("emin", "emax", "xmin", "xmax")
     display_name: ClassVar[str] = "Estrutura de bandas"
     plottable: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
@@ -212,7 +219,7 @@ class BandsModule(CalculationModule):
             )
 
     # -- plotting ------------------------------------------------------------------------------
-    def default_params(self, config, dataset: BandsDataset) -> BandsParams:
+    def default_params(self, config: AppConfig, dataset: BandsDataset) -> BandsParams:
         plot = config.plot
         params = BandsParams(
             reference="fermi" if plot.shift_to_fermi and dataset.fermi is not None else "absolute",
@@ -237,7 +244,14 @@ class BandsModule(CalculationModule):
             or (value in ("vbm", "midgap") and dataset.gap is not None)
         ]
         return [
-            ParamField("reference", "Referência", "Energia", "choice", choices=tuple(references)),
+            ParamField(
+                "reference",
+                "Referência",
+                "Energia",
+                "choice",
+                choices=tuple(references),
+                refreshes=True,
+            ),
             ParamField(
                 "emin",
                 "E mín",
@@ -297,12 +311,27 @@ class BandsModule(CalculationModule):
             *COMMON_FIELDS,
         ]
 
-    def param_changed(self, dataset: BandsDataset, params: BandsParams, name: str, old) -> None:
+    def param_changed(
+        self, dataset: BandsDataset, params: BandsParams, name: str, old: Any
+    ) -> None:
         """Keep the visible absolute window when the energy reference changes."""
         if name == "reference":
             shift = dataset.reference(old) - dataset.reference(params.reference)
             params.emin += shift
             params.emax += shift
+
+    def apply_limits(self, params: BandsParams, axes_limits: AxesLimits) -> None:
+        xlim, ylim = axes_limits[0]
+        params.emin, params.emax = ylim
+        params.xmin, params.xmax = xlim
+
+    def legacy_params(self, params: BandsParams, folder: Path, memory: FolderMemory) -> None:
+        """K-point labels typed before ``bands.plot`` existed."""
+        if labels := memory.labels(folder):
+            params.labels = ", ".join(labels)
+
+    def default_labels(self, dataset: BandsDataset) -> list[str]:
+        return list(dataset.labels)
 
     def load(self, result: DetectionResult) -> BandsDataset:
         warnings = list(result.warnings)
@@ -492,7 +521,7 @@ def _bands_from_pw_output(path: Path, pw: PwOutput | None) -> bands_x.BandData:
     """Last-resort eigenvalues from a pw.x bands run (only printed for < 100 k-points)."""
     atoms = read_structure(_read(path))
     calc = atoms.calc if atoms is not None else None
-    if calc is None or not calc.kpts:
+    if atoms is None or calc is None or not calc.kpts:
         raise LoadError(f"{path.name}: pw.x não imprimiu os autovalores (rode o bands.x)")
     if calc.get_number_of_spins() != 1:
         raise LoadError(f"{path.name}: bandas com spin exigem o bands.x")

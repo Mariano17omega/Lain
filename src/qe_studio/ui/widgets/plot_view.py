@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import matplotlib
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+from matplotlib.backends.backend_qt import NavigationToolbar2QT
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PyQt6.QtCore import QRect, QSize, Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
+from ...core.calculations.base import AxesLimits
 from ...core.plotting.style import register_fonts
 from ..plot_session import PlotSession
 from ..theme.manager import ThemeManager
@@ -39,8 +43,11 @@ class ScaledFigureCanvas(FigureCanvasQTAgg):
     def resizeEvent(self, event) -> None:
         width_in = self._inches[0]
         logical_dpi = max(event.size().width() / width_in, 10.0)
-        self.figure._original_dpi = logical_dpi
-        self.figure._set_dpi(logical_dpi * self.device_pixel_ratio, forward=False)
+        # Private matplotlib API, the same calls its own Qt canvas makes when the screen changes.
+        self.figure._original_dpi = logical_dpi  # pyright: ignore[reportAttributeAccessIssue]
+        self.figure._set_dpi(  # pyright: ignore[reportAttributeAccessIssue]
+            logical_dpi * self.device_pixel_ratio, forward=False
+        )
         super().resizeEvent(event)
 
 
@@ -88,7 +95,7 @@ class AspectBox(QWidget):
 class _Navigation(NavigationToolbar2QT):
     """Hidden matplotlib toolbar used as pan/zoom controller; messages go to our label."""
 
-    on_message = None
+    on_message: Callable[[str], None] | None = None
 
     def set_message(self, s: str) -> None:
         if self.on_message is not None:
@@ -172,7 +179,7 @@ class PlotView(QWidget):
         self.setObjectName("plotView")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.theme, self.session = theme, session
-        self._limits: tuple | None = None  # axis limits the params already describe
+        self._limits: AxesLimits | None = None  # axis limits the params already describe
         register_fonts()
         params = session.params
         self.figure = Figure(figsize=params.figure_size)
@@ -209,11 +216,11 @@ class PlotView(QWidget):
         self.render()
         self.limits_changed.emit()
 
-    def _axis_limits(self) -> tuple | None:
+    def _axis_limits(self) -> AxesLimits | None:
+        """``(xlim, ylim)`` of every axes, in ``figure.axes`` order (what ``apply_limits`` gets)."""
         if not self.figure.axes:
             return None
-        ax = self.figure.axes[0]
-        return tuple(ax.get_xlim()), tuple(ax.get_ylim())
+        return [(ax.get_xlim(), ax.get_ylim()) for ax in self.figure.axes]
 
     def _on_release(self, _event=None) -> None:
         """Pan/zoom, scroll or Back/Forward: store the new view in the params (exports)."""
@@ -223,5 +230,5 @@ class PlotView(QWidget):
         if limits is None or limits == self._limits:
             return
         self._limits = limits
-        self.session.apply_limits(*limits)
+        self.session.apply_limits(limits)
         self.limits_changed.emit()

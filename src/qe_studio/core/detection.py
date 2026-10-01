@@ -25,12 +25,14 @@ class FolderMemory:
         self._data: dict[str, dict] | None = None
 
     def _load(self) -> dict[str, dict]:
-        if self._data is None:
-            try:
-                self._data = json.loads(self.path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                self._data = {}
-        return self._data
+        if self._data is not None:
+            return self._data
+        try:
+            data: dict[str, dict] = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = {}
+        self._data = data
+        return data
 
     def _entry(self, folder: Path) -> dict:
         return self._load().setdefault(str(Path(folder).resolve()), {})

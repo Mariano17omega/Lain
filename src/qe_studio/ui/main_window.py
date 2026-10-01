@@ -37,7 +37,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import APP_NAME, __version__
-from ..core.calculations import REGISTRY, CalculationModule, DetectionResult
+from ..core.calculations import REGISTRY, CalculationModule, DetectionResult, describe_plottable
 from ..core.calculations.base import LoadError
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.detection import FolderMemory, manual_result
@@ -247,7 +247,7 @@ class MainWindow(QMainWindow):
         self.left.setObjectName("leftPanel")
         self.left.setMinimumWidth(200)
         self.left.addWidget(self.explorer)
-        self.params = ParamsPanel(self.theme)
+        self.params = ParamsPanel(self.theme, settings=self.settings)
         self.left.addWidget(self.params)
 
         self.files = FilePanel(self.theme, self.service, self.root, hidden)
@@ -680,7 +680,7 @@ class MainWindow(QMainWindow):
         if detected and not any(r.module.plottable for r in results):
             message = (
                 f"Esta pasta foi identificada como {', '.join(detected)}, que não tem gráfico "
-                "próprio. Para plotar bandas, PDOS ou relaxamento, indique os arquivos."
+                f"próprio. Para plotar {describe_plottable()}, indique os arquivos."
             )
         elif not results:
             message = (
@@ -734,10 +734,8 @@ class MainWindow(QMainWindow):
             # Regenerating an open plot: its tab also has the edits made while the worker read
             # <kind>.plot (they reach the file only when the tab closes below).
             stored, stored_warnings = stored_params(existing.session.params), []
-        # k-point labels typed before <kind>.plot existed (read-only fallback).
-        legacy = stored is None and result.kind == "bands"
-        if legacy and (labels := self.memory.labels(result.folder)):
-            params.labels = ", ".join(labels)
+        if stored is None:  # settings kept in FolderMemory before <kind>.plot existed
+            module.legacy_params(params, result.folder, self.memory)
         session = PlotSession(result, dataset, params)  # defaults: without the stored settings
         if stored is not None:
             ignored = apply_stored(params, stored, module.param_schema(dataset))
@@ -750,9 +748,7 @@ class MainWindow(QMainWindow):
         view.limits_changed.connect(self._on_limits_changed)
         view.export_requested.connect(self.export_plot)
         self.workspace.add(key, view, session.title, ("bubble_chart", "accent"), str(result.folder))
-        self.set_panel_visible("workspace", True)
-        self.params.bind(session)
-        self.params.refresh_values()
+        self.set_panel_visible("workspace", True)  # workspace.add made the tab current: bound
         self.set_left_mode("params")
         self.status.set_message(
             f"{session.module.display_name}: {result.folder.name}", timeout_ms=4000
@@ -766,7 +762,6 @@ class MainWindow(QMainWindow):
     def _on_tab_changed(self, widget) -> None:
         if isinstance(widget, PlotView):
             self.params.bind(widget.session)
-            self.params.refresh_values()
         elif widget is None:
             self.params.bind(None)
         self._update_readout()
@@ -808,6 +803,7 @@ class MainWindow(QMainWindow):
     def _on_tab_closing(self, widget) -> None:
         if isinstance(widget, PlotView):
             self._flush_plot_files(widget.session.key)
+            self.params.discard(widget.session.key)
 
     def _restore_defaults(self) -> None:
         session = self.params.session
@@ -828,7 +824,6 @@ class MainWindow(QMainWindow):
         except OSError as exc:
             self.status.set_message(f"Não foi possível apagar {name}: {exc}", "warning", 8000)
         self.params.bind(session)
-        self.params.refresh_values()
         view = self.workspace.widget_for(session.key)
         if view is not None:
             view.render()
@@ -843,7 +838,7 @@ class MainWindow(QMainWindow):
         self._update_readout()
         view = self.current_plot()
         if view is not None and view.session is self.params.session and view.session.info:
-            self.params.readout.setText(view.session.info.summary)
+            self.params.update_readout()
 
     def _update_readout(self) -> None:
         """Footer summary of the plot on screen, empty when none is (spec 1 R6)."""

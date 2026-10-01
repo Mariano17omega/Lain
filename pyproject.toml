@@ -21,6 +21,7 @@ qe-studio-askpass = "qe_studio.core.sync.askpass:main"
 dev = [
     "hypothesis>=6.168.3",
     "paramiko>=5.0.0",
+    "pyright[nodejs]>=1.1.414",
     "pytest>=8",
     "pytest-qt>=4.4",
     "pytest-timeout>=2.3",
@@ -55,3 +56,26 @@ ignore = ["E501"]
 [tool.ruff.lint.isort]
 known-first-party = ["qe_studio"]
 known-local-folder = ["conftest", "ssh_server", "sync_helpers"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
+# Files with errors that predate pyright (spec 8: 168 at the start, mostly PyQt `Optional` returns).
+# Their diagnostics are hidden here, not fixed. Take a file off this list when you next edit it;
+# the list must be empty by spec 15 (the MainWindow split). core/calculations/ and
+# ui/plot_session.py are clean and must stay off it.
+ignore = [
+    "src/qe_studio/core/config.py",
+    "src/qe_studio/core/sync/controller.py",
+    "src/qe_studio/ui/dialogs/mapping.py",
+    "src/qe_studio/ui/main_window.py",
+    "src/qe_studio/ui/theme/manager.py",
+    "src/qe_studio/ui/widgets/bars.py",
+    "src/qe_studio/ui/widgets/context_menu.py",
+    "src/qe_studio/ui/widgets/explorer.py",
+    "src/qe_studio/ui/widgets/file_grid.py",
+    "src/qe_studio/ui/widgets/workspace.py",
+]

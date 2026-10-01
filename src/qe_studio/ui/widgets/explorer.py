@@ -59,7 +59,10 @@ class ExplorerDelegate(QStyledItemDelegate):
         center = rect.center().y() + 0.5
         if is_dir:
             for result in reversed(self.service.results(path) or []):
-                right = paint_badge(painter, right, center, result.badge, self.theme) - 4
+                left = paint_badge(
+                    painter, right, center, result.badge, self.theme, result.badge_token
+                )
+                right = left - 4
         else:
             size = self.proxy.fs.size(self.proxy.mapToSource(index))
             right = self._paint_file_meta(painter, path, size, right, rect)

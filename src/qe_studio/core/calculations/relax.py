@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -20,8 +20,11 @@ from ..plotting.style import PlotStyle
 from ..qe.pw_input import parse_input
 from ..qe.relax import QE_DEFAULT, RelaxData, read_relax
 from ..sniff import FileKind
-from .base import CalculationModule, DetectionResult, FileRole, LoadError, output_of
+from .base import AxesLimits, CalculationModule, DetectionResult, FileRole, LoadError, output_of
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
+
+if TYPE_CHECKING:
+    from ..config import AppConfig
 
 PANELS = (("both", "Ambos"), ("energy", "|ΔE|"), ("force", "Força"))
 SCALES = (("log", "Log"), ("linear", "Linear"))
@@ -61,8 +64,11 @@ def input_thresholds(path: Path | None) -> tuple[float | None, float | None]:
         parsed = parse_input(path.read_text(encoding="utf-8", errors="replace"))
     except Exception:
         return None, None
-    values = (parsed.get("control", "etot_conv_thr"), parsed.get("control", "forc_conv_thr"))
-    return tuple(float(v) if isinstance(v, int | float) else None for v in values)
+    etot, forc = parsed.get("control", "etot_conv_thr"), parsed.get("control", "forc_conv_thr")
+    return (
+        float(etot) if isinstance(etot, int | float) else None,
+        float(forc) if isinstance(forc, int | float) else None,
+    )
 
 
 def positive_for_log(values: list[float]) -> list[float]:
@@ -73,9 +79,12 @@ def positive_for_log(values: list[float]) -> list[float]:
     return [v if v > 0 else floor for v in values]
 
 
-class RelaxModule(CalculationModule):
+class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     kind: ClassVar[str] = "relax"
     badge: ClassVar[str] = "RELAX"
+    badge_token: ClassVar[str | None] = "relax"
+    view_fields: ClassVar[tuple[str, ...]] = ("xmin", "xmax")
+    sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Relaxamento", "Eixo X"),)
     display_name: ClassVar[str] = "Otimização estrutural"
     plottable: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
@@ -116,7 +125,7 @@ class RelaxModule(CalculationModule):
         return RelaxDataset(result.folder, data, data.formula, list(dict.fromkeys(warnings)))
 
     # -- plotting ------------------------------------------------------------------------------
-    def default_params(self, config, dataset: RelaxDataset) -> RelaxParams:
+    def default_params(self, config: AppConfig, dataset: RelaxDataset) -> RelaxParams:
         params = RelaxParams()
         apply_common_config(params, config)
         params.figure_height = round(params.figure_height * 1.5, 2)  # two panels by default
@@ -135,6 +144,10 @@ class RelaxModule(CalculationModule):
             ParamField("threshold_color", "Cor limiares", "Estilo", "color"),
             *COMMON_FIELDS,
         ]
+
+    def apply_limits(self, params: RelaxParams, axes_limits: AxesLimits) -> None:
+        """The step range only: Y stays automatic in each panel."""
+        params.xmin, params.xmax = axes_limits[0][0]
 
     def export_stem(self, params: RelaxParams) -> str:
         return EXPORT_STEMS.get(params.panels, self.kind)
@@ -163,7 +176,7 @@ class RelaxModule(CalculationModule):
         bottom.set_xlim(low, high)
         finish(figure, axes[0], params, legends[0])
         top = axes[0]
-        return RenderInfo(tuple(top.get_xlim()), tuple(top.get_ylim()), self.summary(dataset))
+        return RenderInfo(top.get_xlim(), top.get_ylim(), self.summary(dataset))
 
     @staticmethod
     def _threshold(

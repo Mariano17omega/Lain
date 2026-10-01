@@ -121,8 +121,8 @@ def _sniff_uncached(path: Path, size: int) -> FileSniff:
     program = _PROGRAM.search(head[:2048])
     if program:
         return _sniff_output(path, size, program.group(1))
-    if bands_x.read_filband_header(head):
-        nbnd, nks = bands_x.read_filband_header(head)
+    if filband := bands_x.read_filband_header(head):
+        nbnd, nks = filband
         return FileSniff(path, FileKind.FILBAND, shape=(nbnd, nks))
     if _NAMELIST.search(head):
         return _sniff_input(path, size)

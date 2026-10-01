@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 
 from qe_studio.core.calculations import module_for
 from qe_studio.core.calculations.base import LoadError
-from qe_studio.core.calculations.params import SECTIONS
+from qe_studio.core.calculations.params import ordered_sections
 from qe_studio.core.calculations.relax import NO_DELTAS, RelaxDataset, RelaxParams
 from qe_studio.core.config import AppConfig
 from qe_studio.core.detection import detect_folder
@@ -194,7 +194,8 @@ def test_params_schema_and_export_stem():
         "scale",
         "show_thresholds",
     }
-    assert SECTIONS.index("Relaxamento") < SECTIONS.index("Estilo")
+    names = [section.name for section in ordered_sections(RELAX)]
+    assert names.index("Relaxamento") < names.index("Eixo X") < names.index("Estilo")
     stems = {}
     for panels in ("both", "energy", "force"):
         params.panels = panels

@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TypeVar
+
 from PyQt6.QtCore import QSize
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QWidget
 
 from ..theme.manager import ThemeManager
 
+W = TypeVar("W", bound=QWidget)
 
-def set_variant(widget: QWidget, variant: str) -> QWidget:
+
+def set_variant(widget: W, variant: str) -> W:
     widget.setProperty("variant", variant)
     return widget
 
@@ -70,6 +74,6 @@ class PanelHeader(QWidget):
     def _refresh_icon(self, *_args) -> None:
         self.icon_label.setPixmap(self.theme.pixmap(self._icon, "text_muted", 14))
 
-    def add_button(self, button: QWidget) -> QWidget:
+    def add_button(self, button: W) -> W:
         self.buttons.addWidget(button)
         return button

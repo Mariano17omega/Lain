@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from importlib.resources import as_file, files
+from typing import Any
 
 from matplotlib import font_manager
 from matplotlib.colors import to_rgb
@@ -44,7 +45,7 @@ class PlotStyle:
     total_dos: str
     palette: tuple[str, ...]
 
-    def rc(self, font_size: float = 11.0) -> dict[str, object]:
+    def rc(self, font_size: float = 11.0) -> dict[Any, Any]:  # matplotlib rcParams keys
         return {
             "font.family": "sans-serif",
             "font.sans-serif": [UI_FONT, "DejaVu Sans"],

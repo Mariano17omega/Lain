@@ -3,20 +3,48 @@
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
+if TYPE_CHECKING:
+    from ..config import AppConfig
+    from .base import CalculationModule
+
+# "series": a list of hidden series names plus ``ParamField.colors``, the dict of color overrides.
 FieldKind = Literal["float", "int", "bool", "color", "choice", "text", "labels", "series"]
 
+
+@dataclass(frozen=True)
+class SectionDef:
+    name: str
+    export: bool = False  # the section that gets the "Salvar em plots/" button
+
+
+# Sections every plot has. Modules add their own with ``CalculationModule.sections``.
 SECTIONS = (
-    "Energia",
-    "Relaxamento",
-    "Eixo X",
-    "Estilo",
-    "Projeções",
-    "Legenda",
-    "Figura",
-    "Exportar",
+    SectionDef("Energia"),
+    SectionDef("Eixo X"),
+    SectionDef("Estilo"),
+    SectionDef("Legenda"),
+    SectionDef("Figura"),
+    SectionDef("Exportar", export=True),
 )
+
+
+def ordered_sections(module: CalculationModule) -> tuple[SectionDef, ...]:
+    """Common sections with the module's own inserted: ``(name, before)`` pairs.
+
+    ``before`` names the section the new one goes in front of; ``None`` or an unknown name puts it
+    just ahead of the export section, which always stays last.
+    """
+    sections = list(SECTIONS)
+    for name, before in module.sections:
+        names = [s.name for s in sections]
+        if before in names:
+            index = names.index(before)
+        else:
+            index = next((i for i, s in enumerate(sections) if s.export), len(sections))
+        sections.insert(index, SectionDef(name))
+    return tuple(sections)
 
 
 @dataclass(frozen=True)
@@ -34,6 +62,8 @@ class ParamField:
     suffix: str = ""
     optional: bool = False  # float that may be None (= automatic)
     tooltip: str = ""
+    refreshes: bool = False  # after an edit the panel re-reads every value (dependent fields)
+    colors: str = ""  # kind "series": name of the parameter holding the color overrides
 
 
 @dataclass
@@ -69,7 +99,7 @@ class CommonParams:
         ]
 
 
-def apply_common_config(params: CommonParams, config) -> None:
+def apply_common_config(params: CommonParams, config: AppConfig) -> None:
     """Fill the shared defaults from ``AppConfig`` (``plot`` section)."""
     plot = config.plot
     params.figure_width, params.figure_height = plot.figure_size
@@ -104,7 +134,7 @@ COMMON_FIELDS = (
         "figure_height", "Altura", "Figura", "float", minimum=1, maximum=30, step=0.5, suffix="in"
     ),
     ParamField("font_size", "Fonte", "Figura", "float", minimum=5, maximum=30, step=1, suffix="pt"),
-    ParamField("background", "Cor de fundo", "Figura", "color"),
+    ParamField("background", "Cor de fundo", "Figura", "color", refreshes=True),
     ParamField("export_png", "PNG", "Exportar", "bool"),
     ParamField("export_svg", "SVG", "Exportar", "bool"),
     ParamField("export_pdf", "PDF", "Exportar", "bool"),

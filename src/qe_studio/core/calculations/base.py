@@ -17,18 +17,34 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar
 
 from ..qe import projwfc
 from ..sniff import FileKind, FileSniff
+from .params import CommonParams, ParamField, RenderInfo
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
+
+    from ..config import AppConfig
+    from ..detection import FolderMemory
+    from ..plotting.style import PlotStyle
+
+D = TypeVar("D")  # dataset a module loads (``None`` for detection-only modules)
+P = TypeVar("P", bound=CommonParams)  # the module's plot parameters
+AxesLimits = list[tuple[tuple[float, float], tuple[float, float]]]  # (xlim, ylim) per figure axes
 
 SniffFn = Callable[[Path], FileSniff]
 
 # Folders never scanned below the simulation folder itself.
 IGNORED_SUBDIRS = re.compile(r"^(tmp|plots|out|.*\.save|\..*)$", re.I)
+
+
+class Dataset(Protocol):
+    """What the UI reads from any loaded dataset."""
+
+    folder: Path
+    warnings: list[str]
 
 
 class LoadError(Exception):
@@ -105,7 +121,7 @@ def _pdos_files(subdir: Path) -> list[Path]:
 
 @dataclass
 class DetectionResult:
-    module: CalculationModule
+    module: CalculationModule[Any, Any]
     folder: Path
     files: dict[str, list[Path]] = field(default_factory=dict)
     methods: dict[str, Method] = field(default_factory=dict)
@@ -119,6 +135,10 @@ class DetectionResult:
     @property
     def badge(self) -> str:
         return self.module.badge
+
+    @property
+    def badge_token(self) -> str | None:
+        return self.module.badge_token
 
     @property
     def complete(self) -> bool:
@@ -152,13 +172,19 @@ class DetectionResult:
         return self.module.role(role_id).label
 
 
-class CalculationModule:
+class CalculationModule(Generic[D, P]):
     kind: ClassVar[str]
     badge: ClassVar[str]
     display_name: ClassVar[str]
     roles: ClassVar[tuple[FileRole, ...]]
     plottable: ClassVar[bool] = False
     fallback: ClassVar[bool] = False  # informational badge, only when no primary kind matched
+    # Theme token family ``badge_<token>_{bg,fg,border}``; None = the generic ``other`` colors.
+    badge_token: ClassVar[str | None] = None
+    # Parameters the plot toolbar's Reset restores from the defaults (axis limits).
+    view_fields: ClassVar[tuple[str, ...]] = ()
+    # Own sections of the tuning panel as (name, section to insert before); see ``ordered_sections``.
+    sections: ClassVar[tuple[tuple[str, str | None], ...]] = ()
 
     def role(self, role_id: str) -> FileRole:
         return next(r for r in self.roles if r.id == role_id)
@@ -261,26 +287,49 @@ class CalculationModule:
             result.methods[role_id] = Method.INFERRED
 
     # -- plotting (implemented by plottable modules) ------------------------------------------
-    def default_params(self, config: Any, dataset: Any) -> Any:
+    def default_params(self, config: AppConfig, dataset: D) -> P:
         raise NotImplementedError
 
-    def param_schema(self, dataset: Any) -> list:
+    def param_schema(self, dataset: D) -> list[ParamField]:
         raise NotImplementedError
 
-    def param_changed(self, dataset: Any, params: Any, name: str, old: Any) -> None:
+    def param_changed(self, dataset: D, params: P, name: str, old: Any) -> None:
         """Hook to adjust dependent parameters after the user edits ``name``."""
 
-    def export_stem(self, params: Any) -> str:
+    def export_stem(self, params: P) -> str:
         """File name (without extension) of the exported figure in ``plots/``."""
         return self.kind
 
-    def load(self, result: DetectionResult) -> Any:
+    def load(self, result: DetectionResult) -> D:
         raise NotImplementedError
 
-    def render(self, figure: Figure, dataset: Any, params: Any, style: Any) -> Any:
+    def render(self, figure: Figure, dataset: D, params: P, style: PlotStyle) -> RenderInfo:
         raise NotImplementedError
 
-    def load_cached(self, result: DetectionResult) -> Any:
+    # -- view hooks: keep the UI free of per-module knowledge ----------------------------------
+    def apply_limits(self, params: P, axes_limits: AxesLimits) -> None:
+        """Store the toolbar pan/zoom in ``params`` so edits and exports keep it.
+
+        ``axes_limits`` holds ``(xlim, ylim)`` of every axes of the figure, in ``figure.axes``
+        order. Default: the view is not stored.
+        """
+
+    def legacy_params(self, params: P, folder: Path, memory: FolderMemory) -> None:
+        """Apply older ``FolderMemory`` data when there is no ``<kind>.plot`` yet."""
+
+    def format_coordinates(self, x: float, y: float, axes_index: int, dataset: D, params: P) -> str:
+        """Cursor readout over axes number ``axes_index``."""
+        return f"x = {x:.4g} · y = {y:.4g}"
+
+    def series_colors(self, dataset: D, params: P, style: PlotStyle) -> dict[str, str]:
+        """Color of every series, for modules with a ``"series"`` parameter field."""
+        return {}
+
+    def default_labels(self, dataset: D) -> list[str]:
+        """Labels shown as the placeholder of a ``"labels"`` parameter field."""
+        return []
+
+    def load_cached(self, result: DetectionResult) -> D:
         """``load`` memoized on the files' (mtime, size); safe to call from worker threads."""
         key = (
             self.kind,

@@ -42,6 +42,8 @@ def _within(key: str, folder: Path | None) -> bool:
 def _affected(key: str, folder: Path | None) -> bool:
     """Detection that may change with ``folder``'s files: inside it, or a sibling folder
     (``infer_from_neighbours`` takes the SCF output from sibling ``*scf*`` folders)."""
+    if folder is None:
+        return True
     return _within(key, folder) or Path(key).parent == Path(folder).parent
 
 

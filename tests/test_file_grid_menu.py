@@ -304,7 +304,7 @@ def test_rename_folder_keeps_plot_settings_and_memory(qtbot, main_window, demo_p
     folder = demo_project / "03_bands"
     window.memory.set_labels(folder, ["G", "X"])
     session = generate(qtbot, window, folder)
-    window.params._set("emin", -3.0)  # pending: the debounced write has not run yet
+    window.params.set_param("emin", -3.0)  # pending: the debounced write has not run yet
     assert session.key in window._unsaved
     new_names.append("03_bands_si")
     window.rename_path(folder)

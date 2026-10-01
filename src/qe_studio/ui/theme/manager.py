@@ -144,6 +144,9 @@ class ThemeManager(QObject):
     def color(self, token: str) -> QColor:
         return parse_color(self.tokens[token])
 
+    def has_color(self, token: str) -> bool:
+        return token in self.tokens
+
     def palette(self) -> QPalette:
         c = self.color
         palette = QPalette()

@@ -31,6 +31,7 @@ uv run pytest tests/test_detection.py::test_name # single test
 uv run pytest -m perf                            # NFR §7 latency budget (<500 ms, 100 bands)
 QE_STUDIO_REAL_DATA=/runs:/other uv run pytest -m realdata   # user's own QE runs (off by default)
 uv run ruff check . && uv run ruff format --check .
+uv run pyright                                   # basic mode over src/ (CI); see [tool.pyright] ignore list
 uv run python scripts/screenshot.py --plot       # off-screen PNGs of both themes → screenshots/
 uv run python scripts/fetch_assets.py            # refresh vendored fonts/icons
 uv run python scripts/build_icons.py             # re-render the app icon PNGs from ui/resources/app/lain.svg
@@ -86,7 +87,7 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 
 - **No files over ~500 lines that centralize everything.** Split by responsibility before a module
   grows past that. Current offenders: `ui/main_window.py` (~990 lines, split by spec 15) and
-  `core/calculations/bands.py` (~500).
+  `core/calculations/bands.py` (~530, split by spec 13).
 - **`ui/` holds interface logic only.** Widgets, layout, dialogs, and wiring signals to `core/`.
   Parsing, detection, physics, file operations, sync decisions and any other backend logic belong in
   `core/`, where they are testable without Qt. If a UI method computes something that doesn't depend
@@ -112,21 +113,43 @@ File names are only hints; everything is identified by content.
    mappings and typed k-point labels in the app data dir, never inside simulation folders (they
    get synced).
 
-**Adding a calculation type** (NFR §7): subclass `CalculationModule` in `core/calculations/`,
-register it in `core/calculations/__init__.py:REGISTRY`, and for plottable modules implement
-`load`, `default_params`, `param_schema`, `render` (and optionally `param_changed`). Params are
-dataclasses extending `CommonParams`; the tuning panel (`ui/widgets/plot_params.py`) is generated
-from the `ParamField` list in `param_schema`, so no UI code is needed for new fields.
+**Adding a calculation type** (NFR §7): subclass `CalculationModule[Dataset, Params]` in
+`core/calculations/` (detection-only modules use `CalculationModule[None, CommonParams]`), register
+it in `core/calculations/__init__.py:REGISTRY`, and for plottable modules implement `load`,
+`default_params`, `param_schema`, `render` (returns `RenderInfo`) and optionally `param_changed`.
+Params are dataclasses extending `CommonParams`; the tuning panel (`ui/widgets/params_body.py`) is
+generated from the `ParamField` list in `param_schema`. **No file in `ui/` may know a module**
+(`kind == "bands"` and the like): everything the UI needs from a module is a declaration or a hook
+on the base class:
+
+- ClassVars: `view_fields` (params the toolbar Reset restores), `sections` (own panel sections as
+  `(name, insert before)`, ordered by `ordered_sections`), `badge_token` (theme colors
+  `badge_<token>_{bg,fg,border}`; none → the generic `badge_other_*`).
+- Hooks: `apply_limits(params, axes_limits)` (pan/zoom of *every* figure axes into the params),
+  `legacy_params` (old `FolderMemory` data when there is no `<kind>.plot`), `default_labels`,
+  `series_colors` (for a `"series"` field), `format_coordinates` (cursor readout).
+- `ParamField`: `refreshes=True` makes the panel re-read all values after an edit (dependent
+  fields); `colors=` names the color-override dict of a `"series"` field. `plot_file` validates stored
+  values by field kind (`color`, `choice`, series colors), never by name: a parameter without a
+  schema field declares `field(metadata={"kind": "color" | "colors"})` on its dataclass.
+
 `load_cached()` memoizes `load()` on file stamps and is called from worker threads.
+`tests/test_module_contract.py` has a `DummyModule` that exercises the whole contract; extend it
+when the contract grows.
 
 ### Plotting
 
-`ui/plot_session.py:PlotSession` = detection result + dataset + params (+ copy of defaults).
+`ui/plot_session.py:PlotSession[D, P]` = detection result + dataset + params (+ copy of defaults).
 `render()` wraps the module's `render` in `PlotStyle.rc(...)`. The style is `PlotSession.style` =
 `figure_style(params.background)` (`core/plotting/style.py`), never the app theme, so preview and
 export match; `ThemeManager` only styles the widgets around the canvas. Toolbar pan/zoom is written back into params (`apply_limits`) so exports keep
 it. `core/plotting/export.py` writes into `<simulation>/plots/`; existing files are never
 overwritten without asking (PRD §7 data integrity).
+
+`ParamsPanel` (`ui/widgets/plot_params.py`) keeps one `ParamsBody` per open plot in a `QStackedWidget`
+(keyed by `session.key`): `bind` shows it (rebuilding only if the session or its schema changed),
+`discard` drops it when the tab closes. Section open/closed state is QSettings
+`params/sections/<kind>/<title>`.
 
 Plot settings persist in `<simulation>/<kind>.plot` (YAML, `core/plotting/plot_file.py`): read in
 `_LoadTask` next to `load_cached`, applied field by field over `default_params` (`PlotSession.defaults`
@@ -176,7 +199,8 @@ tabs, `FolderMemory.rename`, invalidate detection. Tests must patch `QMenu.exec`
 
 `ui/theme/manager.py` assembles modular QSS from `ui/resources/styles/<domain>/*.qss` (domains
 listed in `STYLE_DOMAINS`), substituting `${token}` colours from `ui/resources/themes/{dark,light}.yaml`.
-Any new colour must be added as a token to **both** theme files. Custom-painted widgets read
+Any new colour must be added as a token to **both** theme files (badge colors of a new module are
+optional: it falls back to `badge_other_*`). Custom-painted widgets read
 `ThemeManager.color(token)` and refresh on `theme_changed`. Icons are Material Symbols SVGs tinted
 at runtime; fonts (Inter for UI, JetBrains Mono for numbers/paths) are vendored.
 

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 8 (base mínima: deixa barato o módulo novo das specs 9 e 13) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada, falta o primeiro run do CI com o `pyright` |
 | **Depende de** | spec 7 (o pyright entra no CI) |
 | **Usada por** | spec 9 (SCF), spec 10 (`format_coordinates`), spec 13 (spin), spec 15 (`PlotWorkflow`) |
 | **Esforço** | M |
@@ -153,6 +153,36 @@ O CLAUDE.md promete (NFR §7): "Adding a calculation type: subclass `Calculation
 4. O texto de `_map_manually` gerado do registro (R3.3) pode mudar a redação atual (ex.: "estrutura de
    bandas, densidade de estados projetada ou otimização estrutural").
 
+## Resultado da implementação
+Feito e verificado localmente: `ruff`, `pyright` (0 erros) e 458 testes passam; o teste de latência
+(`-m perf`) também. Falta o primeiro run do GitHub Actions com o passo `uv run pyright`.
+
+Diferenças em relação ao texto da spec:
+- **R2.3, relax:** `sections = (("Relaxamento", "Eixo X"),)`, e não "Estilo", para manter a ordem que o
+  painel já tinha (hoje "Relaxamento" vem antes de "Eixo X"). Um módulo com `before=None` (ou um nome
+  que não existe) fica logo antes da seção de exportação, que continua sendo a última.
+- **R2.2, validação do `.plot`:** `total_color` e `orbital_colors` da PDOS não têm campo no schema, então
+  a validação só por `kind` deixaria de proteger o `render` contra um `.plot` editado à mão. Eles passam a
+  declarar `field(metadata={"kind": "color" | "colors"})` na dataclass, e o `plot_file` usa isso quando o
+  schema não diz nada. As cores do campo `"series"` vêm de `ParamField.colors` (nome do parâmetro com os
+  overrides, `"series_colors"` na PDOS), que o painel também usa no lugar do nome fixo.
+- **R1.2:** o `PlotView` agora observa os limites de **todos** os eixos. No relax, o zoom em Y no painel
+  de baixo passa a disparar `limits_changed` (e uma gravação do `relax.plot` sem mudança de valores). A
+  spec 13 pode refinar isso.
+- **R3.4:** `paint_badge` recebe o `badge_token` do módulo (`DetectionResult.badge_token`) e cai em
+  `badge_other_*` também quando o tema não tem o token. `ThemeManager.has_color` é novo.
+- **R4.5:** o `pyright` começou com 168 erros, quase todos retornos `Optional` do PyQt. Zero erros em
+  `core/calculations/`, `core/plotting/` e `ui/plot_session.py`; 10 arquivos ficam na lista `ignore` de
+  `[tool.pyright]`, que deve esvaziar até a spec 15. `set_variant` e `PanelHeader.add_button` agora são
+  genéricos (devolvem o tipo recebido), o que eliminou mais de 60 erros.
+- **R5.1:** o painel guarda cada corpo num `QScrollArea` próprio dentro do `QStackedWidget`, então a
+  rolagem também é mantida. `ParamsPanel.bind` já chama `refresh_values()`, e o `MainWindow` não chama mais
+  `bind` em `_on_loaded` (a aba nova já faz isso). O corpo é reconstruído quando a sessão é outra ou
+  quando `param_schema` mudou.
+- **Testes:** `ParamsPanel.set_param(name, value)` (edição como se fosse pelo widget) substitui o uso do
+  `ParamsPanel._set` nos testes. As chamadas de `apply_limits` e de `apply_stored` passam a usar a nova
+  assinatura e o schema completo.
+
 ## Notas de implementação
 - Alterados:
   - `core/calculations/base.py`, `core/calculations/params.py`;
@@ -166,15 +196,15 @@ O CLAUDE.md promete (NFR §7): "Adding a calculation type: subclass `Calculation
 - `RenderInfo` continua como está. Só passa a ser o tipo de retorno declarado.
 
 ## Critérios de aceite e testes
-- [ ] `tests/test_module_contract.py`: um módulo fictício `DummyModule` (1 papel, 1 parâmetro `color`,
+- [x] `tests/test_module_contract.py`: um módulo fictício `DummyModule` (1 papel, 1 parâmetro `color`,
       seção própria "Teste", `view_fields`, `apply_limits`) registrado num `REGISTRY` de teste é
       detectado, carregado, plotado, editado no painel, salvo em `dummy.plot` e exportado. Nenhum
       arquivo de `ui/` menciona `dummy`.
-- [ ] `grep -rnE 'kind == "(bands|pdos|relax)"' src/qe_studio/ui` não encontra nada.
-- [ ] `plot_file`: uma cor inválida num campo `color` é ignorada com aviso, e um campo `text` cujo nome
+- [x] `grep -rnE 'kind == "(bands|pdos|relax)"' src/qe_studio/ui` não encontra nada.
+- [x] `plot_file`: uma cor inválida num campo `color` é ignorada com aviso, e um campo `text` cujo nome
       termina em `color` deixa de ser validado como cor.
-- [ ] Os testes atuais de pan/zoom e Reset (bandas, PDOS e relax) passam sem mudança de comportamento.
-- [ ] Gerar um gráfico chama `ParamsPanel.bind` exatamente uma vez (contador em teste).
-- [ ] Trocar entre duas abas de gráfico não recria widgets (mesmo `id` do corpo) e mantém uma seção
+- [x] Os testes atuais de pan/zoom e Reset (bandas, PDOS e relax) passam sem mudança de comportamento.
+- [x] Gerar um gráfico chama `ParamsPanel.bind` exatamente uma vez (contador em teste).
+- [x] Trocar entre duas abas de gráfico não recria widgets (mesmo `id` do corpo) e mantém uma seção
       fechada como fechada.
-- [ ] `uv run pyright` passa no CI.
+- [ ] `uv run pyright` passa no CI (passa localmente; falta o primeiro run do Actions).

@@ -39,6 +39,7 @@ jobs:
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run ruff format --check .
+      - run: uv run pyright
       - run: uv run pytest -m "not realdata and not perf"
 
   # Latency budgets (NFR §7) depend on the shared runner: reported, never blocking the merge.

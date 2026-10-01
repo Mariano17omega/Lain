@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
 
 import matplotlib
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
+from ..calculations.base import CalculationModule, D, P
 from .style import PlotStyle, register_fonts
 
 PLOTS_DIR = "plots"
@@ -35,7 +35,9 @@ def next_free_stem(folder: Path, stem: str, formats: list[str]) -> str:
     return f"{stem}_{version}"
 
 
-def render_figure(module: Any, dataset: Any, params: Any, style: PlotStyle, dpi: float) -> Figure:
+def render_figure(
+    module: CalculationModule[D, P], dataset: D, params: P, style: PlotStyle, dpi: float
+) -> Figure:
     """Render off-screen at the export size (independent of the preview widget)."""
     register_fonts()
     figure = Figure(figsize=params.figure_size, dpi=dpi)
@@ -46,9 +48,9 @@ def render_figure(module: Any, dataset: Any, params: Any, style: PlotStyle, dpi:
 
 
 def export_figure(
-    module: Any,
-    dataset: Any,
-    params: Any,
+    module: CalculationModule[D, P],
+    dataset: D,
+    params: P,
     style: PlotStyle,
     folder: Path,
     stem: str,
@@ -56,14 +58,14 @@ def export_figure(
     dpi: int | None = None,
 ) -> list[Path]:
     """Write ``plots/<stem>.<fmt>`` for each format; returns the written paths."""
-    formats = formats or params.export_formats
+    chosen = formats or params.export_formats
     dpi = dpi or params.export_dpi
     figure = render_figure(module, dataset, params, style, dpi)
     out_dir = plots_dir(folder)
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
     with matplotlib.rc_context(style.rc(params.font_size)):
-        for fmt, path in zip(formats, target_paths(folder, stem, formats), strict=True):
+        for fmt, path in zip(chosen, target_paths(folder, stem, chosen), strict=True):
             tmp = path.with_name(f".{path.name}.tmp")
             figure.savefig(tmp, format=fmt, dpi=dpi, facecolor=figure.get_facecolor())
             os.replace(tmp, path)

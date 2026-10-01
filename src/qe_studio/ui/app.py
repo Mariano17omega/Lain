@@ -84,5 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     window = MainWindow(loaded, theme, settings)
     window.show()
     code = app.exec()
-    QThreadPool.globalInstance().waitForDone(5000)  # no worker may outlive the interpreter
+    pool = QThreadPool.globalInstance()
+    if pool is not None:
+        pool.waitForDone(5000)  # no worker may outlive the interpreter
     return code

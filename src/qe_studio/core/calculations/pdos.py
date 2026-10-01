@@ -5,7 +5,7 @@ from __future__ import annotations
 import colorsys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 from matplotlib.colors import to_hex, to_rgb
@@ -17,6 +17,7 @@ from ..plotting.style import PlotStyle
 from ..qe import projwfc
 from ..sniff import FileKind, FileSniff, sniff
 from .base import (
+    AxesLimits,
     CalculationModule,
     DetectionResult,
     FileRole,
@@ -26,6 +27,9 @@ from .base import (
     output_of,
 )
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
+
+if TYPE_CHECKING:
+    from ..config import AppConfig
 
 GROUPINGS = (
     ("species_orbital", "Espécie + orbital"),
@@ -59,13 +63,15 @@ class PdosParams(CommonParams):
     grouping: str = "species_orbital"
     orientation: str = "horizontal"
     show_total: bool = True
-    total_color: str = ""  # empty = theme text color
+    total_color: str = field(default="", metadata={"kind": "color"})  # empty = theme text color
     fill_occupied: bool = True
     show_fermi_line: bool = True
     fermi_color: str = "#f43f5e"
     hidden_series: list[str] = field(default_factory=list)
     series_colors: dict[str, str] = field(default_factory=dict)
-    orbital_colors: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_ORBITAL_COLORS))
+    orbital_colors: dict[str, str] = field(
+        default_factory=lambda: dict(DEFAULT_ORBITAL_COLORS), metadata={"kind": "colors"}
+    )
     show_legend: bool = True
 
 
@@ -95,9 +101,12 @@ def _newest(paths: list[Path]) -> float:
         return 0.0
 
 
-class PdosModule(CalculationModule):
+class PdosModule(CalculationModule[PdosDataset, PdosParams]):
     kind: ClassVar[str] = "pdos"
     badge: ClassVar[str] = "PDOS"
+    badge_token: ClassVar[str | None] = "pdos"
+    view_fields: ClassVar[tuple[str, ...]] = ("emin", "emax", "dos_max")
+    sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Projeções", "Legenda"),)
     display_name: ClassVar[str] = "Densidade de estados projetada"
     plottable: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
@@ -168,14 +177,14 @@ class PdosModule(CalculationModule):
             result.warnings.append("saída SCF não encontrada: E_F lida da saída NSCF")
 
     # -- plotting ------------------------------------------------------------------------------
-    def default_params(self, config, dataset: PdosDataset) -> PdosParams:
+    def default_params(self, config: AppConfig, dataset: PdosDataset) -> PdosParams:
         plot = config.plot
         params = PdosParams(
             shift_to_fermi=plot.shift_to_fermi and dataset.fermi("scf") is not None,
             emin=plot.energy_min,
             emax=plot.energy_max,
             fermi_color=plot.fermi_color,
-            orbital_colors=dict(plot.orbital_colors),
+            orbital_colors={orbital: color for orbital, color in plot.orbital_colors.items()},
         )
         params.fermi_source = "scf" if dataset.fermi_scf is not None else "nscf"
         if not params.shift_to_fermi and (fermi := dataset.fermi(params.fermi_source)) is not None:
@@ -190,8 +199,15 @@ class PdosModule(CalculationModule):
         if dataset.fermi_nscf is not None:
             sources.append(("nscf", "NSCF"))
         return [
-            ParamField("fermi_source", "E_F de", "Energia", "choice", choices=tuple(sources)),
-            ParamField("shift_to_fermi", "Referenciar a E_F", "Energia", "bool"),
+            ParamField(
+                "fermi_source",
+                "E_F de",
+                "Energia",
+                "choice",
+                choices=tuple(sources),
+                refreshes=True,
+            ),
+            ParamField("shift_to_fermi", "Referenciar a E_F", "Energia", "bool", refreshes=True),
             ParamField(
                 "emin",
                 "E mín",
@@ -228,15 +244,22 @@ class PdosModule(CalculationModule):
                 suffix="est./eV",
                 optional=True,
             ),
-            ParamField("grouping", "Agrupar por", "Projeções", "choice", choices=GROUPINGS),
+            ParamField(
+                "grouping",
+                "Agrupar por",
+                "Projeções",
+                "choice",
+                choices=GROUPINGS,
+                refreshes=True,
+            ),
             ParamField("show_total", "DOS total", "Projeções", "bool"),
             ParamField("fill_occupied", "Preencher estados ocupados", "Projeções", "bool"),
-            ParamField("hidden_series", "Séries", "Projeções", "series"),
+            ParamField("hidden_series", "Séries", "Projeções", "series", colors="series_colors"),
             ParamField("fermi_color", "Fermi", "Estilo", "color"),
             *COMMON_FIELDS,
         ]
 
-    def param_changed(self, dataset: PdosDataset, params: PdosParams, name: str, old) -> None:
+    def param_changed(self, dataset: PdosDataset, params: PdosParams, name: str, old: Any) -> None:
         """Keep the visible absolute window when the energy reference changes."""
         if name in ("shift_to_fermi", "fermi_source"):
             before = self._reference(dataset, params, **{name: old})
@@ -250,6 +273,12 @@ class PdosModule(CalculationModule):
         source = override.get("fermi_source", params.fermi_source)
         fermi = dataset.fermi(source)
         return fermi if shift and fermi is not None else 0.0
+
+    def apply_limits(self, params: PdosParams, axes_limits: AxesLimits) -> None:
+        xlim, ylim = axes_limits[0]
+        energy, dos = (ylim, xlim) if params.orientation == "vertical" else (xlim, ylim)
+        params.emin, params.emax = energy
+        params.dos_max = max(abs(dos[0]), abs(dos[1]))
 
     def load(self, result: DetectionResult) -> PdosDataset:
         tot = result.file("pdos_tot")

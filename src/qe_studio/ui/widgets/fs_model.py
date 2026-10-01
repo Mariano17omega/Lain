@@ -54,7 +54,9 @@ class FileFilterProxy(QSortFilterProxyModel):
 
     @property
     def fs(self) -> QFileSystemModel:
-        return self.sourceModel()
+        model = self.sourceModel()
+        assert isinstance(model, QFileSystemModel)
+        return model
 
     def path(self, index: QModelIndex) -> Path:
         """The entry's path; for ``..``, the folder above."""
