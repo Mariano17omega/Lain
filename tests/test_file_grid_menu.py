@@ -1,6 +1,6 @@
 """Spec 5: grid cards without sizes, the ".." shortcut and the file/folder context menu.
 
-Spec 9 adds "Plotar" to the menu of an SCF output."""
+Spec 9 adds "Plotar" to the menu of an SCF output, spec 12 "Resumo" to every QE output."""
 
 import shutil
 from pathlib import Path
@@ -169,32 +169,37 @@ def test_scf_output_menu_starts_with_plotar(main_window, demo_project, monkeypat
     for folder in ("02_scf", "03_bands"):  # a bands folder also holds an SCF output
         detected(window, demo_project / folder)
         window._show_item_menu(demo_project / folder / "scf.out", QPoint())
-    assert [menu_texts(menu) for menu in shown] == [["Plotar", *MENU]] * 2
-    assert shown[0].actions()[1].isSeparator() and len(shown[0].actions()) == 6
+    assert [menu_texts(menu) for menu in shown] == [["Plotar", "Resumo", *MENU]] * 2
+    assert shown[0].actions()[2].isSeparator() and len(shown[0].actions()) == 7
 
 
 @pytest.mark.parametrize(
-    "folder, name",
+    "folder, name, top",
     [
-        ("03_bands", "bands.out"),  # pw.x bands
-        ("03_bands", "bands_pp.out"),  # bands.x
-        ("03_bands", "bands.in"),
-        ("04_pdos", "nscf.out"),
-        ("01_relax", "si.rel.out"),
-        ("01_relax", "si.rel.in"),
+        ("03_bands", "bands.out", ["Resumo"]),  # pw.x bands
+        ("03_bands", "bands_pp.out", ["Resumo"]),  # bands.x
+        ("03_bands", "bands.in", []),
+        ("03_bands", "bands.dat.gnu", []),
+        ("04_pdos", "nscf.out", ["Resumo"]),
+        ("04_pdos", "projwfc.out", ["Resumo"]),
+        ("01_relax", "si.rel.out", ["Resumo"]),
+        ("01_relax", "si.rel.in", []),
     ],
 )
-def test_other_files_have_no_plotar(main_window, demo_project, monkeypatch, folder, name):
+def test_other_files_have_no_plotar_and_only_outputs_have_resumo(
+    main_window, demo_project, monkeypatch, folder, name, top
+):
     shown = []
-    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: shown.append(menu_texts(menu)))
+    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: shown.append(menu))
     detected(main_window, demo_project / folder)
     main_window._show_item_menu(demo_project / folder / name, QPoint())
-    assert shown == [MENU]
-    main_window._show_item_menu(demo_project / folder, QPoint())  # folders neither
-    assert shown[1] == MENU
+    assert menu_texts(shown[0]) == [*top, *MENU]
+    assert shown[0].actions()[len(top)].isSeparator() == bool(top)  # one group, then a separator
+    main_window._show_item_menu(demo_project / folder, QPoint())  # folders have neither
+    assert menu_texts(shown[1]) == MENU
 
 
-def test_unsniffed_file_has_no_plotar_but_asks_for_detection(
+def test_unsniffed_file_has_no_plotar_or_resumo_but_asks_for_detection(
     main_window, demo_project, monkeypatch
 ):
     window = main_window

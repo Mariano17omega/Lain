@@ -44,18 +44,32 @@ class ItemActions(QObject):
     message = pyqtSignal(str, str)  # footer text, level
     rename_requested = pyqtSignal(Path)
     plot_file_requested = pyqtSignal(Path, str)  # file, kind of the module that plots it
+    summary_requested = pyqtSignal(Path)  # "Resumo" of a QE output (spec 12)
 
     def __init__(self, window: QWidget):
         super().__init__(window)
         self.window = window
         self._reveals: dict[QObject, Path] = {}  # pending D-Bus calls → item
 
-    def menu(self, path: Path, can_rename: bool = True, plot_kind: str | None = None) -> QMenu:
+    def menu(
+        self,
+        path: Path,
+        can_rename: bool = True,
+        plot_kind: str | None = None,
+        summary: bool = False,
+    ) -> QMenu:
+        """``plot_kind``: the module that plots this file alone (spec 9); ``summary``: it is a QE
+        output (spec 12). Both go on top, apart from the actions every item has."""
         menu = QMenu(self.window)
         if plot_kind is not None:
             menu.addAction("Plotar").triggered.connect(
                 lambda _c=False: self.plot_file_requested.emit(path, plot_kind)
             )
+        if summary:
+            menu.addAction("Resumo").triggered.connect(
+                lambda _c=False: self.summary_requested.emit(path)
+            )
+        if plot_kind is not None or summary:
             menu.addSeparator()
         menu.addAction("Abrir local de origem").triggered.connect(
             lambda _c=False: self.reveal(path)

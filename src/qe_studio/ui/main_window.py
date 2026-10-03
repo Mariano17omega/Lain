@@ -326,6 +326,7 @@ class MainWindow(QMainWindow):
         self.item_actions.message.connect(self._on_item_message)
         self.item_actions.rename_requested.connect(self.rename_path)
         self.item_actions.plot_file_requested.connect(self.plot_file)
+        self.item_actions.summary_requested.connect(self.open_summary)
         self.activity.explorer_requested.connect(lambda: self.set_left_mode("tree"))
         self.activity.grid_toggled.connect(lambda on: self.set_panel_visible("grid", on))
         self.activity.plot_requested.connect(self.toggle_plot)
@@ -440,21 +441,28 @@ class MainWindow(QMainWindow):
 
     # -- context menu (spec 5 R3) -------------------------------------------------------------------
     def _show_item_menu(self, path: Path, pos: QPoint) -> None:
+        plot_kind, is_output = self._file_actions_of(path)
         menu = self.item_actions.menu(
-            path, can_rename=path != self.root, plot_kind=self._plot_kind_of(path)
+            path, can_rename=path != self.root, plot_kind=plot_kind, summary=is_output
         )
         menu.exec(pos)
         menu.deleteLater()
 
-    def _plot_kind_of(self, path: Path) -> str | None:
-        """Kind of the module that plots ``path`` alone, from the cached sniff only: the GUI
-        thread never reads the file. On a miss detection is requested, so the next menu knows."""
+    def _file_actions_of(self, path: Path) -> tuple[str | None, bool]:
+        """Kind of the module that plots ``path`` alone (spec 9) and whether it is a QE output
+        (spec 12), from the cached sniff only: the GUI thread never reads the file. On a miss
+        detection is requested, so the next menu knows."""
         sniff = self.service.file_sniff(path)
         if sniff is None:
             self.service.results(path.parent)
-            return None
+            return None, False
         module = module_for_file(sniff)
-        return module.kind if module else None
+        return (module.kind if module else None), sniff.is_output
+
+    def open_summary(self, path: Path) -> None:
+        """ "Resumo" of a QE output: a tab in the workspace (spec 12)."""
+        self.workspace.open_summary(path)
+        self.set_panel_visible("workspace", True)
 
     def _on_item_message(self, text: str, level: str) -> None:
         self.status.set_message(text, level, 4000)

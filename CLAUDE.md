@@ -200,6 +200,25 @@ diagnostics (`set_diagnostics`: margin marker + tooltips; the wavy underline is 
 which only lays out `core/qe/input_diff.py:compare_files` (worker): by parameter (`normalize_value`:
 numbers as floats, logicals as bools, strings casefolded) or line by line (`text_rows`, `difflib`).
 
+### Output summary (spec 12)
+
+"Resumo" (context menu of every file whose cached sniff `is_output`) opens a `summary:<path>` tab with
+`ui/widgets/summary_view.py:SummaryView`: a bar ("Copiar", "Abrir saída", "Atualizar") and sections of
+label/value rows (`summary_widgets.py`; rows with `children` expand, a double click on a row with a
+`line` opens the output there through `Workspace.open_output` and `TextViewer.go_to_line`). The
+summary is never saved; closing the tab drops it. The package `core/qe/summary/` is Qt-free:
+`scan.py:Scanner` is a one-pass line scanner (substring test before each regex; "last wins" facts,
+"first" ones for the initial energy and volume) that keeps the line of every fact; `build.py` turns
+the facts into `SummarySection`s (`SummaryRow.level` colors the value, `.line` is the source line);
+`text.py` has the value formatting and `to_text` ("Copiar"). `summarize(path)` streams the file once:
+the scanner sees each line through `_observe`, and for relax / vc-relax the same stream feeds
+`parse_relax`. Fermi / HOMO-LUMO and the calculation type come from the `PwOutput` the sniff cache
+already holds, so `summarize_lines(lines, pw=None)` (the property tests) has neither. `parse_scf` is
+not used: it describes the first SCF cycle only. The formula counts the `tau(` site lines of the
+header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program gets "Geral" and
+"Avisos e erros". Outputs of hundreds of MB take seconds (about 30 MB/s), in a worker, behind
+"Lendo <arquivo>…".
+
 ### Threading rules (GUI thread must never parse files)
 
 - `ui/services.py:DetectionService` caches detection per folder and runs misses in a 2-thread
@@ -229,8 +248,9 @@ host keys are always refused.
 ### Context menu (spec 5)
 
 `ui/widgets/context_menu.py:ItemActions` builds the right-click menu for the tree and the grid
-(both panels emit `item_menu_requested(path, pos)` → `MainWindow._show_item_menu`). "Abrir com"
-lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
+(both panels emit `item_menu_requested(path, pos)` → `MainWindow._show_item_menu`, which reads the
+cached sniff once, in `_file_actions_of`: "Plotar" for a single-file module, "Resumo" for any QE
+output, both above the four spec-5 actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
 cached `catalog()` per session) and starts them with `QProcess.startDetached(argv)`, never a
 shell. Renaming goes through `MainWindow.rename_path` because it touches global state: flush the
 item's `.plot` settings, `core/file_ops.rename_item` (refuses existing targets), close affected

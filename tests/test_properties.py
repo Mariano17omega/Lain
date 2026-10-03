@@ -9,6 +9,8 @@ cut down to one point at x = 0 cannot be split back into bands.
 """
 
 import contextlib
+import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -18,8 +20,12 @@ from hypothesis import strategies as st
 from qe_studio.core.qe.bands_x import BandsFormatError, read_gnu
 from qe_studio.core.qe.input_lexer import LexState, scan_line
 from qe_studio.core.qe.input_lint import _lint
+from qe_studio.core.qe.pw_output import parse_pw_output
 from qe_studio.core.qe.relax import parse_relax
 from qe_studio.core.qe.scf import parse_scf
+from qe_studio.core.qe.summary import summarize, summarize_lines
+
+from conftest import FIXTURES
 
 # An empty or whitespace-only cut makes numpy warn "input contained no data" before read_gnu
 # reports it as a format error.
@@ -282,3 +288,66 @@ def test_well_formed_namelists_have_no_issues(pairs, separator, newline):
     doc = _lint(text)
     assert doc.issues == []
     assert [e.key for e in doc.namelists["control"]] == [key for key, _ in pairs]
+
+
+# -- output summary (spec 12) ------------------------------------------------------------------
+SUMMARY_RUNS = [
+    (FIXTURES / "al_bands" / "al.scf.out").read_text(),
+    (FIXTURES / "kao_vc_relax" / "vc-relax.out").read_text(),
+    (FIXTURES / "al_bands" / "bands.out").read_text(),
+]
+# Lines that matter to the scanner's state machine, so that random text reaches its branches
+# (error block, message + next line, pseudopotential + next line, stress rows after P=).
+SUMMARY_PIECES = st.sampled_from(
+    ["     Program PWSCF v.7.1 starts on  1Jan2025 at  1: 0: 0\n", " %%%%%%%%%%\n",
+     "     Error in routine cdiaghg (1):\n", "     Message from routine setup :\n",
+     "     PseudoPot. # 1 for Al read from file:\n", "     /x/Al.UPF\n", "\n", "     text\n",
+     "          total   stress  (Ry/bohr**3)   (kbar)     P=       -0.13\n",
+     "  0.1  0.2  0.3  0.4  0.5  0.6\n", "!    total energy              =    -5.5 Ry\n",
+     "     number of k points=    47  Gaussian smearing, width (Ry)=  0.0100\n",
+     "     PWSCF        :      1.88s CPU      1.90s WALL\n", "     JOB DONE.\n",
+     "     1           Al  tau(   1) = (   0.0   0.0   0.0  )\n", "     Self-consistent Calculation\n",
+     "     iteration #  1     ecut=   100.00 Ry     beta= 0.70\n",
+     "     convergence has been achieved in   4 iterations\n",
+     "     bfgs converged in  25 scf cycles and  24 bfgs steps\n",
+     "     new unit-cell volume =   2253.94778 a.u.^3 (   334.00060 Ang^3 )\n"]
+)  # fmt: skip
+
+
+def check_summary(summary, lines):
+    titles = [section.title for section in summary.sections]
+    assert titles[0] == "Geral" and titles[-1] == "Avisos e erros"
+    for section in summary.sections:
+        assert section.rows
+        for row in section.rows:
+            for shown in (row, *row.children):
+                assert shown.line is None or 1 <= shown.line <= lines
+    for issue in summary.issues:
+        assert issue.count >= 1 and (issue.line is None or 1 <= issue.line <= lines)
+
+
+@given(st.integers(0, len(SUMMARY_RUNS) - 1), st.data())
+def test_summary_of_a_cut_output_never_raises(index, draw):
+    text = SUMMARY_RUNS[index]
+    cut = text[: draw.draw(st.integers(0, len(text)))]  # mid-line too
+    lines = cut.splitlines(keepends=True)
+    check_summary(summarize_lines(lines, parse_pw_output(cut)), len(lines))
+
+
+@given(st.lists(SUMMARY_PIECES, max_size=40))
+def test_summary_of_random_scanner_lines_never_raises(pieces):
+    text = "".join(pieces)
+    check_summary(
+        summarize_lines(text.splitlines(keepends=True), parse_pw_output(text)),
+        len(text.splitlines()),
+    )
+
+
+@given(st.integers(0, len(SUMMARY_RUNS) - 1), st.data())
+def test_summarize_a_cut_file_never_raises(index, draw):
+    text = SUMMARY_RUNS[index]
+    cut = text[: draw.draw(st.integers(0, len(text)))]
+    with tempfile.TemporaryDirectory() as folder:  # not `tmp_path`: Hypothesis health check
+        out = Path(folder) / "run.out"
+        out.write_text(cut)
+        check_summary(summarize(out), len(cut.splitlines()))

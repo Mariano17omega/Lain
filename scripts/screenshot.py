@@ -1,6 +1,6 @@
 """Render the main window off-screen to PNG (both themes) for visual checks against the mockups.
 
-    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff]
+    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary]
 
 Builds a demo project from the test fixtures (01_relax, 02_scf, 03_bands, 04_pdos).
 """
@@ -90,6 +90,9 @@ def main() -> int:
         "--diff", nargs="?", const="params", choices=["params", "text"],
         help="compare two inputs in the diff tab (spec 11)",
     )  # fmt: skip
+    parser.add_argument(
+        "--summary", action="store_true", help="the summary tab of the vc-relax output (spec 12)"
+    )
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -162,6 +165,12 @@ def main() -> int:
                 if args.diff == "text":
                     diff.show_text()
                 window.set_panel_visible("workspace", True)
+        if args.summary:
+            summary = project / "01_relax" / "si.rel.out"
+            window.open_summary(summary)
+            view = window.workspace.widget_for(f"summary:{summary}")
+            wait_for(view.loaded)
+            view.sections[1].rows[-1].expand()  # the pseudopotentials of "Sistema"
         for _ in range(30):
             app.processEvents()
         window.service.wait(3000)

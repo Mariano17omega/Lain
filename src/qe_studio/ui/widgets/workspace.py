@@ -1,4 +1,5 @@
-"""Central workspace: document tabs for text files, images, plots and input diffs (PRD §2.1.3)."""
+"""Central workspace: document tabs for text files, images, plots, input diffs and output
+summaries (PRD §2.1.3)."""
 
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from ...core.sniff import looks_like_input
 from ..file_types import file_visual
 from ..theme.manager import ThemeManager
 from .diff_view import DiffView, diff_key, diff_title
+from .summary_view import SummaryView, summary_key
 from .text_viewer import TextViewer
 from .workspace_tabs import DocumentTabs, add_action
 
@@ -155,6 +157,24 @@ class Workspace(QStackedWidget):
             ("difference", "accent"),
             str(a),
         )
+
+    def open_summary(self, path: Path) -> QWidget:
+        """The tab "Resumo · <arquivo>" of a QE output (spec 12); an open one is shown again, not
+        re-read (its "Atualizar" does that)."""
+        key = summary_key(path)
+        existing = self._keys.get(key)
+        if existing is not None:
+            self.tabs.setCurrentWidget(existing)
+            return existing
+        view = SummaryView(path, self.theme)
+        view.open_output_requested.connect(self.open_output)
+        return self.add(key, view, f"Resumo · {path.name}", ("summarize", "accent"), str(path))
+
+    def open_output(self, path: Path, line: int = 0) -> None:
+        """The output in the text viewer, at ``line`` when given."""
+        viewer = self.open_file(path, "text")
+        if line and isinstance(viewer, TextViewer):
+            viewer.go_to_line(line)
 
     def compare_with(self, path: Path) -> None:
         """ "Comparar com…": ask for the other input, which must look like one too."""

@@ -145,3 +145,47 @@ QToolButton[variant="viewerTool"]:checked {
 #imageViewer {
     background: ${workspace};
 }
+/* Output summary tab (spec 12). */
+#summaryBar {
+    background: ${chrome};
+    border-bottom: 1px solid ${border};
+}
+#summaryMessage {
+    background: ${workspace};
+    color: ${text_muted};
+    font-size: 13px;
+}
+#summaryView, #summaryScroll, #summaryBody {
+    background: ${workspace};
+}
+#summarySection {
+    background: ${workspace};
+    border-bottom: 1px solid ${border};
+}
+QToolButton[variant="summaryToggle"] {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 0;
+}
+QToolButton[variant="summaryToggle"]:hover {
+    background: ${hover};
+}
+QLabel[variant="summaryLabel"] {
+    color: ${text_secondary};
+    font-size: 12px;
+}
+QLabel[variant="summaryValue"] {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+    color: ${text};
+}
+QLabel[variant="summaryValue"][level="success"] {
+    color: ${success};
+}
+QLabel[variant="summaryValue"][level="warning"] {
+    color: ${warning};
+}
+QLabel[variant="summaryValue"][level="error"] {
+    color: ${error};
+}

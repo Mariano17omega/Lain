@@ -92,6 +92,7 @@ ICONS = [
     "code",
     "bubble_chart",
     "difference",  # input comparison tab (spec 11)
+    "summarize",  # output summary tab (spec 12)
     "open_in_new",
     "cloud_done",
     "cloud_off",

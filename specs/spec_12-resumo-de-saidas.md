@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 12 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: `core/qe/summary` é um pacote (`model`, `scan`, `build`, `text`) em vez de um arquivo, e `to_text` (o "Copiar") mora lá; a fórmula conta as linhas `tau(` do cabeçalho em vez de usar o ASE (decisão 3 trocada, sem limite de 16 MB); o `parse_scf` da spec 9 não é usado (descreve só o primeiro ciclo SCF, e a saída de relax precisa do último), então o scanner lê as iterações e a convergência do último ciclo; o `parse_relax` roda no mesmo fluxo de leitura (uma passada só); cutoffs, `alat` e volume saem sem os zeros à direita (`100.0 Ry`); `Avisos e erros` sempre aparece ("Nenhum aviso ou erro"); os arquivos escritos do bands.x são uma linha expansível de "Geral" (projwfc.x e dos.x ficam sem extras: nenhuma fixture mostra a linha); `TextViewer.go_to_line` novo (adia até o texto carregar); ícone `summarize` vendorizado; `scripts/screenshot.py --summary` |
 | **Depende de** | spec 5 (menu de contexto), spec 9 (ordem das ações no menu), spec 10 (abas do workspace) |
 | **Usada por** | nenhuma |
 | **Esforço** | M |
@@ -132,7 +132,7 @@ imagem.
 1. "Aba lateral de visualização" = aba no workspace (confirmado).
 2. Saídas de qualquer programa do QE ganham o item "Resumo", e não só o pw.x. Para os outros, o
    resumo é mais curto (R2).
-3. A fórmula química via ASE só para arquivos < 16 MB (R2), para não travar o worker em saídas enormes.
+3. ~~A fórmula química via ASE só para arquivos < 16 MB~~ Trocada: a fórmula conta as linhas `tau(` do cabeçalho (sem ASE, sem limite de tamanho); "—" quando o QE não imprime as posições.
 4. Com "Atualizar" manual, não há atualização automática (F10 adiado).
 5. Os valores numéricos ficam no formato do QE (ponto decimal), sem localizar a vírgula.
 
@@ -152,17 +152,17 @@ imagem.
   exceção.
 
 ## Critérios de aceite e testes
-- [ ] `summarize(al_bands/al.scf.out)`: PWSCF 7.3.1, "Concluído", WALL 1.90 s, "Serial", ecutwfc 100.0
+- [x] `summarize(al_bands/al.scf.out)`: PWSCF 7.3.1, "Concluído", WALL 1.90 s, "Serial", ecutwfc 100.0
       Ry, ecutrho 143.0 Ry, PBE, 47 k-pontos, smearing gaussiano, E total −5.03855495 Ry, convergiu em 4
       iterações, e a mensagem "ecutrho < 4*ecutwfc, are you sure?" em avisos.
-- [ ] `kao_vc_relax/vc-relax.out`: 4 espécies com pseudopotencial, `Total force` e `P=` finais,
+- [x] `kao_vc_relax/vc-relax.out`: 4 espécies com pseudopotencial, `Total force` e `P=` finais,
       passos BFGS, "bfgs converged", volume inicial → final.
-- [ ] Saída de bands.x (`al_bands/bands.out`): só "Geral" e "Avisos e erros", com "Concluído".
-- [ ] Saída truncada (`copy_fixture` + corte): "Incompleto" e nenhuma exceção.
-- [ ] Texto sintético com bloco `%%%%` de `Error in routine cdiaghg`: estado "Erro", com a rotina e a
+- [x] Saída de bands.x (`al_bands/bands.out`): só "Geral" e "Avisos e erros", com "Concluído".
+- [x] Saída truncada (`copy_fixture` + corte): "Incompleto" e nenhuma exceção.
+- [x] Texto sintético com bloco `%%%%` de `Error in routine cdiaghg`: estado "Erro", com a rotina e a
       mensagem em "Avisos e erros".
-- [ ] Menu: numa saída (pw.x ou bands.x) aparece "Resumo". Num input, num `.gnu` ou numa pasta, não.
+- [x] Menu: numa saída (pw.x ou bands.x) aparece "Resumo". Num input, num `.gnu` ou numa pasta, não.
       Numa saída SCF, a ordem é `["Plotar", "Resumo", "Abrir local de origem", …]`.
-- [ ] "Resumo" abre a aba `summary:<path>`. Repetir a ação não duplica a aba. Nenhum arquivo é criado na
+- [x] "Resumo" abre a aba `summary:<path>`. Repetir a ação não duplica a aba. Nenhum arquivo é criado na
       pasta da simulação.
-- [ ] "Copiar" põe na área de transferência um texto que contém "WALL" e "JOB DONE"/"Concluído".
+- [x] "Copiar" põe na área de transferência um texto que contém "WALL" e "JOB DONE"/"Concluído".

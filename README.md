@@ -99,6 +99,12 @@ a pull.
    there is also **Plotar**, which previews its convergence (estimated accuracy against
    `conv_thr`, |ΔE| or total energy, and the magnetization of spin runs) without saving; the
    **Plotar SCF** button next to **Gerar Gráfico** does the same for the SCF output open in a tab.
+   Every QE output (pw.x, bands.x, projwfc.x…) also has **Resumo**: a tab with its state
+   (`Concluído` / `Incompleto` / `Erro`), WALL and CPU time, parallelization, memory, system,
+   results (energies, Fermi / HOMO-LUMO and gap, magnetization, pressure and stress, forces, SCF and
+   BFGS progress) and the warnings and errors, read from the file and never saved. **Copiar** puts
+   it on the clipboard as text, **Atualizar** reads the file again (the job may still be running)
+   and a double click on a row opens the output at the line it came from.
    Text files open in a viewer with line numbers, **Ctrl+F** search (F3 / Shift+F3 for the next and
    previous hit), coloured QE outputs (energies, errors, warnings, convergence) and **Ir à linha…**
    (Ctrl+L). A file above 4 MB shows its first 1 MB and last 2 MB (line numbers stay real); the
@@ -133,7 +139,7 @@ uv run pytest -m "not realdata and not perf"   # what CI runs
 uv run pytest -m perf    # NFR §7 latency budget (CI reports it without blocking)
 uv run ruff check . && uv run ruff format --check .
 QE_STUDIO_REAL_DATA=/path/to/runs:/other/runs uv run pytest -m realdata   # your own runs
-uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--text: text viewer, --input: an input with errors, --diff [text]: input comparison)
+uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--text: text viewer, --input: an input with errors, --diff [text]: input comparison, --summary: output summary)
 uv run python scripts/build_icons.py         # re-render the app icon PNGs after editing the SVG
 ```
 

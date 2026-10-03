@@ -144,6 +144,7 @@ class TextViewer(QWidget):
         self.path = path
         self.theme = theme
         self._loading = False
+        self._pending_line: int | None = None  # a go_to_line that came while loading
         self._highlighter: ThemedHighlighter | None = None
         self._task: _LoadText | None = None
         layout = QVBoxLayout(self)
@@ -278,10 +279,14 @@ class TextViewer(QWidget):
         self.search.set_busy(False)
         self.search.refresh()
         self._shortcuts["escape"].setEnabled(not self.search.isHidden())
+        if self._pending_line is not None:
+            self.editor.go_to_line(self._pending_line)
+            self._pending_line = None
         self.loaded.emit()
 
     def _on_failed(self, error: str) -> None:
         self._loading = False
+        self._pending_line = None
         self.search.set_busy(False)
         self._shortcuts["escape"].setEnabled(not self.search.isHidden())
         self._set_banner(f"Não foi possível abrir o arquivo: {error}", "warning")
@@ -315,6 +320,14 @@ class TextViewer(QWidget):
 
     def _on_search_closed(self) -> None:
         self._shortcuts["escape"].setEnabled(False)
+
+    def go_to_line(self, number: int) -> None:
+        """Show real line ``number`` (a double click in the output summary); once the file arrives
+        if it is still loading."""
+        if self._loading:
+            self._pending_line = number
+        else:
+            self.editor.go_to_line(number)
 
     def ask_line(self) -> None:
         if self._loading:
