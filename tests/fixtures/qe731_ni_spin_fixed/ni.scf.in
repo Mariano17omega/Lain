@@ -1,0 +1,32 @@
+&control
+    calculation = 'scf',
+    prefix='nifix',
+    pseudo_dir = '/home/m/.burai/.pseudopot',
+    outdir='./tmp'
+/
+&system
+    ibrav=  2,
+    celldm(1)=  6.65,
+    ntyp= 1,
+    nat=  1,
+    ecutwfc = 30,
+    ecutrho = 240,
+    occupations= 'smearing',
+    smearing= 'mv',
+    degauss= 0.02,
+    nspin= 2,
+    starting_magnetization(1)= 0.8,
+    tot_magnetization = 0.5
+/
+&electrons
+    conv_thr =  1.0d-9,
+    mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+ Ni 58.6934 Ni.pbe-nd-rrkjus.UPF
+
+ATOMIC_POSITIONS alat
+ Ni 0.00 0.00 0.00
+
+K_POINTS automatic
+6 6 6 0 0 0

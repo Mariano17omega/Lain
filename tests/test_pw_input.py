@@ -41,7 +41,7 @@ def test_explicit_list_has_no_labels():
         ("al_bands/bands.in", "bands", None),
         ("al_pdos_flat/al.projwfc.in", "projwfc", None),
         ("al_bands/al.scf.in", "pw", "scf"),
-        ("ni_pdos_spin/ni.dos.in", "pw", "nscf"),
+        ("qe731_ni_spin_pdos/ni.nscf.in", "pw", "nscf"),
         ("si_relax/si.rel.in", "pw", "relax"),
     ],
 )

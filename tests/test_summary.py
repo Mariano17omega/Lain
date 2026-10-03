@@ -20,7 +20,7 @@ AL_SCF = FIXTURES / "al_bands" / "al.scf.out"
 BANDS_X = FIXTURES / "al_bands" / "bands.out"
 VC_RELAX = FIXTURES / "kao_vc_relax" / "vc-relax.out"
 SI_RELAX = FIXTURES / "si_relax" / "si.rel.out"
-NI_SCF = FIXTURES / "ni_pdos_spin" / "ni.scf.out"
+NI_SCF = FIXTURES / "qe731_ni_spin_bands" / "ni.scf.out"
 
 
 def rows(summary: OutputSummary, title: str) -> dict:
@@ -130,8 +130,8 @@ def test_bands_x_output_has_only_general_and_messages():
 
 def test_spin_polarized_output_reports_the_last_magnetization():
     results = rows(summarize(NI_SCF), "Resultados")
-    assert results["Magnetização total"].value == "0.62 Bohr mag/cell"
-    assert results["Magnetização absoluta"].value == "0.69 Bohr mag/cell"
+    assert results["Magnetização total"].value == "0.71 Bohr mag/cell"
+    assert results["Magnetização absoluta"].value == "0.81 Bohr mag/cell"
     assert rows(summarize(NI_SCF), "Sistema")["Spin"].value == "colinear (nspin=2)"
 
 

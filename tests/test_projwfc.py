@@ -13,7 +13,7 @@ from qe_studio.core.qe.projwfc import (
 from conftest import FIXTURES
 
 AL = FIXTURES / "al_pdos_flat"
-NI = FIXTURES / "ni_pdos_spin"
+NI = FIXTURES / "qe731_ni_spin_pdos"
 
 
 @pytest.mark.parametrize(

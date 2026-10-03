@@ -1,9 +1,7 @@
 # Test fixtures
 
 Real Quantum ESPRESSO outputs, kept small. **Lain supports QE ≥ 7.1:** new fixtures are always
-from 7.1 or newer, and no code or fixture handles older formats. The one exception is
-`ni_pdos_spin/` (QE 6.0, the official example), kept because it is the only spin-polarized PDOS
-until the spin fixture of spec 13 replaces it.
+from 7.1 or newer, and no code or fixture handles older formats.
 
 `tests/test_qe_versions.py` holds one table with a row per fixture folder and checks each row per
 version: the Fermi / HOMO line of the pw.x output, the block separator of `.gnu` files (empty
@@ -20,7 +18,9 @@ and add a `Run` row. `git add` the folder: `test_fixtures_untouched.py` fails on
 | `al_bands/` | Al band-structure tutorial run (QE 7.3.1) | tutorial names (`al.scf.out`, `al.band.in`), `bands.in`/`bands.out` are bands.x files; `al.scf.out` crashes ASE's `espresso-out` reader (regression) |
 | `si_bands/` | Si band-structure tutorial run (QE 7.3.1) | explicit 200-point `K_POINTS crystal` list without labels; pw.x printed no eigenvalues |
 | `al_pdos_flat/` | Al DOS/PDOS tutorial run (QE 7.3.1) | flat layout (no `orbitals/`); PDOS files keep every 4th energy row; `al.projwfc.out` truncated (head + tail) |
-| `ni_pdos_spin/` | QE `PP/examples/example02/reference`, **version 6.0** (GPL-2.0) | spin-polarized Ni PDOS; `ni.pdos.out` truncated |
+| `qe731_ni_spin_bands/` | Ni fcc, nspin=2 (QE 7.3.1, run locally, PBE `Ni.pbe-nd-rrkjus`), spec 13 | `ni.scf.*`, pw.x bands (45 k-points, `SPIN UP`/`SPIN DOWN` eigenvalues printed) and two bands.x runs, `bands_up.*` (`spin_component = 1`) and `bands_dw.*` (`= 2`), each with its own `filband` and `.gnu`; both channels are metallic |
+| `qe731_ni_spin_pdos/` | same Ni run (QE 7.3.1) | `ni.scf.*`, `ni.nscf.*`, `ni.pdos.*` (projwfc.x, per-k-point projections removed), `ni.pdos_atm#1(Ni)_wfc#1(s)` / `#2(d)` and `ni.pdos_tot` with `up`/`dw` columns |
+| `qe731_ni_spin_fixed/` | same Ni, `tot_magnetization = 0.5` (QE 7.3.1) | SCF only: prints `the spin up/dw Fermi energies are` (two Fermi energies) |
 | `si_relax/` | Si relax tutorial run (QE 7.3.1) | `si.rel.in` / `si.rel.out` |
 | `kao_vc_relax/` | user's kaolinite bulk vc-relax (QE 7.1) | 25 BFGS steps in the run; keeps steps 0–2 and 23–24, `bfgs converged`, `Final scf calculation` and its SCF, `JOB DONE` |
 | `kao_slab_relax/` | user's kaolinite (001) slab relax (QE 7.1) | 42 steps in the run; keeps steps 0–2 and 40–41 |

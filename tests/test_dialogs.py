@@ -26,6 +26,17 @@ def test_mapping_dialog_prefills_and_validates(qtbot, tmp_path):
     assert mapping["gnu"][0].name == "bands.dat.gnu"
 
 
+def test_mapping_dialog_lists_the_spin_down_roles_and_the_bandsx_inputs(qtbot):
+    folder = FIXTURES / "qe731_ni_spin_bands"
+    dialog = ManualMappingDialog(folder, plottable(), detect_folder(folder))
+    qtbot.addWidget(dialog)
+    assert {"gnu_down", "filband_down", "bandsx_in"} <= set(dialog.edits)
+    assert dialog.edits["gnu_down"].text().endswith("bands_dw.dat.gnu")
+    assert dialog.edits["bandsx_in"].placeholderText().startswith("vários arquivos")
+    assert dialog.edits["bandsx_in"].text().count(";") == 1
+    assert dialog.mapping()["gnu"][0].name == "bands_up.dat.gnu"
+
+
 def test_mapping_dialog_switches_kind(qtbot):
     dialog = ManualMappingDialog(FIXTURES / "al_bands", plottable(), [])
     qtbot.addWidget(dialog)

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 13 (feature grande; depende de fixture nova) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: o canal ↓ são papéis próprios (`gnu_down`, `filband_down`), não `multiple=True` nem `result.channels` (o diálogo de mapeamento, o `FolderMemory` e o painel funcionam sem código novo), e o pareamento roda no `finalize` (o SCF pode vir de uma pasta vizinha); o spin também vale quando só a saída pw.x de bandas tem spin; arquivos sem indício do canal (nem input, nem saída do bands.x, nem `up`/`dw` no nome) não são adivinhados pela ordem: só ↑ e um aviso pedindo o mapeamento manual; o layout lado a lado compartilha também o eixo X (`sharex`), assim o zoom de qualquer painel chega em `axes_limits[0]`; tolerância de 1e-3 eV na classificação das bandas; com duas E_F o resumo mostra `E_F↑ … · E_F↓ …`; a fixture são três pastas (`qe731_ni_spin_bands`, `_pdos`, `_fixed`, QE 7.3.1 rodado localmente, Ni PBE) e a `ni_pdos_spin` (6.0) foi removida: o QE 7.3.1 não imprime `Harris-Foulkes estimate`, então o teste dessa linha ficou com texto sintético; o canal ilegível ou ausente deixa o gráfico só com ↑ (dataset sem spin); `PdosDataset` ganhou `fermi_channels` e `magnetization` |
 | **Depende de** | spec 8 (hooks `apply_limits` com vários eixos, `view_fields`, tipagem) |
 | **Usada por** | spec 9 (a fixture com spin substitui a `ni.scf.out` 6.0 nos testes de magnetização) |
 | **Esforço** | G |
@@ -178,7 +178,7 @@ Arquivos antigos sem esses campos usam os padrões.
 4. O canal sem `spin_component` no input é ↑ (padrão do bands.x).
 5. Não colinear: continua com um único canal (sem mudança).
 
-## Pendência
+## Pendência (resolvida)
 - **Fixture real com spin, QE ≥ 7.1** (obrigatória para esta spec): um sistema magnético pequeno (ex.:
   Fe bcc ou Ni fcc), com:
   - `scf.in/out` (nspin = 2);

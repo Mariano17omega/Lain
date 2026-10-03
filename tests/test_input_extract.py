@@ -100,7 +100,7 @@ def test_repeated_namelist_reads_the_first_one():
     ("rel", "labels"),
     [
         ("al_bands/bands.in", ["filband", "lsym"]),
-        ("ni_pdos_spin/ni.pdos.in", ["degauss", "DeltaE", "Emin", "Emax"]),
+        ("qe731_ni_spin_pdos/ni.pdos.in", ["filpdos", "degauss", "DeltaE", "Emin", "Emax"]),
     ],
 )
 def test_other_programs(rel, labels):
@@ -108,7 +108,7 @@ def test_other_programs(rel, labels):
 
 
 def test_projwfc_values():
-    got = read("ni_pdos_spin/ni.pdos.in")
+    got = read("qe731_ni_spin_pdos/ni.pdos.in")
     assert (got["Emin"].value, got["Emax"].value, got["DeltaE"].value) == ("5.0", "25.0", "0.1")
     assert got["degauss"].value == "0.02"
 

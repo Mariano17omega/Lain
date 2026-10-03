@@ -26,9 +26,7 @@ from conftest import FIXTURES, copy_fixture
 CONFIG = AppConfig()
 SCF = module_for("scf")
 AL = FIXTURES / "al_bands" / "al.scf.out"
-NI = (
-    FIXTURES / "ni_pdos_spin" / "ni.scf.out"
-)  # QE 6.0, the only fixture with spin (spec 13 adds a 7.x one)
+NI = FIXTURES / "qe731_ni_spin_bands" / "ni.scf.out"  # nspin = 2
 
 
 def synthetic(
@@ -123,10 +121,19 @@ def test_si_scf():
 
 def test_spin_scf_has_the_magnetization_of_every_iteration():
     data = read_scf(NI)
-    assert len(data.iterations) == 11 and data.status == "converged" and data.spin
+    assert len(data.iterations) == 12 and data.status == "converged" and data.spin
     first = data.iterations[0]
-    assert (first.total_mag, first.abs_mag, first.harris_ry) == (1.85, 1.87, -85.36841722)
+    assert (first.total_mag, first.abs_mag) == (2.15, 2.16)
     assert all(it.total_mag is not None and it.abs_mag is not None for it in data.iterations)
+    assert (data.iterations[-1].total_mag, data.iterations[-1].abs_mag) == (0.71, 0.81)
+
+
+def test_harris_foulkes_estimate_is_read_when_printed():
+    text = synthetic(2).replace(
+        "     estimated scf accuracy",
+        "     Harris-Foulkes estimate   =     -10.05000000 Ry\n     estimated scf accuracy",
+    )
+    assert parse_scf(text.splitlines()).iterations[0].harris_ry == -10.05
 
 
 def test_noncollinear_magnetization_is_the_norm_of_the_vector():

@@ -64,8 +64,8 @@ def test_pdos_flat_layout_by_content():
 
 
 def test_pdos_spin_names():
-    (result,) = detect(FIXTURES / "ni_pdos_spin")
-    assert names(result, "nscf_out") == ["ni.dos.out"]
+    (result,) = detect(FIXTURES / "qe731_ni_spin_pdos")
+    assert names(result, "nscf_out") == ["ni.nscf.out"]
     assert names(result, "projwfc_out") == ["ni.pdos.out"]
 
 

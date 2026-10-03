@@ -62,6 +62,11 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   (`HYPOTHESIS_PROFILE=ci`: fewer examples, no deadline, no example database).
 - `viewer_helpers.py` (`open_text`, `key`) is shared by the text viewer tests, like `sync_helpers.py`
   is by the sync ones.
+- `tests/fixtures/qe731_ni_spin_{bands,pdos,fixed}/` are real Ni nspin=2 runs (QE 7.3.1): two bands.x
+  runs, spin PDOS, and an SCF with `tot_magnetization` (two Fermi energies). `spin_helpers.py` has the
+  paths and small helpers of the spin tests (`test_bands_spin_*`, `test_pdos_spin.py`,
+  `test_spin_window.py`); `test_figure_regression.py` compares the artists of no-spin figures and the
+  mirrored PDOS (`figure_structure.py`) with data captured before the spin work.
 - `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`.
 - Sync integration tests run the **real `rsync` and `ssh` binaries** (skipped if either is absent).
   Cluster sync is tested against `tests/ssh_server.py`, a **local SSH server built with paramiko**
@@ -88,8 +93,8 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 ### Architecture rules
 
 - **No files over ~500 lines that centralize everything.** Split by responsibility before a module
-  grows past that. Current offenders: `ui/main_window.py` (~1050 lines, split by spec 15) and
-  `core/calculations/bands.py` (~550, split by spec 13).
+  grows past that. Current offender: `ui/main_window.py` (~1050 lines, split by spec 15).
+  `tests/test_calculation_sizes.py` keeps every file of `core/calculations/` under 500.
 - **`ui/` holds interface logic only.** Widgets, layout, dialogs, and wiring signals to `core/`.
   Parsing, detection, physics, file operations, sync decisions and any other backend logic belong in
   `core/`, where they are testable without Qt. If a UI method computes something that doesn't depend
@@ -164,6 +169,24 @@ Plot settings persist in `<simulation>/<kind>.plot` (YAML, `core/plotting/plot_f
 stays the module default), written only after a user edit (params panel or pan/zoom), debounced 1 s
 and flushed on tab close, regenerate and exit. Window layout, grid mode/sort and the last folder are
 QSettings (`layout/*`, `files/*`, `explorer/last_folder`).
+
+### Spin (spec 13)
+
+`core/calculations/bands/` and `pdos/` are packages split by responsibility: `module` (roles and thin
+hooks) ties `detection`, `data`, `params` and `render`. A collinear spin run (the SCF or pw.x bands
+output has `spin_polarized`) has two bands.x runs (`spin_component` 1 and 2 of `&BANDS`): the ↑ files
+stay in the `gnu` / `filband` roles and the ↓ ones are the roles `gnu_down` / `filband_down`, so the
+mapping dialog, `FolderMemory` and the panel need no spin code. Pairing runs in `finalize`
+(`detection.assign_channels`), not in `select`, because the SCF may only be inferred from a neighbour
+folder there: bands.x input (`spin_component`, `filband`) → file named by a bands.x output → a whole
+`up`/`dw`/`dn`/`down` word in the name; if nothing identifies the files, ↑ only plus a warning (never
+guessed by order), and a role the user mapped is never touched. `BandsDataset.spin` is
+`bands_down is not None`; edges are per channel from each channel's E_F (`channel_edges`) and the
+dataset's `vbm` / `cbm` / `gap` are the global ones, set only when both channels have a gap. A run
+without spin keeps the old path (`render._render_plain`, `n_electrons / 2` edges). Two Fermi energies
+(`PwOutput.fermi_up_down`, fixed magnetization): the reference is their mean, one line per channel
+(↑ solid, ↓ dashed). The side-by-side layout shares both axes (`draw.side_axes`), so a zoom in either
+panel lands in `axes_limits[0]`. PDOS `spin_mode`: mirror (default) | overlay | up | down | sum.
 
 ### Text viewer and tabs (spec 10)
 

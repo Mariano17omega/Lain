@@ -154,14 +154,14 @@ def test_pdos_options(al_pdos_orbitals):
 
 
 def test_pdos_spin_mirrors_down_channel():
-    module, ds, params = load(FIXTURES / "ni_pdos_spin")
+    module, ds, params = load(FIXTURES / "qe731_ni_spin_pdos")
     figure, _ = render(module, ds, params)
     low, high = figure.axes[0].get_ylim()
     assert low == -high < 0
 
 
 def test_pdos_species_colors_differ():
-    module, ds, params = load(FIXTURES / "ni_pdos_spin")
+    module, ds, params = load(FIXTURES / "qe731_ni_spin_pdos")
     colors = module.series_colors(ds, params, DARK)
     assert colors == {"Ni s": "#fbbf24", "Ni d": "#a855f7"}
     params.series_colors = {"Ni d": "#000000"}
@@ -218,7 +218,7 @@ def test_export_background(tmp_path):
 
 
 def test_pdos_palette_follows_the_background():
-    module, ds, params = load(FIXTURES / "ni_pdos_spin")
+    module, ds, params = load(FIXTURES / "qe731_ni_spin_pdos")
     params.grouping = "species"
     light = module.series_colors(ds, params, figure_style("#ffffff"))
     dark = module.series_colors(ds, params, figure_style("#000000"))

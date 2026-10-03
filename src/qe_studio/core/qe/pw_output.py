@@ -36,6 +36,9 @@ _NKS = re.compile(r"number of k points=\s*(\d+)")
 _NELEC = re.compile(r"number of electrons\s*=\s*(-?\d+\.?\d*)")
 _NBND = re.compile(r"number of Kohn-Sham states=\s*(\d+)")
 _ALAT = re.compile(r"lattice parameter \(alat\)\s*=\s*(-?\d+\.\d+)")
+# One component when collinear, three (a vector) when noncollinear.
+_TOTAL_MAG = re.compile(r"total magnetization\s*=\s*((?:-?\d+\.\d+\s+){1,3})Bohr mag/cell")
+_ABS_MAG = re.compile(r"absolute magnetization\s*=\s*(-?\d+\.\d+)\s*Bohr mag/cell")
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,9 @@ class PwOutput:
     alat_bohr: float | None = None
     spin_polarized: bool = False
     noncollinear: bool = False
+    # μB/cell, last SCF iteration; the total is the vector's norm when noncollinear.
+    total_magnetization: float | None = None
+    absolute_magnetization: float | None = None
     job_done: bool = False
     converged: bool | None = None
 
@@ -63,7 +69,9 @@ class PwOutput:
         if self.converged is False:
             out.append("SCF não convergiu")
         if self.fermi_kind == "spin_fermi":
-            out.append("duas energias de Fermi (up/dw); usando a média")
+            out.append(
+                "duas energias de Fermi (↑/↓): referência na média, linhas separadas no gráfico"
+            )
         return out
 
 
@@ -85,6 +93,17 @@ def _calculation(text: str, has_fermi: bool) -> str | None:
     if "End of self-consistent calculation" in text or "Self-consistent Calculation" in text:
         return "scf"
     return None
+
+
+def _magnetization(text: str) -> tuple[float | None, float | None]:
+    """(total, absolute) magnetization of the last SCF iteration, in Bohr magnetons per cell."""
+    total = absolute = None
+    if match := _last(_TOTAL_MAG, text):
+        components = [float(v) for v in match.group(1).split()]
+        total = sum(v * v for v in components) ** 0.5 if len(components) == 3 else components[0]
+    if match := _last(_ABS_MAG, text):
+        absolute = float(match.group(1))
+    return total, absolute
 
 
 def _spin_polarized(text: str) -> bool:
@@ -128,6 +147,7 @@ def parse_pw_output(text: str) -> PwOutput:
     elif "convergence has been achieved" in text:
         converged = True
 
+    total_mag, abs_mag = _magnetization(text)
     return PwOutput(
         version=version.group(1) if version else None,
         calculation=_calculation(text, best is not None),
@@ -141,6 +161,8 @@ def parse_pw_output(text: str) -> PwOutput:
         alat_bohr=float(alat.group(1)) if alat else None,
         spin_polarized=_spin_polarized(text),
         noncollinear="Noncollinear calculation" in text,
+        total_magnetization=total_mag,
+        absolute_magnetization=abs_mag,
         job_done="JOB DONE" in text,
         converged=converged,
     )

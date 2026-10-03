@@ -20,11 +20,13 @@ from qe_studio.core.plotting.plot_file import (
 
 
 def bands_schema():
-    return BandsModule().param_schema(SimpleNamespace(fermi=1.0, gap=1.0))
+    return BandsModule().param_schema(SimpleNamespace(fermi=1.0, gap=1.0, spin=False))
 
 
 def pdos_schema():
-    return PdosModule().param_schema(SimpleNamespace(fermi_scf=1.0, fermi_nscf=None))
+    return PdosModule().param_schema(
+        SimpleNamespace(fermi_scf=1.0, fermi_nscf=None, data=SimpleNamespace(spin_polarized=False))
+    )
 
 
 def test_round_trip_bands(tmp_path):

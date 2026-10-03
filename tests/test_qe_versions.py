@@ -36,6 +36,7 @@ class Pdos:
     tot_columns: list[str]
     atm: dict[str, list[str]]  # file name -> header columns
     species: list[str]
+    spin: bool = False  # up/down columns
 
 
 @dataclass(frozen=True)
@@ -85,6 +86,39 @@ RUNS = [
             },
             ["Al"],
         ),
+    ),
+    Run(
+        "7.3.1",
+        "qe731_ni_spin_bands",
+        pw={
+            "ni.scf.out": PwCase("scf", 14.2704, "fermi", 29),
+            "ni.band.out": PwCase("bands", None, None, 45),
+        },
+        gnu={"bands_up.dat.gnu": (14, 45), "bands_dw.dat.gnu": (14, 45)},
+        bandsx={"bands_up.out": "bands_up.dat.gnu", "bands_dw.out": "bands_dw.dat.gnu"},
+    ),
+    Run(
+        "7.3.1",
+        "qe731_ni_spin_pdos",
+        pw={
+            "ni.scf.out": PwCase("scf", 14.2704, "fermi", 29),
+            "ni.nscf.out": PwCase("nscf", 14.2488, "fermi", 72),
+        },
+        pdos=Pdos(
+            "ni.pdos_tot",
+            ["dosup", "dosdw", "pdosup", "pdosdw"],
+            {
+                "ni.pdos_atm#1(Ni)_wfc#1(s)": ["ldosup", "ldosdw", "pdosup", "pdosdw"],
+                "ni.pdos_atm#1(Ni)_wfc#2(d)": ["ldosup", "ldosdw"] + ["pdosup", "pdosdw"] * 5,
+            },
+            ["Ni"],
+            spin=True,
+        ),
+    ),
+    Run(
+        "7.3.1",
+        "qe731_ni_spin_fixed",  # tot_magnetization: two Fermi energies
+        pw={"ni.scf.out": PwCase("scf", (13.8484 + 14.1389) / 2, "spin_fermi", 16)},
     ),
     Run("7.3.1", "si_relax", pw={"si.rel.out": PwCase("relax", 6.3142, "homo", 65)}),
     Run("7.1", "kao_vc_relax", pw={"vc-relax.out": PwCase("vc-relax", 2.9523, "homo", 52)}),
@@ -188,5 +222,5 @@ def test_pdos_headers_and_loading(run):
     data = load_pdos([folder / name for name in pdos.atm], folder / pdos.tot)
     assert data.species == pdos.species
     assert len(data.series) == len(pdos.atm)
-    assert not data.spin_polarized and not data.total_is_sum
+    assert data.spin_polarized is pdos.spin and not data.total_is_sum
     assert np.all(np.diff(data.energy) > 0)

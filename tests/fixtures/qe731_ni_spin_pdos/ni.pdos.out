@@ -1,0 +1,88 @@
+
+     Program PROJWFC v.7.3.1 starts on  3Oct2026 at 19:11: 4 
+
+     This program is part of the open-source Quantum ESPRESSO suite
+     for quantum simulation of materials; please cite
+         "P. Giannozzi et al., J. Phys.:Condens. Matter 21 395502 (2009);
+         "P. Giannozzi et al., J. Phys.:Condens. Matter 29 465901 (2017);
+         "P. Giannozzi et al., J. Chem. Phys. 152 154105 (2020);
+          URL http://www.quantum-espresso.org", 
+     in publications or presentations arising from this work. More details at
+     http://www.quantum-espresso.org/quote
+
+     Parallel version (MPI), running on     1 processors
+
+     MPI processes distributed on     1 nodes
+     1412 MiB available memory on the printing compute node when the environment starts
+
+
+     Reading xml data from directory:
+
+     ./tmp/ni.save/
+     file Ni.pbe-nd-rrkjus.UPF: wavefunction(s)  4S renormalized
+
+     IMPORTANT: XC functional enforced from input :
+     Exchange-correlation= PBE
+                           (   1   4   3   4   0   0   0)
+     Any further DFT definition will be discarded
+     Please, verify this is what you really want
+
+
+     G-vector sticks info
+     --------------------
+     sticks:   dense  smooth     PW     G-vecs:    dense   smooth      PW
+     Sum         367     187     61                 4645     1639     339
+
+     Using Slab Decomposition
+
+
+     Check: negative core charge=   -0.000002
+
+     Gaussian broadening (read from input): ngauss,degauss=   1    0.020000
+
+
+     Calling projwave .... 
+     Subspace diagonalization in iterative solution of the eigenvalue problem:
+     a serial algorithm will be used
+
+
+  Problem Sizes 
+  natomwfc =            6
+  nbnd     =           14
+  nkstot   =          144
+  npwx     =          212
+  nkb      =           18
+
+
+     Atomic states used for projection
+     (read from pseudopotential files):
+
+     state #   1: atom   1 (Ni ), wfc  1 (l=0 m= 1)
+     state #   2: atom   1 (Ni ), wfc  2 (l=2 m= 1)
+     state #   3: atom   1 (Ni ), wfc  2 (l=2 m= 2)
+     state #   4: atom   1 (Ni ), wfc  2 (l=2 m= 3)
+     state #   5: atom   1 (Ni ), wfc  2 (l=2 m= 4)
+     state #   6: atom   1 (Ni ), wfc  2 (l=2 m= 5)
+
+     [... truncated for the QE Studio test fixture ...]
+
+Lowdin Charges: 
+
+     Atom #   1: total charge =   9.8838, s =  0.9412, p =  0.0000, d =  8.9426, 
+                 spin up      =   5.2970, s =  0.4649, 
+                 spin up      =   5.2970, p =  0.0000, pz=  0.0000, px=  0.0000, py=  0.0000, 
+                 spin up      =   5.2970, d =  4.8321, dz2=  0.9730, dxz=  0.9621, dyz=  0.9621, dx2-y2=  0.9730, dxy=  0.9621, 
+                 spin down    =   4.5868, s =  0.4763, 
+                 spin down    =   4.5868, p =  0.0000, pz=  0.0000, px=  0.0000, py=  0.0000, 
+                 spin down    =   4.5868, d =  4.1105, dz2=  0.8847, dxz=  0.7804, dyz=  0.7804, dx2-y2=  0.8847, dxy=  0.7804, 
+                 polarization =   0.7103, s = -0.0114, p =  0.0000, d =  0.7217, 
+     Spilling Parameter:   0.0116
+
+     PROJWFC      :      0.52s CPU      0.58s WALL
+
+
+   This run was terminated on:  19:11: 5   3Oct2026            
+
+=------------------------------------------------------------------------------=
+   JOB DONE.
+=------------------------------------------------------------------------------=

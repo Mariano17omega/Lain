@@ -23,7 +23,7 @@ from conftest import FIXTURES
         ("al_pdos_flat/al.projwfc.out", FileKind.PROJWFC_OUT, None),
         ("al_pdos_flat/pdos.dat.pdos_tot", FileKind.PDOS_TOT, None),
         ("al_pdos_flat/pdos.dat.pdos_atm#1(Al)_wfc#1(s)", FileKind.PDOS_ATM, None),
-        ("ni_pdos_spin/ni.pdos.out", FileKind.PROJWFC_OUT, None),
+        ("qe731_ni_spin_pdos/ni.pdos.out", FileKind.PROJWFC_OUT, None),
         ("si_relax/si.rel.out", FileKind.PW_OUT, "relax"),
     ],
 )

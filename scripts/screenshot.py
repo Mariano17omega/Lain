@@ -1,6 +1,6 @@
 """Render the main window off-screen to PNG (both themes) for visual checks against the mockups.
 
-    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary]
+    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary] [--spin]
 
 Builds a demo project from the test fixtures (01_relax, 02_scf, 03_bands, 04_pdos).
 """
@@ -83,6 +83,9 @@ def main() -> int:
     parser.add_argument("--out", default=str(ROOT / "screenshots"))
     parser.add_argument("--plot", action="store_true", help="also generate a band plot")
     parser.add_argument(
+        "--spin", action="store_true", help="plot the spin-polarized bands (Ni, spec 13)"
+    )
+    parser.add_argument(
         "--text", action="store_true", help="show an output in the text viewer, search open"
     )
     parser.add_argument("--input", action="store_true", help="an input with write errors (spec 11)")
@@ -102,6 +105,8 @@ def main() -> int:
     os.environ["XDG_DATA_HOME"] = str(tmp / "data")
     os.environ["XDG_CACHE_HOME"] = str(tmp / "cache")
     project = build_project(tmp)
+    if args.spin:
+        shutil.copytree(FIXTURES / "qe731_ni_spin_bands", project / "05_spin_bands")
 
     from PyQt6.QtCore import QSettings
     from PyQt6.QtWidgets import QApplication
@@ -132,15 +137,19 @@ def main() -> int:
             window.service.detect_now(folder)
         window.explorer.select_path(project / "03_bands")
         window.open_file(project / "03_bands" / "bands.in")
-        if args.plot:
+        if args.plot or args.spin:
             from PyQt6.QtCore import QEventLoop, QTimer
 
             loop = QEventLoop()
             window.plot_ready.connect(loop.quit)
             window.plot_failed.connect(loop.quit)
             QTimer.singleShot(15000, loop.quit)
-            window.generate_plot_for(project / "03_bands", auto_export=False)
+            target = "05_spin_bands" if args.spin else "03_bands"
+            window.generate_plot_for(project / target, auto_export=False)
             loop.exec()
+            if args.spin:
+                window.params.set_param("spin_layout", "side")
+                window.params.set_param("show_legend", True)
         if args.text:
             from PyQt6.QtCore import QEventLoop, QTimer
 

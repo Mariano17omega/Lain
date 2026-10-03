@@ -13,8 +13,9 @@ requirements, [`specs/README.md`](specs/README.md) for the index of change specs
   recognised. A missing SCF output is looked up in sibling `*scf*` folders, and anything still
   missing can be mapped by hand (remembered per folder).
 - **Publication plots** (matplotlib) with Γ-labelled high-symmetry paths, E − E_F zeroing (or
-  VBM / mid-gap / absolute), gap readout, PDOS grouped by species and/or orbital (spin-down
-  mirrored), relax / vc-relax progress (|ΔE| and total force per BFGS step against the
+  VBM / mid-gap / absolute), gap readout, spin-polarized runs with both channels (bands from the
+  two bands.x runs, `spin_component` 1 and 2: overlaid or side by side, a gap per channel; PDOS
+  mirrored, overlaid, one channel or summed), PDOS grouped by species and/or orbital, relax / vc-relax progress (|ΔE| and total force per BFGS step against the
   convergence thresholds, log or linear), and a tuning panel. Figures go to each simulation's `plots/` folder as PNG
   (300/600 DPI), SVG and PDF; existing files are never replaced without asking.
 - **Pull-only cluster sync** over rsync + ssh with configurable excludes (`tmp/`, `*.save/`,
@@ -166,7 +167,7 @@ Fonts (Inter, JetBrains Mono: OFL) and Material Symbols icons (Apache-2.0) are v
 - Pull only (no push).
 - Relaxation plots show energy and force only (no structure view; vc-relax |ΔE| uses the total
   energy, not the enthalpy).
-- Spin-polarized band structures show a single `.gnu` channel. k-resolved PDOS files are
-  reported as unsupported.
+- Spin: collinear runs (nspin = 2) only; non-collinear and spin-orbit runs keep a single channel
+  without spin projections. k-resolved PDOS files are reported as unsupported.
 - On Windows, rsync/ssh must come from cwRsync or MSYS2 (`sync.rsync_binary`,
   `sync.ssh_binary`). Linux is the primary target.
