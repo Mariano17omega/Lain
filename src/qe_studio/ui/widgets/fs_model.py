@@ -73,6 +73,13 @@ class FileFilterProxy(QSortFilterProxyModel):
         self._refilter_timer.timeout.connect(self.invalidateFilter)
         self.setDynamicSortFilter(True)
 
+    def detach(self) -> None:
+        """No filtering after this (window close). The window's Python objects form cycles, so
+        the collector may clear this proxy's attributes before Qt deletes it; a row the file
+        system thread delivers, or a pending refilter, would then reach ``filterAcceptsRow``."""
+        self._refilter_timer.stop()
+        self.setSourceModel(None)
+
     def set_hidden_dirs(self, patterns: list[str]) -> None:
         self.hidden_dirs = normalize_patterns(patterns)
         self.invalidateFilter()

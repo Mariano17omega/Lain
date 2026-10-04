@@ -1,3 +1,5 @@
+import gc
+import time
 from pathlib import Path
 
 import pytest
@@ -7,10 +9,13 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QMessageBox
 
 from qe_studio.core.config import LoadedConfig, parse_config
+from qe_studio.core.folder_memory import FolderMemory
+from qe_studio.core.nav_store import NavigationStore
 from qe_studio.core.sync.controller import SyncReport, SyncStatus
 from qe_studio.core.sync.rsync import Endpoint
 from qe_studio.ui.layout_controller import fit_widths
 from qe_studio.ui.main_window import MainWindow
+from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.bars import ActivityBar
 from qe_studio.ui.widgets.fs_model import SORT_DATE
 from qe_studio.ui.widgets.text_viewer import TextViewer
@@ -388,3 +393,38 @@ def test_sync_keeps_detection_outside_the_synced_folder(
     assert window.service.results(relax) is not None
     assert window.service.results(bands) is not None
     assert window.service.file_sniff(bands / "scf.out") is not None
+
+
+def test_a_closed_window_survives_the_cycle_collector(qtbot, tmp_path):
+    """The window's Python objects form cycles, so the collector may free them (clearing their
+    attributes) before Qt deletes the C++ objects; rows the file system thread delivers then must
+    not reach a filter proxy. ``processEvents`` delivers them but runs no deferred delete, which
+    keeps that gap open. pytest-qt fails the test on any exception in the event loop."""
+    project = tmp_path / "proj"
+    for i in range(30):
+        (project / f"run{i}" / "sub").mkdir(parents=True)
+        (project / f"run{i}" / "scf.out").write_text("x")
+    config = parse_config({"paths": {"local_root": str(project)}})
+    for i in range(5):
+        window = MainWindow(
+            LoadedConfig(config, None),
+            ThemeManager("dark"),
+            QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat),
+            FolderMemory(tmp_path / "memory.json"),
+            NavigationStore(tmp_path / "navigation.json"),
+        )
+        window.show()
+        window.explorer.select_path(project / f"run{i}")
+        pump(0.02)  # the file system model is still loading in its thread
+        window.close()
+        window.deleteLater()
+        del window
+        gc.collect()
+        pump(0.3)
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def pump(seconds: float) -> None:
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        QCoreApplication.processEvents()

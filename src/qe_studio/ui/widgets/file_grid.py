@@ -303,8 +303,11 @@ class FilePanel(QWidget):
         viewport_of(self.view).update()
 
     def shutdown(self, msecs: int = 1000) -> bool:
-        """Drop queued counts and wait for the running ones (window close): the pool's
-        destructor would otherwise run every queued scan, without a time limit."""
+        """Window close: the model stops talking to the proxy and this panel (see
+        ``FileFilterProxy.detach``); queued counts are dropped and the running ones waited for,
+        or the pool's destructor would run every queued scan, without a time limit."""
+        self.model.blockSignals(True)
+        self.proxy.detach()
         return self._count_tasks.shutdown(msecs)
 
     def _on_theme_changed(self, _name: str) -> None:

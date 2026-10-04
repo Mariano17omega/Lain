@@ -265,6 +265,11 @@ class ExplorerPanel(QWidget):
             return self._root
         return path if path.is_dir() else path.parent
 
+    def shutdown(self) -> None:
+        """Window close: no row of the file system thread reaches the filter any more."""
+        self.model.blockSignals(True)
+        self.proxy.detach()
+
     @staticmethod
     def shortcut_help() -> list[tuple[str, str, str]]:
         """(action, keys, where) of the keys this panel handles itself (not menu actions)."""

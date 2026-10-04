@@ -257,7 +257,8 @@ class MainWindow(QMainWindow):
         self.settings.setValue("ui/theme", self.theme.name)
         self.settings.sync()
         self.service.shutdown(2000)
-        self.files.shutdown()
+        self.files.shutdown()  # last: the panels' filters stop (current_folder needs them above)
+        self.explorer.shutdown()
         super().closeEvent(event)
 
     # -- navigation -----------------------------------------------------------------------------
