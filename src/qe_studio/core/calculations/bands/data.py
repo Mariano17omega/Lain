@@ -28,6 +28,7 @@ class ChannelEdges:
     vbm: float | None = None
     cbm: float | None = None
     metallic: bool = False  # a band crosses E_F
+    n_occupied: int | None = None  # filled bands, when the edges come from the electron count
 
     @property
     def gap(self) -> float | None:
@@ -61,6 +62,26 @@ def channel_edges(energies: np.ndarray, fermi: float | None, tol: float = EDGE_T
     return ChannelEdges(fermi, vbm, cbm)
 
 
+def occupied_count(n_electrons: float | None, n_bands: int) -> int | None:
+    """Bands an electron count fills completely, or None if it is fractional or fills none or all."""
+    if n_electrons is None:
+        return None
+    n_occ = int(round(n_electrons))
+    if abs(n_electrons - n_occ) > 1e-6 or not 0 < n_occ < n_bands:
+        return None
+    return n_occ
+
+
+def count_edges(energies: np.ndarray, n_occ: int, fermi: float | None) -> ChannelEdges:
+    """Edges of ``n_occ`` filled bands (fixed occupations): VBM at the top of band ``n_occ``, CBM at
+    the bottom of the next one, metallic if they overlap (≤ ``EDGE_TOL``)."""
+    vbm = float(energies[n_occ - 1].max())
+    cbm = float(energies[n_occ].min())
+    if cbm - vbm <= EDGE_TOL:
+        return ChannelEdges(fermi, metallic=True, n_occupied=n_occ)
+    return ChannelEdges(fermi, vbm, cbm, n_occupied=n_occ)
+
+
 @dataclass
 class BandsDataset:
     folder: Path
@@ -78,7 +99,8 @@ class BandsDataset:
     warnings: list[str] = field(default_factory=list)
     # Spin (collinear, nspin = 2): ``bands`` is the ↑ channel and ``bands_down`` the ↓ one.
     bands_down: bands_x.BandData | None = None
-    edges: dict[str, ChannelEdges] = field(default_factory=dict)  # per channel, with spin only
+    # Per channel, spin runs only (just "up" when the ↓ channel is missing).
+    edges: dict[str, ChannelEdges] = field(default_factory=dict)
     fermi_up_down: tuple[float, float] | None = None  # fixed magnetization: one E_F per channel
     magnetization: float | None = None  # total, μB/cell
 
@@ -186,6 +208,12 @@ def _eigenvalues(
             return data, down, "pw"
         except LoadError as exc:
             errors.append(str(exc))
+    down_files = [p for p in map(result.file, CHANNEL_ROLES["down"]) if p is not None]
+    if down_files:  # bands.x did run, for ↓ only: say so instead of "run bands.x"
+        errors = [
+            f"só o canal ↓ ({down_files[0].name}) foi encontrado: mapeie-o como ↑ ou rode o "
+            "bands.x com spin_component = 1"
+        ]
     raise LoadError("Não foi possível ler os autovalores:\n" + "\n".join(errors))
 
 
@@ -212,28 +240,44 @@ def _band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
     if dataset.spin:
         spin_band_edges(dataset, pw)
         return
-    if pw.n_electrons is None or pw.spin_polarized:
+    if pw.spin_polarized:  # only the ↑ channel was found: its own edges, no global ones
+        if pw.fermi is not None:
+            dataset.edges = {"up": spin_channel_edges(dataset.bands.energies, 0, pw)}
+        return
+    if pw.n_electrons is None:
         return
     occupied = pw.n_electrons if pw.noncollinear else pw.n_electrons / 2
-    n_occ = int(round(occupied))
-    energies = dataset.bands.energies
-    if abs(occupied - n_occ) > 1e-6 or not 0 < n_occ < len(energies):
+    n_occ = occupied_count(occupied, len(dataset.bands.energies))
+    if n_occ is None:
         return
-    vbm = float(energies[n_occ - 1].max())
-    cbm = float(energies[n_occ].min())
-    if cbm - vbm > 1e-3:
-        dataset.n_occupied, dataset.vbm, dataset.cbm = n_occ, vbm, cbm
+    edges = count_edges(dataset.bands.energies, n_occ, pw.fermi)
+    if edges.gap is not None:
+        dataset.n_occupied, dataset.vbm, dataset.cbm = n_occ, edges.vbm, edges.cbm
+
+
+def spin_channel_edges(energies: np.ndarray, index: int, pw: PwOutput) -> ChannelEdges:
+    """Edges of spin channel ``index`` (0 = ↑, 1 = ↓).
+
+    With fixed occupations pw.x prints the HOMO / LUMO of both channels together, and a band path
+    may top the HOMO of the SCF grid, so the bands are counted (``nelup`` / ``neldw``, printed with
+    ``tot_magnetization``). With smearing, the channel's own E_F splits them.
+    """
+    if pw.fermi_kind in ("homo", "homo_lumo") and pw.n_electrons_up_down is not None:
+        n_occ = occupied_count(pw.n_electrons_up_down[index], len(energies))
+        if n_occ is not None:
+            return count_edges(energies, n_occ, pw.fermi)
+    fermi = pw.fermi_up_down[index] if pw.fermi_up_down else pw.fermi
+    return channel_edges(energies, fermi)
 
 
 def spin_band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
-    """Edges per channel from each channel's E_F; the global ones only if both channels have a gap
+    """Edges per channel (``spin_channel_edges``); the global ones only if both channels have a gap
     (so the "VBM" and "mid-gap" references and ``gap`` are the global VBM, CBM and gap)."""
     if pw.fermi is None or dataset.bands_down is None:
         return
-    fermi_up, fermi_down = pw.fermi_up_down or (pw.fermi, pw.fermi)
     dataset.edges = {
-        "up": channel_edges(dataset.bands.energies, fermi_up),
-        "down": channel_edges(dataset.bands_down.energies, fermi_down),
+        "up": spin_channel_edges(dataset.bands.energies, 0, pw),
+        "down": spin_channel_edges(dataset.bands_down.energies, 1, pw),
     }
     up, down = dataset.edges["up"], dataset.edges["down"]
     if up.gap is None or down.gap is None:

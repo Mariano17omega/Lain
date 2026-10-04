@@ -34,6 +34,10 @@ _FERMI_PATTERNS: list[tuple[FermiKind, re.Pattern[str]]] = [
 _VERSION = re.compile(r"Program PWSCF\s+v\.?\s*(\S+)")
 _NKS = re.compile(r"number of k points=\s*(\d+)")
 _NELEC = re.compile(r"number of electrons\s*=\s*(-?\d+\.?\d*)")
+# Printed with tot_magnetization (always the case for fixed occupations with nspin = 2).
+_NELEC_SPIN = re.compile(
+    r"number of electrons\s*=\s*\S+\s*\(up:\s*(-?\d+\.\d+),\s*down:\s*(-?\d+\.\d+)\)"
+)
 _NBND = re.compile(r"number of Kohn-Sham states=\s*(\d+)")
 _ALAT = re.compile(r"lattice parameter \(alat\)\s*=\s*(-?\d+\.\d+)")
 # One component when collinear, three (a vector) when noncollinear.
@@ -51,6 +55,7 @@ class PwOutput:
     fermi_up_down: tuple[float, float] | None = None
     n_kpoints: int | None = None
     n_electrons: float | None = None
+    n_electrons_up_down: tuple[float, float] | None = None  # set when tot_magnetization fixes them
     n_bands: int | None = None
     alat_bohr: float | None = None
     spin_polarized: bool = False
@@ -139,6 +144,7 @@ def parse_pw_output(text: str) -> PwOutput:
         return int(match.group(1)) if match else None
 
     nelec = _NELEC.search(text)
+    nelec_spin = _NELEC_SPIN.search(text)
     alat = _ALAT.search(text)
     version = _VERSION.search(text)
     converged = None
@@ -157,6 +163,9 @@ def parse_pw_output(text: str) -> PwOutput:
         fermi_up_down=up_down,
         n_kpoints=first_int(_NKS),
         n_electrons=float(nelec.group(1)) if nelec else None,
+        n_electrons_up_down=(
+            (float(nelec_spin.group(1)), float(nelec_spin.group(2))) if nelec_spin else None
+        ),
         n_bands=first_int(_NBND),
         alat_bohr=float(alat.group(1)) if alat else None,
         spin_polarized=_spin_polarized(text),

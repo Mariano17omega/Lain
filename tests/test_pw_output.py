@@ -127,3 +127,16 @@ def test_two_fermi_energies_warning_says_what_the_plots_do():
     assert "duas energias de Fermi (↑/↓): referência na média, linhas separadas no gráfico" in (
         out.warnings
     )
+
+
+@pytest.mark.parametrize(
+    ("rel", "up_down"),
+    [
+        ("qe731_ni_spin_fixed/ni.scf.out", (5.25, 4.75)),  # tot_magnetization: printed per channel
+        ("qe731_ni_spin_bands/ni.scf.out", None),
+        ("al_bands/al.scf.out", None),
+    ],
+)
+def test_electrons_per_spin_channel(rel, up_down):
+    out = parse_pw_output((FIXTURES / rel).read_text())
+    assert out.n_electrons_up_down == up_down

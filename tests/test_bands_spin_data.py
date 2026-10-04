@@ -8,6 +8,7 @@ from qe_studio.core.calculations.bands.data import (
     ChannelEdges,
     channel_edges,
     spin_band_edges,
+    spin_channel_edges,
     valence_mask,
 )
 from qe_studio.core.calculations.base import LoadError
@@ -122,6 +123,44 @@ def test_each_channel_uses_its_own_e_f():
     assert channel_edges(down.energies, 1.05).metallic
 
 
+# -- fixed occupations: each channel's bands are counted -----------------------------------------
+def fixed_occupations(homo: float, up_down: tuple[float, float]) -> PwOutput:
+    """A spin SCF with fixed occupations: pw.x prints one HOMO / LUMO for both channels."""
+    return PwOutput(
+        fermi=homo, fermi_kind="homo_lumo", n_electrons_up_down=up_down, spin_polarized=True
+    )
+
+
+def test_fixed_occupations_count_the_bands_above_the_scf_homo():
+    # the SCF grid's HOMO is -1.0, but on the band path the top valence band reaches -0.95
+    up = band_data([-3.0, -2.5], [-2.0, -0.95], [1.2, 1.5])
+    down = band_data([-3.0, -2.5], [-1.5, -1.2], [0.9, 1.4])
+    dataset = dataset_of(up, down)
+    spin_band_edges(dataset, fixed_occupations(-1.0, (2.0, 2.0)))
+    assert dataset.edges["up"] == ChannelEdges(-1.0, -0.95, 1.2, n_occupied=2)
+    assert dataset.edges["down"].gap == pytest.approx(2.1)
+    assert (dataset.vbm, dataset.cbm) == (-0.95, 0.9)
+    assert channel_edges(up.energies, -1.0).metallic  # what the HOMO as E_F would say
+
+
+def test_fixed_occupations_leave_empty_down_bands_below_the_homo_empty():
+    up = band_data([-3.0, -2.5], [-1.0, -0.5], [1.2, 1.5])  # 2 electrons ↑: HOMO -0.5
+    down = band_data([-3.0, -2.5], [-1.5, -1.0], [0.9, 1.4])  # 1 electron ↓: band 2 is empty
+    dataset = dataset_of(up, down)
+    spin_band_edges(dataset, fixed_occupations(-0.5, (2.0, 1.0)))
+    assert dataset.edges["down"] == ChannelEdges(-0.5, -2.5, -1.5, n_occupied=1)
+    assert channel_edges(down.energies, -0.5).vbm == -1.0  # the HOMO would fill band 2
+
+
+def test_a_fractional_count_or_smearing_splits_the_bands_at_e_f():
+    energies = np.array([[-3.0, -2.5], [-1.0, -0.5], [1.2, 1.5]])
+    fractional = fixed_occupations(0.0, (1.5, 1.5))
+    smearing = PwOutput(fermi=0.0, fermi_kind="fermi", n_electrons_up_down=(2.0, 2.0))
+    for pw in (fractional, smearing):
+        edges = spin_channel_edges(energies, 0, pw)
+        assert edges.n_occupied is None and (edges.vbm, edges.cbm) == (-0.5, 1.2)
+
+
 # -- the dataset of the fixtures -----------------------------------------------------------------
 def test_dataset_holds_both_channels_of_the_fixture():
     result = detect_one(SPIN_BANDS)
@@ -152,6 +191,7 @@ def test_two_fermi_energies_give_each_channel_its_own(tmp_path):
     assert dataset.fermi == pytest.approx(sum(FIXED_FERMI) / 2)
     assert dataset.edges["up"].fermi == FIXED_FERMI[0]
     assert dataset.edges["down"].fermi == FIXED_FERMI[1]
+    assert dataset.edges["up"].n_occupied is None  # smearing: E_F splits the bands, not a count
     assert any("duas energias de Fermi (↑/↓)" in w for w in dataset.warnings)
 
 
@@ -204,4 +244,11 @@ def test_without_any_eigenvalue_source_loading_fails(tmp_path):
     )  # fmt: skip
     result = detect_one(folder)
     with pytest.raises(LoadError):
+        result.module.load(result)
+
+
+def test_a_down_channel_alone_says_so_when_loading_fails(tmp_path):
+    folder = spin_bands_copy(tmp_path, remove=("ni.band.out", "bands_up.dat.gnu", "bands_up.dat"))
+    result = detect_one(folder)
+    with pytest.raises(LoadError, match=r"só o canal ↓ \(bands_dw.dat.gnu\) foi encontrado"):
         result.module.load(result)

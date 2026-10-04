@@ -44,8 +44,10 @@ def _render_plain(
     ref = dataset.reference(params.reference)
     x = dataset.bands.x
     energies = dataset.bands.energies - ref
-    if dataset.n_occupied is not None:
-        valence = np.arange(len(energies)) < dataset.n_occupied
+    up = dataset.edges.get("up")  # a spin run whose ↓ channel is missing
+    n_occupied = dataset.n_occupied if up is None else up.n_occupied
+    if n_occupied is not None:
+        valence = np.arange(len(energies)) < n_occupied
     elif dataset.fermi is not None:
         valence = energies.max(axis=1) <= dataset.fermi - ref
     else:
@@ -165,12 +167,7 @@ def _draw_channel(
     energies = band.energies - ref
     linestyle = DOWN_DASH if dashed else "-"
     if params.spin_coloring == "occupation":
-        fermi = _channel_fermi(dataset, channel)
-        valence = (
-            valence_mask(band.energies, fermi)
-            if fermi is not None
-            else np.zeros(len(energies), dtype=bool)
-        )
+        valence = _valence(dataset, channel, band.energies)
         groups = [
             (valence, params.valence_color, "Valência"),
             (~valence, params.conduction_color, "Condução"),
@@ -190,6 +187,18 @@ def _draw_channel(
         )
         handles.append(Line2D([], [], color=color, lw=params.line_width, ls=linestyle, label=label))
     return handles
+
+
+def _valence(dataset: BandsDataset, channel: str, energies: np.ndarray) -> np.ndarray:
+    """Valence bands of one channel: by electron count when the edges came from it (fixed
+    occupations), else the bands below the channel's E_F."""
+    edges = dataset.edges.get(channel)
+    if edges is not None and edges.n_occupied is not None:
+        return np.arange(len(energies)) < edges.n_occupied
+    fermi = _channel_fermi(dataset, channel)
+    if fermi is None:
+        return np.zeros(len(energies), dtype=bool)
+    return valence_mask(energies, fermi)
 
 
 def _channel_styles(params: BandsParams, style: PlotStyle) -> list[Line2D]:
@@ -258,6 +267,8 @@ def summary(dataset: BandsDataset) -> str:
         parts += _spin_gaps(dataset)
         if dataset.magnetization is not None:
             parts.append(f"M = {dataset.magnetization:.2f} μB/célula")
+    elif dataset.edges:  # spin run with the ↑ channel only: not a verdict on the whole system
+        parts += _spin_gaps(dataset)
     elif dataset.gap is not None:
         parts.append(f"E_gap = {dataset.gap:.3f} eV")
     elif dataset.fermi is not None:

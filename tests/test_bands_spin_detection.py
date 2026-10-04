@@ -129,6 +129,24 @@ def test_only_the_down_channel_found_warns_the_other_way(tmp_path):
     assert "só o canal ↓ foi encontrado: rode o bands.x com spin_component = 1" in result.warnings
 
 
+def test_inputs_of_both_channels_writing_one_file_give_it_to_no_channel(tmp_path):
+    # Both bands.x runs wrote bands.dat: the file holds the last run, whichever it was.
+    folder = spin_bands_copy(tmp_path, remove=("bands_up.dat", "bands_up.dat.gnu"))
+    (folder / "bands_dw.dat").rename(folder / "bands.dat")
+    (folder / "bands_dw.dat.gnu").rename(folder / "bands.dat.gnu")
+    for name in BANDSX_FILES:
+        text = (folder / name).read_text()
+        (folder / name).write_text(
+            text.replace("bands_up.dat", "bands.dat").replace("bands_dw.dat", "bands.dat")
+        )
+    result = detect_one(folder)
+    assert "gnu_down" not in result.files and "filband_down" not in result.files
+    assert result.warnings == [
+        "as entradas do bands.x de ↑ e ↓ escrevem o mesmo arquivo (bands.dat): ele guarda só a "
+        "última execução; use filband diferentes ou o mapeamento manual"
+    ]
+
+
 def test_channels_with_different_k_counts_warn(tmp_path):
     folder = spin_bands_copy(tmp_path)
     data = read_gnu((folder / "bands_dw.dat.gnu").read_text())

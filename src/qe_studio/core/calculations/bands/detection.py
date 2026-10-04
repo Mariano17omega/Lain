@@ -66,12 +66,16 @@ def pair_channels(
     candidates: list[Path],
     result: DetectionResult,
     sniffs: dict[Path, FileSniff],
-) -> dict[str, Path]:
+) -> tuple[dict[str, Path], list[Path]]:
     """Channel → file for the ``kind`` (``gnu`` / ``filband``) candidates that can be identified:
     by the bands.x input (``spin_component``, ``filband``), else by the file a bands.x output says
-    it wrote (for the channel left without an input), else by ``up`` / ``dw`` in the name."""
+    it wrote (for the channel left without an input), else by ``up`` / ``dw`` in the name.
+
+    Also returns the files that the bands.x inputs of *both* channels name (a repeated ``filband``):
+    such a file holds whichever run was last, so it is given to no channel.
+    """
     by_name = {p.name: p for p in candidates}
-    found: dict[str, Path] = {}
+    named: list[tuple[str, Path]] = []
     for path in result.files.get("bandsx_in", []):
         parsed = read_bands_input(path)
         if parsed is None:
@@ -80,6 +84,11 @@ def pair_channels(
         channel = "down" if parsed.get("bands", "spin_component", 1) == 2 else "up"
         target = by_name.get(filband + (".gnu" if kind == "gnu" else ""))
         if target is not None:
+            named.append((channel, target))
+    shared = sorted({t for c, t in named if (_other(c), t) in named})
+    found: dict[str, Path] = {}
+    for channel, target in named:
+        if target not in shared:
             found.setdefault(channel, target)
 
     written = []
@@ -88,7 +97,7 @@ def pair_channels(
         if s.bandsx:
             name = s.bandsx.gnu_name if kind == "gnu" else s.bandsx.filband_name
         path = by_name.get(Path(name).name) if name else None
-        if path is not None and path not in written:
+        if path is not None and path not in written and path not in shared:
             written.append(path)
     open_files = [p for p in written if p not in found.values()]
     open_channels = [c for c in CHANNEL_SYMBOL if c not in found]
@@ -97,9 +106,13 @@ def pair_channels(
 
     for path in candidates:
         channel = _channel_of_name(path.name)
-        if channel and channel not in found and path not in found.values():
+        if channel and channel not in found and path not in found.values() and path not in shared:
             found[channel] = path
-    return found
+    return found, shared
+
+
+def _other(channel: str) -> str:
+    return "down" if channel == "up" else "up"
 
 
 def assign_channels(
@@ -114,6 +127,7 @@ def assign_channels(
     if not has_spin(result, sniff):
         return
     ambiguous = False
+    shared: set[str] = set()  # filband names both channels' inputs write
     for up_role, file_kind in KIND_OF_ROLE.items():
         down_role = f"{up_role}_down"
         manual = {r for r in (up_role, down_role) if result.methods.get(r) is Method.MANUAL}
@@ -121,8 +135,9 @@ def assign_channels(
             continue
         taken = {p for r in manual for p in result.files[r]}
         candidates = [p for p in listing.files if sniffs[p].kind is file_kind and p not in taken]
-        found = pair_channels(up_role, candidates, result, sniffs)
-        if not found and len(candidates) == 1:
+        found, same_file = pair_channels(up_role, candidates, result, sniffs)
+        shared |= {p.name.removesuffix(".gnu") for p in same_file}
+        if not found and len(candidates) == 1 and not same_file:
             found = {"up": candidates[0]}  # a lone file is bands.x's default, spin_component = 1
         elif not found and len(candidates) > 1 and not manual:
             ambiguous = True
@@ -144,13 +159,18 @@ def assign_channels(
             else:
                 result.files.pop(up_role)
                 result.methods.pop(up_role, None)
-    _channel_warnings(result, ambiguous)
+    _channel_warnings(result, ambiguous, shared)
 
 
-def _channel_warnings(result: DetectionResult, ambiguous: bool) -> None:
+def _channel_warnings(result: DetectionResult, ambiguous: bool, shared: set[str]) -> None:
     up = any(result.file(role) for role in KIND_OF_ROLE)
     down = any(result.file(f"{role}_down") for role in KIND_OF_ROLE)
-    if ambiguous:
+    if shared:
+        result.warnings.append(
+            f"as entradas do bands.x de ↑ e ↓ escrevem o mesmo arquivo ({', '.join(sorted(shared))}): "
+            "ele guarda só a última execução; use filband diferentes ou o mapeamento manual"
+        )
+    elif ambiguous:
         result.warnings.append(
             "não foi possível identificar o canal ↑/↓ dos arquivos de bandas: "
             "use o mapeamento manual (só o canal ↑ será plotado)"

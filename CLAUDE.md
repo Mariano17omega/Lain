@@ -180,9 +180,13 @@ mapping dialog, `FolderMemory` and the panel need no spin code. Pairing runs in 
 (`detection.assign_channels`), not in `select`, because the SCF may only be inferred from a neighbour
 folder there: bands.x input (`spin_component`, `filband`) → file named by a bands.x output → a whole
 `up`/`dw`/`dn`/`down` word in the name; if nothing identifies the files, ↑ only plus a warning (never
-guessed by order), and a role the user mapped is never touched. `BandsDataset.spin` is
-`bands_down is not None`; edges are per channel from each channel's E_F (`channel_edges`) and the
-dataset's `vbm` / `cbm` / `gap` are the global ones, set only when both channels have a gap. A run
+guessed by order), and a role the user mapped is never touched. A file the inputs of *both* channels
+name (repeated `filband`) holds only the last run: it goes to no channel, with its own warning.
+`BandsDataset.spin` is `bands_down is not None`; edges are per channel (`data.spin_channel_edges`):
+counted from `PwOutput.n_electrons_up_down` with fixed occupations (pw.x prints one HOMO for both
+channels, and a band path may top it), else split at the channel's E_F (`channel_edges`, smearing).
+The dataset's `vbm` / `cbm` / `gap` are the global ones, set only when both channels have a gap; a spin
+run with ↑ only gets `edges["up"]` (summary "gap ↑" / "↑ metálico", never a bare "metálico"). A run
 without spin keeps the old path (`render._render_plain`, `n_electrons / 2` edges). Two Fermi energies
 (`PwOutput.fermi_up_down`, fixed magnetization): the reference is their mean, one line per channel
 (↑ solid, ↓ dashed). The side-by-side layout shares both axes (`draw.side_axes`), so a zoom in either

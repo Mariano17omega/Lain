@@ -279,6 +279,26 @@ def test_a_missing_down_channel_still_plots_the_up_channel(tmp_path):
     figure, info = render(module, dataset, params, LIGHT)
     assert len(figure.axes) == 1 and "spin polarizado" not in info.summary
     assert figure_structure(figure)[0]["line_collections"]
+    assert "↑ metálico" in info.summary and "· metálico" not in info.summary
+
+
+def test_summary_of_an_insulating_up_channel_without_its_down_channel():
+    dataset = _dataset(bands_down=None, edges={"up": ChannelEdges(5.1, -1.0, 0.234)})
+    assert (
+        BandsModule.summary(dataset)
+        == "E_F = 5.1234 eV · gap ↑ 1.234 eV · 12 bandas × 200 pontos k"
+    )
+
+
+def test_occupation_coloring_counts_the_bands_of_fixed_occupations(spin):
+    module, dataset, params = spin
+    params.spin_coloring = "occupation"
+    n_up = 6  # E_F (inside the bands of Ni) alone would make another split
+    dataset.edges = {**dataset.edges, "up": ChannelEdges(dataset.fermi, n_occupied=n_up)}
+    figure, _ = render(module, dataset, params, LIGHT)
+    solid = [c for c in collections(figure.axes[0]) if c.get_linestyles()[0][1] is None]
+    valence = [c for c in solid if _hex(c) == params.valence_color]
+    assert len(valence) == 1 and len(valence[0].get_segments()) == n_up
 
 
 def test_a_dataset_without_eigenvalues_still_fails_cleanly(tmp_path):
