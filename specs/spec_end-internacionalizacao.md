@@ -1,8 +1,8 @@
-# Spec 20: Internacionalização (português e inglês)
+# Spec end: Internacionalização (português e inglês)
 
 | | |
 |---|---|
-| **Prioridade** | 20 (por último: as specs anteriores ainda criam textos) |
+| **Prioridade** | fim (por último: as specs anteriores ainda criam textos) |
 | **Status** | Rascunho para revisão |
 | **Depende de** | todas as anteriores (os textos precisam estar estáveis) |
 | **Usada por** | nenhuma |

@@ -1,9 +1,11 @@
 # Specs do Lain: QE Studio
 
-`spec_0-PRD.md` é o documento de requisitos original. As specs 1–6 organizam `Ideias.md` (ajustes,
-correções e funcionalidades novas), e as specs 7–20 organizam `report.md` (análise de 30/09/2026), em
-grupos de itens relacionados e em ordem de prioridade. Cada spec é autossuficiente e pode virar um
-`/plan` de implementação separado, nesta ordem:
+`spec_0-PRD.md` é o documento de requisitos original. As specs 1–6 organizam a primeira rodada de
+`Ideias.md` (ajustes, correções e funcionalidades novas), as specs 7–19 organizam `report.md` (análise de
+30/09/2026) e as specs 20–27 organizam a **segunda rodada** de `Ideias.md` (04/10/2026: gap de energia na legenda,
+átomos da PDOS, bandas com DOS, Grids, SCF convergido, "Criar cálculo" e envio ao cluster), em grupos de itens
+relacionados e em ordem de prioridade. A internacionalização (`spec_end`) fica por último. Cada spec é
+autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
 ```
 /plan implementar specs/spec_1-paineis-e-navegacao.md
@@ -32,21 +34,33 @@ grupos de itens relacionados e em ordem de prioridade. Cada spec é autossuficie
 | 17 | [spec_17-sincronizacao-previa-e-escopo.md](spec_17-sincronizacao-previa-e-escopo.md) | Prévia do plano antes de baixar, escopo explícito, sucesso sem diálogo modal | 15 | M |
 | 18 | [spec_18-ajuda-e-primeira-execucao.md](spec_18-ajuda-e-primeira-execucao.md) | Menu Ajuda, paleta Ctrl+K, legenda dos badges, rodapé elidido, estado vazio da primeira execução | 15, 16 | M |
 | 19 | [spec_19-tema-e-acessibilidade.md](spec_19-tema-e-acessibilidade.md) | Tema "Sistema", `ui.font_scale`, contraste WCAG dos tokens, foco visível e ordem de Tab | nenhuma | M |
-| 20 | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G |
+| 20 | [spec_20-legenda-com-gap-de-energia.md](spec_20-legenda-com-gap-de-energia.md) | Checkbox "Gap de energia na legenda" em bandas e PDOS (gap = CBM − VBM, não a energia de Fermi); na PDOS vem do HOMO/LUMO ou da curva de DOS | 13 | M |
+| 21 | [spec_21-selecao-de-atomos-na-pdos.md](spec_21-selecao-de-atomos-na-pdos.md) | Botão "Átomos…" em Projeções; seleção por composto (fórmula + ordem das espécies) lembrada em `compounds.json` | 20 | M |
+| 22 | [spec_22-bandas-com-dos.md](spec_22-bandas-com-dos.md) | "Bandas com DOS" no menu de contexto (1 pasta de bandas + 1 de PDOS): figura com eixo de energia compartilhado | 13, 16, 20, 21 | G |
+| 23 | [spec_23-grids-de-graficos.md](spec_23-grids-de-graficos.md) | Botão "Grids": grade N×M de gráficos já plotados, com posição e título, salva por nome | 15, 22 | G |
+| 24 | [spec_24-editor-de-inputs-e-scf-convergido.md](spec_24-editor-de-inputs-e-scf-convergido.md) | Editor de inputs do pw.x que preserva formatação; "Gerar SCF convergido" (só o `.in`) no menu de saídas de relax/vc-relax convergidos | 5, 11, 17 | M |
+| 25 | [spec_25-criar-calculo-templates-e-geracao.md](spec_25-criar-calculo-templates-e-geracao.md) | Backend de "Criar cálculo": templates Jinja2 (`qsub/`, `qe/`), extração do SCF, k-path (pymatgen), pasta sem sobrescrever | 24 | G |
+| 26 | [spec_26-criar-calculo-janela.md](spec_26-criar-calculo-janela.md) | Botão "Criar cálculo" na barra lateral; janela em duas etapas com abas por arquivo, Arquivos e Descrição (`.md`) | 18, 25 | G |
+| 27 | [spec_27-enviar-ao-cluster.md](spec_27-enviar-ao-cluster.md) | Push seguro: só arquivos novos, nunca sobrescreve o remoto, sempre com prévia | 15, 17 | M |
+| fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
 outras specs (1, 2), depois a persistência que depende delas (3), os ganhos pequenos e independentes (4),
 o menu de contexto (5, maior e isolado) e, por último, a funcionalidade nova maior (6), que reaproveita
 estilo e persistência.
 
-Critério de ordem das specs 7–20 (decisão de 30/09/2026: "base mínima primeiro"):
+Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima primeiro"):
 1. **Base mínima (7, 8):** CI e o contrato dos módulos, que barateiam e protegem tudo o que vem depois.
 2. **Features novas (9–13):** SCF, visualizador de texto e de input, resumo e spin. O texto (10) vem antes
    do input (11), que o estende.
 3. **Desempenho e refatoração (14, 15):** feitas depois das features, para que o código novo seja movido
    uma vez só.
 4. **Interface (16–19):** navegação, sync, ajuda e acessibilidade, sobre a janela já dividida.
-5. **Idioma (20):** por último, quando os textos estiverem estáveis.
+5. **Plots e geração de cálculos (20–27, decisão de 04/10/2026):** primeiro os plots do dia a dia, em
+   cadeia (gap na legenda → átomos da PDOS → bandas com DOS → Grids), depois a geração de inputs (24 cria o
+   editor de inputs e os nomes sem sobrescrever que 25 reaproveita; 26 é só a janela sobre 25) e por último o
+   envio ao cluster (27). As specs 20 e 24 são independentes e podem vir antes das demais do seu grupo.
+6. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
@@ -131,10 +145,33 @@ Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 | UI: contraste, ordem de Tab, foco visível | spec 19, R3–R4 |
 | UI: prévia do plano de sync | spec 17, R2 |
 | UI: escopo explícito do Rsync | spec 17, R1 |
-| §5 Decisão 4: idioma (`tr()`) | spec 20 |
+| §5 Decisão 4: idioma (`tr()`) | spec end |
 | `CLAUDE.md`: testes de sync com servidor SSH local (paramiko) | spec 7, R7 |
 | `CLAUDE.md`: arquivos de até ~500 linhas | spec 13, R0 (`bands.py`); spec 15, R4 e R6 (`main_window.py` e teste automático) |
 | `CLAUDE.md`: `ui/` só com lógica de interface | spec 15, R5 e R6 |
+
+## Rastreabilidade: `Ideias.md` (segunda rodada, 04/10/2026) → specs
+
+| # | Item de `Ideias.md` (resumido) | Spec |
+|---|---|---|
+| 1 | Botão "Grids": grade N×M, um gráfico já plotado por quadrante, posição (linha, coluna) e título | spec 23 |
+| 2 | Checkbox para incluir o gap de energia ("grap") na legenda (só bandas e PDOS) | spec 20 |
+| 3 | "Bandas com DOS" no menu de contexto (pasta de bandas + pasta de DOS), mesmo eixo y | spec 22 (e F5 do `report.md`) |
+| 4 | PDOS, seção Projeções: botão "Átomos" (tabela com elemento, x, y, z e checkbox), seleção salva por composto | spec 21 |
+| 5 | "Gerar SCF convergido" no menu de relax/vc-relax convergidos (`scf_convergido<prefix>.in`) | spec 24 |
+| 6 | Módulo gráfico "Criar cálculo" (scripts e inputs de relax, vc-relax, scf, dos, bandas…), botão na barra lateral | specs 25 (backend) e 26 (janela) |
+| 6a | Templates Jinja2 em `resources/templates/qsub/` e `resources/templates/qe/`, por tipo de cálculo | spec 25, R2 |
+| 6b | Scripts `.qsub` a partir de `Documentation/Referencia_de_scripts_QSUB`; `#$ -N`, `#$ -pe physica NP`, `nk`; nomes `relax.qsub`, `pdos.qsub`… | spec 25, R3, R6 |
+| 6c | Templates de inputs (`projwfc.in`, `bands_pp`, …) | spec 25, R2 (v1: `bands_pp.in`, `projwfc.in`; `pp.x` adiado) |
+| 6d | SCF obrigatório; NSCF = cópia com `calculation = 'nscf'`; prefix e demais dados extraídos | spec 25, R4; spec 24, R1 (editor) |
+| 6e | Pontos de simetria das bandas com pymatgen, em `K_POINTS crystal_b`; rede manual nos demais | spec 25, R5 (e a decisão 3 da spec) |
+| 6f | Campos de formulário (sem editar texto), padrão do SCF, padrão do template quando vazio | specs 25 (R3) e 26 (R4) |
+| 6g | Local e sufixo da pasta (`bandas_Al`, `relax_Si`) | spec 25, R7; spec 26, R3 |
+| 6h | Nunca substituir: sufixo `_1`, `_2` | spec 24, R2; spec 25, R7 |
+| 6i | Criação local; envio ao cluster pela ferramenta de sincronização | spec 27 (push seguro) |
+| 6j | Janela com tipo (dropdown), SCF, nome, local; depois abas por template e lista de arquivos | spec 26, R2–R4 |
+| 6k | Aba "Descrição" salva em `.md` na pasta do cálculo | spec 26, R4.7; spec 25, R7 |
+| 6l | Pasta só criada ao clicar "Criar"; cancelar não cria nada | spec 26, R2 e R5; spec 25, R7 |
 
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
@@ -160,3 +197,15 @@ Decisões sobre o `report.md` (30/09/2026):
 
 Cada spec tem ainda uma seção **"Decisões assumidas (confirmar na revisão)"** com os pontos que foram
 interpretados e que devem ser confirmados ou corrigidos antes de implementar.
+
+Decisões de 04/10/2026 (segunda rodada de `Ideias.md`):
+- **Envio ao cluster:** spec própria de **push seguro** (27): só arquivos novos, nunca sobrescreve o remoto,
+  sempre com prévia. O PRD §5 e o `CLAUDE.md` passam a dizer isso quando a spec for implementada.
+- **"Criar cálculo", tipos da v1:** `scf`, `relax`, `vc-relax`, `bandas` e `pdos` (os que o Lain plota). `dos.x`,
+  cargas (`pp.x`) e ELF 3D ficam para depois; o registro de tipos facilita acrescentá-los.
+- **Átomos da PDOS:** o composto é identificado por **fórmula + ordem das espécies**; a seleção fica no
+  diretório de dados do app, nunca na pasta da simulação.
+- **SCF convergido:** só o input (`.in`); o `.out` é o nome que o `pw.x` dará ao rodar no cluster.
+- Dependências novas (spec 25): `jinja2` e `pymatgen`, ambos com import tardio (como o ASE).
+- Convenção de nomes: esta rodada ocupa as specs 20–27; a de idioma passou a se chamar `spec_end`.
+
