@@ -32,7 +32,7 @@ grupos de itens relacionados e em ordem de prioridade. Cada spec é autossuficie
 | 17 | [spec_17-sincronizacao-previa-e-escopo.md](spec_17-sincronizacao-previa-e-escopo.md) | Prévia do plano antes de baixar, escopo explícito, sucesso sem diálogo modal | 15 | M |
 | 18 | [spec_18-ajuda-e-primeira-execucao.md](spec_18-ajuda-e-primeira-execucao.md) | Menu Ajuda, paleta Ctrl+K, legenda dos badges, rodapé elidido, estado vazio da primeira execução | 15, 16 | M |
 | 19 | [spec_19-tema-e-acessibilidade.md](spec_19-tema-e-acessibilidade.md) | Tema "Sistema", `ui.font_scale`, contraste WCAG dos tokens, foco visível e ordem de Tab | nenhuma | M |
-| 20 | [spec_20-internacionalizacao.md](spec_20-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G |
+| 20 | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
 outras specs (1, 2), depois a persistência que depende delas (3), os ganhos pequenos e independentes (4),
