@@ -7,9 +7,10 @@ one is no obstacle.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRunnable, Qt, QThreadPool, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QBrush
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -29,10 +30,12 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.qe.input_diff import Comparison, ParamDiff, TextRow, TooBigError, compare_files
+from ...core.tasks import TaskHandle, run_task
 from ..theme.manager import ThemeManager
 from .code_view import CodeView
 from .highlighters import InputHighlighter
 
+log = logging.getLogger(__name__)
 PARAMS, TEXT, MESSAGE = 0, 1, 2  # pages of the stack
 STATUS = {"only_a": "só em A", "only_b": "só em B", "different": "diferente"}
 STATUS_TOKEN = {"only_a": "diff_del_bg", "only_b": "diff_add_bg", "different": "diff_change_bg"}
@@ -40,26 +43,6 @@ STATUS_TOKEN = {"only_a": "diff_del_bg", "only_b": "diff_add_bg", "different": "
 ROW_TOKENS_A = {"del": "diff_del_bg", "change": "diff_change_bg"}
 ROW_TOKENS_B = {"add": "diff_add_bg", "change": "diff_change_bg"}
 NO_DIFFERENCE = "Os inputs são equivalentes: nenhum parâmetro nem card difere."
-
-
-class _Signals(QObject):
-    done = pyqtSignal(object)  # Comparison
-    failed = pyqtSignal(str)
-
-
-class _CompareTask(QRunnable):
-    def __init__(self, a: Path, b: Path):
-        super().__init__()
-        self.a, self.b = a, b
-        self.signals = _Signals()
-
-    def run(self) -> None:
-        try:
-            result = compare_files(self.a, self.b)
-        except (OSError, TooBigError) as exc:
-            self.signals.failed.emit(str(exc))
-            return
-        self.signals.done.emit(result)
 
 
 def diff_key(a: Path, b: Path) -> str:
@@ -103,7 +86,7 @@ class DiffView(QWidget):
         self.theme = theme
         self.comparison: Comparison | None = None
         self._mode = PARAMS
-        self._task: _CompareTask | None = None
+        self._task: TaskHandle | None = None  # cancelled if the tab closes first
         self.setObjectName("diffView")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -198,13 +181,9 @@ class DiffView(QWidget):
 
     # -- loading -----------------------------------------------------------------------------
     def _start(self) -> None:
-        task = _CompareTask(self.a, self.b)
-        task.signals.done.connect(self._on_done)
-        task.signals.failed.connect(self._on_failed)
-        self._task = task  # alive for as long as the view: its signal object runs our slot
-        pool = QThreadPool.globalInstance()
-        assert pool is not None
-        pool.start(task)
+        self._task = run_task(
+            compare_files, self.a, self.b, on_done=self._on_done, on_error=self._on_failed
+        )
 
     def _on_done(self, result: Comparison) -> None:
         self.comparison = result
@@ -213,7 +192,9 @@ class DiffView(QWidget):
         self._show_page()
         self.loaded.emit()
 
-    def _on_failed(self, error: str) -> None:
+    def _on_failed(self, error: Exception) -> None:
+        if not isinstance(error, OSError | TooBigError):
+            log.error("comparing %s with %s failed", self.a, self.b, exc_info=error)
         self.message.setText(f"Não foi possível comparar: {error}")
         self._show_page()
         self.loaded.emit()

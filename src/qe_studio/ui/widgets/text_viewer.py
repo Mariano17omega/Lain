@@ -3,10 +3,10 @@ QE inputs also get write-error marks and navigation (spec 11)."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import logging
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -19,109 +19,16 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core import textfile
-from ...core.qe.input_extract import Chip, extract
-from ...core.qe.input_lint import InputDoc, lint
-from ...core.sniff import INPUT_READ_LIMIT, FileSniff, looks_like_input, sniff
-from ...core.textfile import LineMap
-from ..file_types import human_size, is_job_log
+from ...core.tasks import TaskHandle, run_task
+from ...core.text_preview import TextPreview, read_preview
 from ..theme.manager import ThemeManager
 from .code_view import CodeView
 from .highlighters import InputHighlighter, OutputHighlighter, ThemedHighlighter
 from .input_view import InputView
 from .search_bar import SearchBar
 
+log = logging.getLogger(__name__)
 TOO_BIG = "Arquivo grande demais para o visualizador: use o editor externo"
-
-
-@dataclass(frozen=True)
-class Loaded:
-    """What the worker hands to the viewer."""
-
-    text: str
-    banner: str
-    level: str  # warning / success / error: the banner's color
-    line_map: LineMap
-    size: int
-    highlight: bool  # QE output or job log: color it
-    is_input: bool = False  # a QE input: color it as one
-    input_doc: InputDoc | None = None  # its lint; None when too big to check (R4.2)
-    chips: tuple[Chip, ...] = ()  # its extract
-
-    @property
-    def truncated(self) -> bool:
-        return self.line_map.truncated
-
-
-def _sniff(path: Path) -> FileSniff | None:
-    try:
-        return sniff(path)
-    except OSError:
-        return None
-
-
-def load_for_viewer(path: Path, full: bool = False) -> Loaded:
-    """Text, banner and line numbers of ``path``. Queue logs say whether the job wrote errors
-    (spec 4 R4); a large file is cut to its ends unless ``full`` (spec 10 R4)."""
-    piece = textfile.read_slice(path, full=full)
-    banner, level = "", "warning"
-    if piece.truncated:
-        banner = (
-            f"Arquivo grande ({human_size(piece.size)}): exibindo o primeiro "
-            f"{human_size(textfile.HEAD_BYTES)} e os últimos {human_size(textfile.TAIL_BYTES)}."
-        )
-    elif full and piece.size > textfile.LARGE_FILE:
-        banner = f"Arquivo completo ({human_size(piece.size)})."
-    job_log = is_job_log(path)
-    info = _sniff(path)
-    output = info is not None and info.is_output
-    # A redirected QE output is judged by the run itself, as in the file label.
-    judged_by_run = output and info is not None and info.job_done is not None
-    if job_log and not judged_by_run:
-        if piece.text:
-            job, level = "O job registrou mensagens de erro.", "error"
-        else:
-            job, level = "Arquivo vazio: o job não registrou erros.", "success"
-        banner = f"{job} {banner}".rstrip()
-    is_input = not (job_log or output) and looks_like_input(path)
-    doc = None
-    if is_input:
-        if piece.size <= INPUT_READ_LIMIT:  # below the viewer's own limit: the text is whole
-            doc = lint(piece.text)
-        else:
-            note = f"Input grande ({human_size(piece.size)}): a escrita não foi verificada, só o realce."
-            banner = f"{note} {banner}".rstrip()
-    chips = extract(doc) if doc is not None else ()
-    return Loaded(
-        piece.text,
-        banner,
-        level,
-        piece.line_map,
-        piece.size,
-        job_log or output,
-        is_input,
-        doc,
-        chips,
-    )
-
-
-class _LoadSignals(QObject):
-    loaded = pyqtSignal(object)  # Loaded
-    failed = pyqtSignal(str)
-
-
-class _LoadText(QRunnable):
-    def __init__(self, path: Path, full: bool = False):
-        super().__init__()
-        self.path, self.full = path, full
-        self.signals = _LoadSignals()
-
-    def run(self) -> None:
-        try:
-            loaded = load_for_viewer(self.path, self.full)
-        except OSError as exc:
-            self.signals.failed.emit(str(exc))
-            return
-        self.signals.loaded.emit(loaded)
 
 
 def _tool(text: str, tip: str) -> QToolButton:
@@ -146,7 +53,8 @@ class TextViewer(QWidget):
         self._loading = False
         self._pending_line: int | None = None  # a go_to_line that came while loading
         self._highlighter: ThemedHighlighter | None = None
-        self._task: _LoadText | None = None
+        self._task: TaskHandle | None = None  # the read in progress (cancelled when we die)
+        self._size: int | None = None  # of the last read: "Carregar tudo" needs no stat()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -230,29 +138,21 @@ class TextViewer(QWidget):
         self.load_all_button.setEnabled(False)
         self.external_button.setEnabled(False)
         self.editor.setPlainText("")  # the placeholder says "Carregando…"
-        previous = self._task
-        task = _LoadText(self.path, full)
-        task.signals.loaded.connect(self._on_loaded)
-        task.signals.failed.connect(self._on_failed)
-        self._task = task
-        if previous is not None:
-            # The finished task's signal object may still be running this slot.
-            QTimer.singleShot(0, lambda: previous)
-        pool = QThreadPool.globalInstance()
-        assert pool is not None
-        pool.start(task)
+        if self._task is not None:
+            self._task.cancel()
+        self._task = run_task(
+            read_preview, self.path, full, on_done=self._on_loaded, on_error=self._on_failed
+        )
 
     def load_all(self) -> None:
         """Read the whole file ("Carregar tudo"): up to ``LOAD_ALL_LIMIT``."""
-        try:
-            size = self.path.stat().st_size
-        except OSError:
-            return
-        if not self._loading and size <= textfile.LOAD_ALL_LIMIT:
+        size = self._size
+        if not self._loading and size is not None and size <= textfile.LOAD_ALL_LIMIT:
             self._start_load(full=True)
 
-    def _on_loaded(self, loaded: Loaded) -> None:
+    def _on_loaded(self, loaded: TextPreview) -> None:
         self._loading = False
+        self._size = loaded.size
         self.editor.setPlainText(loaded.text)
         self.editor.set_line_map(loaded.line_map)
         issues = loaded.input_doc.issues if loaded.input_doc is not None else []
@@ -284,11 +184,13 @@ class TextViewer(QWidget):
             self._pending_line = None
         self.loaded.emit()
 
-    def _on_failed(self, error: str) -> None:
+    def _on_failed(self, error: Exception) -> None:
         self._loading = False
         self._pending_line = None
         self.search.set_busy(False)
         self._shortcuts["escape"].setEnabled(not self.search.isHidden())
+        if not isinstance(error, OSError):  # a parser bug: the banner says it, the log has it
+            log.error("cannot show %s", self.path, exc_info=error)
         self._set_banner(f"Não foi possível abrir o arquivo: {error}", "warning")
         self.loaded.emit()
 

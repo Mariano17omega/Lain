@@ -27,9 +27,9 @@ from qe_studio.core.detection import detect_folder
 from qe_studio.core.plotting.draw import finish, new_axes
 from qe_studio.core.plotting.export import export_figure
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
+from qe_studio.core.plotting.session import PlotSession
 from qe_studio.core.sniff import SniffCache, sniff
 from qe_studio.ui.painting import paint_badge
-from qe_studio.ui.plot_session import PlotSession
 from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.param_widgets import Section
 from qe_studio.ui.widgets.plot_view import PlotView
@@ -147,7 +147,7 @@ def test_dummy_flows_through_the_window(qtbot, main_window, dummy_folder):
     window = main_window
     result = detect_dummy(dummy_folder)
     dataset = DUMMY.load_cached(result, sniff)
-    window._on_loaded(result, dataset, (None, []), False)
+    window.plot_workflow.show_loaded(result, dataset, (None, []))
 
     view = window.current_plot()
     assert isinstance(view, PlotView) and view.session.module is DUMMY
@@ -163,10 +163,12 @@ def test_dummy_flows_through_the_window(qtbot, main_window, dummy_folder):
     view._reset()
     assert view.session.params.ymin is None
 
-    window._flush_plot_files()
+    window.plot_settings.flush_now()
     stored, _ = read_plot_file(dummy_folder, "dummy")
     assert stored["color"] == "#00ff00"
-    assert [p.name for p in window.export_plot()] == ["dummy.png", "dummy.svg", "dummy.pdf"]
+    with qtbot.waitSignal(window.export_finished, timeout=10_000) as blocker:
+        assert window.export_plot()
+    assert [p.name for p in blocker.args[0]] == ["dummy.png", "dummy.svg", "dummy.pdf"]
 
 
 def test_no_file_of_the_ui_knows_the_dummy_module():

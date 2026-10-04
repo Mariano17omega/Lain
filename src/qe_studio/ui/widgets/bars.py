@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 
 from ..theme.manager import ThemeManager
 from .common import IconButton, set_variant
+from .spinner import CircularProgress
 
 LED_TOKENS = {
     "online": "success",
@@ -130,6 +131,10 @@ class ActivityBar(QWidget):
         self.tree.setChecked(mode == "tree")
         self.plot.setChecked(mode == "params")
 
+    def set_cluster(self, _label: str, state: str) -> None:
+        """The reachability dot of "Rsync" (none when the cluster is not configured)."""
+        self.rsync.set_dot(None if state == "disabled" else state)
+
     def _sync_theme_icon(self, *_args) -> None:
         self.theme_button.set_icon_name("light_mode" if self.theme.name == "dark" else "dark_mode")
 
@@ -212,13 +217,22 @@ class TopBar(QWidget):
 
 
 class StatusBar(QStatusBar):
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("statusBar")
         self.setSizeGripEnabled(False)
+        # Detecting, loading or exporting a plot: a small spinner and what is going on (spec 15
+        # R2). Replaces the global busy cursor; the message on its right is the usual one.
+        self.spinner = CircularProgress(theme, 12)
+        self.spinner.hide()
+        self.busy = QLabel()
+        self.busy.setObjectName("busyLabel")
+        self.busy.hide()
         self.message = QLabel()
         self.readout = QLabel()
         self.path = QLabel()
+        self.addWidget(self.spinner)
+        self.addWidget(self.busy)
         self.addWidget(self.message, 1)
         self.addPermanentWidget(self.readout)
         self.addPermanentWidget(self.path)
@@ -230,8 +244,10 @@ class StatusBar(QStatusBar):
     def set_message(self, text: str, level: str = "info", timeout_ms: int = 0) -> None:
         self.message.setText(text)
         self.message.setProperty("level", level)
-        self.message.style().unpolish(self.message)
-        self.message.style().polish(self.message)
+        style = self.message.style()
+        if style is not None:
+            style.unpolish(self.message)
+            style.polish(self.message)
         if timeout_ms:
             self._timer.start(timeout_ms)
         else:
@@ -239,6 +255,12 @@ class StatusBar(QStatusBar):
 
     def _clear_message(self) -> None:
         self.set_message("")
+
+    def set_busy(self, text: str | None) -> None:
+        """Show the spinner with ``text``; None hides both."""
+        self.busy.setText(text or "")
+        self.spinner.setVisible(text is not None)
+        self.busy.setVisible(text is not None)
 
     def set_readout(self, text: str) -> None:
         self.readout.setText(text)

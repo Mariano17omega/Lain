@@ -184,6 +184,24 @@ def test_export_formats_and_size(tmp_path):
     assert not list((tmp_path / "plots").glob(".*tmp"))
 
 
+def test_orphan_temporary_files_are_removed_by_the_next_export(tmp_path):
+    module, ds, params = load(FIXTURES / "al_bands")
+    plots = tmp_path / "plots"
+    plots.mkdir()
+    for name in (".bands.png.tmp", ".bands.eps.tmp", ".other.png.tmp"):  # a crash left them
+        (plots / name).write_text("half")
+    assert existing_targets(tmp_path, "bands", ["png"]) == []  # never taken for a target
+    export_figure(module, ds, params, LIGHT, tmp_path, "bands", ["png"], 50)
+    assert sorted(p.name for p in plots.iterdir()) == [".other.png.tmp", "bands.png"]
+
+
+def test_a_failed_format_leaves_no_temporary_file(tmp_path):
+    module, ds, params = load(FIXTURES / "al_bands")
+    with pytest.raises(ValueError):
+        export_figure(module, ds, params, LIGHT, tmp_path, "bands", ["png", "nope"], 50)
+    assert sorted(p.name for p in (tmp_path / "plots").iterdir()) == ["bands.png"]
+
+
 def test_versioning(tmp_path):
     formats = ["png", "pdf"]
     assert existing_targets(tmp_path, "bands", formats) == []

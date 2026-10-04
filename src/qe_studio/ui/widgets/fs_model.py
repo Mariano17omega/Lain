@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import fnmatch
 import re
 from pathlib import Path
 
 from PyQt6.QtCore import QDir, QModelIndex, QSortFilterProxyModel
 from PyQt6.QtGui import QFileSystemModel
+
+from ...core.paths import is_hidden, normalize_patterns
 
 SORT_NAME, SORT_SIZE, SORT_DATE = 0, 1, 3
 
@@ -43,7 +44,7 @@ class FileFilterProxy(QSortFilterProxyModel):
         self.setDynamicSortFilter(True)
 
     def set_hidden_dirs(self, patterns: list[str]) -> None:
-        self.hidden_dirs = [pattern.rstrip("/").lower() for pattern in patterns]
+        self.hidden_dirs = normalize_patterns(patterns)
         self.invalidateFilter()
 
     def set_root(self, root: Path) -> None:
@@ -85,8 +86,7 @@ class FileFilterProxy(QSortFilterProxyModel):
         if name.startswith("."):
             return False
         if self.fs.isDir(index):
-            lowered = name.lower()
-            return not any(fnmatch.fnmatch(lowered, pattern) for pattern in self.hidden_dirs)
+            return not is_hidden(name, self.hidden_dirs)
         return not self.dirs_only
 
     def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:

@@ -9,10 +9,11 @@ from PyQt6.QtWidgets import QMessageBox
 from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.sync.controller import SyncReport, SyncStatus
 from qe_studio.core.sync.rsync import Endpoint
-from qe_studio.ui.main_window import MainWindow, fit_widths
+from qe_studio.ui.layout_controller import fit_widths
+from qe_studio.ui.main_window import MainWindow
 from qe_studio.ui.widgets.bars import ActivityBar
 from qe_studio.ui.widgets.fs_model import SORT_DATE
-from qe_studio.ui.widgets.text_viewer import TextViewer, load_for_viewer
+from qe_studio.ui.widgets.text_viewer import TextViewer
 from qe_studio.ui.widgets.workspace import ImageViewer
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -127,21 +128,6 @@ def test_open_text_and_image(qtbot, main_window, demo_project, tmp_path):
     window.workspace.close_tab(0)
     window.workspace.close_tab(0)
     assert window.workspace.current() is None
-
-
-def test_large_file_shows_head_and_tail(tmp_path):
-    big = tmp_path / "big.out"
-    big.write_bytes(b"HEAD\n" + b"x" * (5 * 1024 * 1024) + b"\nTAIL JOB DONE.\n")
-    loaded = load_for_viewer(big)
-    text = loaded.text
-    assert text.startswith("HEAD") and text.rstrip().endswith("JOB DONE.")
-    assert "trecho omitido" in text and "Arquivo grande" in loaded.banner
-    assert (loaded.level, loaded.truncated) == ("warning", True)
-    log = tmp_path / "job.o9"
-    big.rename(log)
-    job = load_for_viewer(log)
-    assert job.banner.startswith("O job registrou mensagens de erro. Arquivo grande")
-    assert job.level == "error" and job.highlight
 
 
 def open_text(qtbot, window, path: Path) -> TextViewer:
@@ -352,7 +338,10 @@ def test_layout_and_navigation_survive_a_restart(qtbot, main_window, demo_projec
     assert new.files._sort_actions[SORT_DATE].isChecked()
     assert new.files.folder == demo_project / "04_pdos"
     assert new.current_folder() == demo_project / "04_pdos"
-    assert new._panel_widths["tree"] == 300 and new._panel_widths["grid"] == 250
+    assert (
+        new.panel_layout.panel_widths["tree"] == 300
+        and new.panel_layout.panel_widths["grid"] == 250
+    )
     # Restored geometry is clamped to the screen (800 px wide when offscreen), and panels shrink
     # to fit a narrower window, so lay the sizes out in a window as wide as the one they came from.
     new.resize(1440, 900)
@@ -367,14 +356,14 @@ def test_old_splitter_key_is_migrated(qtbot, main_window):
     window = main_window
     window.settings.setValue("window/splitter", [300, 300, 0])
     window.settings.setValue("window/grid_visible", False)
-    window._restore_state()
-    assert window._panel_widths["workspace"] == 840  # the zero was ignored
+    window.panel_layout.restore()
+    assert window.panel_layout.panel_widths["workspace"] == 840  # the zero was ignored
     assert window.files.isHidden()
     assert window.settings.value("window/splitter") is None
     assert window.settings.value("window/grid_visible") is None
     window.settings.setValue("window/splitter", [310, 290, 700])
-    window._restore_state()
-    assert window._panel_widths == {"tree": 310, "grid": 290, "workspace": 700}
+    window.panel_layout.restore()
+    assert window.panel_layout.panel_widths == {"tree": 310, "grid": 290, "workspace": 700}
 
 
 @pytest.mark.parametrize("last", ["missing", "outside"])
@@ -395,7 +384,7 @@ def test_sync_keeps_detection_outside_the_synced_folder(
     for folder in (relax, bands):
         window.service.detect_now(folder)
     synced = bands / "tmp"
-    window._on_sync_finished(SyncReport(SyncStatus.DONE, synced, Endpoint("/r/03_bands/tmp")))
+    window.sync._on_finished(SyncReport(SyncStatus.DONE, synced, Endpoint("/r/03_bands/tmp")))
     assert window.service.results(relax) is not None
     assert window.service.results(bands) is not None
     assert window.service.file_sniff(bands / "scf.out") is not None

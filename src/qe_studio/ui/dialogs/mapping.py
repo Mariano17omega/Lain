@@ -74,8 +74,8 @@ class ManualMappingDialog(QDialog):
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Plotar")
-        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
+        self._button(QDialogButtonBox.StandardButton.Ok).setText("Plotar")
+        self._button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         layout.addWidget(self.buttons)
@@ -95,11 +95,17 @@ class ManualMappingDialog(QDialog):
                 out[role_id] = paths
         return out
 
+    def _button(self, which: QDialogButtonBox.StandardButton) -> QPushButton:
+        button = self.buttons.button(which)
+        assert button is not None
+        return button
+
     def _build_rows(self) -> None:
         while self.grid.count():
             item = self.grid.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.deleteLater()
         self.edits.clear()
         module = self.module
         found = self.results.get(module.kind)
@@ -137,7 +143,7 @@ class ManualMappingDialog(QDialog):
             for role in self.module.roles
             if role.required
         )
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(ok)
+        self._button(QDialogButtonBox.StandardButton.Ok).setEnabled(ok)
 
 
 def ask_mapping(

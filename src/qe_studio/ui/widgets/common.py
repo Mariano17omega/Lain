@@ -1,11 +1,17 @@
-"""Small building blocks: panel headers, tool buttons."""
+"""Small building blocks: panel headers, tool buttons, item view parts."""
 
 from __future__ import annotations
 
 from typing import TypeVar
 
-from PyQt6.QtCore import QSize
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QWidget
+from PyQt6.QtCore import QItemSelectionModel, QSize
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QHBoxLayout,
+    QLabel,
+    QToolButton,
+    QWidget,
+)
 
 from ..theme.manager import ThemeManager
 
@@ -15,6 +21,20 @@ W = TypeVar("W", bound=QWidget)
 def set_variant(widget: W, variant: str) -> W:
     widget.setProperty("variant", variant)
     return widget
+
+
+def viewport_of(view: QAbstractItemView) -> QWidget:
+    """The view's viewport (PyQt types it optional; an item view always has one)."""
+    viewport = view.viewport()
+    assert viewport is not None
+    return viewport
+
+
+def selection_of(view: QAbstractItemView) -> QItemSelectionModel:
+    """The selection model of a view that has its model set."""
+    selection = view.selectionModel()
+    assert selection is not None
+    return selection
 
 
 class IconButton(QToolButton):

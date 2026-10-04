@@ -365,12 +365,12 @@ def test_rename_folder_keeps_plot_settings_and_memory(qtbot, main_window, demo_p
     window.memory.set_labels(folder, ["G", "X"])
     session = generate(qtbot, window, folder)
     window.params.set_param("emin", -3.0)  # pending: the debounced write has not run yet
-    assert session.key in window._unsaved
+    assert window.plot_settings.is_dirty(session.key)
     new_names.append("03_bands_si")
     window.rename_path(folder)
     new = demo_project / "03_bands_si"
     stored, _ = read_plot_file(new, "bands")
-    assert stored["emin"] == -3.0 and not window._unsaved
+    assert stored["emin"] == -3.0 and not window.plot_settings.is_dirty(session.key)
     assert window.workspace.widget_for(session.key) is None
     assert window.memory.labels(new) == ["G", "X"] and window.memory.labels(folder) is None
 

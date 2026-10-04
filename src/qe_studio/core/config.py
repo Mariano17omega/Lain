@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
 import yaml
 from matplotlib.colors import is_color_like
@@ -83,14 +84,14 @@ class PathsConfig(_Section):
 
 class ClusterConfig(_Section):
     host: str = ""
-    port: int = Field(22, ge=1, le=65535)
+    port: int = Field(default=22, ge=1, le=65535)
     user: str = ""
     auth: Literal["key", "password"] = "key"
     key_path: Path | None = None
     password_env: str | None = "QE_STUDIO_SSH_PASSWORD"
     password: SecretStr | None = None
-    connect_timeout: int = Field(10, gt=0, le=300)
-    status_poll_seconds: int = Field(300, ge=30)
+    connect_timeout: int = Field(default=10, gt=0, le=300)
+    status_poll_seconds: int = Field(default=300, ge=30)
 
     @field_validator("key_path")
     @classmethod
@@ -101,7 +102,7 @@ class ClusterConfig(_Section):
     def configured(self) -> bool:
         return bool(self.host.strip() and self.user.strip())
 
-    def resolve_password(self, environ: dict[str, str] | None = None) -> str | None:
+    def resolve_password(self, environ: Mapping[str, str] | None = None) -> str | None:
         """Password from ``password_env`` (preferred) or the inline ``password``."""
         environ = os.environ if environ is None else environ
         if self.password_env and environ.get(self.password_env):
@@ -117,7 +118,7 @@ class SyncConfig(_Section):
 
 class ExportConfig(_Section):
     formats: list[ExportFormat] = Field(default_factory=lambda: ["png", "svg", "pdf"])
-    dpi: int = Field(300, ge=72, le=2400)
+    dpi: int = Field(default=300, ge=72, le=2400)
 
     @field_validator("formats")
     @classmethod
@@ -137,12 +138,12 @@ class PlotConfig(_Section):
     energy_max: float = 5.0
     shift_to_fermi: bool = True
     figure_size: tuple[float, float] = (6.0, 4.5)
-    line_width: float = Field(1.2, gt=0, le=10)
+    line_width: float = Field(default=1.2, gt=0, le=10)
     band_colors: BandColors = Field(default_factory=BandColors)
     fermi_color: Color = "#f43f5e"
     background: Color = "#ffffff"
     orbital_colors: dict[Orbital, Color] = Field(
-        default_factory=lambda: dict(DEFAULT_ORBITAL_COLORS)
+        default_factory=lambda: cast(dict[Orbital, Color], dict(DEFAULT_ORBITAL_COLORS))
     )
     export: ExportConfig = Field(default_factory=ExportConfig)
 
@@ -211,7 +212,7 @@ def user_config_path() -> Path:
 
 def find_config(
     cli_path: str | os.PathLike[str] | None = None,
-    environ: dict[str, str] | None = None,
+    environ: Mapping[str, str] | None = None,
     cwd: Path | None = None,
 ) -> Path | None:
     """First existing config in search order; explicit paths must exist."""
@@ -308,7 +309,7 @@ def _warnings(config: AppConfig) -> list[str]:
 
 def load_config(
     cli_path: str | os.PathLike[str] | None = None,
-    environ: dict[str, str] | None = None,
+    environ: Mapping[str, str] | None = None,
     cwd: Path | None = None,
 ) -> LoadedConfig:
     path = find_config(cli_path, environ, cwd)

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 15 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: eram 7 variantes de worker, não 5 (`summary_view` e `diff_view` vieram nas specs 11 e 12), e todas usam `core/tasks.py`; os resultados passam por um único objeto despachante no thread da GUI, então não há objeto de sinais por tarefa nem `QTimer.singleShot(0)` para workers (sobram dois usos que não são workers, comentados: o próximo conflito do sync e os diálogos depois da detecção); os callbacks de um `TaskGroup` recebem a chave (`on_done(key, result)`); pools privados (detecção, contagem da grade, `.plot`) não têm pai Qt, porque um pool filho é destruído dentro do destrutor C++ do pai, às vezes com o GIL preso, e espera tarefas que precisam do GIL (precaução contra um travamento intermitente visto duas vezes na suíte durante a implementação, cuja causa não foi isolada; não se repetiu depois); a escrita **e a leitura** do `.plot` ficam numa fila de 1 thread (`ui/plot_settings.py:PlotSettingsStore`), o que garante a ordem sem I/O na GUI, e por isso carregar um gráfico tem duas etapas (dados no pool global, depois o `.plot` na fila); além do `closeEvent`, o `rename_path` também grava na hora (`flush_now(inside=)`, inclusive o `.plot` de um gráfico de arquivo, como o SCF) e espera as exportações em curso; fechar a janela espera todas as exportações pedidas, também as que ainda estão na fila (até 10 s); `export_plot()` devolve `bool` e o fim chega pelo sinal `export_finished(list[Path])`, que os testes esperam; módulos a mais para manter cada um com uma tarefa e o `MainWindow` abaixo de 400 linhas: `ui/plot_export.py` (`PlotExporter`), `ui/busy.py` (`BusyTracker`) e `ui/actions.py` (tabela `ACTIONS`: id, menu, texto, atalho e slot; `MainWindow._actions` guarda os `QAction`); o menu de contexto (`ItemActions.show`), o fechamento das abas de um caminho (`Workspace.close_tabs_under`) e a aplicação do config nos painéis (`apply_config`) saíram da janela; `TextPreview` guarda todos os campos do antigo `Loaded` (mais `omitted_lines`); `status_label` devolve o nível e `ui/file_types.py:level_token` o converte em cor; `core/detection.py` ganhou também `ManualTarget`, `mapping_message` e `plottable_modules`; a lista `ignore` do pyright foi esvaziada (o `pyproject.toml` a prometia para esta spec) e `tests/test_calculation_sizes.py` saiu, coberto por `tests/test_architecture.py` |
 | **Depende de** | spec 7 (CI), spec 8 (contrato do módulo e tipagem) |
 | **Usada por** | spec 17 (`SyncCoordinator`), spec 18 (registro de ações para a paleta) |
 | **Esforço** | G |
@@ -233,24 +233,24 @@ dividido pela spec 13, que vem antes desta.
   mudar o que verificam. Mudam só onde acessam atributos privados movidos.
 
 ## Critérios de aceite e testes
-- [ ] `grep -rn "QTimer.singleShot(0" src/qe_studio` só encontra `core/tasks.py` (e usos não ligados a
+- [x] `grep -rn "QTimer.singleShot(0" src/qe_studio` só encontra `core/tasks.py` (e usos não ligados a
       workers, justificados em comentário).
-- [ ] `tests/test_tasks.py`:
+- [x] `tests/test_tasks.py`:
   - o callback roda no thread da GUI;
   - uma tarefa cancelada não chama o callback;
   - uma nova tarefa do mesmo grupo e chave descarta a anterior;
   - `shutdown` espera as tarefas em execução;
   - fechar um `TextViewer` com leitura pendente não gera erro nem callback.
-- [ ] `grep -rn "OverrideCursor" src/qe_studio` não encontra nada. Depois de uma detecção cancelada, o
+- [x] `grep -rn "OverrideCursor" src/qe_studio` não encontra nada. Depois de uma detecção cancelada, o
       cursor da aplicação é o padrão.
-- [ ] Exportar não bloqueia: durante uma exportação lenta (render falso com `sleep`), o loop de eventos
+- [x] Exportar não bloqueia: durante uma exportação lenta (render falso com `sleep`), o loop de eventos
       processa um `QTimer` de 10 ms. O arquivo final existe, e não sobra `.tmp`.
-- [ ] Render na tela durante a exportação é adiado e acontece depois (sem deadlock, com timeout do
+- [x] Render na tela durante a exportação é adiado e acontece depois (sem deadlock, com timeout do
       teste).
-- [ ] `ui/main_window.py` com menos de 400 linhas. `PlotWorkflow` e `SyncCoordinator` testados sem a
+- [x] `ui/main_window.py` com menos de 400 linhas. `PlotWorkflow` e `SyncCoordinator` testados sem a
       janela.
-- [ ] `tests/test_architecture.py` passa com a lista de exceções vazia: nenhum arquivo acima de 500
+- [x] `tests/test_architecture.py` passa com a lista de exceções vazia: nenhum arquivo acima de 500
       linhas, `core/` sem import de `ui/`, Qt só nos 3 módulos permitidos e `ui/` sem leitura de arquivos
       de simulação.
-- [ ] `core/text_preview.py`, `core/file_kinds.py`, `core/plotting/session.py`, `core/sync/request.py` e
+- [x] `core/text_preview.py`, `core/file_kinds.py`, `core/plotting/session.py`, `core/sync/request.py` e
       `core/paths.py` são testados sem `QApplication`.

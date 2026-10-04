@@ -1,11 +1,13 @@
 """Spec 12 R3: the "Resumo" menu item and the summary tab."""
 
+import threading
 from pathlib import Path
 
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtWidgets import QApplication, QMenu
 
 from qe_studio.core.qe.summary import summarize
+from qe_studio.ui.widgets import summary_view
 from qe_studio.ui.widgets.summary_view import CONTENT, MESSAGE, SummaryView, summary_key
 from qe_studio.ui.widgets.text_viewer import TextViewer
 
@@ -119,12 +121,30 @@ def test_atualizar_reads_the_file_again(qtbot, main_window, tmp_path):
     assert row_of(view, "Estado").value.text() == "Concluído"
 
 
-def test_the_result_of_a_superseded_read_is_dropped(qtbot, main_window, demo_project):
+def test_the_result_of_a_superseded_read_is_dropped(qtbot, main_window, demo_project, monkeypatch):
     view = open_summary(qtbot, main_window, demo_project / "02_scf" / "scf.out")
     shown = view.summary
-    view._on_done(view._generation - 1, summarize(demo_project / "01_relax" / "si.rel.out"))
-    view._on_failed(view._generation - 1, "late")
-    assert view.summary is shown and view.stack.currentIndex() == CONTENT
+    gate, slow = threading.Event(), demo_project / "01_relax" / "si.rel.out"
+    calls = []
+
+    def gated(path):
+        calls.append(path)
+        if len(calls) == 1:  # the first read is slow and gets superseded by "Atualizar"
+            gate.wait(5)
+            return summarize(slow)
+        return summarize(path)
+
+    monkeypatch.setattr(summary_view, "summarize", gated)
+    view.refresh()
+    first = view._task
+    qtbot.waitUntil(lambda: first.started, timeout=5000)
+    with qtbot.waitSignal(view.loaded, timeout=10_000):
+        view.refresh()
+    assert view.summary == shown and first.cancelled
+    gate.set()
+    assert first.wait(5)
+    qtbot.wait(50)
+    assert view.summary == shown and view.stack.currentIndex() == CONTENT
 
 
 def test_expandable_rows_start_collapsed(qtbot, main_window, demo_project):

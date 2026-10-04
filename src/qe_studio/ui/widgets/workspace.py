@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PyQt6 import sip
 from PyQt6.QtCore import QPoint, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
@@ -15,6 +16,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMessageBox,
     QStackedWidget,
+    QTabBar,
     QVBoxLayout,
     QWidget,
 )
@@ -23,6 +25,7 @@ from ...core.sniff import looks_like_input
 from ..file_types import file_visual
 from ..theme.manager import ThemeManager
 from .diff_view import DiffView, diff_key, diff_title
+from .spinner import CircularProgress
 from .summary_view import SummaryView, summary_key
 from .text_viewer import TextViewer
 from .workspace_tabs import DocumentTabs, add_action
@@ -107,6 +110,7 @@ class Workspace(QStackedWidget):
         self.addWidget(self.tabs)
         self._keys: dict[str, QWidget] = {}
         self._icons: dict[QWidget, tuple[str, str]] = {}
+        self._busy: dict[QWidget, CircularProgress] = {}  # tabs showing a spinner for an icon
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.tabs.bar.middle_clicked.connect(self.close_tab)
         self.tabs.bar.menu_requested.connect(self._show_tab_menu)
@@ -196,6 +200,7 @@ class Workspace(QStackedWidget):
         if widget is None:
             return
         self.tab_closing.emit(widget)
+        self._drop_spinner(widget)
         self.tabs.removeTab(index)
         for key, value in list(self._keys.items()):
             if value is widget:
@@ -245,6 +250,14 @@ class Workspace(QStackedWidget):
         menu.exec(pos)
         menu.deleteLater()
 
+    def close_tabs_under(self, path: Path) -> None:
+        """Close every tab that shows something inside ``path`` (renamed or moved away): its
+        ``paths`` (a comparison) or its ``path`` (a file, or what a plot shows)."""
+        for key, widget in self.items():
+            shown = getattr(widget, "paths", None) or (getattr(widget, "path", None),)
+            if any(item is not None and Path(item).is_relative_to(path) for item in shown):
+                self.close_key(key)
+
     def close_key(self, key: str) -> None:
         widget = self._keys.get(key)
         if widget is not None:
@@ -261,7 +274,33 @@ class Workspace(QStackedWidget):
 
     def _refresh_icons(self, *_args) -> None:
         for widget, icon in self._icons.items():
-            self.tabs.setTabIcon(self.tabs.indexOf(widget), self._icon(icon))
+            if widget not in self._busy:
+                self.tabs.setTabIcon(self.tabs.indexOf(widget), self._icon(icon))
+
+    def set_busy(self, key: str, busy: bool) -> None:
+        """A spinner in place of the tab's icon while its plot is generated again (spec 15 R2)."""
+        widget = self._keys.get(key)
+        if widget is None or busy == (widget in self._busy):
+            return
+        index = self.tabs.indexOf(widget)
+        if busy:
+            spinner = CircularProgress(self.theme, 12)
+            self._busy[widget] = spinner
+            self.tabs.setTabIcon(index, QIcon())
+            self.tabs.bar.setTabButton(index, QTabBar.ButtonPosition.LeftSide, spinner)
+        else:
+            self.tabs.bar.setTabButton(index, QTabBar.ButtonPosition.LeftSide, None)
+            self._drop_spinner(widget)
+            self.tabs.setTabIcon(index, self._icon(self._icons[widget]))
+
+    def is_busy(self, key: str) -> bool:
+        widget = self._keys.get(key)
+        return widget is not None and widget in self._busy
+
+    def _drop_spinner(self, widget: QWidget) -> None:
+        spinner = self._busy.pop(widget, None)
+        if spinner is not None and not sip.isdeleted(spinner):
+            spinner.deleteLater()
 
     def _on_current(self, _index: int) -> None:
         self.current_changed.emit(self.current())

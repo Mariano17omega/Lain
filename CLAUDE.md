@@ -31,7 +31,7 @@ uv run pytest tests/test_detection.py::test_name # single test
 uv run pytest -m perf -s                         # latency budgets: plot (NFR §7) and detection (spec 14)
 QE_STUDIO_REAL_DATA=/runs:/other uv run pytest -m realdata   # user's own QE runs (off by default)
 uv run ruff check . && uv run ruff format --check .
-uv run pyright                                   # basic mode over src/ (CI); see [tool.pyright] ignore list
+uv run pyright                                   # basic mode over src/ (CI), no ignore list
 uv run python scripts/screenshot.py --plot       # off-screen PNGs of both themes → screenshots/
 uv run python scripts/fetch_assets.py            # refresh vendored fonts/icons
 uv run python scripts/build_icons.py             # re-render the app icon PNGs from ui/resources/app/lain.svg
@@ -67,7 +67,20 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   paths and small helpers of the spin tests (`test_bands_spin_*`, `test_pdos_spin.py`,
   `test_spin_window.py`); `test_figure_regression.py` compares the artists of no-spin figures and the
   mirrored PDOS (`figure_structure.py`) with data captured before the spin work.
-- `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`.
+- `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`. The
+  controllers are tested without it too: `test_plot_workflow_unit.py` (a `Rig` with real workspace,
+  params panel, status bar and detection service) and `test_sync_coordinator.py`. Dialogs are patched
+  where they are imported: `qe_studio.ui.plot_workflow.{ask_mapping,choose_result}`,
+  `qe_studio.ui.plot_export.ask_overwrite`, `qe_studio.ui.main_window.ask_rename`.
+- Exports and `.plot` writes run in workers: wait for `window.export_finished` (the written paths)
+  before looking into `plots/`, and call `window.plot_settings.flush_now()` (drains the settings
+  queue, then writes what is pending) before reading a `.plot`.
+- `test_architecture.py` checks the architecture rules by AST: no `.py` over 500 lines (exceptions
+  list, empty), `core/` never imports `qe_studio.ui`, PyQt6 only in the three `core` modules listed
+  below, no `open(` / `read_text` / `read_bytes` / `loadtxt` in `ui/` (but `ui/theme/manager.py`),
+  and the modules moved to `core` by spec 15 import without PyQt6. `test_tasks.py` covers the
+  background-task helper; `test_busy_indicator.py` and `test_export_worker.py` the spinner and the
+  non-blocking export.
 - Detection performance (spec 14): `tests/synthetic.py` builds a 520-folder project from the fixtures,
   a 200 MB relax output, an 80 MB `.gnu` and a 20 MB output with a long header, always in tmp dirs.
   `test_perf_detection.py` times them (`-m perf -s` prints the numbers; the baseline and budgets are
@@ -93,21 +106,55 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 
 ## Architecture
 
-`src/qe_studio/core` is logic without widgets (only `core/sync/controller.py` and
-`core/sync/monitor.py` use Qt, for `QProcess`/signals); `src/qe_studio/ui` is the PyQt6 app.
+`src/qe_studio/core` is logic without widgets (only `core/sync/controller.py`,
+`core/sync/monitor.py` and `core/tasks.py` use Qt, for `QProcess`, signals and the thread pool);
+`src/qe_studio/ui` is the PyQt6 app.
 
 ### Architecture rules
 
 - **No files over ~500 lines that centralize everything.** Split by responsibility before a module
-  grows past that. Current offender: `ui/main_window.py` (~1050 lines, split by spec 15).
-  `tests/test_calculation_sizes.py` keeps every file of `core/calculations/` under 500.
+  grows past that. `tests/test_architecture.py` keeps every file of `src/qe_studio` under 500.
 - **`ui/` holds interface logic only.** Widgets, layout, dialogs, and wiring signals to `core/`.
   Parsing, detection, physics, file operations, sync decisions and any other backend logic belong in
   `core/`, where they are testable without Qt. If a UI method computes something that doesn't depend
-  on a widget, move it to `core/`.
+  on a widget, move it to `core/`. Every new piece of logic that does not need a widget starts in
+  `core/` (spec 15 R5.3).
 - **Keep the program modular to ease maintenance.** Each module has one job, and depends on small
   explicit interfaces (hooks, signals, injected services) instead of reaching into other modules'
   internals. New behaviour is a new module plus a registration, not another branch in a central class.
+
+### Main window and controllers (spec 15)
+
+`ui/main_window.py:MainWindow` is the composition root: it builds the widgets, three controllers and
+the `.plot` store, registers the actions and wires signals. It keeps only what spans controllers:
+`rename_path`, `reload_config`, `closeEvent`, plus a thin facade the tests and
+`scripts/screenshot.py` use (`plot_ready`, `plot_failed`, `export_finished`, `sync_finished`,
+`generate_plot_for`, `export_plot`, `monitor`…).
+
+- `ui/layout_controller.py:LayoutController`: panels, splitter widths (`fit_widths`), left panel
+  mode and the QSettings `window/geometry`, `layout/*`, `files/*`. Knows no plot or sync.
+- `ui/plot_workflow.py:PlotWorkflow`: detect → `core/detection.plot_choice` (`Chosen` / `Ambiguous`
+  → `choose_result` / `NeedsMapping` → `ask_mapping`, `ManualTarget`) → `load_plot` (load pool) →
+  `.plot` read (settings queue) → `build_session` → tab; readout, "Plotar SCF" source, busy
+  indicator (`ui/busy.py:BusyTracker`, counted by name: the footer spinner and "Detectando cálculo…"
+  / "Carregando …" / "Exportando…", plus a spinner in the tab of a plot being regenerated; no
+  `setOverrideCursor`). It asks the window for panels and messages through signals
+  (`panel_requested`, `message`). Exports: `ui/plot_export.py:PlotExporter` (overwrite question on
+  the GUI thread from `core/plotting/export.plan_export`, then `export_figure` in a worker on a
+  snapshot of the params; close waits up to 10 s for exports).
+- `ui/sync_coordinator.py:SyncCoordinator`: `core/sync/request.prepare_sync` → session password →
+  `SyncController` + dialogs → report; owns the `ConnectionMonitor` (replaced on config reload) and
+  emits `cluster_changed`, `synced(local_dir)` (the window refreshes) and `finished`.
+- `ui/plot_settings.py:PlotSettingsStore`: every `.plot` read, write and removal in one private
+  single-thread pool, so they happen in order (a regenerate reads what closing the tab wrote);
+  edits are debounced 1 s; `flush_now` writes on the spot (window close, before a rename).
+- `ui/actions.py:ACTIONS`: the window's actions by stable id (`plot.generate`, `plot.export`,
+  `view.theme`, `files.refresh`…) with menu, text, shortcut and slot path; `MainWindow._actions`
+  holds the `QAction`s (spec 18 reads it).
+
+What files are for the panels is `core` too: `core/file_kinds.py` (`viewer_kind`, `status_label` →
+(label, level), `human_size`, job logs) and `core/paths.py` (`ui.hidden_dirs` matching, entry
+counts); `ui/file_types.py` keeps only the icon of a file and the level → color token map.
 
 ### Detection pipeline (PRD §3)
 
@@ -169,8 +216,10 @@ when the contract grows.
 
 ### Plotting
 
-`ui/plot_session.py:PlotSession[D, P]` = detection result + dataset + params (+ copy of defaults).
-`render()` wraps the module's `render` in `PlotStyle.rc(...)`. The style is `PlotSession.style` =
+`core/plotting/session.py:PlotSession[D, P]` = detection result + dataset + params (+ copy of
+defaults); `build_session` makes one from a load (defaults → stored `.plot` or legacy `FolderMemory`
+→ the edits of the open tab). `render()` wraps the module's `render` in `PlotStyle.rc(...)` under
+`core/plotting/mpl_lock.py:MPL_LOCK`. The style is `PlotSession.style` =
 `figure_style(params.background)` (`core/plotting/style.py`), never the app theme, so preview and
 export match; `ThemeManager` only styles the widgets around the canvas. Toolbar pan/zoom is written back into params (`apply_limits`) so exports keep
 it. `core/plotting/export.py` writes into `<simulation>/plots/`; existing files are never
@@ -181,10 +230,10 @@ overwritten without asking (PRD §7 data integrity).
 `discard` drops it when the tab closes. Section open/closed state is QSettings
 `params/sections/<kind>/<title>`.
 
-Plot settings persist in `<simulation>/<kind>.plot` (YAML, `core/plotting/plot_file.py`): read in
-`_LoadTask` next to `load_cached`, applied field by field over `default_params` (`PlotSession.defaults`
-stays the module default), written only after a user edit (params panel or pan/zoom), debounced 1 s
-and flushed on tab close, regenerate and exit. Window layout, grid mode/sort and the last folder are
+Plot settings persist in `<simulation>/<kind>.plot` (YAML, `core/plotting/plot_file.py`): read by
+`PlotSettingsStore` after the load worker, applied field by field over `default_params`
+(`PlotSession.defaults` stays the module default), written only after a user edit (params panel or
+pan/zoom), debounced 1 s and flushed on tab close, regenerate and exit. Window layout, grid mode/sort and the last folder are
 QSettings (`layout/*`, `files/*`, `explorer/last_folder`).
 
 ### Spin (spec 13)
@@ -223,6 +272,10 @@ the grid never reaches it. Tabs: `workspace_tabs.py` (`TabBar` emits `middle_cli
 `menu_requested`); every close path of `Workspace` goes through `close_tab`, so `tab_closing` still
 flushes `<kind>.plot`. "Revelar no explorador" and "Abrir no editor externo" are signals of
 `Workspace`; `MainWindow` answers them (`reveal_in_explorer`, `ItemActions.open_default`).
+`Workspace.close_tabs_under(path)` closes the tabs whose `paths` / `path` (a `PlotView`'s is what it
+shows) lie inside a renamed path; `set_busy(key, on)` swaps a tab's icon for a spinner.
+`core/text_preview.py:read_preview` (worker) is what the viewer shows: text or ends, banner (job logs,
+big files), `LineMap`, and for inputs the lint and the extract.
 
 ### Input viewer (spec 11)
 
@@ -234,7 +287,7 @@ both agree on what a token is. It checks how things are *written* only: an unkno
 advanced validation, not done. `LintIssue.line` is 1-based and columns 0-based half-open. `lint` is not
 `parse_input` (ASE), which detection and plots keep using. `core/sniff.py:looks_like_input(path)` (head
 only, no ASE, GUI-thread safe) decides what is an input, even when sniff says UNKNOWN because ASE
-choked; `ui/file_types.py:viewer_kind` uses it for unknown suffixes. `load_for_viewer` (worker) lints
+choked; `core/file_kinds.py:viewer_kind` uses it for unknown suffixes. `read_preview` (worker) lints
 inputs up to `INPUT_READ_LIMIT` (above it: colors only, banner says so) and extracts key parameters
 (`core/qe/input_extract.py`); `ui/widgets/input_view.py:InputView` shows the issues row (F8 /
 Shift+F8), the chip strip (`ui/widgets/flow_layout.py`) and "Comparar com…". `CodeView` has generic
@@ -265,14 +318,27 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
 
 ### Threading rules (GUI thread must never parse files)
 
-- `ui/services.py:DetectionService` caches detection per folder and runs misses in a 2-thread
-  `QThreadPool`. Tasks carry a token; `invalidate()` supersedes running tasks so stale results
-  are dropped. `detect_now()` is synchronous: scripts and tests only. F5 (`invalidate()` without a
-  folder) keeps the sniffs of files that still exist (`SniffCache.prune`: each entry is checked
-  against its file's (mtime, size) when used anyway); `ui.paranoid_refresh: true` drops them all.
-- `MainWindow` loads datasets via `QRunnable` in the global pool, then renders on the GUI thread.
-- Keep finished `QRunnable`s / their signal objects alive until the next event-loop turn
-  (`QTimer.singleShot(0, ...)`) because the slot runs on that signal object.
+- One helper runs every background task (spec 15 R1): `core/tasks.py`. `run_task(fn, *args,
+  on_done=, on_error=, pool=None)` returns a `TaskHandle` (`cancel()`, `cancelled`, `done`); a
+  `TaskGroup` keys tasks so a new one for a key cancels the previous (`submit(key, fn, …)` calls
+  back `on_done(key, result)` / `on_error(key, exc)`; `active(key)`, `cancel_all()`, `wait()`,
+  `shutdown(timeout_ms)`). Callbacks run on the GUI thread through one dispatcher object; a
+  cancelled or superseded task never calls back. There is no signal object per task, so nothing has
+  to be kept alive until its slot returns (no `QTimer.singleShot(0)` for workers). A callback that
+  is a bound method of a `QObject` holds it weakly, and its destruction cancels the task (a closed
+  tab neither stays alive nor gets its read). Without `on_error`, exceptions are logged.
+- Private pools (a thread limit or an order) have **no Qt parent**: a child pool is destroyed
+  inside its parent's C++ destructor, maybe with the GIL held, and waits for tasks that need the GIL.
+- `ui/services.py:DetectionService` caches detection per folder and runs misses in its 2-thread pool
+  (`TaskGroup` by folder; `fresh` requests jump the queue and supersede). `detect_now()` is
+  synchronous: scripts and tests only. F5 (`invalidate()` without a folder) keeps the sniffs of files
+  that still exist (`SniffCache.prune`: each entry is checked against its file's (mtime, size) when
+  used anyway); `ui.paranoid_refresh: true` drops them all.
+- `PlotWorkflow` loads datasets in the global pool, then renders on the GUI thread. Exports run in a
+  worker with their own `Figure` + `FigureCanvasAgg`. matplotlib's global state is serialized by
+  `MPL_LOCK` (`threading.RLock`): `PlotSession.render`, `render_figure` and `export_figure` hold it;
+  on screen `PlotView.render` and `ScaledFigureCanvas.draw` only *try* it and retry after 50 ms, so
+  the GUI never waits for an export.
 - Connect long-lived signals (e.g. `ThemeManager.theme_changed`) to bound methods, not lambdas,
   so they disconnect when the widget is deleted. Dialogs use delete-on-close.
 - `app.main()` waits on the global pool before exit so no worker outlives the interpreter.
@@ -282,8 +348,10 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
 `core/sync/rsync.py` builds commands/env and parses output (children run with `LC_ALL=C.UTF-8`,
 `TZ=UTC`, `--no-h` because rsync output is locale-dependent). `planner.py` is pure: dry-run
 records + local stats → per-file NEW / UPDATE / LOCAL_NEWER; files only present locally (like
-`plots/`) never block a pull. `controller.py` is a `QProcess` state machine (`rsync --version` →
-dry run → plan, whose local stats run in a worker → conflicts → transfer) that never opens
+`plots/`) never block a pull. `request.py:prepare_sync` decides whether a pull can start (configured?
+folder inside the project? password needed?). `controller.py` is a `QProcess` state machine (`rsync
+--version` → dry run → plan, whose local stats run in a `run_task` worker → conflicts → transfer)
+that never opens
 dialogs: it emits `conflict_needed` and waits for `resolve()`, so UI and tests supply the answer.
 Every stage runs through `_step()`, so an exception ends the sync as FAILED instead of hanging
 it. `monitor.py` probes in daemon threads, not a `QThreadPool` (DNS ignores the connect timeout
@@ -294,13 +362,14 @@ host keys are always refused.
 ### Context menu (spec 5)
 
 `ui/widgets/context_menu.py:ItemActions` builds the right-click menu for the tree and the grid
-(both panels emit `item_menu_requested(path, pos)` → `MainWindow._show_item_menu`, which reads the
-cached sniff once, in `_file_actions_of`: "Plotar" for a single-file module, "Resumo" for any QE
-output, both above the four spec-5 actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
+(both panels emit `item_menu_requested(path, pos)` → `MainWindow._show_item_menu` →
+`ItemActions.show`, which reads the cached sniff once, in `file_actions_of`: "Plotar" for a
+single-file module, "Resumo" for any QE output, both above the four spec-5 actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
 cached `catalog()` per session) and starts them with `QProcess.startDetached(argv)`, never a
-shell. Renaming goes through `MainWindow.rename_path` because it touches global state: flush the
-item's `.plot` settings, `core/file_ops.rename_item` (refuses existing targets), close affected
-tabs, `FolderMemory.rename`, invalidate detection. Tests must patch `QMenu.exec` (the
+shell. Renaming goes through `MainWindow.rename_path` because it touches global state: write the
+pending `.plot` settings of what it moves (`flush_now(inside=)`), wait for running exports,
+`core/file_ops.rename_item` (refuses existing targets), `Workspace.close_tabs_under`,
+`FolderMemory.rename`, invalidate detection. Tests must patch `QMenu.exec` (the
 `main_window` fixture makes an unpatched one fail) and never reach the real session D-Bus
 (`ItemActions._show_items_dbus`).
 

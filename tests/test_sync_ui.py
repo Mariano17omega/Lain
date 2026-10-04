@@ -64,9 +64,9 @@ def test_sync_with_conflict_prompt(qtbot, tmp_path, demo_project, ssh_server, me
     with qtbot.waitSignal(window.sync_finished, timeout=30_000) as blocker:
         window.start_sync()
         assert window.monitor.state.value == "syncing"
-        qtbot.waitUntil(lambda: window.conflict_dialog is not None, timeout=15_000)
-        assert window.conflict_dialog.item.path == "scf.out"
-        window.conflict_dialog.decide(Decision.OVERWRITE)
+        qtbot.waitUntil(lambda: window.sync.conflict_dialog is not None, timeout=15_000)
+        assert window.sync.conflict_dialog.item.path == "scf.out"
+        window.sync.conflict_dialog.decide(Decision.OVERWRITE)
     report = blocker.args[0]
     assert report.status is SyncStatus.DONE
     assert sorted(report.transferred) == ["new.out", "scf.out"]
@@ -75,7 +75,7 @@ def test_sync_with_conflict_prompt(qtbot, tmp_path, demo_project, ssh_server, me
     assert messages and messages[-1][0] == "information"
     assert window.monitor.state.value != "syncing"
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
-    assert window._sync is None and window.conflict_dialog is None
+    assert window.sync.controller is None and window.sync.conflict_dialog is None
     for kind in (SyncController, SyncDialog, ConflictDialog):  # nothing piles up per sync
         assert not window.findChildren(kind)
 
@@ -95,7 +95,7 @@ def test_sync_local_newer_warns(qtbot, tmp_path, demo_project, ssh_server, messa
 def test_sync_disabled_explains(qtbot, main_window, messages):
     main_window.start_sync()
     assert messages and "config.yaml" in messages[0][1]
-    assert main_window._sync is None
+    assert main_window.sync.controller is None
 
 
 def test_password_prompt_is_used_once(
@@ -109,7 +109,7 @@ def test_password_prompt_is_used_once(
         QInputDialog, "getText", staticmethod(lambda *a, **k: asked.append(1) or ("s3cret", True))
     )
     monkeypatch.setattr(
-        window, "_run_sync", lambda folder, endpoint, password=None: runs.append(password)
+        window.sync, "run", lambda folder, endpoint, password=None: runs.append(password)
     )
     window.start_sync()
     window.start_sync()

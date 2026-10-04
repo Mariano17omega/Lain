@@ -12,8 +12,8 @@ from spin_helpers import SPIN_BANDS, SPIN_PDOS, copy_fixture
 @pytest.fixture(autouse=True)
 def no_dialogs(monkeypatch):
     """Fail loudly if a dialog would block."""
-    for name in ("ask_overwrite", "ask_mapping"):
-        monkeypatch.setattr(f"qe_studio.ui.main_window.{name}", _blocked)
+    monkeypatch.setattr("qe_studio.ui.plot_export.ask_overwrite", _blocked)
+    monkeypatch.setattr("qe_studio.ui.plot_workflow.ask_mapping", _blocked)
     monkeypatch.setattr(QMessageBox, "warning", staticmethod(_blocked))
 
 

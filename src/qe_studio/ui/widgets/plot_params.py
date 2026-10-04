@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 
 from ...core.calculations.base import Dataset
 from ...core.calculations.params import CommonParams
-from ..plot_session import PlotSession
+from ...core.plotting.session import PlotSession
 from ..theme.manager import ThemeManager
 from .common import IconButton, PanelHeader, set_variant
 from .params_body import ParamsBody

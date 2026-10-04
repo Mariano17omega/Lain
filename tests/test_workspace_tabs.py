@@ -180,6 +180,7 @@ def test_closing_a_plot_tab_from_the_menu_saves_its_settings(
     menu_choice[0][0] = "Fechar todas"
     window.workspace.tabs.bar.menu_requested.emit(0, QPoint())
     assert window.workspace.current() is None
+    window.plot_settings.flush_now()  # the tab's write runs in the settings worker
     stored, _ = read_plot_file(folder, "bands")
     assert stored["emin"] == -3.0
 

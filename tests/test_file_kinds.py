@@ -2,14 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from qe_studio.core.file_kinds import human_size, is_job_log, status_label, viewer_kind
 from qe_studio.core.sniff import FileKind, FileSniff
-from qe_studio.ui.file_types import (
-    file_visual,
-    human_size,
-    is_job_log,
-    status_label,
-    viewer_kind,
-)
+from qe_studio.ui.file_types import file_visual, level_token
 
 
 @pytest.mark.parametrize(
@@ -90,3 +85,12 @@ def test_human_size():
     assert human_size(512) == "512 B"
     assert human_size(2400) == "2.3 KB"
     assert human_size(3 * 1024**2) == "3.0 MB"
+
+
+def test_levels_map_to_theme_tokens():
+    assert [level_token(level) for level in ("success", "warning", "error")] == [
+        "success",
+        "warning",
+        "error",
+    ]
+    assert level_token("other") == "text_dim"

@@ -5,12 +5,18 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PyQt6.QtCore import QPoint, Qt, pyqtSignal
-from PyQt6.QtGui import QContextMenuEvent, QMouseEvent
+from PyQt6.QtGui import QContextMenuEvent, QIcon, QMouseEvent
 from PyQt6.QtWidgets import QMenu, QTabBar, QTabWidget, QWidget
 
 
-def add_action(menu: QMenu, text: str, slot: Callable[[], object], enabled: bool = True) -> None:
-    action = menu.addAction(text)
+def add_action(
+    menu: QMenu,
+    text: str,
+    slot: Callable[[], object],
+    enabled: bool = True,
+    icon: QIcon | None = None,
+) -> None:
+    action = menu.addAction(text) if icon is None else menu.addAction(icon, text)
     assert action is not None
     action.setEnabled(enabled)
     action.triggered.connect(lambda _checked=False: slot())

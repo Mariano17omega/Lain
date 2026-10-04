@@ -12,12 +12,15 @@ import os
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QMimeData, QMimeDatabase, QObject, QProcess, QUrl, pyqtSignal
+from PyQt6.QtCore import QMimeData, QMimeDatabase, QObject, QPoint, QProcess, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
+from ...core.calculations import module_for_file
 from ...core.desktop_apps import DesktopApp, catalog, expand_exec
 from ..dialogs.open_with import ask_command
+from ..services import DetectionService
+from .workspace_tabs import add_action
 
 log = logging.getLogger(__name__)
 
@@ -41,15 +44,34 @@ def app_icon(app: DesktopApp) -> QIcon:
 
 
 class ItemActions(QObject):
-    message = pyqtSignal(str, str)  # footer text, level
+    message = pyqtSignal(str, str, int)  # footer text, level, timeout (ms)
     rename_requested = pyqtSignal(Path)
     plot_file_requested = pyqtSignal(Path, str)  # file, kind of the module that plots it
     summary_requested = pyqtSignal(Path)  # "Resumo" of a QE output (spec 12)
 
-    def __init__(self, window: QWidget):
+    def __init__(self, window: QWidget, service: DetectionService):
         super().__init__(window)
         self.window = window
+        self.service = service
         self._reveals: dict[QObject, Path] = {}  # pending D-Bus calls → item
+
+    def show(self, path: Path, pos: QPoint, can_rename: bool = True) -> None:
+        """The menu of ``path`` at the global position ``pos``."""
+        plot_kind, is_output = self.file_actions_of(path)
+        menu = self.menu(path, can_rename=can_rename, plot_kind=plot_kind, summary=is_output)
+        menu.exec(pos)
+        menu.deleteLater()
+
+    def file_actions_of(self, path: Path) -> tuple[str | None, bool]:
+        """Kind of the module that plots ``path`` alone (spec 9) and whether it is a QE output
+        (spec 12), from the cached sniff only: the GUI thread never reads the file. On a miss
+        detection is requested, so the next menu knows."""
+        sniff = self.service.file_sniff(path)
+        if sniff is None:
+            self.service.results(path.parent)
+            return None, False
+        module = module_for_file(sniff)
+        return (module.kind if module else None), sniff.is_output
 
     def menu(
         self,
@@ -62,24 +84,17 @@ class ItemActions(QObject):
         output (spec 12). Both go on top, apart from the actions every item has."""
         menu = QMenu(self.window)
         if plot_kind is not None:
-            menu.addAction("Plotar").triggered.connect(
-                lambda _c=False: self.plot_file_requested.emit(path, plot_kind)
-            )
+            add_action(menu, "Plotar", lambda: self.plot_file_requested.emit(path, plot_kind))
         if summary:
-            menu.addAction("Resumo").triggered.connect(
-                lambda _c=False: self.summary_requested.emit(path)
-            )
+            add_action(menu, "Resumo", lambda: self.summary_requested.emit(path))
         if plot_kind is not None or summary:
             menu.addSeparator()
-        menu.addAction("Abrir local de origem").triggered.connect(
-            lambda _c=False: self.reveal(path)
-        )
+        add_action(menu, "Abrir local de origem", lambda: self.reveal(path))
         open_with = menu.addMenu("Abrir com")
+        assert open_with is not None
         open_with.aboutToShow.connect(lambda: self._fill_open_with(open_with, path))
-        menu.addAction("Copiar").triggered.connect(lambda _c=False: self.copy(path))
-        rename = menu.addAction("Renomear")
-        rename.setEnabled(can_rename)
-        rename.triggered.connect(lambda _c=False: self.rename_requested.emit(path))
+        add_action(menu, "Copiar", lambda: self.copy(path))
+        add_action(menu, "Renomear", lambda: self.rename_requested.emit(path), can_rename)
         return menu
 
     # -- Abrir com --------------------------------------------------------------------------------
@@ -87,12 +102,8 @@ class ItemActions(QObject):
         if submenu.actions():  # filled on the first opening
             return
         if IS_WINDOWS:
-            choose = submenu.addAction("Escolher programa…")
-            choose.triggered.connect(
-                lambda _c=False: self._launch(
-                    ["rundll32", "shell32.dll,OpenAs_RunDLL", str(path)], path, "Windows"
-                )
-            )
+            argv = ["rundll32", "shell32.dll,OpenAs_RunDLL", str(path)]
+            add_action(submenu, "Escolher programa…", lambda: self._launch(argv, path, "Windows"))
             return
         apps = catalog()
         mime_types = mime_types_for(path)
@@ -100,14 +111,11 @@ class ItemActions(QObject):
         others = [app for app in apps.apps_for(mime_types) if default is None or app != default]
         for app in ([default] if default else []) + others:
             text = f"{app.name} (padrão)" if app is default else app.name
-            action = submenu.addAction(app_icon(app), text)
-            action.triggered.connect(lambda _c=False, a=app: self.open_with(path, a))
+            add_action(submenu, text, lambda a=app: self.open_with(path, a), icon=app_icon(app))
         if default is None:
-            submenu.addAction("Nenhum programa encontrado").setEnabled(False)
+            add_action(submenu, "Nenhum programa encontrado", lambda: None, enabled=False)
         submenu.addSeparator()
-        submenu.addAction("Outro programa…").triggered.connect(
-            lambda _c=False: self.open_with_other(path)
-        )
+        add_action(submenu, "Outro programa…", lambda: self.open_with_other(path))
 
     def open_with(self, path: Path, app: DesktopApp) -> None:
         self._launch(expand_exec(app, path), path, app.name)
@@ -130,7 +138,7 @@ class ItemActions(QObject):
         ok, _pid = QProcess.startDetached(argv[0], argv[1:], str(path.parent))
         if not ok:
             log.warning("could not start %s", argv)
-            self.message.emit(f"Não foi possível abrir {path.name} com {name}.", "error")
+            self.message.emit(f"Não foi possível abrir {path.name} com {name}.", "error", 4000)
 
     # -- Abrir local de origem --------------------------------------------------------------------
     def reveal(self, path: Path) -> None:
@@ -176,7 +184,9 @@ class ItemActions(QObject):
         url = QUrl.fromLocalFile(str(path))
         data = QMimeData()
         data.setUrls([url])
-        data.setData("x-special/gnome-copied-files", b"copy\n" + bytes(url.toEncoded()))
+        data.setData("x-special/gnome-copied-files", b"copy\n" + url.toEncoded().data())
         data.setText(str(path))
-        QApplication.clipboard().setMimeData(data)
-        self.message.emit(f"Copiado: {path.name}", "info")
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setMimeData(data)
+        self.message.emit(f"Copiado: {path.name}", "info", 4000)

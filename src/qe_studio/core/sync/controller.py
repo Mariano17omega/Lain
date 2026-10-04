@@ -15,17 +15,10 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from PyQt6.QtCore import (
-    QObject,
-    QProcess,
-    QProcessEnvironment,
-    QRunnable,
-    QThreadPool,
-    QTimer,
-    pyqtSignal,
-)
+from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, pyqtSignal
 
 from ..config import AppConfig
+from ..tasks import TaskHandle, run_task
 from .planner import ConflictResolver, Decision, PlanItem, PlanStatus, SyncPlan, build_plan
 from .rsync import (
     Endpoint,
@@ -91,25 +84,9 @@ class SyncReport:
         return "\n".join(lines)
 
 
-class _PlanSignals(QObject):
-    done = pyqtSignal(int, object, object)  # sync run, SyncPlan | None, exception | None
-
-
-class _PlanTask(QRunnable):
+def _plan(stdout: str, local_dir: Path) -> SyncPlan:
     """Compares the dry-run listing with the local files: one stat per file, network homes."""
-
-    def __init__(self, run_id: int, stdout: str, local_dir: Path):
-        super().__init__()
-        self.run_id, self.stdout, self.local_dir = run_id, stdout, local_dir
-        self.signals = _PlanSignals()
-
-    def run(self) -> None:
-        try:
-            plan = build_plan(parse_dry_run(self.stdout), self.local_dir)
-        except Exception as exc:  # reported as a failed sync, never lost in the worker
-            self.signals.done.emit(self.run_id, None, exc)
-        else:
-            self.signals.done.emit(self.run_id, plan, None)
+    return build_plan(parse_dry_run(stdout), local_dir)
 
 
 class SyncController(QObject):
@@ -139,9 +116,7 @@ class SyncController(QObject):
         self._stderr = ""
         self._version: tuple[int, ...] | None = None
         self._running = False
-        self._run_id = 0  # plan results of an earlier (cancelled) run are dropped
-        self._plan_tasks: dict[int, _PlanTask] = {}  # running (keeps their signals alive)
-        self._finished_tasks: list[_PlanTask] = []
+        self._plan_task: TaskHandle | None = None  # cancelled with the run: its plan is dropped
 
     @property
     def running(self) -> bool:
@@ -156,7 +131,6 @@ class SyncController(QObject):
         if self._running:
             raise RuntimeError("sincronização já em andamento")
         self._running = True
-        self._run_id += 1
         self._cancelled = False
         self._local_dir = Path(local_dir)
         self._remote = remote
@@ -175,12 +149,15 @@ class SyncController(QObject):
         if self._resolver.cancelled:
             self._finish(SyncStatus.CANCELLED)
         else:
+            # Next loop turn, not a worker: the conflict dialog that called us closes first.
             QTimer.singleShot(0, self._next_conflict)
 
     def cancel(self) -> None:
         if not self._running:
             return
         self._cancelled = True
+        if self._plan_task is not None:
+            self._plan_task.cancel()
         process = self._process
         if process is not None and process.state() != QProcess.ProcessState.NotRunning:
             self.stage_changed.emit("Cancelando…")
@@ -193,8 +170,9 @@ class SyncController(QObject):
         """Cancel and wait for rsync to exit (window close)."""
         process = self._process
         self.cancel()
-        running = process is not None and process.state() != QProcess.ProcessState.NotRunning
-        if running and not process.waitForFinished(timeout_ms):
+        if process is None or process.state() == QProcess.ProcessState.NotRunning:
+            return
+        if not process.waitForFinished(timeout_ms):
             process.kill()
             process.waitForFinished(1000)
 
@@ -237,25 +215,17 @@ class SyncController(QObject):
             self._fail(code)
             return
         self.stage_changed.emit("Comparando datas de modificação…")
-        task = _PlanTask(self._run_id, stdout, self._local_dir)
-        task.signals.done.connect(self._on_plan)
-        self._plan_tasks[self._run_id] = task
-        QThreadPool.globalInstance().start(task)
+        self._plan_task = run_task(
+            _plan, stdout, self._local_dir, on_done=self._on_plan, on_error=self._on_plan_failed
+        )
 
-    def _on_plan(self, run_id: int, plan: SyncPlan | None, error: Exception | None) -> None:
-        # Drop the task on the next loop turn: this slot runs on its own signal object.
-        task = self._plan_tasks.pop(run_id, None)
-        if task is not None:
-            self._finished_tasks.append(task)
-            QTimer.singleShot(0, self._finished_tasks.clear)
-        if run_id != self._run_id or not self._running:
-            return  # cancelled while planning: already finished
-        if self._cancelled:
-            self._finish(SyncStatus.CANCELLED)
-        elif error is not None:
-            self._unexpected(error)
-        else:
+    def _on_plan(self, plan: SyncPlan) -> None:
+        if self._running:  # a cancelled run's plan never arrives: cancel() dropped it
             self._step(self._use_plan, plan)
+
+    def _on_plan_failed(self, error: Exception) -> None:
+        if self._running:  # reported as a failed sync, never lost in the worker
+            self._unexpected(error)
 
     def _use_plan(self, plan: SyncPlan) -> None:
         self._plan = plan
@@ -321,13 +291,13 @@ class SyncController(QObject):
         self._stderr = ""
 
         def read_stdout() -> None:
-            data = bytes(process.readAllStandardOutput())
+            data = process.readAllStandardOutput().data()
             chunks.append(data)
             if progress:
                 self._report_progress(data.decode("utf-8", "replace"))
 
         def read_stderr() -> None:
-            self._stderr += bytes(process.readAllStandardError()).decode("utf-8", "replace")
+            self._stderr += process.readAllStandardError().data().decode("utf-8", "replace")
 
         def done(code: int, _status) -> None:
             read_stdout()

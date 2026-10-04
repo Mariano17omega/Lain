@@ -11,9 +11,9 @@ from matplotlib.image import imread
 from PyQt6.QtCore import QCoreApplication, QEvent, QSize
 from PyQt6.QtWidgets import QCheckBox, QDoubleSpinBox, QLabel, QMessageBox, QPushButton
 
+from qe_studio.core import detection as detection_module
 from qe_studio.core.calculations.base import Method
 from qe_studio.core.plotting.plot_file import read_plot_file
-from qe_studio.ui import main_window as main_window_module
 from qe_studio.ui.dialogs.overwrite import OverwriteChoice
 from qe_studio.ui.widgets.param_widgets import Section, SeriesList
 from qe_studio.ui.widgets.plot_view import PlotView
@@ -34,8 +34,8 @@ def no_dialogs(monkeypatch):
         calls["mapping"].append(args)
         return None
 
-    monkeypatch.setattr("qe_studio.ui.main_window.ask_overwrite", overwrite)
-    monkeypatch.setattr("qe_studio.ui.main_window.ask_mapping", mapping)
+    monkeypatch.setattr("qe_studio.ui.plot_export.ask_overwrite", overwrite)
+    monkeypatch.setattr("qe_studio.ui.plot_workflow.ask_mapping", mapping)
     monkeypatch.setattr(
         QMessageBox, "warning", staticmethod(lambda *a, **k: calls["warning"].append(a[2]))
     )
@@ -43,8 +43,17 @@ def no_dialogs(monkeypatch):
 
 
 def generate(qtbot, window, folder, auto_export=True):
-    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+    """Plot ``folder``; with ``auto_export``, also wait for the files (written in a worker)."""
+    signals = [window.plot_ready, window.export_finished] if auto_export else [window.plot_ready]
+    with qtbot.waitSignals(signals, timeout=10_000) as blocker:
         window.generate_plot_for(folder, auto_export=auto_export)
+    return next(e.args[0] for e in blocker.all_signals_and_args if "plot_ready" in e.signal_name)
+
+
+def export(qtbot, window) -> list:
+    """Ctrl+E and wait for the worker: the written paths."""
+    with qtbot.waitSignal(window.export_finished, timeout=10_000) as blocker:
+        assert window.export_plot()
     return blocker.args[0]
 
 
@@ -64,7 +73,7 @@ def test_generate_bands_exports_to_plots(qtbot, main_window, demo_project, no_di
     assert no_dialogs["overwrite"] == []
     assert to_hex(imread(folder / "plots" / "bands.png")[0, 0]) == "#ffffff"  # dark app theme
 
-    written = window.export_plot()  # files exist now: dialog → new version
+    written = export(qtbot, window)  # files exist now: dialog → new version
     assert no_dialogs["overwrite"] == [["bands.png", "bands.svg", "bands.pdf"]]
     assert [p.name for p in written] == ["bands_2.png", "bands_2.svg", "bands_2.pdf"]
 
@@ -75,12 +84,12 @@ def test_overwrite_remembered_for_session(
     window = main_window
     answers = []
     monkeypatch.setattr(
-        "qe_studio.ui.main_window.ask_overwrite",
+        "qe_studio.ui.plot_export.ask_overwrite",
         lambda *a: answers.append(1) or (OverwriteChoice.OVERWRITE, True),
     )
     generate(qtbot, window, demo_project / "03_bands")
-    window.export_plot()
-    window.export_plot()
+    export(qtbot, window)
+    export(qtbot, window)
     assert len(answers) == 1
     assert not (demo_project / "03_bands" / "plots" / "bands_2.png").exists()
 
@@ -89,9 +98,9 @@ def test_cancel_export(qtbot, main_window, demo_project, no_dialogs, monkeypatch
     window = main_window
     generate(qtbot, window, demo_project / "03_bands")
     monkeypatch.setattr(
-        "qe_studio.ui.main_window.ask_overwrite", lambda *a: (OverwriteChoice.CANCEL, False)
+        "qe_studio.ui.plot_export.ask_overwrite", lambda *a: (OverwriteChoice.CANCEL, False)
     )
-    assert window.export_plot() == []
+    assert window.export_plot() is False
 
 
 def test_params_edit_rerenders(qtbot, main_window, demo_project, no_dialogs):
@@ -141,7 +150,7 @@ def test_regenerate_keeps_edits_made_while_loading(qtbot, main_window, demo_proj
     window = main_window
     session = generate(qtbot, window, demo_project / "03_bands", auto_export=False)
     session.params.emin = -3.0  # edited after the worker read bands.plot (none yet)
-    window._on_loaded(session.result, session.dataset, (None, []), False)
+    window.plot_workflow.show_loaded(session.result, session.dataset, (None, []))
     new = window.current_plot().session
     assert new is not session and new.params.emin == -3.0 and new.defaults.emin == -5.0
 
@@ -151,9 +160,9 @@ def test_detected_results_survive_an_invalidation(qtbot, main_window, demo_proje
     window = main_window
     folder = demo_project / "03_bands"
     window.service.detect_now(folder)
-    window._detecting[str(folder)] = False
+    window.plot_workflow._detecting[str(folder)] = False
     with qtbot.waitSignal(window.plot_ready, timeout=10_000):
-        window._on_detected(str(folder))
+        window.plot_workflow._on_detected(str(folder))
         window.service.invalidate()
     assert no_dialogs["mapping"] == []
 
@@ -232,15 +241,15 @@ def test_manual_mapping_when_scf_missing(qtbot, main_window, demo_project, no_di
         assert [r.badge for r in results] == ["BANDS"]
         return "bands", {"scf_out": [elsewhere / "run.log"], "gnu": [folder / "dados.gnu"]}, True
 
-    monkeypatch.setattr("qe_studio.ui.main_window.ask_mapping", mapping)
+    monkeypatch.setattr("qe_studio.ui.plot_workflow.ask_mapping", mapping)
     on_gui_thread = []
-    real = main_window_module.manual_result
+    real = detection_module.manual_result
 
     def manual_result(*args):
         on_gui_thread.append(threading.current_thread() is threading.main_thread())
         return real(*args)
 
-    monkeypatch.setattr(main_window_module, "manual_result", manual_result)
+    monkeypatch.setattr(detection_module, "manual_result", manual_result)
     session = generate(qtbot, window, folder, auto_export=False)
     assert on_gui_thread == [False]  # it sniffs the mapped files: load worker only
     assert session.result.methods["scf_out"] is Method.MANUAL
@@ -262,7 +271,7 @@ def test_relax_plot(qtbot, main_window, demo_project, no_dialogs):
     ]
     assert window.status.readout.text().startswith("01_relax · Relaxado ✓ · 6 passos BFGS")
     window.params.set_param("panels", "energy")
-    assert [p.name for p in window.export_plot()] == [
+    assert [p.name for p in export(qtbot, window)] == [
         "relax_energia.png",
         "relax_energia.svg",
         "relax_energia.pdf",
@@ -303,7 +312,7 @@ def test_plot_file_previews_one_output_without_saving(qtbot, main_window, demo_p
     assert window.status.readout.text().startswith("scf.out · Convergiu ✓")
 
     window.params.set_param("scale", "linear")  # the settings go to <folder>/scf.plot
-    window._flush_plot_files()
+    window.plot_settings.flush_now()
     stored, _ = read_plot_file(folder, "scf")
     assert stored["scale"] == "linear"
     with qtbot.waitSignal(window.plot_ready, timeout=10_000):
@@ -384,7 +393,7 @@ def test_choose_between_kinds(qtbot, main_window, demo_project, no_dialogs, monk
         offered.extend(r.badge for r in results)
         return results[1]
 
-    monkeypatch.setattr("qe_studio.ui.main_window.choose_result", choose)
+    monkeypatch.setattr("qe_studio.ui.plot_workflow.choose_result", choose)
     session = generate(qtbot, window, folder, auto_export=False)
     assert offered == ["BANDS", "PDOS"] and session.kind == "pdos"
 
@@ -407,7 +416,7 @@ def test_legacy_labels_only_without_plot_file(qtbot, main_window, demo_project, 
     session = generate(qtbot, window, folder, auto_export=False)
     assert session.params.labels == "L, G, X, U, G"
     window.params.set_param("labels", "")
-    window._flush_plot_files()
+    window.plot_settings.flush_now()
     session = generate(qtbot, window, folder, auto_export=False)
     assert session.params.labels == ""
 
@@ -417,7 +426,7 @@ def test_plot_settings_persist(qtbot, main_window, demo_project, no_dialogs):
     folder = demo_project / "03_bands"
     path = folder / "bands.plot"
     session = generate(qtbot, window, folder, auto_export=False)
-    window._flush_plot_files()
+    window.plot_settings.flush_now()
     assert not path.exists()  # generating alone never writes
     window.params.set_param("emin", -3.0)
     qtbot.waitUntil(path.exists, timeout=3000)  # debounced write
@@ -437,7 +446,7 @@ def test_pan_zoom_is_saved(qtbot, main_window, demo_project, no_dialogs):
     ax.set_ylim(-2.0, 1.0)
     ax.set_xlim(0.5, 2.0)
     window.current_plot()._on_release(None)
-    window._flush_plot_files()
+    window.plot_settings.flush_now()
     stored = yaml.safe_load((folder / "bands.plot").read_text())["params"]
     assert (stored["emin"], stored["emax"], stored["xmin"], stored["xmax"]) == (-2.0, 1.0, 0.5, 2.0)
 
@@ -448,7 +457,7 @@ def test_restore_defaults(qtbot, main_window, demo_project, no_dialogs, monkeypa
     session = generate(qtbot, window, folder, auto_export=False)
     window.params.set_param("emin", -3.0)
     window.params.set_param("background", "#000000")
-    window._flush_plot_files()
+    window.plot_settings.flush_now()
     asked = []
     monkeypatch.setattr(
         QMessageBox,
@@ -463,7 +472,7 @@ def test_restore_defaults(qtbot, main_window, demo_project, no_dialogs, monkeypa
     assert session.params == session.defaults and not (folder / "bands.plot").exists()
     figure = window.current_plot().figure
     assert figure.axes[0].get_ylim() == (-5.0, 5.0) and to_hex(figure.get_facecolor()) == "#ffffff"
-    window._flush_plot_files()
+    window.plot_settings.flush_now()
     assert not (folder / "bands.plot").exists()
 
 
@@ -484,12 +493,12 @@ def test_read_only_folder_warns_once(qtbot, main_window, demo_project, no_dialog
     folder.chmod(0o555)
     try:
         window.params.set_param("emin", -3.0)
-        window._flush_plot_files()
+        window.plot_settings.flush_now()
         message = window.status.message.text()
         assert message.startswith("Não foi possível salvar bands.plot em 03_bands")
         window.status.set_message("")
         window.params.set_param("emin", -2.0)
-        window._flush_plot_files()
+        window.plot_settings.flush_now()
         assert window.status.message.text() == ""  # once per plot and run
     finally:
         folder.chmod(0o755)
@@ -533,7 +542,7 @@ def test_plot_button_reuses_the_open_plot(qtbot, main_window, demo_project, no_d
     window.explorer.select_path(folder)
     with qtbot.assertNotEmitted(window.plot_ready, wait=200):
         window.activity.plot.click()
-    assert window._detecting == {}
+    assert window.plot_workflow._detecting == {}
     assert window.current_plot() is view and view.session.params.emin == -3.0
     assert window.params.session is view.session and window.left.currentIndex() == 1
 
@@ -565,7 +574,7 @@ def test_placeholder_generates_and_saves(qtbot, main_window, demo_project, no_di
     window.set_left_mode("params")
     button = window.params.body.findChild(QPushButton)
     assert button.text() == "Gerar gráfico"
-    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+    with qtbot.waitSignals([window.plot_ready, window.export_finished], timeout=10_000):
         button.click()
     assert (folder / "plots" / "bands.png").exists()
 

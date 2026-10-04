@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from PyQt6.QtCore import (
     QModelIndex,
-    QObject,
     QPoint,
     QRect,
     QRectF,
-    QRunnable,
     QSize,
     Qt,
     QThreadPool,
-    QTimer,
     pyqtSignal,
 )
 from PyQt6.QtGui import QActionGroup, QFont, QKeySequence, QPainter, QPen, QShortcut
@@ -29,36 +25,18 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..file_types import file_visual, human_size, status_label
+from ...core.file_kinds import human_size, status_label
+from ...core.paths import count_entries
+from ...core.tasks import TaskGroup
+from ..file_types import file_visual, level_token
 from ..painting import mono_font
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
-from .common import IconButton, PanelHeader
+from .common import IconButton, PanelHeader, selection_of, viewport_of
 from .fs_model import SORT_DATE, SORT_NAME, SORT_SIZE, FileFilterProxy, make_fs_model
 
 CARD = QSize(148, 86)
 ROW = 26
-
-
-class _CountSignals(QObject):
-    done = pyqtSignal(int, str, int)  # generation, folder, entries (-1 = unreadable)
-
-
-class _CountTask(QRunnable):
-    """Counts a subfolder's entries off the GUI thread (big folders, slow network mounts)."""
-
-    def __init__(self, generation: int, folder: str):
-        super().__init__()
-        self.generation, self.folder = generation, folder
-        self.signals = _CountSignals()
-
-    def run(self) -> None:
-        try:
-            with os.scandir(self.folder) as entries:
-                count = sum(1 for e in entries if not e.name.startswith("."))
-        except OSError:
-            count = -1
-        self.signals.done.emit(self.generation, self.folder, count)
 
 
 class FileCardDelegate(QStyledItemDelegate):
@@ -160,11 +138,10 @@ class FileCardDelegate(QStyledItemDelegate):
             count = self.panel.item_count(path)
             return (f"{count} itens" if count is not None else "pasta"), "text_dim"
         label = status_label(path, size, self.panel.service.file_sniff(path))
-        if self.panel.grid_mode:
-            return label or ("", "text_dim")
         if label is None:
-            return human_size(size), "text_dim"
-        return f"{human_size(size)} · {label[0]}", label[1]
+            return ("", "text_dim") if self.panel.grid_mode else (human_size(size), "text_dim")
+        text, token = label[0], level_token(label[1])
+        return (text, token) if self.panel.grid_mode else (f"{human_size(size)} · {text}", token)
 
 
 class FilePanel(QWidget):
@@ -186,11 +163,11 @@ class FilePanel(QWidget):
         self.setObjectName("filePanel")
         self.grid_mode = True
         self._counts: dict[str, int | None] = {}
-        self._count_generation = 0  # bumped on refresh: counts from older tasks are dropped
-        self._count_tasks: dict[str, _CountTask] = {}
-        self._finished_counts: list[_CountTask] = []
-        self._count_pool = QThreadPool(self)
+        self._count_pool = QThreadPool()  # no Qt parent: see core/tasks.py, "private pools"
         self._count_pool.setMaxThreadCount(2)
+        # Subfolder entry counts, off the GUI thread (big folders, slow network mounts); a
+        # refresh cancels them all, so counts read before it are dropped.
+        self._count_tasks = TaskGroup(self._count_pool)
         self._folder = Path(root)
 
         layout = QVBoxLayout(self)
@@ -231,14 +208,14 @@ class FilePanel(QWidget):
             shortcut = QShortcut(QKeySequence(keys), self.view)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             shortcut.activated.connect(self.go_up)
-        self.view.selectionModel().currentChanged.connect(self._on_current)
+        selection_of(self.view).currentChanged.connect(self._on_current)
         self._pending_select: Path | None = None  # a file to select once its folder is listed
         self.model.directoryLoaded.connect(self._update_count)
         self.model.directoryLoaded.connect(self._select_pending)
         self.proxy.rowsInserted.connect(self._update_count)
         self.proxy.rowsInserted.connect(self._select_pending)
         self.proxy.rowsRemoved.connect(self._update_count)
-        service.detected.connect(lambda _f: self.view.viewport().update())
+        service.detected.connect(self._on_detected)
         theme.theme_changed.connect(self._on_theme_changed)
         self.set_folder(root)
 
@@ -256,18 +233,26 @@ class FilePanel(QWidget):
         self.service.results(self._folder)  # warm the sniff cache for status labels
         self._update_count()
 
+    def apply_config(self, root: Path, hidden_dirs: list[str]) -> None:
+        """A reloaded config: project root and hidden folders; shows the root."""
+        self.proxy.set_hidden_dirs(hidden_dirs)
+        self.proxy.set_root(root)
+        self.set_folder(root)
+
     def refresh(self) -> None:
         self._clear_counts()
-        self.view.viewport().update()
+        viewport_of(self.view).update()
 
     def shutdown(self, msecs: int = 1000) -> bool:
         """Drop queued counts and wait for the running ones (window close): the pool's
         destructor would otherwise run every queued scan, without a time limit."""
-        self._count_pool.clear()
-        return self._count_pool.waitForDone(msecs)
+        return self._count_tasks.shutdown(msecs)
 
     def _on_theme_changed(self, _name: str) -> None:
-        self.view.viewport().update()
+        viewport_of(self.view).update()
+
+    def _on_detected(self, _folder: str) -> None:
+        viewport_of(self.view).update()  # status labels from the new sniffs
 
     def set_grid_mode(self, grid: bool) -> None:
         self.grid_mode = grid
@@ -292,26 +277,17 @@ class FilePanel(QWidget):
         key = str(folder)
         if key in self._counts:
             return self._counts[key]
-        if key not in self._count_tasks:
-            task = _CountTask(self._count_generation, key)
-            task.signals.done.connect(self._on_counted)
-            self._count_tasks[key] = task
-            self._count_pool.start(task)
+        if self._count_tasks.active(key) is None:
+            self._count_tasks.submit(key, count_entries, key, on_done=self._on_counted)
         return None
 
     def _clear_counts(self) -> None:
-        self._count_generation += 1
+        self._count_tasks.cancel_all()
         self._counts.clear()
 
-    def _on_counted(self, generation: int, key: str, count: int) -> None:
-        # Drop the task on the next loop turn: this slot runs on its own signal object.
-        task = self._count_tasks.pop(key, None)
-        if task is not None:
-            self._finished_counts.append(task)
-            QTimer.singleShot(0, self._finished_counts.clear)
-        if generation == self._count_generation:
-            self._counts[key] = count if count >= 0 else None
-        self.view.viewport().update()  # a stale count is requested again on repaint
+    def _on_counted(self, key: str, count: int | None) -> None:
+        self._counts[key] = count
+        viewport_of(self.view).update()
 
     def _apply_mode(self) -> None:
         view = self.view
@@ -327,7 +303,7 @@ class FilePanel(QWidget):
             view.setGridSize(QSize())
             view.setWrapping(False)
             view.setSpacing(0)
-        view.doItemsLayout()
+        view.doItemsLayout()  # pyright: ignore[reportAttributeAccessIssue]  (public Qt slot, not in the stubs)
 
     def _sort_menu(self) -> QMenu:
         menu = QMenu(self)
@@ -335,6 +311,7 @@ class FilePanel(QWidget):
         self._sort_actions = {}
         for label, column in (("Nome", SORT_NAME), ("Tamanho", SORT_SIZE), ("Data", SORT_DATE)):
             action = menu.addAction(label)
+            assert action is not None
             action.setCheckable(True)
             action.setChecked(column == SORT_NAME)
             group.addAction(action)
@@ -383,5 +360,5 @@ class FilePanel(QWidget):
         index = self.view.indexAt(pos)
         if index.isValid() and not self.proxy.is_up(index):
             self.item_menu_requested.emit(
-                self.proxy.path(index), self.view.viewport().mapToGlobal(pos)
+                self.proxy.path(index), viewport_of(self.view).mapToGlobal(pos)
             )

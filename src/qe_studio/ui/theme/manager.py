@@ -105,7 +105,10 @@ class ThemeManager(QObject):
 
     # -- applying ------------------------------------------------------------------------------
     def apply(self, app: QApplication | None = None) -> None:
-        app = app or QApplication.instance()
+        if app is None:
+            instance = QApplication.instance()
+            assert isinstance(instance, QApplication), "the theme styles a QApplication"
+            app = instance
         load_fonts()
         app.setStyle("Fusion")
         app.setPalette(self.palette())

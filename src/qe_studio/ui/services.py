@@ -2,38 +2,23 @@
 
 from __future__ import annotations
 
-import itertools
 import threading
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
+from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 
 from ..core.calculations import DetectionResult
 from ..core.detection import detect_folder
 from ..core.folder_memory import FolderMemory
 from ..core.sniff import FileSniff, SniffCache
+from ..core.tasks import TaskGroup
 
 
-class _Signals(QObject):
-    done = pyqtSignal(int, object)  # task token, results
-
-
-class _DetectTask(QRunnable):
-    def __init__(self, token: int, folder: Path, sniff: SniffCache, memory: FolderMemory | None):
-        super().__init__()
-        self.token, self.folder, self.sniff, self.memory = token, folder, sniff, memory
-        self.signals = _Signals()
-        self.cancelled = False  # superseded before it started: skip the work
-
-    def run(self) -> None:
-        if self.cancelled:
-            self.signals.done.emit(self.token, None)
-            return
-        try:
-            results = detect_folder(self.folder, sniff=self.sniff.sniff, memory=self.memory)
-        except Exception:  # never let a worker exception take the app down
-            results = []
-        self.signals.done.emit(self.token, results)
+def _detect(folder: Path, sniff: SniffCache, memory: FolderMemory | None) -> list[DetectionResult]:
+    try:
+        return detect_folder(folder, sniff=sniff.sniff, memory=memory)
+    except Exception:  # never let a worker exception take the app down
+        return []
 
 
 def _within(key: str, folder: Path | None) -> bool:
@@ -59,14 +44,11 @@ class DetectionService(QObject):
         self.sniff_cache = SniffCache()
         # F5 drops every sniff, not just those of deleted files (``ui.paranoid_refresh``).
         self.paranoid_refresh = False
-        self._pool = QThreadPool(self)
+        self._pool = QThreadPool()  # no Qt parent: see core/tasks.py, "private pools"
         self._pool.setMaxThreadCount(2)
         self._lock = threading.Lock()
         self._results: dict[str, list[DetectionResult]] = {}
-        self._tokens = itertools.count()
-        self._tasks: dict[int, _DetectTask] = {}  # running tasks (keeps their signals alive)
-        self._pending: dict[str, int] = {}  # folder → token of the task whose result counts
-        self._finished: list[_DetectTask] = []
+        self._tasks = TaskGroup(self._pool)  # by folder: the task whose result counts
 
     def results(self, folder: Path) -> list[DetectionResult] | None:
         """Cached results, scheduling detection on a miss (returns None meanwhile)."""
@@ -80,22 +62,23 @@ class DetectionService(QObject):
     def request(self, folder: Path, fresh: bool = False) -> None:
         """Schedule detection; ``fresh`` jumps the queue and supersedes a task already running."""
         key = str(folder)
-        if key in self._pending and not fresh:
+        if self._tasks.active(key) is not None and not fresh:
             return
-        self._cancel(key)
-        token = next(self._tokens)
-        task = _DetectTask(token, Path(folder), self.sniff_cache, self.memory)
-        task.signals.done.connect(self._on_done)
-        self._tasks[token] = task
-        self._pending[key] = token
-        self._pool.start(task, 1 if fresh else 0)
+        self._tasks.submit(
+            key,
+            _detect,
+            Path(folder),
+            self.sniff_cache,
+            self.memory,
+            on_done=self._on_done,
+            priority=1 if fresh else 0,
+        )
 
     def detect_now(self, folder: Path) -> list[DetectionResult]:
         """Synchronous detection refreshing the cache (blocks: scripts and tests only)."""
         key = str(folder)
         results = detect_folder(Path(folder), sniff=self.sniff_cache.sniff, memory=self.memory)
-        self._cancel(key)  # a task started earlier must not overwrite this
-        self._pending.pop(key, None)
+        self._tasks.cancel(key)  # a task started earlier must not overwrite this
         with self._lock:
             self._results[key] = results
         self.detected.emit(key)
@@ -121,8 +104,8 @@ class DetectionService(QObject):
         else:
             self.sniff_cache.invalidate(Path(folder))
         # Running tasks may have read the old files: start over, their results are dropped.
-        for key in [k for k in self._pending if _affected(k, folder)]:
-            self.request(Path(key), fresh=True)
+        for key in [k for k in self._tasks.active_keys() if _affected(str(k), folder)]:
+            self.request(Path(str(key)), fresh=True)
 
     def wait(self, msecs: int = 5000) -> bool:
         return self._pool.waitForDone(msecs)
@@ -133,28 +116,9 @@ class DetectionService(QObject):
         The pool's destructor waits for every task without a time limit, so none may be left
         queued behind a slow network mount.
         """
-        for key in list(self._pending):
-            self._cancel(key)
-        self._pending.clear()
-        return self._pool.waitForDone(msecs)
+        return self._tasks.shutdown(msecs)
 
-    def _cancel(self, key: str) -> None:
-        """A queued task for ``key`` skips its work; a running one has its result dropped."""
-        task = self._tasks.get(self._pending.get(key, -1))
-        if task is not None:
-            task.cancelled = True
-
-    def _on_done(self, token: int, results: list[DetectionResult] | None) -> None:
-        # Drop the task on the next loop turn: this slot runs on its own signal object.
-        task = self._tasks.pop(token, None)
-        if task is None:
-            return
-        self._finished.append(task)
-        QTimer.singleShot(0, self._finished.clear)
-        key = str(task.folder)
-        if results is None or self._pending.get(key) != token:
-            return  # superseded (invalidated or refreshed) before or while it ran
-        del self._pending[key]
+    def _on_done(self, key: str, results: list[DetectionResult]) -> None:
         with self._lock:
             self._results[key] = results
         self.detected.emit(key)

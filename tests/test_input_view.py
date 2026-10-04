@@ -7,10 +7,10 @@ from PyQt6.QtCore import QEvent, QPoint
 from PyQt6.QtGui import QHelpEvent, QTextCharFormat, QTextCursor, QTextDocument
 from PyQt6.QtWidgets import QToolTip
 
+from qe_studio.core import text_preview
+from qe_studio.core.file_kinds import viewer_kind
 from qe_studio.core.sniff import FileKind, SniffCache
-from qe_studio.ui.file_types import viewer_kind
 from qe_studio.ui.theme.manager import ThemeManager
-from qe_studio.ui.widgets import text_viewer
 from qe_studio.ui.widgets.highlighters import InputHighlighter, OutputHighlighter
 from qe_studio.ui.widgets.text_viewer import TextViewer
 
@@ -254,20 +254,12 @@ def test_f8_without_problems_does_nothing(qtbot, main_window):
 
 # -- big inputs (R4.2) -------------------------------------------------------------------------
 def test_input_over_the_limit_is_colored_but_not_checked(qtbot, main_window, tmp_path, monkeypatch):
-    monkeypatch.setattr(text_viewer, "INPUT_READ_LIMIT", 50)
+    monkeypatch.setattr(text_preview, "INPUT_READ_LIMIT", 50)
     viewer = open_text(qtbot, main_window, write(tmp_path, BROKEN))
     assert isinstance(viewer._highlighter, InputHighlighter)
     assert viewer.input_view.issues == [] and viewer.editor.diagnostics == {}
     assert not viewer.banner_bar.isHidden()
     assert "escrita não foi verificada" in viewer.banner.text()
-
-
-def test_loader_returns_the_lint_with_the_text(tmp_path):
-    loaded = text_viewer.load_for_viewer(write(tmp_path, BROKEN))
-    assert loaded.is_input and loaded.input_doc is not None
-    assert [i.line for i in loaded.input_doc.issues] == [3, 7]
-    plain = text_viewer.load_for_viewer(write(tmp_path, "just text\n", "a.txt"))
-    assert not plain.is_input and plain.input_doc is None
 
 
 def test_reload_with_load_all_keeps_the_input_marks(qtbot, main_window, tmp_path, monkeypatch):
@@ -357,7 +349,7 @@ def test_programs_without_a_strip_keep_the_header(qtbot, main_window, tmp_path):
 def test_outputs_and_big_inputs_have_no_strip(qtbot, main_window, tmp_path, monkeypatch):
     out = open_text(qtbot, main_window, FIXTURES / "si_bands" / "si.scf.out")
     assert out.input_view.isHidden()
-    monkeypatch.setattr(text_viewer, "INPUT_READ_LIMIT", 50)
+    monkeypatch.setattr(text_preview, "INPUT_READ_LIMIT", 50)
     big = open_text(qtbot, main_window, write(tmp_path, BROKEN, "big.in"))
     assert big.input_view.isHidden() and chip_texts(big) == []
 

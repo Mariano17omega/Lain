@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 
 from ...core.calculations.base import Dataset
 from ...core.calculations.params import CommonParams, ParamField, ordered_sections
-from ..plot_session import PlotSession
+from ...core.plotting.session import PlotSession
 from ..theme.manager import ThemeManager
 from .common import set_variant
 from .param_widgets import ColorButton, Section, SeriesList

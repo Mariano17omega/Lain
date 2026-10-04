@@ -4,21 +4,24 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import partial
+from pathlib import Path
 
 import matplotlib
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from PyQt6.QtCore import QRect, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QRect, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from ...core.calculations.base import AxesLimits
+from ...core.plotting.mpl_lock import MPL_LOCK
+from ...core.plotting.session import PlotSession
 from ...core.plotting.style import register_fonts
-from ..plot_session import PlotSession
 from ..theme.manager import ThemeManager
 from .common import IconButton
 
 MARGIN = 16
+RETRY_MS = 50  # matplotlib busy with an export: render or draw again after this
 
 
 class ScaledFigureCanvas(FigureCanvasQTAgg):
@@ -32,10 +35,23 @@ class ScaledFigureCanvas(FigureCanvasQTAgg):
         super().__init__(figure)
         self._inches = tuple(figure.get_size_inches())
         self.rc: dict = {}  # style rcParams; mathtext is parsed at draw time
+        self._redraw = QTimer(self)
+        self._redraw.setSingleShot(True)
+        self._redraw.setInterval(RETRY_MS)
+        self._redraw.timeout.connect(self.draw_idle)
 
     def draw(self) -> None:
-        with matplotlib.rc_context(self.rc):
-            super().draw()
+        # An export holds matplotlib: keep the last image and draw again shortly, never wait.
+        if not MPL_LOCK.acquire(blocking=False):
+            redraw = getattr(self, "_redraw", None)  # None while the base class initializes
+            if redraw is not None:
+                redraw.start()
+            return
+        try:
+            with matplotlib.rc_context(self.rc):
+                super().draw()
+        finally:
+            MPL_LOCK.release()
 
     def set_inches(self, width: float, height: float) -> None:
         self._inches = (width, height)
@@ -185,6 +201,10 @@ class PlotView(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.theme, self.session = theme, session
         self._limits: AxesLimits | None = None  # axis limits the params already describe
+        self._retry = QTimer(self)  # render again once an export releases matplotlib
+        self._retry.setSingleShot(True)
+        self._retry.setInterval(RETRY_MS)
+        self._retry.timeout.connect(self.render)
         register_fonts()
         params = session.params
         self.figure = Figure(figsize=params.figure_size)
@@ -203,18 +223,36 @@ class PlotView(QWidget):
         self.canvas.mpl_connect("scroll_event", self._on_release)
         self.render()
 
+    @property
+    def path(self) -> Path:
+        """What the plot shows: its folder, or the output file of a single-file module."""
+        return self.session.plot_target
+
+    @property
+    def render_pending(self) -> bool:
+        """A render waits for an export to release matplotlib."""
+        return self._retry.isActive()
+
     def render(self) -> None:
-        params = self.session.params
-        if self.canvas._inches != params.figure_size:
-            self.canvas.set_inches(*params.figure_size)
-            self.box.set_ratio(params.figure_width / params.figure_height)
-        style = self.session.style  # not the app theme: the figure looks like the export
-        self.canvas.rc = style.rc(params.font_size)
-        info = self.session.render(self.figure, style)
-        self._install_readout()
-        self._limits = self._axis_limits()
-        self.canvas.draw_idle()
-        self.toolbar.nav.update()  # drop the pan/zoom history of the previous drawing
+        """Draw the session. While an export holds matplotlib (``MPL_LOCK``) the render is
+        retried a moment later instead: the GUI thread never waits for the export."""
+        if not MPL_LOCK.acquire(blocking=False):
+            self._retry.start()
+            return
+        try:
+            params = self.session.params
+            if self.canvas._inches != params.figure_size:
+                self.canvas.set_inches(*params.figure_size)
+                self.box.set_ratio(params.figure_width / params.figure_height)
+            style = self.session.style  # not the app theme: the figure looks like the export
+            self.canvas.rc = style.rc(params.font_size)
+            info = self.session.render(self.figure, style)
+            self._install_readout()
+            self._limits = self._axis_limits()
+            self.canvas.draw_idle()
+            self.toolbar.nav.update()  # drop the pan/zoom history of the previous drawing
+        finally:
+            MPL_LOCK.release()
         self.rendered.emit(info)
 
     def _install_readout(self) -> None:

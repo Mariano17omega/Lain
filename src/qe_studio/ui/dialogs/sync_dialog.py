@@ -15,9 +15,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...core.file_kinds import human_size
 from ...core.sync.controller import SyncController
 from ...core.sync.planner import Decision, PlanItem
-from ..file_types import human_size
 from ..theme.manager import ThemeManager
 from ..widgets.common import set_variant
 from ..widgets.spinner import CircularProgress

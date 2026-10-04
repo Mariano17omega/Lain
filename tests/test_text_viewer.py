@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QInputDialog
 from qe_studio.core import textfile
 from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.highlighters import OutputHighlighter
-from qe_studio.ui.widgets.text_viewer import TOO_BIG, load_for_viewer
+from qe_studio.ui.widgets.text_viewer import TOO_BIG
 
 from conftest import FIXTURES
 from viewer_helpers import CTRL, SHIFT, key, open_text
@@ -319,10 +319,3 @@ def test_open_in_external_editor_without_a_default_program(
     numbered(path)
     open_text(qtbot, main_window, path).external_button.click()
     assert opened == [str(path)]
-
-
-def test_loader_marks_outputs(tmp_path):
-    assert load_for_viewer(AL_SCF).highlight
-    other = tmp_path / "a.txt"
-    other.write_text("just text\n")
-    assert not load_for_viewer(other).highlight

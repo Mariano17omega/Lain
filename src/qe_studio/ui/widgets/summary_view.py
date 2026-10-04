@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -22,35 +22,13 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.qe.summary import OutputSummary, summarize, to_text
+from ...core.tasks import TaskHandle, run_task
 from ..theme.manager import ThemeManager
 from .summary_widgets import SummarySectionWidget
 
 log = logging.getLogger(__name__)
 
 MESSAGE, CONTENT = 0, 1  # pages of the stack
-
-
-class _Signals(QObject):
-    done = pyqtSignal(int, object)  # generation, OutputSummary
-    failed = pyqtSignal(int, str)
-
-
-class _SummaryTask(QRunnable):
-    def __init__(self, path: Path, generation: int):
-        super().__init__()
-        self.path, self.generation = path, generation
-        self.signals = _Signals()
-
-    def run(self) -> None:
-        try:
-            summary = summarize(self.path)
-        except OSError as exc:
-            self.signals.failed.emit(self.generation, str(exc))
-        except Exception as exc:  # a parser bug must not leave the tab on "Lendo…"
-            log.exception("summary of %s failed", self.path)
-            self.signals.failed.emit(self.generation, str(exc))
-        else:
-            self.signals.done.emit(self.generation, summary)
 
 
 def summary_key(path: Path) -> str:
@@ -77,8 +55,7 @@ class SummaryView(QWidget):
         self.path = path
         self.theme = theme
         self.summary: OutputSummary | None = None
-        self._generation = 0
-        self._task: _SummaryTask | None = None
+        self._task: TaskHandle | None = None  # the read in progress (cancelled when we die)
         self.setObjectName("summaryView")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -124,25 +101,14 @@ class SummaryView(QWidget):
     # -- loading -----------------------------------------------------------------------------
     def refresh(self) -> None:
         """Read the file again; the result of an earlier, slower read is dropped."""
-        self._generation += 1
         self.copy_button.setEnabled(False)
         self.refresh_button.setEnabled(False)
         self._show_message(f"Lendo {self.path.name}…")
-        previous = self._task
-        task = _SummaryTask(self.path, self._generation)
-        task.signals.done.connect(self._on_done)
-        task.signals.failed.connect(self._on_failed)
-        self._task = task
-        if previous is not None:
-            # The finished task's signal object may still be running this slot.
-            QTimer.singleShot(0, lambda: previous)
-        pool = QThreadPool.globalInstance()
-        assert pool is not None
-        pool.start(task)
+        if self._task is not None:
+            self._task.cancel()
+        self._task = run_task(summarize, self.path, on_done=self._on_done, on_error=self._on_failed)
 
-    def _on_done(self, generation: int, summary: OutputSummary) -> None:
-        if generation != self._generation:
-            return
+    def _on_done(self, summary: OutputSummary) -> None:
         self.summary = summary
         body = QWidget()
         body.setObjectName("summaryBody")
@@ -160,9 +126,9 @@ class SummaryView(QWidget):
         self.refresh_button.setEnabled(True)
         self.loaded.emit()
 
-    def _on_failed(self, generation: int, error: str) -> None:
-        if generation != self._generation:
-            return
+    def _on_failed(self, error: Exception) -> None:
+        if not isinstance(error, OSError):  # a parser bug must not leave the tab on "Lendo…"
+            log.error("summary of %s failed", self.path, exc_info=error)
         self.summary = None
         self._show_message(f"Não foi possível ler o arquivo: {error}")
         self.refresh_button.setEnabled(True)

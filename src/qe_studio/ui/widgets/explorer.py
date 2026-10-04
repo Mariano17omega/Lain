@@ -16,11 +16,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..file_types import file_visual, human_size, status_label
+from ...core.file_kinds import human_size, status_label
+from ..file_types import file_visual, level_token
 from ..painting import mono_font, paint_badge, ui_font
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
-from .common import IconButton, PanelHeader
+from .common import IconButton, PanelHeader, selection_of, viewport_of
 from .fs_model import FileFilterProxy, make_fs_model
 
 ROW_HEIGHT = 22
@@ -87,7 +88,7 @@ class ExplorerDelegate(QStyledItemDelegate):
     ) -> float:
         painter.setFont(mono_font(10))
         label = status_label(path, size, self.service.file_sniff(path))
-        text, token = label or (human_size(size), "text_dim")
+        text, token = (label[0], level_token(label[1])) if label else (human_size(size), "text_dim")
         width = painter.fontMetrics().horizontalAdvance(text)
         painter.setPen(self.theme.color(token))
         painter.drawText(
@@ -144,16 +145,19 @@ class ExplorerPanel(QWidget):
         layout.addWidget(self.tree, 1)
 
         self.set_root(root)
-        self.tree.selectionModel().currentChanged.connect(self._on_current)
+        selection_of(self.tree).currentChanged.connect(self._on_current)
         self.tree.activated.connect(self._on_activated)  # double click or Enter
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
         self.collapse_button.clicked.connect(self.tree.collapseAll)
         self.refresh_button.clicked.connect(self.refresh)
-        service.detected.connect(lambda _folder: self.tree.viewport().update())
+        service.detected.connect(self._on_detected)
         theme.theme_changed.connect(self._on_theme_changed)
 
     def _on_theme_changed(self, _name: str) -> None:
-        self.tree.viewport().update()
+        viewport_of(self.tree).update()
+
+    def _on_detected(self, _folder: str) -> None:
+        viewport_of(self.tree).update()
 
     @property
     def root(self) -> Path:
@@ -165,9 +169,14 @@ class ExplorerPanel(QWidget):
         self.model.setRootPath(str(root))
         self.tree.setRootIndex(self.proxy.index_for(root))
 
+    def apply_config(self, root: Path, hidden_dirs: list[str]) -> None:
+        """A reloaded config: project root and hidden folders."""
+        self.proxy.set_hidden_dirs(hidden_dirs)
+        self.set_root(root)
+
     def refresh(self) -> None:
         """Repaint the badges; the caller invalidates the detection it knows is stale."""
-        self.tree.viewport().update()
+        viewport_of(self.tree).update()
 
     def current_path(self) -> Path | None:
         index = self.tree.currentIndex()
@@ -209,5 +218,5 @@ class ExplorerPanel(QWidget):
         index = self.tree.indexAt(pos)
         if index.isValid():
             self.item_menu_requested.emit(
-                self.proxy.path(index), self.tree.viewport().mapToGlobal(pos)
+                self.proxy.path(index), viewport_of(self.tree).mapToGlobal(pos)
             )
