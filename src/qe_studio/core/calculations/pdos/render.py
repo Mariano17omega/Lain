@@ -72,13 +72,39 @@ def render_pdos(
     figure: Figure, dataset: PdosDataset, params: PdosParams, style: PlotStyle
 ) -> RenderInfo:
     ax = new_axes(figure, style)
-    data = dataset.data
     fermi = dataset.fermi(params.fermi_source)
     ref = fermi if params.shift_to_fermi and fermi is not None else 0.0
+    pair = dataset.fermi_channels(params.fermi_source)
+    dos_lim = draw_pdos(ax, dataset, params, style, ref, fermi, pair)
+    handles = None
+    if dataset.data.spin_polarized and spin_mode(dataset, params) == "overlay":
+        handles = ax.get_legend_handles_labels()[0] + line_styles(params, style)
+    if params.legend_gap and dataset.gap is not None:
+        if handles is None:
+            handles = ax.get_legend_handles_labels()[0]
+        handles.append(gap_handle(gap_label(dataset.gap.value, approx=dataset.gap.source == "dos")))
+    finish(figure, ax, params, handles)
+    e_lim = (params.emin, params.emax)
+    xlim, ylim = (dos_lim, e_lim) if params.orientation == "vertical" else (e_lim, dos_lim)
+    return RenderInfo(xlim, ylim, summary(dataset, params))
+
+
+def draw_pdos(
+    ax: Axes,
+    dataset: PdosDataset,
+    params: PdosParams,
+    style: PlotStyle,
+    ref: float,
+    fermi: float | None,
+    pair: tuple[float, float] | None,
+) -> tuple[float, float]:
+    """The PDOS on ``ax``, energies minus ``ref``; ``fermi`` (absolute) places the Fermi line and
+    the filled occupied states, ``pair`` the line of each channel (fixed magnetization). Returns
+    the limits of the DOS axis; the legend is the caller's."""
+    data = dataset.data
     energy = data.energy - ref
     fermi_rel = None if fermi is None else fermi - ref
     # E_F of each channel relative to ``ref`` (equal unless the run fixed the magnetization).
-    pair = dataset.fermi_channels(params.fermi_source)
     fermi_by = {"up": fermi_rel, "down": fermi_rel, "sum": fermi_rel}
     if pair is not None:
         fermi_by.update(up=pair[0] - ref, down=pair[1] - ref)
@@ -161,16 +187,7 @@ def render_pdos(
         _channel_marks(ax, params, style, vertical)
     ax.minorticks_on()
     ax.tick_params(which="both", top=True, right=True)
-    handles = None
-    if spin and mode == "overlay":
-        handles = ax.get_legend_handles_labels()[0] + _line_styles(params, style)
-    if params.legend_gap and dataset.gap is not None:
-        if handles is None:
-            handles = ax.get_legend_handles_labels()[0]
-        handles.append(gap_handle(gap_label(dataset.gap.value, approx=dataset.gap.source == "dos")))
-    finish(figure, ax, params, handles)
-    xlim, ylim = (dos_lim, e_lim) if vertical else (e_lim, dos_lim)
-    return RenderInfo(xlim, ylim, summary(dataset, params))
+    return dos_lim
 
 
 def _total(data: projwfc.PdosData, params: PdosParams) -> tuple[projwfc.Channel | None, str]:
@@ -215,7 +232,7 @@ def _channel_marks(ax: Axes, params: PdosParams, style: PlotStyle, vertical: boo
         ax.text(0.015, 0.03, "↓", ha="left", va="bottom", **mark)
 
 
-def _line_styles(params: PdosParams, style: PlotStyle) -> list[Line2D]:
+def line_styles(params: PdosParams, style: PlotStyle) -> list[Line2D]:
     """Legend entries for the two channels of an overlaid PDOS."""
     return [
         Line2D([], [], color=style.text, lw=params.line_width, ls="-", label="↑ contínua"),

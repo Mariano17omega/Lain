@@ -210,6 +210,7 @@ class MainWindow(QMainWindow):
         self.item_actions.plot_file_requested.connect(self.plot_file)
         self.item_actions.summary_requested.connect(self.open_summary)
         self.item_actions.compare_requested.connect(self.compare_inputs)
+        self.item_actions.bands_dos_requested.connect(self.plot_workflow.plot_pair)
         self.item_actions.favorite_toggled.connect(self.navigation.set_favorite)
         self.activity.plot_requested.connect(self.toggle_plot)
         self.activity.sync_requested.connect(self.start_sync)

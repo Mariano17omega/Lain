@@ -229,6 +229,11 @@ class PlotView(QWidget):
         return self.session.plot_target
 
     @property
+    def paths(self) -> tuple[Path, ...]:
+        """Every folder the plot shows (two for bands + DOS): renaming any closes the tab."""
+        return self.session.paths
+
+    @property
     def render_pending(self) -> bool:
         """A render waits for an export to release matplotlib."""
         return self._retry.isActive()

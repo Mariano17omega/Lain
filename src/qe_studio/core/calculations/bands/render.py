@@ -38,11 +38,50 @@ def shown_channels(dataset: BandsDataset, params: BandsParams) -> list[str]:
     return {"up": ["up"], "down": ["down"]}.get(params.spin_channels, ["up", "down"])
 
 
+def draw_bands(
+    ax: Axes, dataset: BandsDataset, params: BandsParams, style: PlotStyle, ref: float
+) -> list[Line2D]:
+    """The bands on ``ax`` (both spin channels overlaid), energies minus ``ref``; the legend
+    handles without the gap entries (the caller adds them where its legend goes)."""
+    if not dataset.spin:
+        return draw_plain(ax, dataset, params, style, ref)
+    channels = shown_channels(dataset, params)
+    color_handles: list = []
+    fermi_handles: list = []
+    xlim = band_xlim(dataset, params, channels[0])
+    _draw_panel(ax, dataset, channels, params, style, ref, xlim, color_handles, fermi_handles)
+    ax.set_ylabel(Y_LABELS.get(params.reference, Y_LABELS["absolute"]))
+    handles = color_handles + (_channel_styles(params, style) if len(channels) == 2 else [])
+    return handles + fermi_handles
+
+
+def band_xlim(
+    dataset: BandsDataset, params: BandsParams, channel: str = "up"
+) -> tuple[float, float]:
+    """The k range shown: the parameters, else the whole path of ``channel``."""
+    band = dataset.band_data(channel)
+    assert band is not None
+    path = band.x
+    return (
+        params.xmin if params.xmin is not None else float(path[0]),
+        params.xmax if params.xmax is not None else float(path[-1]),
+    )
+
+
 def _render_plain(
     figure: Figure, dataset: BandsDataset, params: BandsParams, style: PlotStyle
 ) -> RenderInfo:
     ax = new_axes(figure, style)
-    ref = dataset.reference(params.reference)
+    handles = draw_plain(ax, dataset, params, style, dataset.reference(params.reference))
+    handles += gap_handles(dataset, params)
+    finish(figure, ax, params, handles)
+    return RenderInfo(band_xlim(dataset, params), (params.emin, params.emax), summary(dataset))
+
+
+def draw_plain(
+    ax: Axes, dataset: BandsDataset, params: BandsParams, style: PlotStyle, ref: float
+) -> list[Line2D]:
+    """The bands of a run without spin (or with the ↑ channel only), colored by occupation."""
     x = dataset.bands.x
     energies = dataset.bands.energies - ref
     up = dataset.edges.get("up")  # a spin run whose ↓ channel is missing
@@ -78,20 +117,14 @@ def _render_plain(
         handles.append(
             Line2D([], [], color=params.fermi_color, lw=0.9, ls=(0, (5, 3)), label="$E_F$")
         )
-    handles += gap_handles(dataset, params)
     ax.set_xticks(ticks, labels)
-    xlim = (
-        params.xmin if params.xmin is not None else float(x[0]),
-        params.xmax if params.xmax is not None else float(x[-1]),
-    )
-    ax.set_xlim(*xlim)
+    ax.set_xlim(*band_xlim(dataset, params))
     ax.set_ylim(params.emin, params.emax)
     ax.set_ylabel(Y_LABELS.get(params.reference, Y_LABELS["absolute"]))
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.tick_params(axis="x", which="both", length=0, pad=6)
     ax.tick_params(axis="y", which="both", right=True)
-    finish(figure, ax, params, handles)
-    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset))
+    return handles
 
 
 # -- spin (two channels) -------------------------------------------------------------------------
@@ -109,30 +142,11 @@ def _render_spin(
         axes = [new_axes(figure, style)]
         panels = [(axes[0], channels)]
 
-    ticks, labels = merged_ticks(dataset.ticks, tick_labels(dataset, params))
-    first = dataset.band_data(channels[0])
-    assert first is not None
-    path = first.x
-    xlim = (
-        params.xmin if params.xmin is not None else float(path[0]),
-        params.xmax if params.xmax is not None else float(path[-1]),
-    )
+    xlim = band_xlim(dataset, params, channels[0])
     color_handles: list = []
     fermi_handles: list = []
     for ax, on_axes in panels:
-        for channel in on_axes:
-            dashed = len(on_axes) == 2 and channel == "down"
-            _add_handles(color_handles, _draw_channel(ax, dataset, channel, params, ref, dashed))
-        _add_handles(fermi_handles, _fermi_lines(ax, dataset, on_axes, params, ref))
-        if params.show_hs_lines:
-            for tick in ticks[1:-1]:
-                ax.axvline(tick, color=style.guide, lw=0.7, zorder=0)
-        ax.set_xticks(ticks, labels)
-        ax.set_xlim(*xlim)
-        ax.set_ylim(params.emin, params.emax)
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.tick_params(axis="x", which="both", length=0, pad=6)
-        ax.tick_params(axis="y", which="both", right=True)
+        _draw_panel(ax, dataset, on_axes, params, style, ref, xlim, color_handles, fermi_handles)
         if side:
             ax.set_title(f"Spin {SYMBOL[on_axes[0]]}", fontsize=params.font_size)
     axes[0].set_ylabel(Y_LABELS.get(params.reference, Y_LABELS["absolute"]))
@@ -147,6 +161,35 @@ def _render_spin(
     else:
         finish(figure, axes[0], params, handles)
     return RenderInfo(xlim, (params.emin, params.emax), summary(dataset))
+
+
+def _draw_panel(
+    ax: Axes,
+    dataset: BandsDataset,
+    on_axes: list[str],
+    params: BandsParams,
+    style: PlotStyle,
+    ref: float,
+    xlim: tuple[float, float],
+    color_handles: list,
+    fermi_handles: list,
+) -> None:
+    """The channels ``on_axes`` of a spin run on one axes, with its E_F lines, k-path and limits;
+    their legend handles are added (once per label) to ``color_handles`` / ``fermi_handles``."""
+    ticks, labels = merged_ticks(dataset.ticks, tick_labels(dataset, params))
+    for channel in on_axes:
+        dashed = len(on_axes) == 2 and channel == "down"
+        _add_handles(color_handles, _draw_channel(ax, dataset, channel, params, ref, dashed))
+    _add_handles(fermi_handles, _fermi_lines(ax, dataset, on_axes, params, ref))
+    if params.show_hs_lines:
+        for tick in ticks[1:-1]:
+            ax.axvline(tick, color=style.guide, lw=0.7, zorder=0)
+    ax.set_xticks(ticks, labels)
+    ax.set_xlim(*xlim)
+    ax.set_ylim(params.emin, params.emax)
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.tick_params(axis="x", which="both", length=0, pad=6)
+    ax.tick_params(axis="y", which="both", right=True)
 
 
 def _add_handles(handles: list, new: list) -> None:

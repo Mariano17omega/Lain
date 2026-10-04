@@ -149,6 +149,8 @@ class DetectionResult:
     methods: dict[str, Method] = field(default_factory=dict)
     missing: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    # Results of other folders plotted together in one figure (bands + DOS, spec 22), in order.
+    parts: tuple[DetectionResult, ...] = ()
 
     @property
     def kind(self) -> str:
@@ -174,6 +176,13 @@ class DetectionResult:
     def plot_target(self) -> Path:
         """What a plot of this result shows (see ``CalculationModule.plot_target``)."""
         return self.module.plot_target(self.folder, self.files)
+
+    @property
+    def plot_id(self) -> str:
+        """What keys the plot's tab: its target, or the targets of its parts joined by ``|``."""
+        if self.parts:
+            return "|".join(str(part.plot_target) for part in self.parts)
+        return str(self.plot_target)
 
     @property
     def method(self) -> Method:
@@ -216,6 +225,8 @@ class CalculationModule(Generic[D, P]):
     sections: ClassVar[tuple[tuple[str, str | None], ...]] = ()
     # Role whose single file can be plotted on its own (right-click "Plotar"); see ``module_for_file``.
     single_file_role: ClassVar[str | None] = None
+    # Offered in the manual mapping dialog. False for figures built from other results (spec 22).
+    selectable: ClassVar[bool] = True
 
     def role(self, role_id: str) -> FileRole:
         return next(r for r in self.roles if r.id == role_id)
@@ -238,6 +249,8 @@ class CalculationModule(Generic[D, P]):
         (``detection.detect_folder``); ``sniff`` answers for other files (neighbour folders,
         mapped files). ``forced`` holds user-mapped files (manual mapping), which take precedence.
         """
+        if not forced and not any(r.anchor for r in self.roles):
+            return None  # never detected on its own: skip the scan
         result = DetectionResult(self, listing.folder)
         for role_id, paths in (forced or {}).items():
             existing = [p for p in paths if p.is_file()]
@@ -337,6 +350,10 @@ class CalculationModule(Generic[D, P]):
         """What one plot shows, and so what keys its tab: the folder, or one file for modules
         that plot a single output (several of them can then be open from the same folder)."""
         return folder
+
+    def plot_title(self, target: Path, dataset: D) -> str:
+        """The title of the plot's tab."""
+        return f"{self.display_name} · {target.name}"
 
     def export_stem(self, params: P) -> str:
         """File name (without extension) of the exported figure in ``plots/``."""

@@ -40,6 +40,19 @@ def side_axes(figure: Figure, style: PlotStyle, columns: int) -> list[Axes]:
     return list(axes)
 
 
+def bands_dos_axes(figure: Figure, style: PlotStyle, ratios: tuple[float, float]) -> list[Axes]:
+    """Two panels side by side sharing the Y axis (the energy of bands + DOS), widths in
+    ``ratios``, no space between them (``finish_joined`` keeps it so)."""
+    figure.clear()
+    figure.set_facecolor(style.figure_bg)
+    axes = figure.subplots(
+        1, 2, sharey=True, gridspec_kw={"width_ratios": list(ratios), "wspace": 0}
+    )
+    for ax in axes:
+        ax.set_facecolor(style.axes_bg)
+    return list(axes)
+
+
 def add_legend(ax: Axes, params: CommonParams, handles: list | None = None) -> None:
     """Legend as configured (position, frame). ``handles`` None = the axes' labelled artists."""
     if not params.show_legend:
@@ -72,6 +85,18 @@ def finish_side(
         figure.suptitle(params.title.strip(), fontsize=params.font_size * 1.1)
     add_legend(axes[0], params, handles)
     figure.tight_layout(pad=0.6)
+
+
+def finish_joined(
+    figure: Figure, legend_ax: Axes, params: CommonParams, handles: list | None = None
+) -> None:
+    """Like ``finish_side`` for panels with no space between them (``bands_dos_axes``): the
+    legend sits in ``legend_ax`` and the layout keeps the panels together."""
+    if params.title.strip():
+        figure.suptitle(params.title.strip(), fontsize=params.font_size * 1.1)
+    add_legend(legend_ax, params, handles)
+    figure.tight_layout(pad=0.6)
+    figure.subplots_adjust(wspace=0)
 
 
 def positive_for_log(values: list[float]) -> list[float]:

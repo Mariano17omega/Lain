@@ -322,6 +322,45 @@ atoms (`projwfc.selected_total`, label "Soma dos átomos selecionados") instead 
 átomos"; the gap (`PdosDataset.gap`) stays the system's. `tests/atoms_helpers.py:pdos_folder(root, species)` builds a
 many-atom PDOS folder from `al_pdos_flat` (atom *n* = the fixture times *n*).
 
+### Bands + DOS (spec 22)
+
+"Bandas com DOS" is in the grid's `multi_menu` when the selection is two folders that
+`core/calculations/bands_dos/pair.py:bands_dos_pair(results_a, results_b)` pairs: a plottable `bands` result in one
+and a `pdos` one in the other, in either order. It reads the cached results (`service.results`, which schedules a
+miss). Two folders that both have both kinds are ambiguous → no item. `ItemActions.bands_dos_requested(bands, dos)`
+→ `PlotWorkflow.plot_pair` → `_load(core/detection.py:PairTarget(bands, dos, sniff, memory))`. Like `ManualTarget`,
+its `build()` runs in the load worker: it detects both folders, calls `ordered_pair` and then `pair_result`. A folder
+that is gone or no longer pairs raises a `LoadError` ("Pasta da DOS não encontrada: …"), shown by the usual failure
+path. `PairTarget.from_plot_file(bands)` (worker) reopens the pair named in `bands/bands_dos.plot`.
+
+- **Generic hooks it added.** A module can say `selectable = False`: never in the mapping combo, `plottable_modules`
+  or `describe_plottable`. `DetectionResult.parts` holds the results of other folders plotted together. In that
+  case `plot_id` (what keys the tab, `plot:<kind>:<plot_id>`) is their targets joined by `|`, and
+  `PlotSession.paths` / `PlotView.paths` list them, so renaming either folder closes the tab.
+  `PlotSession.composite` keeps `PlotWorkflow.plot_of(folder)` from taking the figure for the bands plot.
+  `CalculationModule.plot_title(target, dataset)` names the tab. `match` returns at once for a module without
+  an anchor role and without a mapping. A field with `metadata={"derived": True}` is written to the `.plot` but
+  never applied back (`plot_file.derived_fields`): that is `dos_folder`, relative to the bands folder.
+  `ParamsBody` shows `RenderInfo.notes` as "⚠" lines under the readout and drops "Remapear" for a module that
+  is not selectable.
+- **The module** (`bands_dos/`: `pair`, `data`, `params`, `render`, `module`). The combined result is the bands
+  folder's, with both results as `parts`. Their files go under prefixed roles (`bands.gnu`, `dos.pdos_atm`:
+  the panel's "Arquivos" and the load cache key).
+- **Load.** `load` calls each part's `load_cached`, one after the other in the same worker, and reads the
+  bands compound (`read_sites`).
+- **Params.** `BandsDosParams(CommonParams)` maps onto each panel through `bands_view` (spin always overlaid)
+  and `dos_view` (vertical). The schema is the band and PDOS `ParamField`s picked by name and re-sectioned:
+  "Energia" is shared, the panel sections are "Bandas ▸ …" / "DOS ▸ …".
+- **Render.** `draw.bands_dos_axes` (`sharey`, `width_ratios`, no space) and `finish_joined` (`tight_layout`,
+  then `wspace=0`). One reference, the bands' one, goes into `bands/render.draw_bands` and
+  `pdos/render.draw_pdos` (the two cuts of the standalone renderers; the goldens did not change). The
+  Fermi line and filled states follow the bands' E_F.
+- **Legend.** One legend, on the DOS axes (on the bands axes if the DOS draws nothing), outside by default.
+  It has the DOS series, then the bands' entries, then the gap once (`gap_handles` of the bands).
+- **Notes.** E_F of the two runs differing by more than 0.05 eV; compounds that differ (the atom selection
+  is the DOS compound's).
+- **Ticks.** `ClearOfJoin` keeps DOS tick labels off the last k label.
+
 ### Navigation, filters and selection (spec 16)
 
 Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:

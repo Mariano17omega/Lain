@@ -3,7 +3,8 @@
 The file holds every field of the module's parameter dataclass except those kept in a user store
 (``stored_elsewhere``). It is read in the load worker and applied over ``default_params`` field by
 field, so a hand-edited or outdated file can only drop the values it gets wrong, never break the
-plot.
+plot. Fields the module derives from the data (``derived_fields``) are written for whoever reads
+the file, never applied back.
 """
 
 from __future__ import annotations
@@ -68,6 +69,12 @@ def stored_elsewhere(params: Any) -> set[str]:
     return {f.name for f in fields(params) if f.metadata.get("store")}
 
 
+def derived_fields(params: Any) -> set[str]:
+    """Fields the module sets from the dataset (``field(metadata={"derived": True})``, e.g. the DOS
+    folder of a bands + DOS figure): written to the file, never read back into the parameters."""
+    return {f.name for f in fields(params) if f.metadata.get("derived")}
+
+
 def stored_params(params: Any) -> dict[str, Any]:
     """``params`` as the file stores them (what ``read_plot_file`` returns)."""
     elsewhere = stored_elsewhere(params)
@@ -106,7 +113,7 @@ def apply_stored(
         if kind := f.metadata.get("kind"):
             kinds.setdefault(f.name, kind)
     choices = {f.name: [c[0] for c in f.choices] for f in schema if f.kind == "choice"}
-    names = {f.name for f in declared} - stored_elsewhere(params)
+    names = {f.name for f in declared} - stored_elsewhere(params) - derived_fields(params)
     ignored = []
     for name, value in stored.items():
         if name not in names:

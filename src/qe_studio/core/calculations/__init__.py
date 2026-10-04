@@ -4,6 +4,7 @@ from typing import Any
 
 from ..sniff import FileSniff
 from .bands import BandsModule
+from .bands_dos import BandsDosModule
 from .base import CalculationModule, DetectionResult, FileRole, FolderListing, Method
 from .info import CalcModule
 from .pdos import PdosModule
@@ -16,6 +17,7 @@ REGISTRY: tuple[CalculationModule[Any, Any], ...] = (
     RelaxModule(),
     ScfModule(),
     CalcModule(),
+    BandsDosModule(),  # never detected: made from two folders (spec 22)
 )
 
 
@@ -40,8 +42,8 @@ def module_for_file(
 
 
 def describe_plottable(modules: tuple[CalculationModule[Any, Any], ...] = REGISTRY) -> str:
-    """Names of the plottable calculations for a sentence: "a, b ou c" (lowercase)."""
-    names = [m.display_name.lower() for m in modules if m.plottable]
+    """Names of the calculations one can map by hand, for a sentence: "a, b ou c" (lowercase)."""
+    names = [m.display_name.lower() for m in modules if m.plottable and m.selectable]
     if len(names) < 2:
         return "".join(names)
     return f"{', '.join(names[:-1])} ou {names[-1]}"

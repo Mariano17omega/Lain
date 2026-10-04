@@ -1,16 +1,16 @@
 # Spec 22: Bandas com DOS na mesma figura
 
-| | |
-|---|---|
-| **Prioridade** | 22 |
-| **Status** | Rascunho para revisão |
+|                |                                                                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Prioridade** | 22                                                                                                                                |
+| **Status**     | Implementada. Desvios:<br>- Os dois datasets carregam um após o outro no mesmo worker, não em paralelo. Uma segunda mecânica de threads iria contra a spec 15 R1, e o GIL ganharia pouco. Cada parte usa o `load_cached` do seu módulo.<br>- O par exige resultados `plottable`: bandas lidas só da saída do pw.x também valem, como no gráfico isolado.<br>- Seções: as comuns ficam sem prefixo ("Energia" é o eixo compartilhado, mais Estilo, Legenda, Figura e Exportar). Com prefixo ficam "Bandas ▸ Eixo k", "Bandas ▸ Cores", "Bandas ▸ Spin", "DOS ▸ Eixo" e "DOS ▸ Projeções".<br>- A legenda fica fora do eixo por padrão.<br>- `dos_folder` é derivado (`metadata={"derived": True}`): é gravado no `.plot`, mas nunca reaplicado. `PairTarget.from_plot_file` o lê para reabrir o par.<br>- Os erros ("Pasta da DOS não encontrada", par desfeito) seguem o caminho de falha de carga: rodapé + diálogo, e a aba aberta fica como estava.<br>- `RenderInfo.notes` agora aparece no painel de ajustes. Antes nenhuma tela a mostrava.<br>- `PlotView.paths` faz renomear a pasta da DOS fechar a aba.<br>- O par vem de `core/detection.py:PairTarget`, que detecta as duas pastas no worker.<br>- Duas pastas que têm bandas e PDOS cada uma não formam par. |
 | **Depende de** | spec 13 (bandas e PDOS em pacotes, com spin), spec 16 (multi-seleção na grade), spec 20 (gap na legenda), spec 21 (átomos da DOS) |
-| **Usada por** | spec 23 (a figura combinada pode ir numa célula do Grid) |
-| **Esforço** | G |
+| **Usada por**  | spec 23 (a figura combinada pode ir numa célula do Grid)                                                                          |
+| **Esforço**    | G                                                                                                                                 |
 
 ## Itens de origem (`Ideias.md`)
 
-> - Add um botão 'Bandas com DOS' no meno do botão direito do mouse. Esse botão só apareve quando o usuario seleciona uma pasta com calculo de Bandas e uma pasta com calculo de DOS. O botão 'Bandas com DOS' plotar as bandas e a DOS no mesmo grafico, com o mesmo eixo de energia (eixo y).
+> - Add um botão 'Bandas com DOS' no menu do botão direito do mouse. Esse botão só apareve quando o usuario seleciona uma pasta com calculo de Bandas e uma pasta com calculo de DOS. O botão 'Bandas com DOS' plotar as bandas e a DOS no mesmo grafico, com o mesmo eixo de energia (eixo y).
 
 Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
 
@@ -35,7 +35,7 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
   (`PdosData.total_is_sum`, `projwfc.py:196-200`).
 - Menu de contexto: `ItemActions.show` chama `multi_menu(paths)` (`ui/widgets/context_menu.py:71,129`) quando a
   seleção não é de um item; hoje só lê `is_dir`, `input_pair` (l.150) e favoritos. `DetectionService.peek_results(
-  folder)` (`ui/services.py:62-65`) dá os resultados **só do cache**; `results(folder)` agenda detecção. Uma
+folder)` (`ui/services.py:62-65`) dá os resultados **só do cache**; `results(folder)` agenda detecção. Uma
   pasta pode ter vários resultados (bandas e PDOS juntos → `Ambiguous`, `core/detection.py:101-105`): usar `any`.
   Multi-seleção existe só na grade (`FilePanel`); a árvore emite lista de um item.
 - Regra de arquitetura: `ui/` não conhece módulo (`kind == "bands"` é proibido em `ui/*.py`, teste em
@@ -50,6 +50,7 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
 ## Requisitos
 
 ### R1: Item "Bandas com DOS" no menu de contexto
+
 1. Aparece em `multi_menu` **somente** quando a seleção tem exatamente duas pastas e
    `bands_dos_pair(peek_results(a), peek_results(b))` devolve um par (uma das pastas tem resultado de bandas e a
    outra, de PDOS, em qualquer ordem). Qualquer outra seleção deixa o menu como hoje (os textos de
@@ -63,6 +64,7 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
    datasets em paralelo no pool global e renderiza na GUI (como `plot_file`).
 
 ### R2: Módulo `bands_dos`
+
 1. Pacote `core/calculations/bands_dos/` (`module`, `pair`, `params`, `render`), `CalculationModule` com
    `kind = "bands_dos"`, **sem** papel `anchor` (nunca detectado sozinho) e fora do combo de mapeamento
    (`ClassVar selectable = False`, lido por `plottable_modules()`).
@@ -72,6 +74,7 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
    `plot:bands_dos:<bandas>|<dos>` e o título "Bandas + DOS — <fórmula>".
 
 ### R3: Figura
+
 1. Dois eixos lado a lado com **eixo y compartilhado** (energia): `draw.py:bands_dos_axes(figure, ratios)` =
    `figure.subplots(1, 2, sharey=True, gridspec_kw={"width_ratios": ratios})`, sem espaço horizontal entre
    eles. Bandas à esquerda (k em x), DOS à direita (densidade em x, energia em y).
@@ -88,6 +91,7 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
    (os dois eixos de energia são os mesmos).
 
 ### R4: Parâmetros (`BandsDosParams`)
+
 1. Estende `CommonParams`. Campos das bandas: `reference`, `emin`, `emax`, `xmin`, `xmax`, `labels`,
    `show_hs_lines`, `show_fermi_line`, `valence_color`, `conduction_color`, `fermi_color` (e os de spin). Campos da DOS:
    `dos_width_ratio` (padrão 0,35), `grouping`, `hidden_series`, `series_colors`, `orbital_colors`,
@@ -99,6 +103,7 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
    compartilhado vale para os dois). `format_coordinates` por eixo (`axes_index` 0 = bandas, 1 = DOS).
 
 ### R5: Persistência e exportação
+
 1. `bands_dos.plot` na pasta das bandas (YAML, `plot_file.py`), com `dos_folder` (caminho relativo à pasta das
    bandas) para a regeneração e a reabertura reencontrarem a DOS. Campo `kind: "text"` no dataclass, validado
    como os demais.
@@ -107,12 +112,14 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
    sem perguntar).
 
 ## Fora de escopo
+
 - DOS total do `dos.x` (`fildos`): continua sem leitor (F2). Só PDOS.
 - Mais de uma DOS ou mais de um cálculo de bandas na mesma figura; sobrepor simulações (F9).
 - Posicionar a DOS à esquerda ou acima.
 - Item de menu para uma pasta só com bandas e PDOS juntas (o caminho do usuário é a multi-seleção).
 
 ## Decisões assumidas (confirmar na revisão)
+
 1. "Cálculo de DOS" = pasta com resultado `pdos`; sem `pdos_tot` usa-se a soma das projeções, como hoje.
 2. Referência única das bandas para os dois eixos; E_F divergente só avisa (não corrige sozinho).
 3. Spin da DOS: `overlay` por padrão na figura combinada (o espelhado deixa o eixo da DOS simétrico e
@@ -122,6 +129,7 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
    (chaves diferentes), a seleção da DOS vale só para o composto da DOS e há aviso em `RenderInfo.notes`.
 
 ## Notas de implementação
+
 - Novos: `core/calculations/bands_dos/{__init__,module,pair,params,render}.py` (cada um < 500 linhas),
   registro em `core/calculations/__init__.py:REGISTRY`.
 - Alterados: `core/plotting/draw.py` (`bands_dos_axes`), `pdos/render.py` (`draw_pdos`),
@@ -134,6 +142,7 @@ Também é o item F5 do `report.md` ("Bandas + DOS combinados"), antes adiado.
   `ui/tab_openers.py`.
 
 ## Critérios de aceite e testes
+
 - [ ] Refatoração: `test_figure_regression.py`, `test_bands_spin_render.py`, `test_pdos_spin.py` passam sem
       regenerar goldens depois de extrair `draw_pdos` e o corte das bandas.
 - [ ] `bands_dos_pair`: bandas + PDOS (qualquer ordem) → par; bandas + bandas, PDOS + PDOS, uma pasta sem

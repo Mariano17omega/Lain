@@ -5,7 +5,8 @@ its own (spec 9) also gets "Plotar" on top. Renaming and plotting touch global s
 settings, folder memory), so they are handed to the main window.
 
 With several items selected in the grid (spec 16 R5) the menu is shorter: the item count, Abrir local
-de origem, Copiar and, for exactly two QE inputs, Comparar.
+de origem, Copiar and, for exactly two QE inputs, Comparar; for a folder of bands and one of PDOS,
+Bandas com DOS (spec 22).
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
 from ...core.calculations import module_for_file
+from ...core.calculations.bands_dos import bands_dos_pair
 from ...core.desktop_apps import DesktopApp, catalog, expand_exec
 from ...core.sniff import looks_like_input
 from ..dialogs.open_with import ask_command
@@ -54,6 +56,7 @@ class ItemActions(QObject):
     plot_file_requested = pyqtSignal(Path, str)  # file, kind of the module that plots it
     summary_requested = pyqtSignal(Path)  # "Resumo" of a QE output (spec 12)
     compare_requested = pyqtSignal(Path, Path)  # "Comparar" of two QE inputs (spec 16 R5.5)
+    bands_dos_requested = pyqtSignal(Path, Path)  # bands folder, DOS folder (spec 22)
     favorite_toggled = pyqtSignal(Path, bool)  # folder, now a favorite (spec 16 R4.1)
 
     def __init__(
@@ -136,6 +139,9 @@ class ItemActions(QObject):
         pair = self.input_pair(paths)
         if pair is not None:
             add_action(menu, "Comparar", lambda: self.compare_requested.emit(*pair))
+        folders = self.bands_dos_folders(paths)
+        if folders is not None:
+            add_action(menu, "Bandas com DOS", lambda: self.bands_dos_requested.emit(*folders))
         if all(path.is_dir() for path in paths):  # favorites are folders
             every = all(self.is_favorite(path) for path in paths)
             text = "Remover dos favoritos" if every else "Adicionar aos favoritos"
@@ -154,6 +160,16 @@ class ItemActions(QObject):
             return None
         first, second = sorted(paths)
         return first, second
+
+    def bands_dos_folders(self, paths: list[Path]) -> tuple[Path, Path] | None:
+        """(bands folder, DOS folder) when the selection is two folders that make a bands + DOS
+        figure, from the cached detection only; a folder not detected yet is requested, so the
+        next menu knows."""
+        if len(paths) != 2 or not all(path.is_dir() for path in paths):
+            return None
+        results = [self.service.results(path) for path in paths]  # schedules the misses
+        found = bands_dos_pair(*results)
+        return None if found is None else (found.bands.folder, found.dos.folder)
 
     # -- Abrir com --------------------------------------------------------------------------------
     def _fill_open_with(self, submenu: QMenu, path: Path) -> None:

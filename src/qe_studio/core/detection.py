@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,9 +13,12 @@ from .calculations import (
     DetectionResult,
     FolderListing,
     describe_plottable,
+    module_for,
 )
-from .calculations.base import SniffFn
+from .calculations.bands_dos import ordered_pair, pair_result
+from .calculations.base import LoadError, SniffFn
 from .folder_memory import FolderMemory
+from .plotting.plot_file import read_plot_file
 from .sniff import FileSniff
 from .sniff import sniff as default_sniff
 
@@ -99,8 +103,71 @@ class ManualTarget:
     def plot_target(self) -> Path:
         return self.module.plot_target(self.folder, self.mapping)
 
+    @property
+    def plot_id(self) -> str:
+        return str(self.plot_target)
+
     def build(self) -> DetectionResult:
         return manual_result(self.module, self.folder, self.mapping, self.sniff)
+
+
+PAIR_KIND = "bands_dos"
+
+
+@dataclass(frozen=True)
+class PairTarget:
+    """Bands + DOS of two folders (spec 22), detected and paired in the load worker: the folders
+    may have changed (or gone) since the menu that offered the pair."""
+
+    bands: Path
+    dos: Path
+    sniff: SniffFn
+    memory: FolderMemory | None = None
+
+    @property
+    def module(self) -> CalculationModule:
+        return module_for(PAIR_KIND)
+
+    @property
+    def kind(self) -> str:
+        return PAIR_KIND
+
+    @property
+    def plot_target(self) -> Path:
+        return self.bands
+
+    @property
+    def plot_id(self) -> str:
+        return f"{self.bands}|{self.dos}"
+
+    def build(self) -> DetectionResult:
+        """The combined result; ``LoadError`` (for the user) when a folder is gone or the two no
+        longer make a pair."""
+        for folder, name in ((self.bands, "das bandas"), (self.dos, "da DOS")):
+            if not folder.is_dir():
+                raise LoadError(f"Pasta {name} não encontrada: {folder}")
+        sniff = sniff_once(self.sniff)
+        pair = ordered_pair(
+            detect_folder(self.bands, sniff, self.memory),
+            detect_folder(self.dos, sniff, self.memory),
+        )
+        if pair is None:
+            raise LoadError(
+                f"{self.bands.name} e {self.dos.name} não formam um par de bandas e DOS completos."
+            )
+        return pair_result(pair, self.module)
+
+    @classmethod
+    def from_plot_file(
+        cls, bands: Path, sniff: SniffFn, memory: FolderMemory | None = None
+    ) -> PairTarget | None:
+        """The pair saved in ``bands/bands_dos.plot`` (its ``dos_folder``), to reopen the figure
+        from the bands folder alone; None without one. Reads a file: worker only."""
+        values, _warnings = read_plot_file(bands, PAIR_KIND)
+        partner = (values or {}).get("dos_folder")
+        if not isinstance(partner, str) or not partner:
+            return None
+        return cls(bands, Path(os.path.normpath(bands / partner)), sniff, memory)
 
 
 @dataclass(frozen=True)
@@ -151,6 +218,8 @@ def mapping_message(results: list[DetectionResult]) -> str:
     return ""
 
 
-def plottable_modules() -> list[CalculationModule]:
-    """The kinds the manual mapping dialog offers."""
-    return [m for m in REGISTRY if m.plottable]
+def plottable_modules(
+    modules: Iterable[CalculationModule] = REGISTRY,
+) -> list[CalculationModule]:
+    """The kinds the manual mapping dialog offers (not the figures made from several folders)."""
+    return [m for m in modules if m.plottable and m.selectable]

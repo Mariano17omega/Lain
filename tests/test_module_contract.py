@@ -1,5 +1,6 @@
 """The calculation-module contract (spec 8): a new module is one class, with no code in ``ui/``."""
 
+import dataclasses
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -25,7 +26,7 @@ from qe_studio.core.calculations.params import (
 )
 from qe_studio.core.compounds import AtomChoices, Compound, CompoundStore
 from qe_studio.core.config import AppConfig
-from qe_studio.core.detection import detect_folder
+from qe_studio.core.detection import detect_folder, plottable_modules
 from qe_studio.core.plotting.draw import finish, new_axes
 from qe_studio.core.plotting.export import export_figure
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
@@ -203,7 +204,7 @@ def test_no_file_of_the_ui_knows_the_dummy_module():
 def test_ui_does_not_branch_on_plot_kinds():
     for path in UI_DIR.rglob("*.py"):
         text = path.read_text()
-        for kind in ("bands", "pdos", "relax", "scf"):
+        for kind in ("bands", "pdos", "relax", "scf", "bands_dos"):
             assert f'kind == "{kind}"' not in text, path.name
 
 
@@ -259,6 +260,24 @@ def test_base_hooks_have_neutral_defaults(dummy_folder):
     assert DUMMY.default_labels(dataset) == []
     DUMMY.legacy_params(params, dataset.folder, None)  # type: ignore[arg-type]  # no-op
     assert params == DummyParams()
+
+
+def test_a_module_that_is_not_selectable_is_never_offered_for_mapping(dummy_folder):
+    class Combined(DummyModule):
+        selectable = False
+        roles = tuple(dataclasses.replace(r, anchor=False) for r in DummyModule.roles)
+
+    combined = Combined()
+    assert DUMMY.selectable and plottable_modules((DUMMY, combined)) == [DUMMY]
+    assert describe_plottable((DUMMY, combined)) == "cálculo de teste"
+    # Without an anchor role it is never detected; it is plotted from results built for it.
+    assert detect_folder(dummy_folder, sniff=SniffCache().sniff, modules=(combined,)) == []
+    part = detect_dummy(dummy_folder)
+    result = DetectionResult(combined, dummy_folder, files=dict(part.files), parts=(part, part))
+    assert result.plot_id == f"{dummy_folder}|{dummy_folder}" and part.plot_id == str(dummy_folder)
+    session = PlotSession(result, DUMMY.load(part, sniff), DummyParams())
+    assert session.key == f"plot:dummy:{dummy_folder}|{dummy_folder}" and session.composite
+    assert session.paths == (dummy_folder, dummy_folder)
 
 
 def test_the_message_for_manual_mapping_names_every_plottable_module():

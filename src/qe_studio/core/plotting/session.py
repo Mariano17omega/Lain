@@ -18,7 +18,7 @@ from matplotlib.figure import Figure
 from ..calculations import DetectionResult
 from ..calculations.base import AxesLimits, CalculationModule, D, P, SniffFn, Stores
 from ..calculations.params import RenderInfo
-from ..detection import ManualTarget
+from ..detection import ManualTarget, PairTarget
 from .mpl_lock import MPL_LOCK
 from .plot_file import apply_stored, stored_elsewhere, stored_params
 from .style import PlotStyle, figure_style
@@ -60,8 +60,18 @@ class PlotSession(Generic[D, P]):
         return self.result.plot_target
 
     @property
+    def paths(self) -> tuple[Path, ...]:
+        """Every folder (or file) the plot shows: two for a figure of two folders (spec 22)."""
+        return tuple(part.plot_target for part in self.result.parts) or (self.plot_target,)
+
+    @property
+    def composite(self) -> bool:
+        """A figure of several folders' results (bands + DOS), not the plot of one folder."""
+        return bool(self.result.parts)
+
+    @property
     def key(self) -> str:
-        return plot_key(self.plot_target, self.kind)
+        return plot_key(self.result.plot_id, self.kind)
 
     @property
     def style(self) -> PlotStyle:
@@ -70,7 +80,7 @@ class PlotSession(Generic[D, P]):
 
     @property
     def title(self) -> str:
-        return f"{self.module.display_name} · {self.plot_target.name}"
+        return self.module.plot_title(self.plot_target, self.dataset)
 
     @property
     def edited(self) -> bool:
@@ -115,22 +125,23 @@ class PlotSession(Generic[D, P]):
         self.module.apply_limits(self.params, floats)
 
 
-def plot_key(target: Path, kind: str) -> str:
+def plot_key(target: Path | str, kind: str) -> str:
     return f"plot:{kind}:{target}"
 
 
-def target_key(target: DetectionResult | ManualTarget) -> str:
+Target = DetectionResult | ManualTarget | PairTarget
+
+
+def target_key(target: Target) -> str:
     """Key of the plot ``target`` shows (the workspace tab, the ``.plot`` writes)."""
-    return plot_key(target.plot_target, target.kind)
+    return plot_key(target.plot_id, target.kind)
 
 
-def load_plot(
-    target: DetectionResult | ManualTarget, sniff: SniffFn
-) -> tuple[DetectionResult, Any]:
-    """Worker: the detection result (a manual mapping is matched here) and its data. ``sniff`` is
-    the detection service's cache: the files were sniffed already. Raises ``LoadError`` (message
-    for the user) or any parsing error."""
-    result = target.build() if isinstance(target, ManualTarget) else target
+def load_plot(target: Target, sniff: SniffFn) -> tuple[DetectionResult, Any]:
+    """Worker: the detection result (a manual mapping is matched here, a pair of folders detected
+    and paired) and its data. ``sniff`` is the detection service's cache: the files were sniffed
+    already. Raises ``LoadError`` (message for the user) or any parsing error."""
+    result = target.build() if isinstance(target, ManualTarget | PairTarget) else target
     return result, result.module.load_cached(result, sniff)
 
 

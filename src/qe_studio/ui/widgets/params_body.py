@@ -108,6 +108,9 @@ class ParamsBody(QWidget):
     def update_readout(self) -> None:
         info = self.session.info
         self.readout.setText(info.summary if info else "")
+        notes = info.notes if info else ()
+        self.notes.setText("\n".join(f"⚠ {note}" for note in notes))
+        self.notes.setVisible(bool(notes))
 
     # -- construction ---------------------------------------------------------------------------
     def _summary(self) -> QWidget:
@@ -121,6 +124,13 @@ class ParamsBody(QWidget):
         self.readout.setMinimumWidth(0)
         self.readout.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout.addWidget(self.readout)
+        # What the last render noticed (e.g. two runs of a bands + DOS figure that disagree).
+        self.notes = set_variant(QLabel(), "warning")
+        self.notes.setWordWrap(True)
+        self.notes.setMinimumWidth(0)
+        self.notes.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.notes.hide()
+        layout.addWidget(self.notes)
         for warning in self.session.dataset.warnings[:6]:
             label = set_variant(QLabel(f"⚠ {warning}"), "warning")
             label.setWordWrap(True)
@@ -146,9 +156,10 @@ class ParamsBody(QWidget):
             value.setToolTip(f"{tip}\n(detectado por {method.value})" if method else tip)
             section.add_full(name)
             section.add_full(value)
-        remap = QPushButton("Remapear arquivos…")
-        remap.clicked.connect(self.remap_requested)
-        section.add_full(remap)
+        if self.session.module.selectable:  # a figure of several folders has no mapping of its own
+            remap = QPushButton("Remapear arquivos…")
+            remap.clicked.connect(self.remap_requested)
+            section.add_full(remap)
         return section
 
     def _section(self, title: str) -> Section:

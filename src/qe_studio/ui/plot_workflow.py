@@ -27,6 +27,7 @@ from ..core.detection import (
     Ambiguous,
     Chosen,
     ManualTarget,
+    PairTarget,
     mapping_message,
     plot_choice,
     plottable_modules,
@@ -125,18 +126,17 @@ class PlotWorkflow(QObject):
         return widget if isinstance(widget, PlotView) else None
 
     def plot_of(self, folder: Path) -> PlotView | None:
-        """The open plot of ``folder``: the current tab first."""
+        """The open plot of ``folder``: the current tab first. A figure of several folders (bands
+        + DOS) is not the plot of its first one."""
+
+        def shows(view: PlotView) -> bool:
+            return view.session.folder == folder and not view.session.composite
+
         view = self.current_plot()
-        if view is not None and view.session.folder == folder:
+        if view is not None and shows(view):
             return view
-        return next(
-            (
-                w
-                for _key, w in self.workspace.items()
-                if isinstance(w, PlotView) and w.session.folder == folder
-            ),
-            None,
-        )
+        views = (w for _key, w in self.workspace.items() if isinstance(w, PlotView))
+        return next((w for w in views if shows(w)), None)
 
     # -- entry points ---------------------------------------------------------------------------
     def generate(self, folder: Path, auto_export: bool = True) -> None:
@@ -174,6 +174,12 @@ class PlotWorkflow(QObject):
         self._load(
             ManualTarget(module, path.parent, mapping, self.service.sniff_cache.sniff), False
         )
+
+    def plot_pair(self, bands: Path, dos: Path) -> None:
+        """ "Bandas com DOS" (spec 22): both folders are detected and paired in the load worker.
+        Not saved to plots/; an open figure of the same pair is replaced, keeping its edits."""
+        sniff = self.service.sniff_cache.sniff
+        self._load(PairTarget(bands, dos, sniff, self.memory), auto_export=False)
 
     def plot_open_file(self) -> None:
         if self._plot_file_source is not None:
@@ -247,7 +253,7 @@ class PlotWorkflow(QObject):
         return ManualTarget(module, folder, mapping, self.service.sniff_cache.sniff)
 
     # -- loading ------------------------------------------------------------------------------------
-    def _load(self, target: DetectionResult | ManualTarget, auto_export: bool) -> None:
+    def _load(self, target: DetectionResult | ManualTarget | PairTarget, auto_export: bool) -> None:
         key = target_key(target)
         if key in self._loading:
             return
