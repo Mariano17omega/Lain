@@ -3,6 +3,7 @@
 Driven with a paramiko client, so these run without the ``ssh`` and ``rsync`` binaries.
 """
 
+import shlex
 import socket
 from contextlib import closing
 
@@ -108,6 +109,34 @@ def test_rsync_server_commands_run_in_the_served_folder(server, ssh_keys, monkey
         status, _out, _err = run(client, "rsync --server --no-such-option .")
     assert status not in (0, 127)
     assert server.log[0].allowed
+
+
+def test_a_push_makes_its_folder_inside_the_served_one_then_runs_rsync(server, ssh_keys):
+    """spec 27: ``--rsync-path="mkdir -p <dir> && rsync"`` is the one compound command."""
+    target = server.root / "proj" / "bandas Al_1"
+    command = f"mkdir -p {shlex.quote(str(target))} && rsync --server --version"
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        assert run(client, command)[0] == 0  # rsync ran (a refusal is 127)
+        assert run(client, "mkdir -p proj/relative && rsync --server --version")[0] == 0
+    assert target.is_dir() and (server.root / "proj" / "relative").is_dir()
+    assert server.commands() == [command, "mkdir -p proj/relative && rsync --server --version"]
+
+
+def test_a_push_folder_outside_the_served_one_is_refused(server, ssh_keys, tmp_path):
+    outside = tmp_path / "outside"
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        for command in (
+            f"mkdir -p {outside} && rsync --server --version",
+            "mkdir -p ../escape && rsync --server --version",
+            "mkdir -p inside && touch should-not-exist",  # only rsync may follow the mkdir
+            "rm -rf x && rsync --server --version",
+            "mkdir -p a b && rsync --server --version",
+        ):
+            status, _out, err = run(client, command)
+            assert status == 127 and b"not allowed" in err, command
+    assert not outside.exists() and not (tmp_path / "escape").exists()
+    assert not (server.root / "inside").exists() and not (server.root / "a").exists()
+    assert server.commands() == [] and len(server.commands(allowed_only=False)) == 5
 
 
 def test_drop_after_bytes_cuts_the_channel_without_exit_status(server, ssh_keys):

@@ -4,6 +4,7 @@ transfer. They only lay out what ``core/sync`` says; ``SyncDialog`` switches bet
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QBrush
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -16,22 +17,14 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.file_kinds import human_size
-from ...core.sync.planner import Action, PlanItem, SyncPlan
-from ...core.sync.preview import (
-    ACTION_NOTES,
-    ACTION_TITLES,
-    LARGE_TIP,
-    PlanGroup,
-    format_mtime,
-    large_summary,
-    plan_groups,
-    plan_summary,
-)
+from ...core.sync.planner import SyncPlan
+from ...core.sync.preview import Preview, PreviewRow, PreviewSection, describe_plan
+from ...core.sync.push_plan import PushPlan
 from ..theme.manager import ThemeManager
 from ..widgets.common import set_variant
 from ..widgets.spinner import CircularProgress
 
-COLUMNS = ("Arquivo", "Tamanho", "Data no cluster", "Nota")
+COLUMNS = ("Arquivo", "Tamanho", "Data no cluster", "Nota")  # the date's header: the plan's
 SIZE_COLUMN = 1
 RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 
@@ -102,25 +95,26 @@ class PreviewPage(QWidget):
         layout.addWidget(self.large)
         layout.addWidget(self.tree, 1)
 
-    def set_plan(self, plan: SyncPlan) -> None:
-        self.summary.setText(plan_summary(plan))
-        warning = large_summary(plan)
-        self.large.setText(warning or "")
-        self.large.setVisible(warning is not None)
+    def set_plan(self, plan: SyncPlan | PushPlan) -> None:
+        self.show_preview(describe_plan(plan))
+
+    def show_preview(self, preview: Preview) -> None:
+        """Lay out what ``core/sync/preview`` says: sections → folders → files."""
+        self.summary.setText(preview.summary)
+        self.large.setText(preview.large or "")
+        self.large.setVisible(preview.large is not None)
+        self.tree.setHeaderLabels([*COLUMNS[:2], preview.date_header, COLUMNS[3]])
         self.tree.clear()
-        groups = plan_groups(plan)
-        actions: dict[Action, QTreeWidgetItem] = {}
-        for group in groups:
-            parent = actions.get(group.action)
-            if parent is None:
-                parent = actions[group.action] = self._action_row(group.action, groups)
-            row = QTreeWidgetItem(parent, [group.label, human_size(group.size), "", ""])
-            row.setTextAlignment(SIZE_COLUMN, RIGHT)
-            for item in group.items:
-                self._file_row(row, item)
-            row.setExpanded(group.has_large)  # a folder with a large file opens by itself
-        for parent in actions.values():
-            parent.setExpanded(True)
+        for section in preview.sections:
+            parent = self._section_row(section)
+            for group in section.groups:
+                row = QTreeWidgetItem(parent, [group.label, human_size(group.size), "", ""])
+                row.setTextAlignment(SIZE_COLUMN, RIGHT)
+                for item in group.rows:
+                    self._file_row(row, item, preview.large_tip)
+                row.setExpanded(group.has_large)  # a folder with a large file opens by itself
+                self._dim(row, section)
+            parent.setExpanded(section.expanded)
 
     def file_rows(self) -> list[QTreeWidgetItem]:
         """Every file row, in tree order (action → folder → file)."""
@@ -134,34 +128,39 @@ class PreviewPage(QWidget):
                 rows += [folder.child(i) for i in range(folder.childCount())]
         return [row for row in rows if row is not None]
 
-    def _action_row(self, action: Action, groups: list[PlanGroup]) -> QTreeWidgetItem:
-        mine = [group for group in groups if group.action is action]
-        count = sum(len(group.items) for group in mine)
-        size = sum(group.size for group in mine)
-        title = f"{ACTION_TITLES[action]} ({count})"
-        row = QTreeWidgetItem([title, human_size(size), "", ACTION_NOTES[action]])
+    def _section_row(self, section: PreviewSection) -> QTreeWidgetItem:
+        row = QTreeWidgetItem([section.title, human_size(section.size), "", section.note])
         row.setTextAlignment(SIZE_COLUMN, RIGHT)
         font = row.font(0)
         font.setBold(True)
         row.setFont(0, font)
         self.tree.addTopLevelItem(row)
+        self._dim(row, section)
         return row
 
-    def _file_row(self, parent: QTreeWidgetItem, item: PlanItem) -> QTreeWidgetItem:
-        when = format_mtime(item.remote_mtime)
-        size = human_size(item.size)
-        row = QTreeWidgetItem(parent, [item.name, size, when, ACTION_NOTES[item.action]])
+    def _file_row(self, parent: QTreeWidgetItem, item: PreviewRow, tip: str) -> QTreeWidgetItem:
+        row = QTreeWidgetItem(parent, [item.name, human_size(item.size), item.when, item.note])
         row.setTextAlignment(SIZE_COLUMN, RIGHT)
         row.setToolTip(0, item.path)
-        if item.is_large:
+        if item.large:
             row.setIcon(0, self.theme.icon("warning", "warning", size=14))
             font = row.font(SIZE_COLUMN)
             font.setBold(True)
             row.setFont(SIZE_COLUMN, font)
-            row.setToolTip(0, f"{item.path}\n{LARGE_TIP}")
+            row.setToolTip(0, f"{item.path}\n{tip}")
             for column in range(1, len(COLUMNS)):
-                row.setToolTip(column, LARGE_TIP)
+                row.setToolTip(column, tip)
         return row
+
+    def _dim(self, row: QTreeWidgetItem, section: PreviewSection) -> None:
+        """Rows of an informative section (files the push leaves alone) in the metadata color."""
+        if not section.dimmed:
+            return
+        brush = QBrush(self.theme.color("text_meta"))
+        for item in (row, *(row.child(i) for i in range(row.childCount()))):
+            if item is not None:
+                for column in range(len(COLUMNS)):
+                    item.setForeground(column, brush)
 
 
 class TransferPage(QWidget):

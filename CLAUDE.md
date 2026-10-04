@@ -81,7 +81,7 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   before looking into `plots/`, and call `window.plot_settings.flush_now()` (drains the settings
   queue, then writes what is pending) before reading a `.plot`.
 - `test_architecture.py` checks the architecture rules by AST: no `.py` over 500 lines (exceptions
-  list, empty), `core/` never imports `qe_studio.ui`, PyQt6 only in the three `core` modules listed
+  list, empty), `core/` never imports `qe_studio.ui`, PyQt6 only in the four `core` modules listed
   below, no `open(` / `read_text` / `read_bytes` / `loadtxt` in `ui/` (but `ui/theme/manager.py`),
   and the modules moved to `core` by spec 15 import without PyQt6. `test_tasks.py` covers the
   background-task helper; `test_busy_indicator.py` and `test_export_worker.py` the spinner and the
@@ -111,12 +111,20 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   host-less `Endpoint` (the stacked window, Esc on the preview, a failure over the window);
   `test_toast.py` injects short `duration_ms` / `fade_ms`.
   Tests whose remote is a plain local path (`Endpoint(path)` without host) need no server.
+- The one compound command the server accepts is a push's `--rsync-path` (spec 27):
+  `mkdir -p <dir> && rsync --server …` makes `<dir>` in Python, only inside `remote_root` (anything
+  else, outside it or another `&&`, is 127 and logged), then runs rsync. Pushes are tested in
+  `test_sync_push.py` (host-less: preview first, integrity, the race, excludes; over the server: the
+  nested `mkdir -p`, key and password), `test_sync_push_plan.py` (Qt-free) and `test_sync_push_ui.py`;
+  `sync_helpers.run_push(..., confirm=, plans=, before_confirm=)` runs one. A host-less push makes
+  only the last missing level (local rsync ignores `--rsync-path`).
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
 
-`src/qe_studio/core` is logic without widgets (only `core/sync/controller.py`,
-`core/sync/monitor.py` and `core/tasks.py` use Qt, for `QProcess`, signals and the thread pool);
+`src/qe_studio/core` is logic without widgets (only `core/sync/_process.py`,
+`core/sync/controller.py`, `core/sync/monitor.py` and `core/tasks.py` use Qt, for `QProcess`, signals
+and the thread pool);
 `src/qe_studio/ui` is the PyQt6 app.
 
 ### Architecture rules
@@ -677,7 +685,7 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
   so they disconnect when the widget is deleted. Dialogs use delete-on-close.
 - `app.main()` waits on the global pool before exit so no worker outlives the interpreter.
 
-### Sync (PRD §5, pull only)
+### Sync (PRD §5, pull; push of new files only, spec 27)
 
 `core/sync/rsync.py` builds commands/env and parses output (children run with `LC_ALL=C.UTF-8`,
 `TZ=UTC`, `--no-h` because rsync output is locale-dependent). `planner.py` is pure: dry-run
@@ -685,21 +693,45 @@ records + local stats → per-file NEW / UPDATE / LOCAL_NEWER; files only presen
 `plots/`) never block a pull; `LARGE_FILE_BYTES` (100 MB) gives `PlanItem.is_large` /
 `SyncPlan.large`. `request.py:prepare_sync` decides whether a pull can start (configured? folder
 inside the project? password needed?) and `sync_scope` says what it covers (`SyncScope`: tooltip,
-menu text, dialog header). `preview.py` is what the plan preview shows (`plan_groups`,
-`plan_summary`, `large_summary`) and `report.py` the `SyncReport` (re-exported by the controller;
-`details` is the full report). `controller.py` is a `QProcess` state machine (`rsync --version` →
-dry run → plan, whose local stats run in a `run_task` worker → preview → conflicts → transfer)
-that never opens dialogs: with something to transfer it emits `plan_ready(plan)` and waits for
-`confirm_plan(bool)` (skipped when `sync.confirm_plan: false`), then emits `conflict_needed` and
-waits for `resolve()`, so UI and tests supply the answers; `transfer_started(n)` comes before the
-transfer's stage and progress. `ui/dialogs/sync_dialog.py:SyncDialog` is one window for the whole
-pull: a `QStackedWidget` of `sync_pages.py`'s search, preview (tree by action → folder, large
-files flagged) and transfer pages, switched by those signals; Esc / X on the preview declines it.
-Every stage runs through `_step()`, so an exception ends the sync as FAILED instead of hanging
-it. `monitor.py` probes in daemon threads, not a `QThreadPool` (DNS ignores the connect timeout
-and a pool's destructor waits without limit). Passwords reach ssh only via `SSH_ASKPASS`
-(`askpass.py`, installed as `qe-studio-askpass`) through the child env, never argv or logs; unknown
-host keys are always refused.
+menu text, dialog header, window title, confirm button; `direction`: `Direction.PULL` / `PUSH`).
+`preview.py` is what the plan preview shows: `describe_plan(plan)` → `Preview` (summary, large-file
+warning, date column, `PreviewSection`s of folders and rows) for either plan, which `PreviewPage`
+only lays out (`plan_groups`, `plan_summary`, `large_summary` stay public); `report.py` the
+`SyncReport` (re-exported by the controller; `details` is the full report; `changes_local` says
+whether the window refreshes). `_process.py:RsyncRun` is the `QProcess` state machine both
+directions share (`rsync --version` → dry run → plan, whose local stats run in a `run_task` worker
+→ `plan_ready(plan)` / `confirm_plan(bool)` → transfer → `finished(report)`), with hooks a direction
+fills (`_reset`, `_dry_run_command`, `_build_plan`, `_use_plan`, `_accepted`, `_discard_partial`,
+`_report`). `controller.py:SyncController` is the pull: `confirm_plan` skipped when
+`sync.confirm_plan: false`, then `conflict_needed` / `resolve()`, rsync temps removed after a
+failed transfer. It never opens dialogs, so UI and tests supply the answers; `transfer_started(n)`
+comes before the transfer's stage and progress. `ui/dialogs/sync_dialog.py:SyncDialog` is one
+window for the whole run: a `QStackedWidget` of `sync_pages.py`'s search, preview (tree by action →
+folder, large files flagged) and transfer pages, switched by those signals; Esc / X on the preview
+declines it; the coordinator connects a pull's `conflict_needed` to `await_decision`. Every stage
+runs through `_step()`, so an exception ends the sync as FAILED instead of hanging it. `monitor.py`
+probes in daemon threads, not a `QThreadPool` (DNS ignores the connect timeout and a pool's
+destructor waits without limit). Passwords reach ssh only via `SSH_ASKPASS` (`askpass.py`,
+installed as `qe-studio-askpass`) through the child env, never argv or logs; unknown host keys are
+always refused.
+
+**Push (spec 27)** only adds files the cluster does not have, for one calculation folder:
+`request.prepare_push` refuses the project root (`PUSH_ROOT`) and a missing folder,
+`push_availability` is the disabled menu item's reason. `push_dry_run_command` goes local → remote
+with `-i` and no `--ignore-existing` (identical files are not listed; differing ones are) and excludes
+`sync.exclude + sync.push_exclude` (`plots/`, `*.plot`). `push_plan.build_push_plan` (Qt-free):
+`<f+++++++++` → `PushAction.NEW`, any other file code → `EXISTS` (listed, never sent; no conflicts).
+`push.py:PushController` always emits `plan_ready` (ignores `confirm_plan`) and sends only the NEW
+files with `push_transfer_command` (`--ignore-existing` against a race, `--omit-dir-times`, never
+`--delete` / `-u` / `--inplace`; with a host, `--rsync-path="mkdir -p <shlex.quote(dir)> && rsync"`
+makes a new folder and its parents: `--mkpath` needs rsync 3.2.3 on the cluster; the dry run has no
+`--rsync-path`, so nothing is made before "Enviar"). Nothing local is touched; `PushReport`
+(`existing`). UI: `SyncCoordinator.push` / `run_push` / `start_push` (action `sync.push`, renamed by
+`show_scope`, disabled at the root), `bind_actions(actions)`, `bind_menu(item_actions)` (sets
+`ItemActions.push_state`, connects `push_requested`): "Enviar ao cluster" under "Abrir com" of a
+folder. A push ends with a toast (DONE `success`, UP_TO_DATE `info`), a FAILED box over the window,
+and never emits `synced`. "Criar cálculo"'s toast reminds of it when sync is on
+(`created_notice(..., sync=)`).
 
 ### Context menu (spec 5)
 

@@ -1,5 +1,6 @@
-"""How a pull ended (PRD §5.5): the status, the one-paragraph message and the full report that
-the toast's "Detalhes" shows (spec 17 R3). No Qt: the controller fills it, the UI shows it."""
+"""How a pull (PRD §5.5) or a push (spec 27) ended: the status, the one-paragraph message and the
+full report that the toast's "Detalhes" shows (spec 17 R3). No Qt: the controller fills it, the UI
+shows it."""
 
 from __future__ import annotations
 
@@ -31,6 +32,11 @@ class SyncReport:
     local_newer_folders: list[str] = field(default_factory=list)
     error: str | None = None
     connection_failed: bool = False
+
+    @property
+    def changes_local(self) -> bool:
+        """Whether the run may have changed local files (the window refreshes them)."""
+        return True
 
     @property
     def message(self) -> str:
@@ -68,6 +74,48 @@ class SyncReport:
             ("Baixados", self.transferred),
             ("Mantidos na versão local", self.skipped),
             ("Mais recentes no computador", self.local_newer),
+        ):
+            if paths:
+                lines += ["", f"{title} ({len(paths)}):", *_listed(paths)]
+        return "\n".join(lines)
+
+
+@dataclass
+class PushReport(SyncReport):
+    """A push: ``transferred`` are the files sent, ``existing`` the ones the cluster already had
+    (left as they were). Never LOCAL_NEWER, never skipped conflicts."""
+
+    existing: list[str] = field(default_factory=list)
+
+    @property
+    def changes_local(self) -> bool:
+        return False
+
+    @property
+    def message(self) -> str:
+        if self.status is SyncStatus.FAILED:
+            return f"Falha no envio: {self.error}"
+        if self.status is SyncStatus.CANCELLED:
+            return "Envio cancelado."
+        if self.status is SyncStatus.UP_TO_DATE:
+            lines = ["Nada a enviar."]
+        else:
+            lines = [f"{len(self.transferred)} arquivo(s) enviado(s)."]
+        if self.existing:
+            lines.append(f"{len(self.existing)} já existiam no cluster e não foram alterados.")
+        return "\n".join(lines)
+
+    @property
+    def details(self) -> str:
+        lines = [
+            self.message,
+            "",
+            f"Pasta local: {self.local_dir}",
+            f"Cluster: {self.remote.spec()}",
+        ]
+        for title, paths in (
+            ("Enviados", self.transferred),
+            ("Já existiam no cluster (não alterados)", self.existing),
         ):
             if paths:
                 lines += ["", f"{title} ({len(paths)}):", *_listed(paths)]

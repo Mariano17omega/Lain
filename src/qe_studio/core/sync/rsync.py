@@ -173,6 +173,63 @@ def transfer_command(
     ]
 
 
+def push_dry_run_command(
+    config: AppConfig,
+    remote: Endpoint,
+    local_dir: Path,
+    version: tuple[int, ...] | None = None,
+    extra: list[str] | None = None,
+) -> list[str]:
+    """List the local files missing or different on the cluster (spec 27 R1.1). No
+    ``--ignore-existing``: files the cluster already has are listed too, so the preview says so."""
+    patterns = [*config.sync.exclude, *config.sync.push_exclude]
+    return [
+        *shlex.split(config.sync.rsync_binary),
+        "-n",
+        "-rt",
+        "-i",
+        "--modify-window=1",
+        f"--out-format={OUT_FORMAT}",
+        *_common(config, remote, version),
+        *(f"--exclude={pattern}" for pattern in patterns),
+        *(extra or []),
+        str(local_dir).rstrip("/\\") + "/",
+        remote.spec(),
+    ]
+
+
+def push_transfer_command(
+    config: AppConfig,
+    remote: Endpoint,
+    local_dir: Path,
+    version: tuple[int, ...] | None = None,
+    extra: list[str] | None = None,
+) -> list[str]:
+    """Send exactly the files listed on stdin, never touching what the cluster has (spec 27 R1.2):
+    ``--ignore-existing`` skips a file created there since the preview, ``--omit-dir-times``
+    leaves the dates of its folders alone, and there is no ``--delete``, ``--update`` or
+    ``--inplace``. A new calculation folder (and its missing parents) is made by the remote
+    ``mkdir -p`` (R1.3: ``--mkpath`` needs rsync 3.2.3 on the cluster); its path comes from the
+    config, never from a file."""
+    mkdir = []
+    if remote.host is not None:  # local copies ignore --rsync-path
+        mkdir = [f"--rsync-path=mkdir -p {shlex.quote(remote.path)} && rsync"]
+    return [
+        *shlex.split(config.sync.rsync_binary),
+        "-t",
+        "--info=progress2",
+        "--files-from=-",
+        "--from0",
+        "--ignore-existing",
+        "--omit-dir-times",
+        *_common(config, remote, version),
+        *mkdir,
+        *(extra or []),
+        str(local_dir).rstrip("/\\") + "/",
+        remote.spec(),
+    ]
+
+
 @dataclass(frozen=True)
 class DryRunItem:
     code: str
@@ -182,7 +239,7 @@ class DryRunItem:
 
     @property
     def is_file(self) -> bool:
-        return self.code.startswith((">f", "cf"))
+        return self.code.startswith((">f", "<f", "cf"))  # received, sent (push), created
 
 
 _ESCAPE = re.compile(rb"\\#([0-7]{3})")

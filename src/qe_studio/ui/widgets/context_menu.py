@@ -3,8 +3,10 @@
 Four actions: Abrir local de origem, Abrir com ▸, Copiar, Renomear. A file one module can plot on
 its own (spec 9) also gets "Plotar" on top, a QE output "Resumo" (spec 12) and a converged relax /
 vc-relax output "Gerar SCF convergido" (spec 24; disabled, with the reason as tooltip, when its
-input is missing). Renaming, plotting and generating touch global state (tabs, plot settings,
-folder memory, the file panels), so they are handed to the main window and its controllers.
+input is missing). A folder gets "Enviar ao cluster" under "Abrir com" (spec 27; disabled, with the
+reason, when sync is off or it is the project root). Renaming, plotting, generating and pushing
+touch global state (tabs, plot settings, folder memory, the file panels, the cluster), so they are
+handed to the main window and its controllers.
 
 With several items selected in the grid (spec 16 R5) the menu is shorter: the item count, Abrir local
 de origem, Copiar and, for exactly two QE inputs, Comparar; for a folder of bands and one of PDOS,
@@ -62,6 +64,7 @@ class ItemActions(QObject):
     bands_dos_requested = pyqtSignal(Path, Path)  # bands folder, DOS folder (spec 22)
     scf_from_relax_requested = pyqtSignal(Path)  # "Gerar SCF convergido" of an output (spec 24)
     favorite_toggled = pyqtSignal(Path, bool)  # folder, now a favorite (spec 16 R4.1)
+    push_requested = pyqtSignal(Path)  # "Enviar ao cluster" of a folder (spec 27)
 
     def __init__(
         self,
@@ -73,6 +76,9 @@ class ItemActions(QObject):
         self.window = window
         self.service = service
         self.is_favorite = is_favorite
+        # "Enviar ao cluster" of a path: None hides it, "" enables it, else why it is disabled.
+        # The sync coordinator sets it (SyncCoordinator.bind_menu); without it there is no item.
+        self.push_state: Callable[[Path], str | None] = lambda path: None
         self._reveals: dict[QObject, list[Path]] = {}  # pending D-Bus calls → items
 
     def show(self, paths: list[Path], pos: QPoint, can_rename: bool = True) -> None:
@@ -88,6 +94,7 @@ class ItemActions(QObject):
                 summary=is_output,
                 favorite=favorite,
                 scf=self.scf_state(path),
+                push=self.push_state(path),
             )
         else:
             menu = self.multi_menu(paths)
@@ -120,11 +127,12 @@ class ItemActions(QObject):
         summary: bool = False,
         favorite: bool | None = None,
         scf: str | None = None,
+        push: str | None = None,
     ) -> QMenu:
         """``plot_kind``: the module that plots this file alone (spec 9); ``summary``: it is a QE
         output (spec 12); ``scf``: see ``scf_state`` (spec 24). They go on top, apart from the
         actions every item has. ``favorite``: for a folder, whether it is one already (spec 16
-        R4.1); None for files."""
+        R4.1); None for files. ``push``: see ``push_state`` (spec 27)."""
         menu = QMenu(self.window)
         if plot_kind is not None:
             add_action(menu, "Plotar", lambda: self.plot_file_requested.emit(path, plot_kind))
@@ -145,6 +153,15 @@ class ItemActions(QObject):
         open_with = menu.addMenu("Abrir com")
         assert open_with is not None
         open_with.aboutToShow.connect(lambda: self._fill_open_with(open_with, path))
+        if push is not None:
+            add_action(
+                menu,
+                "Enviar ao cluster",
+                lambda: self.push_requested.emit(path),
+                enabled=not push,
+                tooltip=push,
+            )
+            menu.setToolTipsVisible(True)  # the reason of a disabled item
         add_action(menu, "Copiar", lambda: self.copy(path))
         if favorite is not None:
             text = "Remover dos favoritos" if favorite else "Adicionar aos favoritos"

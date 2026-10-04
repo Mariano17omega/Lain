@@ -14,8 +14,14 @@ PACKAGE = Path(qe_studio.__file__).parent
 LIMIT = 500
 # Files allowed past LIMIT, each with its reason. Starts (and should stay) empty.
 SIZE_EXCEPTIONS: dict[str, str] = {}
-# The only core modules with Qt: QProcess/signals of the sync, and the background-task helper.
-QT_IN_CORE = {"core/sync/controller.py", "core/sync/monitor.py", "core/tasks.py"}
+# The only core modules with Qt: QProcess/signals of the sync (the rsync run both directions share,
+# the pull's conflicts), the reachability monitor and the background-task helper.
+QT_IN_CORE = {
+    "core/sync/_process.py",
+    "core/sync/controller.py",
+    "core/sync/monitor.py",
+    "core/tasks.py",
+}
 # ui modules that read files: the app's own resources (QSS, theme tokens, SVG icons).
 UI_READERS = {"ui/theme/manager.py"}
 READ_CALLS = {"read_text", "read_bytes", "loadtxt"}
@@ -28,6 +34,7 @@ QT_FREE = [
     "qe_studio.core.sync.request",
     "qe_studio.core.sync.preview",
     "qe_studio.core.sync.report",
+    "qe_studio.core.sync.push_plan",
     "qe_studio.core.paths",
     "qe_studio.core.navigation",
     "qe_studio.core.filtering",
@@ -138,7 +145,7 @@ def test_the_ui_does_not_read_files():
 
 
 def test_the_import_checker_resolves_relative_imports():
-    tasks = imported_modules(PACKAGE / "core" / "sync" / "controller.py")
+    tasks = imported_modules(PACKAGE / "core" / "sync" / "_process.py")
     assert {"qe_studio.core.config", "qe_studio.core.tasks", "PyQt6.QtCore"} <= tasks
     window = imported_modules(PACKAGE / "ui" / "main_window.py")
     assert "qe_studio.core.file_ops" in window and "qe_studio.ui.plot_workflow" in window

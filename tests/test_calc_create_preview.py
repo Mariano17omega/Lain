@@ -99,6 +99,11 @@ def test_created_notice():
     one, details = created_notice(Created(Path("/p/scf_x"), (Path("/p/scf_x/scf.in"),)))
     assert one == "Pasta scf_x criada com 1 arquivo"
     assert "já existia" not in details
+    reminded, _ = created_notice(Created(folder, files), sync=True)  # spec 26 R5.3, spec 27
+    assert reminded == (
+        "Pasta bandas_Al_1 criada com 4 arquivos. Use ‘Enviar ao cluster’ para levar a pasta ao "
+        "cluster"
+    )
 
 
 def test_field_problems_name_each_field():

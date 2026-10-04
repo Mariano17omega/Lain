@@ -56,6 +56,7 @@ DEFAULT_EXCLUDES = [
     "core",
     "core.[0-9]*",
 ]
+DEFAULT_PUSH_EXCLUDES = ["plots/", "*.plot"]
 DEFAULT_ORBITAL_COLORS: dict[str, str] = {
     "s": "#fbbf24",
     "p": "#06b6d4",
@@ -117,8 +118,10 @@ class SyncConfig(_Section):
     rsync_binary: str = "rsync"
     ssh_binary: str = "ssh"
     # Show the plan and wait for "Baixar" before transferring (spec 17 R2.5); false transfers
-    # directly (automation, tests). Updates still ask file by file either way.
+    # directly (automation, tests). Updates still ask file by file either way. A push always asks.
     confirm_plan: bool = True
+    # Never sent to the cluster, on top of ``exclude`` (spec 27 R5): figures and plot settings.
+    push_exclude: list[str] = Field(default_factory=lambda: list(DEFAULT_PUSH_EXCLUDES))
 
 
 class ExportConfig(_Section):

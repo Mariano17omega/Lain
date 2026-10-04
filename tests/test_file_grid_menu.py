@@ -21,10 +21,12 @@ from qe_studio.ui.widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
 from conftest import FIXTURES
 
 MENU = ["Abrir local de origem", "Abrir com", "Copiar", "Renomear"]
-# Folders also offer the star after "Copiar" (spec 16 R4.1).
+# Folders also offer "Enviar ao cluster" after "Abrir com" (spec 27; disabled: no cluster here)
+# and the star after "Copiar" (spec 16 R4.1).
 FOLDER_MENU = [
     "Abrir local de origem",
     "Abrir com",
+    "Enviar ao cluster",
     "Copiar",
     "Adicionar aos favoritos",
     "Renomear",
@@ -139,8 +141,8 @@ def test_menu_has_exactly_the_expected_actions(main_window, demo_project, monkey
     window.explorer.item_menu_requested.emit([demo_project / "04_pdos"], QPoint(5, 5))
     window._show_item_menu([demo_project], QPoint())
     assert [[text for text, _ in menu] for menu in shown] == [MENU, FOLDER_MENU, FOLDER_MENU]
-    assert [enabled for _, enabled in shown[1]] == [True] * 5
-    assert [enabled for _, enabled in shown[2]] == [True, True, True, True, False]  # the root
+    assert [enabled for _, enabled in shown[1]] == [True, True, False, True, True, True]
+    assert [enabled for _, enabled in shown[2]] == [True, True, False, True, True, False]  # root
 
 
 def detected(window, folder: Path) -> None:

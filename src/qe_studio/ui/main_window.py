@@ -4,9 +4,9 @@
 
 The window is the composition root (spec 15 R4): it builds the widgets and three controllers,
 ``LayoutController`` (panels and window state), ``PlotWorkflow`` (detect → plot → export) and
-``SyncCoordinator`` (cluster pull), plus the help, command palette and first-run controllers
-(spec 18), registers the actions and wires the signals. It keeps only what touches several of
-them: renaming, reloading the config and closing.
+``SyncCoordinator`` (cluster pull and push), plus the help, command palette and first-run
+controllers (spec 18), registers the actions and wires the signals. It keeps only what touches
+several of them: renaming, reloading the config and closing.
 """
 
 from __future__ import annotations
@@ -198,7 +198,8 @@ class MainWindow(QMainWindow):
 
     def _build_menus(self) -> None:
         self._actions = build_menus(self)
-        self.sync.bind_actions(self._actions["sync.start"], self._actions["sync.project"])
+        self.sync.bind_actions(self._actions)
+        self.sync.bind_menu(self.item_actions)  # "Enviar ao cluster" of a folder (spec 27)
 
     def _connect(self) -> None:
         self.explorer.folder_selected.connect(self.on_folder_selected)

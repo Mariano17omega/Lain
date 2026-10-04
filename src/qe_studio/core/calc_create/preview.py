@@ -99,11 +99,17 @@ def outside_project(parent: Path, root: Path) -> bool:
         return True
 
 
-def created_notice(created: Created) -> tuple[str, str]:
-    """The toast of a created folder: its text and its "Detalhes"."""
+PUSH_REMINDER = "Use ‘Enviar ao cluster’ para levar a pasta ao cluster"
+
+
+def created_notice(created: Created, sync: bool = False) -> tuple[str, str]:
+    """The toast of a created folder: its text and its "Detalhes". With ``sync`` (sync is
+    configured) the text ends reminding of "Enviar ao cluster" (spec 26 R5.3, spec 27)."""
     count = len(created.files)
     noun = "arquivo" if count == 1 else "arquivos"
     text = f"Pasta {created.folder.name} criada com {count} {noun}"
+    if sync:
+        text += f". {PUSH_REMINDER}"
     details = [str(created.folder), *(f"  {path.name}" for path in created.files)]
     if created.renamed_from:
         details.append(f"{created.renamed_from} já existia: criada como {created.folder.name}")

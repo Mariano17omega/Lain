@@ -57,8 +57,10 @@ class CalcCreateController(QObject):
         targets: Callable[[], Sequence[_Toggle | None]],
         dialog_parent: QWidget,
         parent: QObject | None = None,
+        sync_enabled: Callable[[], bool] = lambda: False,
     ):
         super().__init__(parent)
+        self._sync_enabled = sync_enabled  # the toast reminds of "Enviar ao cluster" (spec 27)
         self.theme, self._root, self._current_folder, self._jobs = theme, root, current_folder, jobs
         self.busy, self.toast, self._select_path, self._refresh = busy, toast, select_path, refresh
         self._targets, self.dialog_parent = targets, dialog_parent
@@ -85,6 +87,7 @@ class CalcCreateController(QObject):
             targets=lambda: (window.activity.new_calc, window._actions.get("calc.create")),
             dialog_parent=window,
             parent=window,
+            sync_enabled=lambda: window.config.sync_enabled,
         )
         window.activity.create_requested.connect(controller.open)
         window.first_run.refreshed.connect(controller.update_available)  # start and config reload
@@ -154,7 +157,7 @@ class CalcCreateController(QObject):
             self.dialog.close_created()
         self._refresh(created.folder.parent)
         self._select_path(created.folder)
-        text, details = created_notice(created)
+        text, details = created_notice(created, sync=self._sync_enabled())
         self.toast.show_message(text, "success", details)
         self.created.emit(created)
 

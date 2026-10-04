@@ -6,7 +6,8 @@ as local subprocesses (``rsync --server …`` is what rsync sends), so the **rea
 
 Only a short allowlist of commands runs (``rsync --server …``, ``true``, ``echo``); anything else
 gets exit status 127 and is logged, never executed. No SFTP, no shell, no pty: Lain only uses
-``exec``.
+``exec``. The one compound command is a push's ``mkdir -p <dir> && rsync --server …`` (spec 27,
+``--rsync-path``): ``<dir>`` is made in Python, only inside the served folder, then rsync runs.
 
 The ``ssh`` client never reads the real ``~/.ssh`` (OpenSSH uses the passwd home, not ``$HOME``):
 ``LocalSSHServer.ssh_binary()`` writes a throwaway ``ssh_config`` and ``known_hosts`` and returns
@@ -318,7 +319,12 @@ class LocalSSHServer:
             argv = shlex.split(command)
         except ValueError:
             argv = []
-        allowed = argv[:2] == ["rsync", "--server"] or (bool(argv) and argv[0] in PROBE_COMMANDS)
+        mkdir = None
+        if argv[:2] == ["mkdir", "-p"] and argv[3:4] == ["&&"]:  # a push's --rsync-path
+            mkdir, argv = self._inside_root(argv[2]), argv[4:]
+            allowed = mkdir is not None and argv[:2] == ["rsync", "--server"]
+        else:
+            allowed = argv[:2] == ["rsync", "--server"] or bool(argv and argv[0] in PROBE_COMMANDS)
         record = ExecRecord(session.user, session.method, command, allowed=allowed)
         channel.get_transport().ack_event(channel.remote_chanid).wait(5)
         with self._lock:
@@ -329,6 +335,8 @@ class LocalSSHServer:
                 record.status = 127
                 channel.send_exit_status(127)
                 return
+            if mkdir is not None:
+                mkdir.mkdir(parents=True, exist_ok=True)
             record.status = self._run(channel, argv)
             if record.status is not None:
                 channel.send_exit_status(record.status)
@@ -336,6 +344,12 @@ class LocalSSHServer:
             pass  # client went away mid-command
         finally:
             channel.close()
+
+    def _inside_root(self, folder: str) -> Path | None:
+        """``folder`` (relative ones from the served folder), or None when it lies outside it."""
+        root = self.root.resolve()
+        path = (root / folder).resolve()
+        return path if path.is_relative_to(root) else None
 
     def _run(self, channel: paramiko.Channel, argv: list[str]) -> int | None:
         """Run ``argv`` in the served folder wired to ``channel``. None = dropped on purpose."""

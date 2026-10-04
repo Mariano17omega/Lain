@@ -8,7 +8,7 @@ The system acts as a specialized file manager for solid-state physics and materi
 
 ### 1.1. MVP Scope
 - **Target Calculations:** Electronic Band Structure and Projected Density of States (PDOS / DOS).
-- **Synchronization:** Download (*pull*) only from the HPC cluster via SSH/Rsync. Upload (*push*) is deferred to future versions.
+- **Synchronization:** Download (*pull*) from the HPC cluster via SSH/Rsync. Upload (*push*) is limited to adding new files of one calculation folder (spec 27): it never overwrites or deletes anything on the cluster and always shows its plan first.
 - **Configuration:** 100% driven by `config.yaml`. There will be no graphical settings/preferences window in the MVP.
 
 ---
@@ -80,7 +80,10 @@ The system dynamically scans the selected directory to determine the calculation
 
 ### 5.1. Protocol & Connection
 - Connects to the remote cluster via SSH/Rsync using credentials configured in `config.yaml`.
-- Pull-only synchronization (cluster to local) in the MVP.
+- Pull synchronization (cluster to local) in the MVP.
+- Push (local to cluster, spec 27) only adds files the cluster does not have, for one calculation folder (never the
+  whole project): a file that exists remotely is never changed (`--ignore-existing`), nothing is deleted, and the
+  plan preview is always shown before sending, whatever `sync.confirm_plan` says.
 
 ### 5.2. Timestamp Comparison & Sync Rules
 - When "Synchronize" is clicked, the app compares folder timestamps between the cluster and local counterpart:

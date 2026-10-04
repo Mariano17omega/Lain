@@ -53,6 +53,14 @@ ACTIONS: tuple[ActionSpec, ...] = (
     # "sync.start" says what it pulls: SyncCoordinator.show_scope renames it on every folder change.
     ActionSpec("sync.start", "Cluster", "Sincronizar pasta selecionada", "start_sync"),
     ActionSpec("sync.project", "Cluster", "Sincronizar projeto inteiro", "start_project_sync"),
+    # "sync.push" too: "Enviar <pasta> ao cluster…", disabled at the project root (spec 27).
+    ActionSpec(
+        "sync.push",
+        "Cluster",
+        "Enviar pasta ao cluster…",
+        "sync.start_push",
+        separator_before=True,
+    ),
     ActionSpec("sync.test", "Cluster", "Testar conexão", "sync.check_connection"),
     ActionSpec("plot.generate", "Gráficos", "Gerar gráfico", "generate_plot", "Ctrl+G"),
     ActionSpec("plot.export", "Gráficos", "Exportar gráfico", "export_plot", "Ctrl+E"),

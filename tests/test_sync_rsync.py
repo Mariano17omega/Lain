@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -17,6 +18,8 @@ from qe_studio.core.sync.rsync import (
     parse_dry_run,
     parse_itemize_line,
     parse_progress,
+    push_dry_run_command,
+    push_transfer_command,
     remote_dir_for,
     ssh_command,
     transfer_command,
@@ -192,3 +195,87 @@ def test_connection_failure_classification(code, stderr, expected):
     from qe_studio.core.sync.rsync import is_connection_failure
 
     assert is_connection_failure(code, stderr) is expected
+
+
+# -- push (spec 27 R1) ----------------------------------------------------------------------------
+FORBIDDEN = (
+    "--delete",
+    "--remove-source-files",
+    "--remove-sent-files",
+    "-u",
+    "--update",
+    "--inplace",
+)
+
+
+def no_forbidden(argv: list[str]) -> bool:
+    """No option that deletes, updates or rewrites in place what the cluster has."""
+    return not any(arg.split("=")[0] in FORBIDDEN or arg.startswith("--del") for arg in argv)
+
+
+def test_push_dry_run_goes_from_the_local_folder_and_lists_existing_files_too():
+    cfg = config()
+    remote = Endpoint("/scratch/me/sims/run 1", "10.0.0.1", "me")
+    argv = push_dry_run_command(cfg, remote, Path("/data/sims/run 1"), (3, 2, 7))
+    assert argv[:5] == ["rsync", "-n", "-rt", "-i", "--modify-window=1"]
+    assert "--out-format=%i|%l|%M|%n" in argv
+    assert argv[-2:] == ["/data/sims/run 1/", "me@10.0.0.1:/scratch/me/sims/run 1/"]
+    assert "--ignore-existing" not in argv  # the preview names what the cluster already has
+    assert not any(a.startswith("--rsync-path") for a in argv)  # nothing made before "Enviar"
+    excludes = [a for a in argv if a.startswith("--exclude=")]
+    assert excludes == [
+        "--exclude=tmp/",
+        "--exclude=*.wfc*",
+        "--exclude=plots/",
+        "--exclude=*.plot",
+    ]
+    assert no_forbidden(argv)
+
+
+def test_push_transfer_only_adds_files():
+    cfg = config()
+    remote = Endpoint("/scratch/me/sims/run 1", "10.0.0.1", "me")
+    argv = push_transfer_command(cfg, remote, Path("/data/sims/run 1"), (3, 2, 7), ["--x"])
+    assert argv[:7] == [
+        "rsync",
+        "-t",
+        "--info=progress2",
+        "--files-from=-",
+        "--from0",
+        "--ignore-existing",
+        "--omit-dir-times",
+    ]
+    assert argv[-3:] == ["--x", "/data/sims/run 1/", "me@10.0.0.1:/scratch/me/sims/run 1/"]
+    assert no_forbidden(argv) and "-r" not in argv
+    assert argv[argv.index("-e") + 1].startswith("ssh -p 2222")
+
+
+@pytest.mark.parametrize("folder", ["/scratch/me/sims/run 1", "/scratch/me/it's here", '/s/a"b'])
+def test_push_makes_the_remote_folder_with_a_quoted_path(folder):
+    argv = push_transfer_command(config(), Endpoint(folder, "10.0.0.1", "me"), Path("/d"))
+    (rsync_path,) = [a for a in argv if a.startswith("--rsync-path=")]
+    command = rsync_path.removeprefix("--rsync-path=")
+    assert command == f"mkdir -p {shlex.quote(folder)} && rsync"
+    assert shlex.split(command) == ["mkdir", "-p", folder, "&&", "rsync"]
+
+
+def test_a_local_push_has_no_rsync_path():
+    argv = push_transfer_command(config(), Endpoint("/tmp/cluster"), Path("/d"))
+    assert not any(a.startswith("--rsync-path") for a in argv) and "-e" not in argv
+
+
+def test_push_password_never_in_argv(monkeypatch):
+    monkeypatch.setenv("LAIN_PUSH_PW", "s3cr3t-pw")
+    cfg = config(auth="password", password_env="LAIN_PUSH_PW")
+    remote = Endpoint("/scratch/me/sims", "10.0.0.1", "me")
+    for build in (push_dry_run_command, push_transfer_command):
+        assert not any("s3cr3t-pw" in arg for arg in build(cfg, remote, Path("/d"), (3, 2, 7)))
+
+
+def test_push_itemize_codes_are_files():
+    sent = parse_itemize_line("<f+++++++++|3|2023/11/14-22:13:20|run/a b.in")
+    changed = parse_itemize_line("<f.st......|9|2023/11/14-22:13:20|scf.out")
+    folder = parse_itemize_line("cd+++++++++|0|2023/11/14-22:13:20|run")
+    assert sent is not None and sent.is_file and sent.path == "run/a b.in"
+    assert changed is not None and changed.is_file
+    assert folder is not None and not folder.is_file

@@ -26,6 +26,7 @@ def test_defaults_are_valid():
     assert config.plot.energy_min < config.plot.energy_max
     assert config.plot.export.formats == ["png", "svg", "pdf"]
     assert "*.save/" in config.sync.exclude
+    assert config.sync.push_exclude == ["plots/", "*.plot"]  # spec 27 R5
     assert not config.sync_enabled
 
 
@@ -36,6 +37,7 @@ def test_example_config_validates(tmp_path):
     assert config.sync_enabled
     assert config.plot.orbital_colors["d"] == "#a855f7"
     assert config.paths.local_root == Path("~/qe_simulations").expanduser()
+    assert config.sync.push_exclude == AppConfig().sync.push_exclude
 
 
 def test_search_order(tmp_path, monkeypatch):

@@ -39,6 +39,7 @@ def test_a_folder_menu_offers_favorites_after_copiar(main_window, demo_project, 
     assert menu_texts(menus[-1]) == [
         "Abrir local de origem",
         "Abrir com",
+        "Enviar ao cluster",  # spec 27; disabled here (no cluster configured)
         "Copiar",
         "Adicionar aos favoritos",
         "Renomear",

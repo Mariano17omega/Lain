@@ -41,7 +41,13 @@ sync:
   ssh_binary: ssh
   # Before downloading, show the plan (new files, updates, sizes, large files) and wait for
   # "Baixar". false = transfer directly (automation); updates still ask file by file.
+  # Sending to the cluster ("Enviar ao cluster") always shows its plan, whatever this says.
   confirm_plan: true
+  # "Enviar ao cluster" only adds new files (one the cluster has is never changed). On top of
+  # `exclude`, these never go up: figures and plot settings are local.
+  push_exclude:
+    - plots/
+    - "*.plot"
 
 plot:
   # Default energy window (eV, relative to the reference energy).

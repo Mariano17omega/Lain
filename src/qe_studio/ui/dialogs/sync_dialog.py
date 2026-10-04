@@ -2,7 +2,8 @@
 
 One window from the listing to the progress: a ``QStackedWidget`` of the search, preview and
 transfer pages (``sync_pages.py``), switched by the controller's signals, so no dialog opens
-or closes between the dry run and the preview.
+or closes between the dry run and the preview. A push (spec 27) uses the same window: its title
+and the preview's button come from the scope ("Enviando para o cluster", "Enviar").
 """
 
 from __future__ import annotations
@@ -21,9 +22,10 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.file_kinds import human_size
-from ...core.sync.controller import SyncController
+from ...core.sync._process import RsyncRun
 from ...core.sync.planner import Decision, PlanItem, SyncPlan
 from ...core.sync.preview import format_mtime
+from ...core.sync.push_plan import PushPlan
 from ...core.sync.request import SyncScope
 from ..theme.manager import ThemeManager
 from ..widgets.common import set_variant
@@ -33,19 +35,20 @@ WAITING_DECISION = "Aguardando sua decisão…"
 
 
 class SyncDialog(QDialog):
-    """Locks the window while a pull runs. Cancelar (or Esc, or the close button) cancels it; on
-    the preview page it declines the plan. The coordinator closes it (``finish``) at the end."""
+    """Locks the window while a pull (or a push) runs. Cancelar (or Esc, or the close button)
+    cancels it; on the preview page it declines the plan. The coordinator closes it (``finish``)
+    at the end, and connects the pull's conflict prompts to ``await_decision``."""
 
     def __init__(
         self,
         theme: ThemeManager,
-        controller: SyncController,
+        controller: RsyncRun,
         scope: SyncScope,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self.setObjectName("syncDialog")
-        self.setWindowTitle("Sincronizando com o cluster")
+        self.setWindowTitle(scope.window_title)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setMinimumWidth(460)
         self.controller = controller
@@ -66,7 +69,7 @@ class SyncDialog(QDialog):
         self.cancel_button = set_variant(QPushButton("Cancelar"), "danger")
         self.cancel_button.setAutoDefault(False)  # Enter never cancels a pull
         self.cancel_button.clicked.connect(self.request_cancel)
-        self.download_button = set_variant(QPushButton("Baixar"), "primary")
+        self.download_button = set_variant(QPushButton(scope.confirm_text), "primary")
         self.download_button.clicked.connect(self.download)
         self.download_button.hide()
 
@@ -84,24 +87,24 @@ class SyncDialog(QDialog):
         controller.stage_changed.connect(self._stage)
         controller.progress_changed.connect(self._progress)
         controller.plan_ready.connect(self.show_plan)
-        controller.conflict_needed.connect(self._await_decision)
         controller.transfer_started.connect(self._transfer_started)
         self._show_page(self.search)
 
     # -- pages ------------------------------------------------------------------------------------
-    def show_plan(self, plan: SyncPlan) -> None:
+    def show_plan(self, plan: SyncPlan | PushPlan) -> None:
         self.preview.set_plan(plan)
         self._show_page(self.preview)
         self.download_button.setDefault(True)
         self.download_button.setFocus()
 
     def download(self) -> None:
-        """ "Baixar": conflicts, if any, then the transfer, on the transfer page."""
+        """ "Baixar" / "Enviar": conflicts, if any, then the transfer, on the transfer page."""
         self.transfer.stage.setText("Preparando transferência…")
         self._show_page(self.transfer)
         self.controller.confirm_plan(True)
 
-    def _await_decision(self, _item: PlanItem) -> None:
+    def await_decision(self, _item: PlanItem) -> None:
+        """A pull's conflict prompt opens over the window: say so on the transfer page."""
         self._show_page(self.transfer)
         self.transfer.stage.setText(WAITING_DECISION)
 
@@ -160,14 +163,14 @@ class SyncDialog(QDialog):
         self._stage("Cancelando…")
         self.controller.cancel()
 
-    def reject(self) -> None:  # Esc or close: cancel the pull, close when rsync has stopped
+    def reject(self) -> None:  # Esc or close: cancel the run, close when rsync has stopped
         if self.controller.running:
             self.request_cancel()
         else:
             super().reject()
 
     def finish(self) -> None:
-        """The pull ended (its report was shown when it needs attention): close."""
+        """The run ended (its report was shown when it needs attention): close."""
         self.spinner.stop()
         self.accept()
 
