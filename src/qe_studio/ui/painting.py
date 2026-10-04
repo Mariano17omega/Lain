@@ -9,6 +9,7 @@ from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtGui import QFont, QFontMetrics, QPainter, QPen
 
 from .theme.manager import ThemeManager
+from .theme.scale import scaled_font
 
 BADGE_FALLBACK = "other"  # token family for modules without (or with an unthemed) badge_token
 BADGE_GAP = 4  # between two badges of one row
@@ -16,15 +17,16 @@ T = TypeVar("T")
 
 
 def mono_font(pixel_size: int = 11, weight: QFont.Weight = QFont.Weight.Normal) -> QFont:
+    """``pixel_size`` is the size at scale 1: ``ui.font_scale`` is applied here (spec 19 R2)."""
     font = QFont("JetBrains Mono")
-    font.setPixelSize(pixel_size)
+    font.setPixelSize(scaled_font(pixel_size))
     font.setWeight(weight)
     return font
 
 
 def ui_font(pixel_size: int = 12, weight: QFont.Weight = QFont.Weight.Normal) -> QFont:
     font = QFont("Inter")
-    font.setPixelSize(pixel_size)
+    font.setPixelSize(scaled_font(pixel_size))
     font.setWeight(weight)
     return font
 
@@ -33,10 +35,15 @@ def badge_width(text: str) -> int:
     return QFontMetrics(mono_font(9, QFont.Weight.Medium)).horizontalAdvance(text) + 8
 
 
+def badge_height() -> int:
+    """14 px at scale 1; taller when the font needs it."""
+    return max(14, QFontMetrics(mono_font(9, QFont.Weight.Medium)).height() + 2)
+
+
 def badge_rect(right: float, center_y: float, text: str) -> QRectF:
     """Where a badge of ``text`` ending at ``right`` is drawn."""
-    width = badge_width(text)
-    return QRectF(right - width, center_y - 7, width, 14)
+    width, height = badge_width(text), badge_height()
+    return QRectF(right - width, center_y - height / 2, width, height)
 
 
 def badge_layout(

@@ -15,9 +15,11 @@ QTabBar::tab {
     background: ${tab_inactive};
     color: ${text_muted};
     border: none;
+    border-left: 1px solid transparent;  /* with the bottom: room for the focus ring */
+    border-bottom: 1px solid transparent;
     border-right: 1px solid ${border};
     border-top: 2px solid transparent;
-    padding: 5px 10px 5px 10px;
+    padding: 5px 9px 4px 10px;
     min-height: 18px;
     font-size: 12px;
 }
@@ -37,7 +39,7 @@ QTabBar::close-button {
     background: ${workspace};
 }
 #emptyWorkspace QLabel {
-    color: ${text_dim};
+    color: ${text_meta};
     font-size: 13px;
 }
 QTabBar::close-button {

@@ -17,11 +17,13 @@ from PyQt6.QtWidgets import (
 )
 
 from ..theme.manager import ThemeManager
+from ..theme.scale import scaled
 from .breadcrumb import Breadcrumb
 from .common import IconButton, set_variant
 from .elided_label import ElidedLabel
 from .spinner import CircularProgress
 
+THEME_ICONS = {"dark": "dark_mode", "light": "light_mode", "system": "contrast"}  # by theme mode
 LED_TOKENS = {
     "online": "success",
     "offline": "error",
@@ -69,9 +71,10 @@ class ActivityButton(IconButton):
     def __init__(self, theme: ThemeManager, icon: str, text: str, tooltip: str, checkable=False):
         super().__init__(theme, icon, tooltip, "activity", "text_muted", "accent", 20)
         self.setText(text)
+        self.setAccessibleName("")  # it has a visible label: that is its name
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         self.setCheckable(checkable)
-        self.setFixedSize(QSize(46, 44))
+        self.setFixedSize(QSize(scaled(46), scaled(44)))
         self.dot_state: str | None = None
 
     def set_dot(self, state: str | None) -> None:
@@ -102,7 +105,7 @@ class ActivityBar(QWidget):
         self.theme = theme
         self.setObjectName("activityBar")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setFixedWidth(56)
+        self.setFixedWidth(scaled(56))
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 6, 5, 8)
         layout.setSpacing(4)
@@ -112,7 +115,7 @@ class ActivityBar(QWidget):
             theme, "bolt", "Plot", "Mostrar/ocultar o gráfico (sem salvar)", True
         )
         self.rsync = ActivityButton(theme, "sync", "Rsync", "Sincronizar com o cluster")
-        self.theme_button = ActivityButton(theme, "light_mode", "Tema", "Alternar tema (Ctrl+T)")
+        self.theme_button = ActivityButton(theme, "dark_mode", "Tema", "Alternar tema (Ctrl+T)")
         for button in (self.tree, self.grid, self.plot, self.rsync):
             layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch(1)
@@ -125,8 +128,15 @@ class ActivityBar(QWidget):
         self.plot.clicked.connect(self.plot_requested)
         self.rsync.clicked.connect(self.sync_requested)
         self.theme_button.clicked.connect(self.theme_requested)
-        theme.theme_changed.connect(self._sync_theme_icon)
-        self._sync_theme_icon()
+        theme.theme_changed.connect(self._sync_theme_button)
+        theme.mode_changed.connect(self._sync_theme_button)
+        theme.scale_changed.connect(self._on_scale_changed)
+        self._sync_theme_button()
+
+    def _on_scale_changed(self, _scale: float) -> None:
+        self.setFixedWidth(scaled(56))
+        for button in self.findChildren(ActivityButton):
+            button.setFixedSize(QSize(scaled(46), scaled(44)))
 
     def set_left_mode(self, mode: str) -> None:
         self.tree.setChecked(mode == "tree")
@@ -140,8 +150,10 @@ class ActivityBar(QWidget):
         """What "Rsync" would pull from the current folder (spec 17 R1)."""
         self.rsync.setToolTip(text)
 
-    def _sync_theme_icon(self, *_args) -> None:
-        self.theme_button.set_icon_name("light_mode" if self.theme.name == "dark" else "dark_mode")
+    def _sync_theme_button(self, *_args) -> None:
+        """Icon and tooltip say the current mode (spec 19 R1.3), not the one a click would pick."""
+        self.theme_button.set_icon_name(THEME_ICONS[self.theme.mode])
+        self.theme_button.setToolTip(f"Tema: {self.theme.label()} · Ctrl+T")
 
 
 class TopBar(QWidget):
@@ -154,7 +166,7 @@ class TopBar(QWidget):
         self.theme = theme
         self.setObjectName("topBar")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setFixedHeight(36)
+        self.setFixedHeight(scaled(36))
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 0, 8, 0)
         layout.setSpacing(8)
@@ -208,7 +220,13 @@ class TopBar(QWidget):
         self.plot_file.hide()
         layout.addWidget(self.plot_file)
         theme.theme_changed.connect(self._refresh_icons)
+        theme.scale_changed.connect(self._on_scale_changed)
         self._refresh_icons()
+
+    def _on_scale_changed(self, _scale: float) -> None:
+        self.setFixedHeight(scaled(36))
+        self.breadcrumb.updateGeometry()
+        self.breadcrumb.relayout()
 
     def set_root(self, root: Path) -> None:
         """The project the breadcrumb starts from."""

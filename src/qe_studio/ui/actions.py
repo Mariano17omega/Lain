@@ -35,6 +35,21 @@ ACTIONS: tuple[ActionSpec, ...] = (
     ActionSpec("app.quit", "Arquivo", "Sair", "close", "Ctrl+Q", separator_before=True),
     ActionSpec("nav.back", "Navegar", "Voltar", "navigation.back", "Alt+Left"),
     ActionSpec("nav.forward", "Navegar", "Avançar", "navigation.forward", "Alt+Right"),
+    ActionSpec(
+        "focus.tree",
+        "Navegar",
+        "Ir para a árvore",
+        "focus_areas.focus_tree",
+        "Ctrl+1",
+        separator_before=True,
+    ),
+    ActionSpec("focus.grid", "Navegar", "Ir para a grade", "focus_areas.focus_grid", "Ctrl+2"),
+    ActionSpec(
+        "focus.workspace", "Navegar", "Ir para o workspace", "focus_areas.focus_workspace", "Ctrl+3"
+    ),
+    ActionSpec(
+        "focus.params", "Navegar", "Ir para os ajustes", "focus_areas.focus_params", "Ctrl+4"
+    ),
     # "sync.start" says what it pulls: SyncCoordinator.show_scope renames it on every folder change.
     ActionSpec("sync.start", "Cluster", "Sincronizar pasta selecionada", "start_sync"),
     ActionSpec("sync.project", "Cluster", "Sincronizar projeto inteiro", "start_project_sync"),

@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.navigation import Segment, breadcrumb_segments, collapse_count
+from ..theme.scale import scaled
 from .common import set_variant
 from .workspace_tabs import add_action
 
@@ -131,14 +132,14 @@ class Breadcrumb(QWidget):
     def sizeHint(self) -> QSize:
         widths, separator, _more = self._widths()
         full = sum(widths) + separator * max(len(widths) - 1, 0)
-        return QSize(min(full, MAX_WIDTH), 26)
+        return QSize(min(full, MAX_WIDTH), scaled(26))
 
     def minimumSizeHint(self) -> QSize:
         widths, separator, more = self._widths()
         if len(widths) <= 2:
-            return QSize(min(sum(widths), 80), 26)
+            return QSize(min(sum(widths), 80), scaled(26))
         shown = [widths[0], more, widths[-1]]
-        return QSize(min(sum(shown) + separator * 2, 240), 26)
+        return QSize(min(sum(shown) + separator * 2, 240), scaled(26))
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)

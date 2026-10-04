@@ -344,6 +344,33 @@ about). Three controllers are built by `for_window(window)` factories (keeps `ma
   template ships as `src/qe_studio/resources/config.example.yaml`; `tests/test_config.py` keeps it
   identical to the root `config.example.yaml`.
 
+### Theme modes, font scale and keyboard focus (spec 19)
+
+- **Modes.** `ThemeManager.mode` is the user's pick (`dark` | `light` | `system`, `MODES`) and `name` the
+  concrete theme applied (`THEMES`); `theme_changed` always carries the concrete name, `mode_changed` the
+  mode. `system` reads `QStyleHints.colorScheme` (`Unknown` → dark) and follows `colorSchemeChanged`.
+  `toggle()` cycles dark → light → system. QSettings `ui/theme` stores the **mode**, never `name`. Tests
+  fake the scheme by patching `QStyleHints.colorScheme` and emitting `colorSchemeChanged` (offscreen
+  always says `Unknown`).
+- **Font scale** (`ui.font_scale`, 0.8–1.6). `core/fontscale.py` (Qt-free) scales every `font-size: Npx` of
+  the QSS (`scale_qss`) and gives the size tokens (`${row_h}`, `${bar_h}`, `${status_h}`,
+  `${activity_w}`) of the heights that hold text; `ui/theme/scale.py` keeps the scale in force for code
+  without a `ThemeManager` (`scaled`, `scaled_font`). `mono_font` / `ui_font` take the size **at scale 1**.
+  Row and card heights come from there or from `QFontMetrics` (`ui/widgets/file_card.py:card_size`), never
+  from a bare constant; paddings, icons and dialog widths do not scale. A widget that caches a size
+  connects `theme.scale_changed`. `MainWindow._apply_loaded` re-reads the scale ("Recarregar config.yaml").
+- **Contrast.** `core/colors.py` has `contrast_ratio` and `composite` (rgba over its background);
+  `tests/test_theme_contrast.py` holds the WCAG AA table of the tokens in both themes. `text_dim` is only
+  for disabled states, placeholder and LEDs (the test lists the files that may read it); informative
+  text (grid and tree metadata, counts, separators) uses `text_meta`. A new color token must pass there.
+- **Focus.** `focus_ring` is the color of the keyboard focus. Controls recolor the border they already
+  reserve (`controls/focus.qss`: a new focusable control reserves a transparent 1 px border and is added
+  there); the painted delegates draw a 2 px ring when `State_HasFocus`. `ui/focus_controller.py:
+  FocusController` rebuilds the tab order (activity bar → top bar → tree → grid → workspace →
+  adjustments → footer) from Qt's chain, grouped by region, in `MainWindow.focusNextPrevChild` before each
+  Tab (widgets created later land at the end of Qt's chain), and answers Ctrl+1..4 (`focus.*` actions).
+  An icon-only `IconButton` takes its tooltip as `accessibleName`; a parameter widget the label of its field.
+
 ### Text viewer and tabs (spec 10)
 
 `ui/widgets/text_viewer.py:TextViewer` = banner bar ("Abrir no editor externo", "Carregar tudo"),

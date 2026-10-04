@@ -1,4 +1,4 @@
-/* Precision inputs: 22-24 px, JetBrains Mono numbers, cyan focus ring. */
+/* Precision inputs: 22-24 px, JetBrains Mono numbers, focus ring. */
 QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {
     background: ${input};
     color: ${text};
@@ -12,7 +12,7 @@ QDoubleSpinBox, QSpinBox {
     color: ${accent_text};
 }
 QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus {
-    border: 1px solid ${accent};
+    border: 1px solid ${focus_ring};
 }
 QLineEdit:disabled, QDoubleSpinBox:disabled, QComboBox:disabled {
     color: ${text_dim};

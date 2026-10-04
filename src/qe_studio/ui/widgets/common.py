@@ -60,6 +60,12 @@ class IconButton(QToolButton):
         self.refresh_icon()
         theme.theme_changed.connect(self.refresh_icon)
 
+    def setToolTip(self, text: str | None) -> None:
+        """An icon-only button is named by its tooltip, for screen readers (spec 19 R4.5)."""
+        super().setToolTip(text)
+        if not self.text():
+            self.setAccessibleName(text or "")
+
     def set_icon_name(self, icon: str) -> None:
         self.icon_name = icon
         self.refresh_icon()

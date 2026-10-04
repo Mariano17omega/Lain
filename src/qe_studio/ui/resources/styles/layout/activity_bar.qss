@@ -5,14 +5,14 @@
 }
 QToolButton[variant="activity"] {
     background: transparent;
-    border: none;
+    border: 1px solid transparent;  /* the focus ring (controls/focus.qss) takes this border */
     border-left: 2px solid transparent;
     border-radius: 4px;
     color: ${text_muted};
     font-size: 9px;
-    padding: 4px 0 3px 0;
-    min-width: 46px;
-    max-width: 46px;
+    padding: 3px 0 2px 0;
+    min-width: ${activity_w};
+    max-width: ${activity_w};
 }
 QToolButton[variant="activity"]:hover {
     background: ${hover};

@@ -19,6 +19,8 @@ text: "#e1e2eb"
 text_secondary: "#bbc9cf"
 text_muted: "#859399"
 text_dim: "#5c6b72"
+text_meta: "#8a9aa1"          # grid/tree metadata, counts: informative text, AA on card
+focus_ring: "#00d2ff"         # keyboard focus outline (spec 19 R4)
 accent: "#00d2ff"
 accent_text: "#a5e7ff"
 accent_soft: "rgba(0, 210, 255, 0.12)"
@@ -60,7 +62,7 @@ icon_vector: "#fbbf24"
 icon_folder: "#00d2ff"
 icon_other: "#859399"
 search_match_bg: "rgba(245, 158, 11, 0.30)"   # text viewer: every search hit
-search_current_bg: "rgba(245, 158, 11, 0.65)"  # text viewer: the current hit
+search_current_bg: "rgba(245, 158, 11, 0.50)"  # text viewer: the current hit
 hl_energy: "#a5e7ff"       # output highlight: "!    total energy" (bold)
 hl_success: "#69f6b9"
 hl_error: "#f43f5e"
@@ -68,14 +70,14 @@ hl_warning: "#f59e0b"
 hl_info: "#c084fc"
 hl_header: "#6d9bff"
 gutter_bg: "#101319"       # line number margin
-gutter_fg: "#5c6b72"
+gutter_fg: "#7b8a91"
 gutter_current_fg: "#bbc9cf"
 syn_namelist: "#6d9bff"    # input highlight: &NAMELIST and the closing /
 syn_key: "#a5e7ff"         # parameter name, with its index
 syn_string: "#69f6b9"
 syn_number: "#fbbf24"      # includes d/D exponents
 syn_logical: "#c084fc"
-syn_comment: "#6b7b84"
+syn_comment: "#72828b"
 syn_card: "#f472b6"        # ATOMIC_POSITIONS, K_POINTS…
 syn_card_option: "#fcd34d" # {crystal}, automatic…
 diff_add_bg: "rgba(105, 246, 185, 0.16)"    # input diff: line only in B

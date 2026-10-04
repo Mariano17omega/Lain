@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..theme.manager import ThemeManager
+from ..theme.scale import scaled
 from .common import set_variant, viewport_of
 
 ROW_HEIGHT = 22
@@ -70,6 +71,7 @@ class NavSection(QWidget):
         self.list.itemClicked.connect(self._on_clicked)
         self.list.customContextMenuRequested.connect(self._on_context_menu)
         theme.theme_changed.connect(self._render)
+        theme.scale_changed.connect(self._render)
         self.hide()  # until there is something to list
 
     # -- content ---------------------------------------------------------------------------------
@@ -92,16 +94,16 @@ class NavSection(QWidget):
         for entry in self._entries:
             item = QListWidgetItem(self.theme.icon(self.icon, self.icon_token), entry.label)
             item.setData(Qt.ItemDataRole.UserRole, str(entry.path))
-            item.setSizeHint(QSize(0, ROW_HEIGHT))
+            item.setSizeHint(QSize(0, scaled(ROW_HEIGHT)))
             if entry.exists:
                 item.setToolTip(str(entry.path))
             else:
                 item.setToolTip("não encontrada")
-                item.setForeground(self.theme.color("text_dim"))
+                item.setForeground(self.theme.color("text_meta"))
             self.list.addItem(item)
         self.header.setText(f"{self.title.upper()} ({len(self._entries)})")
         self._sync_header_icon()
-        self.list.setFixedHeight(min(len(self._entries), MAX_ROWS) * ROW_HEIGHT + 2)
+        self.list.setFixedHeight(min(len(self._entries), MAX_ROWS) * scaled(ROW_HEIGHT) + 2)
         self.setVisible(bool(self._entries))
 
     def _sync_header_icon(self) -> None:

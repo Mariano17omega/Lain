@@ -101,9 +101,9 @@ def test_the_dialog_search_ignores_case_and_accents(qtbot, main_window):
     qtbot.addWidget(dialog)
     dialog.search.setText("GRADE")
     where = {w for _a, _k, w in dialog.visible_rows()}
-    assert where == {"Grade de arquivos"}
-    dialog.search.setText("arvore")  # "Árvore de pastas"
-    assert [w for _a, _k, w in dialog.visible_rows()] == ["Árvore de pastas"]
+    assert where == {"Grade de arquivos", "Menu Navegar"}  # the panel's keys and Ctrl+2 (spec 19)
+    dialog.search.setText("arvore")  # "Árvore de pastas" and the Ctrl+1 action
+    assert {w for _a, _k, w in dialog.visible_rows()} == {"Árvore de pastas", "Menu Navegar"}
     dialog.search.setText("backspace")
     assert [k for _a, k, _w in dialog.visible_rows()] == ["Backspace"]
     dialog.search.setText("nada disso existe")

@@ -110,4 +110,4 @@ def test_levels_map_to_theme_tokens():
         "warning",
         "error",
     ]
-    assert level_token("other") == "text_dim"
+    assert level_token("other") == "text_meta"

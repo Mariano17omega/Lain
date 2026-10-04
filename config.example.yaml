@@ -70,8 +70,11 @@ plot:
     dpi: 300
 
 ui:
-  # dark or light (the toggle in the app remembers your last choice).
+  # dark, light or system (follow the operating system's color scheme). The Tema button / Ctrl+T
+  # in the app cycles them and remembers your last choice.
   theme: dark
+  # Size of every font, from 0.8 to 1.6 (1.0 = default). Reload with "Recarregar config.yaml".
+  font_scale: 1.0
   # Folder names/patterns hidden in the explorer.
   hidden_dirs: [tmp, "*.save"]
   # F5 (Atualizar) keeps what it read from files whose size and modification time did not

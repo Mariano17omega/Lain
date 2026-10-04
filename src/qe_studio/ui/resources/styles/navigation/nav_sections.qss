@@ -9,8 +9,8 @@ QToolButton[variant="sectionHeader"] {
     font-weight: 600;
     color: ${text_secondary};
     background: transparent;
-    border: none;
-    padding: 4px 8px;
+    border: 1px solid transparent;
+    padding: 3px 7px;
     text-align: left;
 }
 QToolButton[variant="sectionHeader"]:hover {
@@ -24,7 +24,8 @@ QListWidget#navList {
     color: ${text};
 }
 QListWidget#navList::item {
-    padding: 0 6px;
+    padding: 0 5px;
+    border: 1px solid transparent;
 }
 QListWidget#navList::item:hover {
     background: ${hover};

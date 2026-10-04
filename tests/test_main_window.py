@@ -175,7 +175,7 @@ def test_job_log_label_in_grid(main_window, tmp_path):
     main_window.files.set_grid_mode(False)  # list mode keeps the size (spec 5 R1.3)
     assert delegate._meta(tmp_path / "job.o1", False, 0) == ("0 B · SEM ERROS", "success")
     assert delegate._meta(tmp_path / "job.o1", False, 2048) == ("2.0 KB · ERRO", "error")
-    assert delegate._meta(tmp_path / "notes.txt", False, 10) == ("10 B", "text_dim")
+    assert delegate._meta(tmp_path / "notes.txt", False, 10) == ("10 B", "text_meta")
 
 
 @pytest.mark.parametrize("name", ["job.qsub", "job.slurm", "job.pbs", "run.sh"])
@@ -186,13 +186,37 @@ def test_submission_scripts_are_read_only(qtbot, main_window, tmp_path, name):
     assert viewer.editor.isReadOnly() and "mpirun" in viewer.editor.toPlainText()
 
 
-def test_theme_toggle_persists(qtbot, main_window):
+def test_theme_toggle_cycles_the_modes_and_persists_the_mode(qtbot, main_window):
     window = main_window
+    assert window.theme.mode == "dark"
     window.toggle_theme()
-    assert window.theme.name == "light"
+    assert (window.theme.mode, window.theme.name) == ("light", "light")
     assert window.settings.value("ui/theme") == "light"
     window.toggle_theme()
-    assert window.theme.name == "dark"
+    assert window.theme.mode == "system"
+    assert window.settings.value("ui/theme") == "system"  # the mode, not the concrete theme
+    window.toggle_theme()
+    assert (window.theme.mode, window.theme.name) == ("dark", "dark")
+
+
+def test_theme_button_says_the_current_mode(qtbot, main_window):
+    window = main_window
+    button = window.activity.theme_button
+    assert button.toolTip() == "Tema: Escuro · Ctrl+T"
+    assert button.icon_name == "dark_mode"
+    window.toggle_theme()
+    assert (button.toolTip(), button.icon_name) == ("Tema: Claro · Ctrl+T", "light_mode")
+    window.toggle_theme()
+    assert button.toolTip().startswith("Tema: Sistema (")
+    assert button.icon_name == "contrast"
+
+
+def test_closing_stores_the_mode(qtbot, main_window):
+    window = main_window
+    window.toggle_theme()
+    window.toggle_theme()
+    window.close()
+    assert window.settings.value("ui/theme") == "system"
 
 
 def test_panel_toggles(qtbot, main_window):

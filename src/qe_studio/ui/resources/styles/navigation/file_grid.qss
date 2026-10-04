@@ -9,6 +9,6 @@
     border: none;
 }
 #emptyGrid {
-    color: ${text_dim};
+    color: ${text_meta};
     font-size: 12px;
 }

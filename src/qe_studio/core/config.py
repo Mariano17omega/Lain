@@ -26,6 +26,8 @@ from pydantic import (
     model_validator,
 )
 
+from .fontscale import MAX_SCALE, MIN_SCALE
+
 ENV_CONFIG = "QE_STUDIO_CONFIG"
 CONFIG_NAME = "config.yaml"
 
@@ -170,7 +172,9 @@ class PlotConfig(_Section):
 
 
 class UiConfig(_Section):
-    theme: Literal["dark", "light"] = "dark"
+    theme: Literal["dark", "light", "system"] = "dark"  # system: follow the OS color scheme
+    # Scales every font and the heights that hold text; paddings and icons stay (spec 19 R2).
+    font_scale: float = Field(default=1.0, ge=MIN_SCALE, le=MAX_SCALE)
     hidden_dirs: list[str] = Field(default_factory=lambda: ["tmp", "*.save"])
     # F5 rereads every file, even those whose (mtime, size) did not change (spec 14 R4.2).
     paranoid_refresh: bool = False

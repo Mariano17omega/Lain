@@ -4,6 +4,7 @@ import pytest
 from PyQt6.QtCore import QtMsgType, qInstallMessageHandler
 
 from qe_studio.ui.theme.manager import (
+    MODES,
     THEMES,
     ThemeManager,
     build_stylesheet,
@@ -85,3 +86,78 @@ def test_toggle_emits(qapp, qtbot):
     with qtbot.waitSignal(manager.theme_changed) as blocker:
         assert manager.toggle() == "light"
     assert blocker.args == ["light"]
+
+
+# -- mode "system" (spec 19 R1) ----------------------------------------------------------------
+@pytest.fixture
+def scheme(monkeypatch):
+    """Fake the OS color scheme (offscreen always says Unknown): ``set`` changes it and emits."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtGui import QGuiApplication
+
+    hints = QGuiApplication.styleHints()
+    state = {"value": Qt.ColorScheme.Dark}
+    monkeypatch.setattr(type(hints), "colorScheme", lambda self: state["value"])
+
+    def set_scheme(value):
+        state["value"] = value
+        hints.colorSchemeChanged.emit(value)
+
+    return set_scheme
+
+
+def test_themes_are_the_concrete_ones_and_system_is_a_mode():
+    assert THEMES == ("dark", "light")
+    assert MODES == ("dark", "light", "system")
+
+
+def test_system_follows_the_os_scheme(qapp, qtbot, scheme):
+    from PyQt6.QtCore import Qt
+
+    manager = ThemeManager("system")
+    assert (manager.mode, manager.name) == ("system", "dark")
+    with qtbot.waitSignal(manager.theme_changed) as blocker:
+        scheme(Qt.ColorScheme.Light)
+    assert blocker.args == ["light"]  # the concrete theme, never "system"
+    assert (manager.mode, manager.name) == ("system", "light")
+    assert manager.tokens == load_tokens("light")
+    assert manager.label() == "Sistema (claro agora)"
+
+
+def test_system_without_a_scheme_is_dark(qapp, monkeypatch):
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtGui import QGuiApplication
+
+    hints = QGuiApplication.styleHints()
+    monkeypatch.setattr(type(hints), "colorScheme", lambda self: Qt.ColorScheme.Unknown)
+    assert ThemeManager("system").name == "dark"
+
+
+def test_a_fixed_mode_ignores_the_os(qapp, qtbot, scheme):
+    from PyQt6.QtCore import Qt
+
+    manager = ThemeManager("dark")
+    with qtbot.assertNotEmitted(manager.theme_changed):
+        scheme(Qt.ColorScheme.Light)
+    assert manager.name == "dark"
+
+
+def test_toggle_cycles_dark_light_system(qapp, qtbot, scheme):
+    manager = ThemeManager("dark")
+    modes = []
+    manager.mode_changed.connect(modes.append)
+    assert [manager.toggle() for _ in range(4)] == ["light", "system", "dark", "light"]
+    assert modes == ["light", "system", "dark", "light"]
+
+
+def test_leaving_system_stops_following_the_os(qapp, qtbot, scheme):
+    from PyQt6.QtCore import Qt
+
+    manager = ThemeManager("system")
+    manager.set_mode("light")
+    scheme(Qt.ColorScheme.Dark)
+    assert manager.name == "light"
+
+
+def test_an_unknown_mode_is_dark(qapp):
+    assert ThemeManager("sepia").mode == "dark"

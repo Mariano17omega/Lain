@@ -35,6 +35,8 @@ QT_FREE = [
     "qe_studio.core.folder_index",
     "qe_studio.core.config_template",
     "qe_studio.core.about",
+    "qe_studio.core.colors",
+    "qe_studio.core.fontscale",
 ]
 
 

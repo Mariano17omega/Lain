@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QModelIndex, QPoint, QPointF, QRect, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QFontMetrics, QKeySequence, QPainter, QShortcut
+from PyQt6.QtCore import QModelIndex, QPoint, QPointF, QRect, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QFontMetrics, QKeySequence, QPainter, QPen, QShortcut
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QStyle,
@@ -23,6 +23,7 @@ from ..file_types import file_visual, level_token
 from ..painting import BADGE_GAP, badge_layout, mono_font, paint_badge, ui_font
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
+from ..theme.scale import scaled
 from .common import IconButton, PanelHeader, selection_of, viewport_of
 from .filter_bar import FilterBar
 from .fs_model import FileFilterProxy, make_fs_model
@@ -38,7 +39,7 @@ class ExplorerDelegate(QStyledItemDelegate):
         self.theme, self.service, self.proxy = theme, service, proxy
 
     def sizeHint(self, option, index) -> QSize:
-        return QSize(option.rect.width(), ROW_HEIGHT)
+        return QSize(option.rect.width(), scaled(ROW_HEIGHT))
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
         opt = QStyleOptionViewItem(option)
@@ -88,13 +89,18 @@ class ExplorerDelegate(QStyledItemDelegate):
         painter.drawText(
             text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, name
         )
+        if option.state & QStyle.StateFlag.State_HasFocus:  # the keyboard focus ring (spec 19 R4.2)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(QPen(self.theme.color("focus_ring"), 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(QRectF(rect).adjusted(1, 1, -1, -1), 3, 3)
         painter.restore()
 
     def _paint_pending(self, painter: QPainter, right: float, rect: QRect) -> float:
         painter.setFont(mono_font(10))
         text = "detectando…"
         width = painter.fontMetrics().horizontalAdvance(text)
-        painter.setPen(self.theme.color("text_dim"))
+        painter.setPen(self.theme.color("text_meta"))
         painter.drawText(
             QRect(int(right - width), rect.top(), width + 1, rect.height()),
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
@@ -120,7 +126,7 @@ class ExplorerDelegate(QStyledItemDelegate):
         """(text, color token, state label) at the right of a file row: its state, else its size."""
         label = status_label(path, size, self.service.file_sniff(path))
         if label is None:
-            return human_size(size), "text_dim", None
+            return human_size(size), "text_meta", None
         return label[0], level_token(label[1]), label[0]
 
     def helpEvent(self, event, view, option, index) -> bool:
@@ -224,9 +230,13 @@ class ExplorerPanel(QWidget):
         find.activated.connect(self.filter_bar.open)
         service.detected.connect(self._on_detected)
         theme.theme_changed.connect(self._on_theme_changed)
+        theme.scale_changed.connect(self._on_scale_changed)
 
     def _on_theme_changed(self, _name: str) -> None:
         viewport_of(self.tree).update()
+
+    def _on_scale_changed(self, _scale: float) -> None:
+        self.tree.scheduleDelayedItemsLayout()  # the rows are taller or shorter now
 
     def _on_detected(self, _folder: str) -> None:
         viewport_of(self.tree).update()

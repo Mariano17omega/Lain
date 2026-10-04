@@ -36,6 +36,7 @@ from .actions import build_menus
 from .dialogs.open_many import MANY_FILES, ask_open_many
 from .dialogs.rename import ask_rename
 from .first_run import FirstRunController
+from .focus_controller import FocusController
 from .help_controller import HelpController
 from .layout_controller import LayoutController
 from .navigation_controller import NavigationController
@@ -183,6 +184,7 @@ class MainWindow(QMainWindow):
         self.help = HelpController.for_window(self)
         self.command_palette = PaletteController.for_window(self)
         self.first_run = FirstRunController.for_window(self)
+        self.focus_areas = FocusController.for_window(self)  # tab order and Ctrl+1..4
 
     def _build_menus(self) -> None:
         self._actions = build_menus(self)
@@ -226,6 +228,7 @@ class MainWindow(QMainWindow):
         self.navigation.message.connect(self.status.set_message)
         self.help.message.connect(self.status.set_message)
         self.first_run.message.connect(self.status.set_message)
+        self.focus_areas.message.connect(self.status.set_message)
         sync.cluster_changed.connect(self.top_bar.set_cluster)
         sync.cluster_changed.connect(self.activity.set_cluster)
         sync.message.connect(self.status.set_message)
@@ -246,6 +249,11 @@ class MainWindow(QMainWindow):
                 return
         self.on_folder_selected(self.root)
 
+    def focusNextPrevChild(self, next: bool) -> bool:
+        """Tab and Shift+Tab: the order of the window's regions, rebuilt first (spec 19 R4.3)."""
+        self.focus_areas.apply_tab_order()
+        return super().focusNextPrevChild(next)
+
     def closeEvent(self, event: QCloseEvent | None) -> None:
         self.sync.shutdown()
         self.plot_workflow.shutdown()  # waits for exports: no half-written plots
@@ -254,7 +262,7 @@ class MainWindow(QMainWindow):
         self.panel_layout.save()
         self.navigation.shutdown()
         self.settings.setValue("explorer/last_folder", str(self.current_folder()))
-        self.settings.setValue("ui/theme", self.theme.name)
+        self.settings.setValue("ui/theme", self.theme.mode)
         self.settings.sync()
         self.service.shutdown(2000)
         self.files.shutdown()  # last: the panels' filters stop (current_folder needs them above)
@@ -414,9 +422,8 @@ class MainWindow(QMainWindow):
 
     # -- theme & config -------------------------------------------------------------------------
     def toggle_theme(self) -> None:
-        name = self.theme.toggle()
-        self.settings.setValue("ui/theme", name)
-        self.status.set_message(f"Tema {'escuro' if name == 'dark' else 'claro'}.", timeout_ms=2000)
+        self.settings.setValue("ui/theme", self.theme.toggle())  # the mode, not the concrete theme
+        self.status.set_message(f"Tema: {self.theme.label()}.", timeout_ms=2000)
 
     def open_config(self) -> None:
         if self.loaded.path is None:
@@ -451,6 +458,7 @@ class MainWindow(QMainWindow):
         self.memory.set_root(self.root)
         self.navigation.set_root(self.root)
         self.service.paranoid_refresh = self.config.ui.paranoid_refresh
+        self.theme.set_font_scale(self.config.ui.font_scale)
         self.sync.set_config(self.config)
         self.explorer.apply_config(self.root, self.config.ui.hidden_dirs)
         self.files.apply_config(self.root, self.config.ui.hidden_dirs)

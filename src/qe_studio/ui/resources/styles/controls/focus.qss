@@ -1,0 +1,29 @@
+/* Keyboard focus ring (spec 19 R4): the border each control already reserves, in focus_ring.
+   No layout change: only the color changes. Views paint theirs in the delegates. This file
+   comes after the domains it overrides, so equal specificity wins. */
+QPushButton:focus,
+QPushButton[variant="primary"]:focus,
+QPushButton[variant="danger"]:focus,
+QToolButton:focus,
+QToolButton[variant="activity"]:focus,
+QToolButton[variant="toggle"]:focus,
+QToolButton[variant="headerButton"]:focus,
+#breadcrumb QToolButton[variant="crumb"]:focus,
+QToolButton[variant="filterTool"]:focus,
+QToolButton[variant="chip"]:focus,
+QToolButton[variant="plotTool"]:focus,
+QToolButton[variant="viewerTool"]:focus,
+QToolButton[variant="sectionHeader"]:focus,
+QToolButton[variant="summaryToggle"]:focus,
+QToolButton[variant="swatch"]:focus {
+    border-color: ${focus_ring};
+}
+QTabBar::tab:selected:focus {
+    border-color: ${focus_ring};
+}
+QListWidget#navList::item:focus {
+    border-color: ${focus_ring};
+}
+QCheckBox::indicator:focus {
+    border-color: ${focus_ring};
+}

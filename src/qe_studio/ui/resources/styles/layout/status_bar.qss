@@ -1,9 +1,9 @@
-/* Bottom status bar (22 px). */
+/* Bottom status bar (22 px at scale 1). */
 #statusBar {
     background: ${chrome};
     border-top: 1px solid ${border};
-    min-height: 22px;
-    max-height: 22px;
+    min-height: ${status_h};
+    max-height: ${status_h};
     color: ${text_muted};
 }
 #statusBar::item {

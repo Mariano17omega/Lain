@@ -46,7 +46,7 @@ def test_grid_cards_show_the_state_only(qtbot, main_window, demo_project, monkey
     output = folder / "scf.out"
     cut = FileSniff(output, FileKind.PW_OUT, job_done=False)
     monkeypatch.setattr(window.service, "file_sniff", lambda p: cut if p == output else None)
-    assert delegate._meta(folder / "bands.in", False, 5000) == ("", "text_dim")
+    assert delegate._meta(folder / "bands.in", False, 5000) == ("", "text_meta")
     assert delegate._meta(output, False, 5000) == ("INCOMPLETO", "warning")
 
     show_folder(qtbot, window, folder)

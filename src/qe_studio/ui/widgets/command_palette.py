@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 
 from ..painting import mono_font, ui_font
 from ..theme.manager import ThemeManager
+from ..theme.scale import scaled
 
 MAX_ROWS = 50
 VISIBLE_ROWS = 10
@@ -53,7 +54,7 @@ class RowDelegate(QStyledItemDelegate):
         self.theme = theme
 
     def sizeHint(self, option, index) -> QSize:
-        return QSize(option.rect.width(), ROW_HEIGHT)
+        return QSize(option.rect.width(), scaled(ROW_HEIGHT))
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
         row: PaletteRow = index.data(ROW_ROLE)
@@ -69,7 +70,7 @@ class RowDelegate(QStyledItemDelegate):
             self.theme.pixmap(row.icon, "text_dim" if dim else "text_muted", 16),
         )
         painter.setFont(mono_font(10))
-        painter.setPen(self.theme.color("text_dim"))
+        painter.setPen(self.theme.color("text_meta"))
         section_width = painter.fontMetrics().horizontalAdvance(row.section) + 12
         painter.drawText(
             QRect(rect.left() + 34, rect.top(), section_width, rect.height()),
@@ -123,11 +124,16 @@ class CommandPalette(QFrame):
         self.view.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
         self.view.setSelectionMode(QListView.SelectionMode.SingleSelection)
         self.view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.view.setFixedHeight(VISIBLE_ROWS * ROW_HEIGHT)
+        self.view.setFixedHeight(VISIBLE_ROWS * scaled(ROW_HEIGHT))
         layout.addWidget(self.view)
         self.setFixedWidth(WIDTH)
         self.edit.textChanged.connect(self.query_changed)
         self.view.clicked.connect(self._on_clicked)
+        theme.scale_changed.connect(self._on_scale_changed)
+
+    def _on_scale_changed(self, _scale: float) -> None:
+        self.view.setFixedHeight(VISIBLE_ROWS * scaled(ROW_HEIGHT))
+        self.view.scheduleDelayedItemsLayout()
 
     # -- content ---------------------------------------------------------------------------
     def set_rows(self, rows: list[PaletteRow]) -> None:

@@ -58,4 +58,4 @@ def visual_category(path: Path) -> str:
 
 
 def level_token(level: str) -> str:
-    return LEVEL_TOKENS.get(level, "text_dim")
+    return LEVEL_TOKENS.get(level, "text_meta")

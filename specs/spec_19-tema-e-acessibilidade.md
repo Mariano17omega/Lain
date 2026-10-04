@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 19 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: o Tab não usa `setTabOrder` uma vez só, e sim `MainWindow.focusNextPrevChild`, que refaz a ordem antes de cada Tab (`ui/focus_controller.py`), porque o Qt põe no fim da cadeia todo widget criado depois (cada migalha do caminho, aba, chip) e `setTabOrder` ignora widgets sem foco e move um por vez; Ctrl+1..4 são ações do menu "Navegar" (`focus.tree/grid/workspace/params`); o ícone do botão Tema mostra o **modo atual** (antes mostrava o do destino) e `ThemeManager.toggle()` cicla os 3 modos, `set_theme` virou `set_mode`; além de `text_dim`, falhavam em AA e foram ajustados `success` e `warning` do tema claro (para os valores de `hl_success`/`hl_warning`), `hl_error`, `syn_comment`, `syn_card_option` e `gutter_fg` (claro), `syn_comment`, `gutter_fg` e o alfa de `search_current_bg` (escuro, 0,65 → 0,50, para o texto passar sobre o realce); `text_meta` (`#8a9aa1` escuro, `#5b6b80` claro) passa também sobre `card_hover` e `accent_soft`, onde a grade o pinta; a escala também multiplica as alturas e larguras que contêm texto (tokens QSS `row_h`, `bar_h`, `status_h`, `activity_w` e `ui/theme/scale.py:scaled`), o card da grade deriva do `QFontMetrics` e o delegate foi para `ui/widgets/file_card.py` (limite de 500 linhas); a largura dos painéis e dos diálogos não escala (a 1,6 os rótulos do painel de ajustes ficam cortados até arrastar o divisor); o anel de foco dos botões é a borda que eles já reservavam, recolorida em `controls/focus.qss`, e as views (árvore, grade) o desenham no delegate, sem moldura própria (uma borda de foco deslocaria o conteúdo); `contrast_ratio` e `composite` moram em `core/colors.py`; `scripts/screenshot.py` ganhou `--scale` |
 | **Depende de** | nenhuma (convém depois das specs 10–18, que criam tokens novos) |
 | **Usada por** | nenhuma |
 | **Esforço** | M |
@@ -137,13 +137,13 @@
   (mudanças de cor).
 
 ## Critérios de aceite e testes
-- [ ] `ui.theme: system` com o esquema do sistema `Dark` aplica `dark`. Ao emitir `colorSchemeChanged`
+- [x] `ui.theme: system` com o esquema do sistema `Dark` aplica `dark`. Ao emitir `colorSchemeChanged`
       com `Light`, aplica `light`, e `theme_changed` emite `"light"`.
-- [ ] O botão Tema cicla os 3 modos, e o QSettings guarda o modo.
-- [ ] `ui.font_scale: 1.25`: o QSS montado tem `font-size: 15px` onde antes havia `12px`. `mono_font(11)`
+- [x] O botão Tema cicla os 3 modos, e o QSettings guarda o modo.
+- [x] `ui.font_scale: 1.25`: o QSS montado tem `font-size: 15px` onde antes havia `12px`. `mono_font(11)`
       tem `pixelSize` 14. A grade em 1,6 não corta o nome do arquivo (altura do item ≥ altura do texto).
-- [ ] `tests/test_theme_contrast.py` passa nos dois temas, incluindo os tokens das specs 10 e 11.
-- [ ] Nenhum uso de `text_dim` para texto informativo (`grep` nos delegates: metadados usam `text_meta`).
-- [ ] Tab a partir da barra de atividades percorre as áreas na ordem do R4.3. Ctrl+2 dá foco à grade, e
+- [x] `tests/test_theme_contrast.py` passa nos dois temas, incluindo os tokens das specs 10 e 11.
+- [x] Nenhum uso de `text_dim` para texto informativo (`grep` nos delegates: metadados usam `text_meta`).
+- [x] Tab a partir da barra de atividades percorre as áreas na ordem do R4.3. Ctrl+2 dá foco à grade, e
       o item atual mostra o anel.
-- [ ] Botões só de ícone têm `accessibleName` não vazio.
+- [x] Botões só de ícone têm `accessibleName` não vazio.

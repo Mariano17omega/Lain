@@ -20,7 +20,7 @@ requirements, [`specs/README.md`](specs/README.md) for the index of change specs
   (300/600 DPI), SVG and PDF; existing files are never replaced without asking.
 - **Pull-only cluster sync** over rsync + ssh with configurable excludes (`tmp/`, `*.save/`,
   wavefunctions, …), a per-file conflict prompt and a cancellable progress dialog.
-- **Dark and light themes**, Inter + JetBrains Mono, Portuguese UI.
+- **Dark, light and system themes** (`ui.font_scale` for bigger text, AA contrast, visible keyboard focus, Ctrl+1..4), Inter + JetBrains Mono, Portuguese UI.
 
 ## Setup
 
@@ -149,7 +149,7 @@ uv run pytest -m "not realdata and not perf"   # what CI runs
 uv run pytest -m perf    # NFR §7 latency budget (CI reports it without blocking)
 uv run ruff check . && uv run ruff format --check .
 QE_STUDIO_REAL_DATA=/path/to/runs:/other/runs uv run pytest -m realdata   # your own runs
-uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--text: text viewer, --input: an input with errors, --diff [text]: input comparison, --summary: output summary)
+uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--scale N: font scale, --text: text viewer, --input: an input with errors, --diff [text]: input comparison, --summary: output summary)
 uv run python scripts/build_icons.py         # re-render the app icon PNGs after editing the SVG
 ```
 

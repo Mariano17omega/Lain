@@ -6,7 +6,7 @@
     show-decoration-selected: 1;
 }
 #explorerTree::item {
-    height: 22px;
+    height: ${row_h};
     border: none;
 }
 #explorerTree::item:hover {

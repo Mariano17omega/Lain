@@ -5,8 +5,8 @@
 #plotToolbar {
     background: ${chrome};
     border-bottom: 1px solid ${border};
-    min-height: 30px;
-    max-height: 30px;
+    min-height: ${bar_h};
+    max-height: ${bar_h};
 }
 QToolButton[variant="plotTool"] {
     background: transparent;

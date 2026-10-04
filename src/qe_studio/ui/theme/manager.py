@@ -7,7 +7,6 @@ colors with :meth:`ThemeManager.color` and refresh on ``theme_changed``.
 
 from __future__ import annotations
 
-import re
 from importlib.resources import as_file, files
 from string import Template
 
@@ -18,8 +17,12 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QApplication
 
 from ...core.appdirs import cache_dir
+from ...core.colors import RGBA
+from ...core.fontscale import clamp_scale, scale_qss, size_tokens
+from . import scale as font_scale_state
 
-THEMES = ("dark", "light")
+THEMES = ("dark", "light")  # the concrete themes: a token file each
+MODES = (*THEMES, "system")  # what the user picks; "system" follows the OS color scheme
 # Icons referenced from QSS as url(${token}): (token, icon, color token, size px)
 QSS_ICONS = (
     ("icon_close", "close", "text_muted", 14),
@@ -29,7 +32,6 @@ QSS_ICONS = (
     ("icon_combo_arrow", "expand_more", "text_muted", 14),
 )
 STYLE_DOMAINS = ("base", "layout", "navigation", "workspace", "controls", "dialogs")
-_RGBA = re.compile(r"rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)")
 
 _fonts_loaded = False
 
@@ -63,16 +65,28 @@ def style_files() -> list[tuple[str, str]]:
     return out
 
 
-def build_stylesheet(tokens: dict[str, str]) -> str:
-    """Concatenate all QSS files with tokens substituted; unknown tokens raise KeyError."""
+def build_stylesheet(tokens: dict[str, str], scale: float = 1.0) -> str:
+    """Concatenate all QSS files with tokens substituted; unknown tokens raise KeyError.
+
+    ``scale`` is ``ui.font_scale``: it scales every ``font-size`` and the heights of the
+    ``size_tokens`` (spec 19 R2).
+    """
+    values = {**tokens, **size_tokens(scale)}
     parts = []
     for name, text in style_files():
-        parts.append(f"/* ---- {name} ---- */\n{Template(text).substitute(tokens)}")
-    return "\n".join(parts)
+        parts.append(f"/* ---- {name} ---- */\n{Template(text).substitute(values)}")
+    return scale_qss("\n".join(parts), scale)
+
+
+def system_theme() -> str:
+    """The concrete theme the OS asks for: its color scheme, ``dark`` when it does not say."""
+    hints = QGuiApplication.styleHints()
+    scheme = hints.colorScheme() if hints is not None else Qt.ColorScheme.Unknown
+    return "light" if scheme == Qt.ColorScheme.Light else "dark"
 
 
 def parse_color(value: str) -> QColor:
-    match = _RGBA.fullmatch(value.strip())
+    match = RGBA.fullmatch(value.strip())
     if match:
         r, g, b, a = match.groups()
         return QColor(int(r), int(g), int(b), round(float(a) * 255))
@@ -94,14 +108,31 @@ def tinted_pixmap(svg: bytes, color: QColor, size: int, ratio: float = 1.0) -> Q
 
 
 class ThemeManager(QObject):
-    theme_changed = pyqtSignal(str)
+    """``mode`` is the user's pick (dark / light / system); ``name`` the concrete theme applied.
 
-    def __init__(self, theme: str = "dark", parent: QObject | None = None):
+    ``theme_changed`` carries the concrete name, so painted widgets never see "system".
+    """
+
+    theme_changed = pyqtSignal(str)
+    mode_changed = pyqtSignal(str)
+    scale_changed = pyqtSignal(float)
+
+    def __init__(self, theme: str = "dark", parent: QObject | None = None, font_scale: float = 1.0):
         super().__init__(parent)
         self._svgs: dict[str, bytes] = {}
         self._icons: dict[tuple, QIcon] = {}
-        self.name = theme if theme in THEMES else "dark"
+        self.mode = theme if theme in MODES else "dark"
+        self.name = self._resolve(self.mode)
         self.tokens = load_tokens(self.name)
+        self.font_scale = clamp_scale(font_scale)
+        font_scale_state.set_current(self.font_scale)
+        hints = QGuiApplication.styleHints()
+        if hints is not None:
+            hints.colorSchemeChanged.connect(self._on_scheme_changed)
+
+    @staticmethod
+    def _resolve(mode: str) -> str:
+        return system_theme() if mode == "system" else mode
 
     # -- applying ------------------------------------------------------------------------------
     def apply(self, app: QApplication | None = None) -> None:
@@ -115,7 +146,7 @@ class ThemeManager(QObject):
         app.setStyleSheet(self.stylesheet())
 
     def stylesheet(self) -> str:
-        return build_stylesheet({**self.tokens, **self.asset_tokens()})
+        return build_stylesheet({**self.tokens, **self.asset_tokens()}, self.font_scale)
 
     def asset_tokens(self) -> dict[str, str]:
         """Render the QSS icons as PNG (1x and @2x) into the cache dir; token → file path."""
@@ -130,8 +161,18 @@ class ThemeManager(QObject):
             out[token] = path.as_posix()
         return out
 
-    def set_theme(self, theme: str, app: QApplication | None = None) -> None:
-        if theme not in THEMES or theme == self.name:
+    def set_mode(self, mode: str, app: QApplication | None = None) -> None:
+        if mode not in MODES:
+            return
+        changed = mode != self.mode
+        self.mode = mode
+        self._switch(self._resolve(mode), app)
+        if changed:
+            self.mode_changed.emit(mode)
+
+    def _switch(self, theme: str, app: QApplication | None = None) -> None:
+        """Apply the concrete ``theme`` (nothing when it is already the one in use)."""
+        if theme == self.name:
             return
         self.name = theme
         self.tokens = load_tokens(theme)
@@ -139,9 +180,29 @@ class ThemeManager(QObject):
         self.apply(app)
         self.theme_changed.emit(theme)
 
+    def _on_scheme_changed(self, *_args) -> None:
+        if self.mode == "system":
+            self._switch(self._resolve("system"))
+
+    def label(self) -> str:
+        """The mode in words: ``Escuro``, ``Claro`` or ``Sistema (escuro agora)``."""
+        if self.mode == "system":
+            return f"Sistema ({'escuro' if self.name == 'dark' else 'claro'} agora)"
+        return "Escuro" if self.mode == "dark" else "Claro"
+
     def toggle(self) -> str:
-        self.set_theme("light" if self.name == "dark" else "dark")
-        return self.name
+        """The next mode: dark → light → system → dark. Returns it."""
+        self.set_mode(MODES[(MODES.index(self.mode) + 1) % len(MODES)])
+        return self.mode
+
+    def set_font_scale(self, scale: float, app: QApplication | None = None) -> None:
+        scale = clamp_scale(scale)
+        if scale == self.font_scale:
+            return
+        self.font_scale = scale
+        font_scale_state.set_current(scale)
+        self.apply(app)
+        self.scale_changed.emit(scale)
 
     # -- lookups -------------------------------------------------------------------------------
     def color(self, token: str) -> QColor:

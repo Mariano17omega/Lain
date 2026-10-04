@@ -12,7 +12,10 @@ from importlib.resources import as_file, files
 from typing import Any
 
 from matplotlib import font_manager
-from matplotlib.colors import to_rgb
+
+# Moved to core/colors.py (spec 19); re-exported here for the old import path.
+from ..colors import contrast_ratio as contrast_ratio
+from ..colors import relative_luminance as relative_luminance
 
 UI_FONT = "Inter"
 MONO_FONT = "JetBrains Mono"
@@ -106,17 +109,6 @@ LIGHT = PlotStyle(
     total_dos="#0f172a",
     palette=("#2563eb", "#0284c7", "#059669", "#d97706", "#7c3aed", "#db2777", "#dc2626"),
 )
-
-
-def relative_luminance(color: str) -> float:
-    """WCAG 2 relative luminance (0 = black, 1 = white)."""
-    r, g, b = (c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in to_rgb(color))
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-
-def contrast_ratio(a: str, b: str) -> float:
-    high, low = sorted((relative_luminance(a), relative_luminance(b)), reverse=True)
-    return (high + 0.05) / (low + 0.05)
 
 
 def figure_style(background: str) -> PlotStyle:

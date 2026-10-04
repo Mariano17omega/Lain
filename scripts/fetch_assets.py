@@ -51,6 +51,7 @@ ICONS = [
     "tune",
     "dark_mode",
     "light_mode",
+    "contrast",
     "person",
     # file types
     "folder",

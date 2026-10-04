@@ -15,7 +15,7 @@ from ..core.appdirs import log_path
 from ..core.config import ConfigError, load_config
 from ..core.plotting.style import register_fonts
 from .app_identity import configure_application
-from .theme.manager import THEMES, ThemeManager
+from .theme.manager import MODES, ThemeManager
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -75,8 +75,10 @@ def main(argv: list[str] | None = None) -> int:
         QMessageBox.critical(None, "config.yaml inválido", str(exc))
         return 2
 
-    theme_name = str(settings.value("ui/theme", loaded.config.ui.theme))
-    theme = ThemeManager(theme_name if theme_name in THEMES else loaded.config.ui.theme)
+    mode = str(settings.value("ui/theme", loaded.config.ui.theme))
+    theme = ThemeManager(
+        mode if mode in MODES else loaded.config.ui.theme, font_scale=loaded.config.ui.font_scale
+    )
     theme.apply(app)
 
     from .main_window import MainWindow

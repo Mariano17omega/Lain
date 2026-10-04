@@ -34,6 +34,7 @@ class ColorButton(QToolButton):
         self.color = color
         self.setStyleSheet(f"background: {color};")
         self.setToolTip(color)
+        self.setAccessibleName(f"Cor: {color}")
 
     def _pick(self) -> None:
         chosen = QColorDialog.getColor(QColor(self.color), self, "Escolher cor")
@@ -87,6 +88,8 @@ class Section(QWidget):
         widget.setMinimumWidth(0)
         widget.setSizePolicy(QSizePolicy.Policy.Ignored, widget.sizePolicy().verticalPolicy())
         widget.setToolTip(tooltip or widget.toolTip())
+        if not widget.accessibleName():  # a check box has no text of its own: the field's label
+            widget.setAccessibleName(label)
         self.grid.addWidget(text, row, 0)
         self.grid.addWidget(widget, row, 1)
 

@@ -1,6 +1,6 @@
 """Render the main window off-screen to PNG (both themes) for visual checks against the mockups.
 
-    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary] [--spin] [--nav]
+    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary] [--spin] [--nav] [--scale N]
 
 Builds a demo project from the test fixtures (01_relax, 02_scf, 03_bands, 04_pdos).
 """
@@ -109,6 +109,9 @@ def show_navigation(window, project: Path, app) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(ROOT / "screenshots"))
+    parser.add_argument(
+        "--scale", type=float, default=1.0, help="ui.font_scale, 0.8 to 1.6 (spec 19)"
+    )
     parser.add_argument("--plot", action="store_true", help="also generate a band plot")
     parser.add_argument(
         "--spin", action="store_true", help="plot the spin-polarized bands (Ni, spec 13)"
@@ -156,10 +159,11 @@ def main() -> int:
         {
             "paths": {"local_root": str(project), "remote_root": "/scratch/mariano/MoS2"},
             "cluster": {"host": "10.220.200.1", "user": "mariano"},
+            "ui": {"font_scale": args.scale},
         }
     )
     for theme_name in ("dark", "light"):
-        theme = ThemeManager(theme_name)
+        theme = ThemeManager(theme_name, font_scale=config.ui.font_scale)
         theme.apply(app)
         settings = QSettings(str(tmp / f"{theme_name}.ini"), QSettings.Format.IniFormat)
         window = MainWindow(LoadedConfig(config, None), theme, settings)
