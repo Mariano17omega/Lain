@@ -25,6 +25,8 @@ QT_FREE = [
     "qe_studio.core.file_kinds",
     "qe_studio.core.plotting.session",
     "qe_studio.core.sync.request",
+    "qe_studio.core.sync.preview",
+    "qe_studio.core.sync.report",
     "qe_studio.core.paths",
     "qe_studio.core.navigation",
     "qe_studio.core.filtering",

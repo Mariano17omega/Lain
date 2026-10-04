@@ -105,12 +105,91 @@ def test_cancel_at_conflict_transfers_nothing(qtbot, dirs):
     assert (local / "a.out").read_text() == "local"
 
 
+def test_the_plan_waits_for_confirmation(qtbot, dirs):
+    """Spec 17 R2: the preview comes before anything is written, then "Baixar" pulls it all."""
+    remote, local = dirs
+    write(remote, "a.out", "a")
+    write(remote, "sub/b.out", "b")
+    controller = SyncController(make_config())
+    controller.confirm_plan(True)  # not running: ignored
+    with qtbot.waitSignal(controller.plan_ready, timeout=30_000) as ready:
+        controller.start(local, Endpoint(str(remote)))
+    plan = ready.args[0]
+    assert len(plan.new) == 2 and controller.running
+    qtbot.wait(200)
+    assert not local.exists()  # nothing moves until the answer
+    with qtbot.waitSignal(controller.finished, timeout=30_000) as done:
+        controller.confirm_plan(True)
+    report = done.args[0]
+    assert report.status is SyncStatus.DONE
+    assert sorted(report.transferred) == ["a.out", "sub/b.out"]
+    assert (local / "sub" / "b.out").read_text() == "b"
+
+
+def test_a_declined_plan_transfers_nothing(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "a")
+    write(remote, "b.out", "b")
+    plans = []
+    controller = SyncController(make_config())
+    report, prompts = run_sync(
+        qtbot, controller, local, Endpoint(str(remote)), confirm=False, plans=plans
+    )
+    assert report.status is SyncStatus.CANCELLED and report.transferred == []
+    assert [len(plan.new) for plan in plans] == [2] and prompts == []
+    assert not local.exists()
+
+
+def test_cancel_while_the_preview_waits(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "a")
+    controller = SyncController(make_config())
+    controller.plan_ready.connect(lambda _plan: controller.cancel())
+    report, _ = run_sync(qtbot, controller, local, Endpoint(str(remote)), confirm=None)
+    assert report.status is SyncStatus.CANCELLED and not local.exists()
+
+
+def test_confirm_plan_off_transfers_directly(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "remote", T0 + 100)
+    write(local, "a.out", "local", T0)
+    write(remote, "new.out", "new")
+    plans = []
+    config = parse_config({"sync": {"confirm_plan": False}})
+    report, prompts = run_sync(
+        qtbot,
+        SyncController(config),
+        local,
+        Endpoint(str(remote)),
+        {"a.out": Decision.OVERWRITE},
+        confirm=None,  # an unanswered preview would hang the test
+        plans=plans,
+    )
+    assert report.status is SyncStatus.DONE and plans == []
+    assert prompts == ["a.out"]  # updates still ask file by file
+    assert sorted(report.transferred) == ["a.out", "new.out"]
+
+
+def test_nothing_to_transfer_has_no_preview(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "same", T0)
+    write(local, "a.out", "same", T0)
+    plans = []
+    report, _ = run_sync(
+        qtbot, SyncController(make_config()), local, Endpoint(str(remote)), plans=plans
+    )
+    assert report.status is SyncStatus.UP_TO_DATE and plans == []
+
+
 def test_local_newer_folder_blocks_transfer(qtbot, dirs):
     remote, local = dirs
     write(remote, "scf.out", "cluster", T0)
     write(local, "scf.out", "edited locally", T0 + 500)
-    report, prompts = run_sync(qtbot, SyncController(make_config()), local, Endpoint(str(remote)))
-    assert report.status is SyncStatus.LOCAL_NEWER
+    plans = []
+    report, prompts = run_sync(
+        qtbot, SyncController(make_config()), local, Endpoint(str(remote)), plans=plans
+    )
+    assert report.status is SyncStatus.LOCAL_NEWER and plans == []  # no preview either
     assert report.local_newer == ["scf.out"] and report.local_newer_folders == ["."]
     assert prompts == []
     assert (local / "scf.out").read_text() == "edited locally"

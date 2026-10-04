@@ -1,9 +1,9 @@
 """Pull synchronization state machine driving rsync through QProcess (PRD §5).
 
-Stages: rsync version → dry run → plan → conflict prompts → transfer. The controller never
-blocks the GUI thread (processes run in ``QProcess``, the plan's local stats in a worker) and
-never opens dialogs: it emits ``conflict_needed`` and waits for ``resolve()``, so the UI (or a
-test) decides how to ask.
+Stages: rsync version → dry run → plan → plan preview → conflict prompts → transfer. The
+controller never blocks the GUI thread (processes run in ``QProcess``, the plan's local stats in a
+worker) and never opens dialogs: it emits ``plan_ready`` and waits for ``confirm_plan()`` (spec 17
+R2), then ``conflict_needed`` and waits for ``resolve()``, so the UI (or a test) decides how to ask.
 """
 
 from __future__ import annotations
@@ -11,8 +11,6 @@ from __future__ import annotations
 import logging
 import os
 import re
-from dataclasses import dataclass, field
-from enum import StrEnum
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, pyqtSignal
@@ -20,6 +18,7 @@ from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, pyqtSig
 from ..config import AppConfig
 from ..tasks import TaskHandle, run_task
 from .planner import ConflictResolver, Decision, PlanItem, PlanStatus, SyncPlan, build_plan
+from .report import SyncReport, SyncStatus
 from .rsync import (
     Endpoint,
     child_env,
@@ -40,50 +39,6 @@ RSYNC_MISSING = "rsync não encontrado (sync.rsync_binary)."
 TEMP_NAME = re.compile(r"^\.(.+)\.[A-Za-z0-9]{6}$")  # rsync's partial file for ``name``
 
 
-class SyncStatus(StrEnum):
-    DONE = "done"
-    UP_TO_DATE = "up_to_date"
-    LOCAL_NEWER = "local_newer"
-    CANCELLED = "cancelled"
-    FAILED = "failed"
-
-
-@dataclass
-class SyncReport:
-    status: SyncStatus
-    local_dir: Path
-    remote: Endpoint
-    transferred: list[str] = field(default_factory=list)
-    skipped: list[str] = field(default_factory=list)
-    local_newer: list[str] = field(default_factory=list)
-    local_newer_folders: list[str] = field(default_factory=list)
-    error: str | None = None
-    connection_failed: bool = False
-
-    @property
-    def message(self) -> str:
-        if self.status is SyncStatus.FAILED:
-            return f"Falha na sincronização: {self.error}"
-        if self.status is SyncStatus.CANCELLED:
-            return "Sincronização cancelada."
-        if self.status is SyncStatus.UP_TO_DATE:
-            return "Pasta já sincronizada: nada a transferir."
-        lines = []
-        if self.status is SyncStatus.LOCAL_NEWER:
-            lines.append(
-                "A cópia local é mais recente que a do cluster: nenhuma transferência realizada."
-            )
-        else:
-            lines.append(f"{len(self.transferred)} arquivo(s) baixado(s).")
-        if self.skipped:
-            lines.append(f"{len(self.skipped)} conflito(s) mantido(s) na versão local.")
-        if self.local_newer and self.status is not SyncStatus.LOCAL_NEWER:
-            lines.append(
-                f"{len(self.local_newer)} arquivo(s) local(is) mais recente(s) mantido(s)."
-            )
-        return "\n".join(lines)
-
-
 def _plan(stdout: str, local_dir: Path) -> SyncPlan:
     """Compares the dry-run listing with the local files: one stat per file, network homes."""
     return build_plan(parse_dry_run(stdout), local_dir)
@@ -92,7 +47,9 @@ def _plan(stdout: str, local_dir: Path) -> SyncPlan:
 class SyncController(QObject):
     stage_changed = pyqtSignal(str)
     progress_changed = pyqtSignal(int, str)  # percent (-1 = indeterminate), detail
+    plan_ready = pyqtSignal(object)  # SyncPlan, with something to transfer: confirm_plan() answers
     conflict_needed = pyqtSignal(object)  # PlanItem
+    transfer_started = pyqtSignal(int)  # files to transfer, before its stage and progress
     finished = pyqtSignal(object)  # SyncReport
 
     def __init__(
@@ -116,6 +73,7 @@ class SyncController(QObject):
         self._stderr = ""
         self._version: tuple[int, ...] | None = None
         self._running = False
+        self._awaiting_plan = False  # plan_ready emitted, confirm_plan() not called yet
         self._plan_task: TaskHandle | None = None  # cancelled with the run: its plan is dropped
 
     @property
@@ -138,9 +96,20 @@ class SyncController(QObject):
         self._resolver = None
         self._transfer = []
         self._version = None
+        self._awaiting_plan = False
         self.stage_changed.emit("Listando arquivos no cluster…")
         self.progress_changed.emit(-1, remote.spec())
         self._step(self._check_version)
+
+    def confirm_plan(self, accepted: bool) -> None:
+        """Answer to ``plan_ready``: download the plan, or end the sync as CANCELLED."""
+        if not self._running or not self._awaiting_plan:
+            return
+        self._awaiting_plan = False
+        if accepted:
+            self._step(self._begin_conflicts)
+        else:
+            self._finish(SyncStatus.CANCELLED)
 
     def resolve(self, decision: Decision) -> None:
         if self._resolver is None or not self._running:
@@ -233,16 +202,23 @@ class SyncController(QObject):
             self._finish(SyncStatus.UP_TO_DATE)
         elif self._plan.status is PlanStatus.LOCAL_NEWER:
             self._finish(SyncStatus.LOCAL_NEWER)
+        elif self.config.sync.confirm_plan:
+            self._awaiting_plan = True
+            self.stage_changed.emit("Aguardando confirmação…")
+            self.plan_ready.emit(self._plan)
         else:
-            self._resolver = ConflictResolver(self._plan.conflicts)
-            self._next_conflict()
+            self._begin_conflicts()
+
+    def _begin_conflicts(self) -> None:
+        self._resolver = ConflictResolver(self._plan.conflicts)
+        self._next_conflict()
 
     def _next_conflict(self) -> None:
         if not self._running or self._resolver is None:
             return
         item = self._resolver.next_conflict()
         if item is not None:
-            self.stage_changed.emit("Conflito: aguardando decisão…")
+            self.stage_changed.emit("Aguardando sua decisão…")
             self.conflict_needed.emit(item)
             return
         self._step(self._start_transfer)
@@ -254,6 +230,7 @@ class SyncController(QObject):
             self._finish(SyncStatus.DONE)
             return
         self._local_dir.mkdir(parents=True, exist_ok=True)
+        self.transfer_started.emit(len(self._transfer))
         self.stage_changed.emit(f"Transferindo {len(self._transfer)} arquivo(s)…")
         self.progress_changed.emit(0, f"0/{len(self._transfer)} arquivos")
         argv = transfer_command(
@@ -367,6 +344,7 @@ class SyncController(QObject):
         if not self._running:
             return
         self._running = False
+        self._awaiting_plan = False
         resolver = self._resolver
         report = SyncReport(
             status,

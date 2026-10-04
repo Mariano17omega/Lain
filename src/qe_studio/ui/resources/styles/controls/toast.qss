@@ -1,0 +1,19 @@
+/* Temporary notice in the window's bottom right corner (spec 17 R3). */
+#toast {
+    background: ${popover};
+    border: 1px solid ${border_strong};
+    border-radius: 6px;
+}
+#toast[level="success"] {
+    border-color: ${success};
+}
+#toast[level="warning"] {
+    border-color: ${warning};
+}
+#toast QLabel#toastText {
+    color: ${text};
+    background: transparent;
+}
+#toast QPushButton#toastAction {
+    padding: 2px 10px;
+}

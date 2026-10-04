@@ -3,12 +3,15 @@ import os
 import pytest
 
 from qe_studio.core.sync.planner import (
+    LARGE_FILE_BYTES,
     Action,
     ConflictResolver,
     Decision,
     PlanItem,
     PlanStatus,
+    SyncPlan,
     build_plan,
+    total_size,
 )
 from qe_studio.core.sync.rsync import DryRunItem
 
@@ -99,3 +102,22 @@ def test_resolver_cancel():
     assert resolver.cancelled and resolver.done and resolver.next_conflict() is None
     with pytest.raises(RuntimeError):
         ConflictResolver([]).resolve(Decision.SKIP)
+
+
+def test_large_is_strictly_above_the_threshold():
+    assert LARGE_FILE_BYTES == 100 * 1024**2
+    assert not PlanItem("a", Action.NEW, LARGE_FILE_BYTES, T0).is_large
+    assert PlanItem("a", Action.NEW, LARGE_FILE_BYTES + 1, T0).is_large
+
+
+def test_plan_large_lists_big_items_of_any_action():
+    big = LARGE_FILE_BYTES + 1
+    items = [
+        PlanItem("new.wfc", Action.NEW, big, T0),
+        PlanItem("small.out", Action.NEW, 1024, T0),
+        PlanItem("charge.dat", Action.UPDATE, big, T0, T0 - 10),
+        PlanItem("mine.dat", Action.LOCAL_NEWER, big, T0, T0 + 10),
+    ]
+    plan = SyncPlan(items)
+    assert [item.path for item in plan.large] == ["new.wfc", "charge.dat", "mine.dat"]
+    assert total_size(plan.new) == big + 1024 and total_size([]) == 0

@@ -6,7 +6,7 @@ from pathlib import Path
 from PyQt6.QtCore import QTimer
 
 from qe_studio.core.sync.controller import SyncController
-from qe_studio.core.sync.planner import Decision
+from qe_studio.core.sync.planner import Decision, SyncPlan
 from qe_studio.core.sync.rsync import Endpoint
 
 T0 = 1_700_000_000
@@ -28,8 +28,12 @@ def run_sync(
     decisions: dict[str, Decision] | None = None,
     on_stage=None,
     timeout: int = 30_000,
+    confirm: bool | None = True,
+    plans: list[SyncPlan] | None = None,
 ):
-    """Run one sync to its end. Conflicts are answered from ``decisions`` (default: skip)."""
+    """Run one sync to its end. The plan preview is answered with ``confirm`` (None: the test
+    answers it) and collected in ``plans``; conflicts are answered from ``decisions`` (default:
+    skip)."""
     prompts = []
 
     def answer(item):
@@ -37,6 +41,13 @@ def run_sync(
         decision = (decisions or {}).get(item.path, Decision.SKIP)
         QTimer.singleShot(0, lambda: controller.resolve(decision))
 
+    def preview(plan):
+        if plans is not None:
+            plans.append(plan)
+        if confirm is not None:
+            QTimer.singleShot(0, lambda: controller.confirm_plan(confirm))
+
+    controller.plan_ready.connect(preview)
     controller.conflict_needed.connect(answer)
     if on_stage:
         controller.stage_changed.connect(on_stage)

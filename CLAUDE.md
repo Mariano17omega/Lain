@@ -105,7 +105,11 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   OpenSSH reads the passwd home, not `$HOME`, so `server.ssh_binary()` pins `ssh` to a temp
   `ssh_config` (`-F`): no `~/.ssh`, no agent, no default identities. Do not bypass it. The server
   tests itself in `test_ssh_server.py`; real pulls over it are in `test_sync_ssh.py`,
-  `test_sync_integration.py` and `test_sync_ui.py` (shared helpers: `tests/sync_helpers.py`).
+  `test_sync_integration.py` and `test_sync_ui.py` (shared helpers: `tests/sync_helpers.py`, whose
+  `run_sync` answers `plan_ready` with `confirm` (default True; None leaves it to the test) and
+  collects the plans in `plans=`). `test_sync_dialog.py` drives `SyncCoordinator.run` with a
+  host-less `Endpoint` (the stacked window, Esc on the preview, a failure over the window);
+  `test_toast.py` injects short `duration_ms` / `fade_ms`.
   Tests whose remote is a plain local path (`Endpoint(path)` without host) need no server.
 - Tests have a 60 s timeout (pytest-timeout).
 
@@ -149,7 +153,17 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   snapshot of the params; close waits up to 10 s for exports).
 - `ui/sync_coordinator.py:SyncCoordinator`: `core/sync/request.prepare_sync` → session password →
   `SyncController` + dialogs → report; owns the `ConnectionMonitor` (replaced on config reload) and
-  emits `cluster_changed`, `synced(local_dir)` (the window refreshes) and `finished`.
+  emits `cluster_changed`, `synced(local_dir)` (the window refreshes) and `finished`. It also says
+  the scope (spec 17 R1): `show_scope(folder)` (called by `on_folder_selected`) renames the
+  `sync.start` action ("Sincronizar a/b"), sets the tooltips of it and of `sync.project` (bound by
+  `bind_actions`) and emits `scope_changed(tooltip)` for the Rsync button. A pull that ends DONE /
+  UP_TO_DATE emits `notice(text, level, details)` → `MainWindow.toast`; FAILED and LOCAL_NEWER
+  open their `QMessageBox` over the `SyncDialog`, which the coordinator closes after it (`finish`).
+- `ui/widgets/toast.py:Toast` (spec 17 R3.4): a child of the window (never top level), queue of
+  notices, one at a time; the countdown `QPropertyAnimation` *is* the timer (pause on hover), then
+  a `QGraphicsOpacityEffect` fade; an event filter on the window places it (`toast_position`, a
+  pure function) on resize/show and `shutdown`s it on close. "Detalhes" opens the non-modal
+  `dialogs/details.py`. Reusable: `show_message(text, level, details)`.
 - `ui/plot_settings.py:PlotSettingsStore`: every `.plot` read, write and removal in one private
   single-thread pool, so they happen in order (a regenerate reads what closing the tab wrote);
   edits are debounced 1 s; `flush_now` writes on the spot (window close, before a rename).
@@ -420,11 +434,19 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
 `core/sync/rsync.py` builds commands/env and parses output (children run with `LC_ALL=C.UTF-8`,
 `TZ=UTC`, `--no-h` because rsync output is locale-dependent). `planner.py` is pure: dry-run
 records + local stats → per-file NEW / UPDATE / LOCAL_NEWER; files only present locally (like
-`plots/`) never block a pull. `request.py:prepare_sync` decides whether a pull can start (configured?
-folder inside the project? password needed?). `controller.py` is a `QProcess` state machine (`rsync
---version` → dry run → plan, whose local stats run in a `run_task` worker → conflicts → transfer)
-that never opens
-dialogs: it emits `conflict_needed` and waits for `resolve()`, so UI and tests supply the answer.
+`plots/`) never block a pull; `LARGE_FILE_BYTES` (100 MB) gives `PlanItem.is_large` /
+`SyncPlan.large`. `request.py:prepare_sync` decides whether a pull can start (configured? folder
+inside the project? password needed?) and `sync_scope` says what it covers (`SyncScope`: tooltip,
+menu text, dialog header). `preview.py` is what the plan preview shows (`plan_groups`,
+`plan_summary`, `large_summary`) and `report.py` the `SyncReport` (re-exported by the controller;
+`details` is the full report). `controller.py` is a `QProcess` state machine (`rsync --version` →
+dry run → plan, whose local stats run in a `run_task` worker → preview → conflicts → transfer)
+that never opens dialogs: with something to transfer it emits `plan_ready(plan)` and waits for
+`confirm_plan(bool)` (skipped when `sync.confirm_plan: false`), then emits `conflict_needed` and
+waits for `resolve()`, so UI and tests supply the answers; `transfer_started(n)` comes before the
+transfer's stage and progress. `ui/dialogs/sync_dialog.py:SyncDialog` is one window for the whole
+pull: a `QStackedWidget` of `sync_pages.py`'s search, preview (tree by action → folder, large
+files flagged) and transfer pages, switched by those signals; Esc / X on the preview declines it.
 Every stage runs through `_step()`, so an exception ends the sync as FAILED instead of hanging
 it. `monitor.py` probes in daemon threads, not a `QThreadPool` (DNS ignores the connect timeout
 and a pool's destructor waits without limit). Passwords reach ssh only via `SSH_ASKPASS`

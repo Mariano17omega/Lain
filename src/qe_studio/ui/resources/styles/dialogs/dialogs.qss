@@ -33,3 +33,20 @@ QMessageBox QLabel {
     font-size: 11px;
     color: ${text_muted};
 }
+QDialog QLabel[variant="dialogWarning"] {
+    color: ${warning};
+    font-weight: 600;
+}
+#syncScope {
+    font-size: 14px;
+    font-weight: 600;
+    color: ${text};
+}
+#planTree {
+    background: ${panel};
+    border: 1px solid ${border};
+}
+#detailsText {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+}

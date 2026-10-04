@@ -51,6 +51,7 @@ from .widgets.explorer import ExplorerPanel
 from .widgets.file_grid import FilePanel
 from .widgets.plot_params import ParamsPanel
 from .widgets.plot_view import PlotView
+from .widgets.toast import Toast
 from .widgets.workspace import Workspace
 
 log = logging.getLogger(__name__)
@@ -148,6 +149,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         self.status = StatusBar(self.theme)
         self.setStatusBar(self.status)
+        self.toast = Toast(self.theme, self, footer=self.status)  # notices, e.g. a pull's end
 
     def _build_controllers(self) -> None:
         panels = {"tree": self.left, "grid": self.files, "workspace": self.workspace}
@@ -184,7 +186,7 @@ class MainWindow(QMainWindow):
 
     def _build_menus(self) -> None:
         self._actions = build_menus(self)
-        self._actions["sync.start"].setEnabled(self.config.sync_enabled)
+        self.sync.bind_actions(self._actions["sync.start"], self._actions["sync.project"])
 
     def _connect(self) -> None:
         self.explorer.folder_selected.connect(self.on_folder_selected)
@@ -227,6 +229,8 @@ class MainWindow(QMainWindow):
         sync.cluster_changed.connect(self.top_bar.set_cluster)
         sync.cluster_changed.connect(self.activity.set_cluster)
         sync.message.connect(self.status.set_message)
+        sync.notice.connect(self.toast.show_message)
+        sync.scope_changed.connect(self.activity.set_sync_tooltip)
         sync.synced.connect(self._on_synced)
         sync.finished.connect(self.sync_finished)
 
@@ -270,6 +274,7 @@ class MainWindow(QMainWindow):
         if folder != self.files.folder:
             self.files.set_folder(folder)
         self.navigation.visited(folder)
+        self.sync.show_scope(folder)
         self.status.set_path(self._relative(folder))
 
     def _on_file_selected(self, path: Path) -> None:
@@ -446,7 +451,6 @@ class MainWindow(QMainWindow):
         self.navigation.set_root(self.root)
         self.service.paranoid_refresh = self.config.ui.paranoid_refresh
         self.sync.set_config(self.config)
-        self._actions["sync.start"].setEnabled(self.config.sync_enabled)
         self.explorer.apply_config(self.root, self.config.ui.hidden_dirs)
         self.files.apply_config(self.root, self.config.ui.hidden_dirs)
         self.setWindowTitle(f"{APP_NAME} v{__version__} — [Projeto: {self.root}]")
@@ -459,6 +463,10 @@ class MainWindow(QMainWindow):
     def start_sync(self) -> None:
         """Pull the selected folder from the cluster (whole project when nothing is selected)."""
         self.sync.start(self.current_folder())
+
+    def start_project_sync(self) -> None:
+        """ "Sincronizar projeto inteiro": the root, whatever is selected (spec 17 R1.3)."""
+        self.sync.start(self.root)
 
     def _on_synced(self, local_dir: Path) -> None:
         self.service.invalidate(local_dir)

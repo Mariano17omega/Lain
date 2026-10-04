@@ -1,8 +1,10 @@
-"""Cluster pull from the window (PRD §5): password of the session, conflict prompts, final report,
-and the cluster label of the reachability monitor.
+"""Cluster pull from the window (PRD §5): password of the session, the sync window (preview and
+conflict prompts), final report, the scope shown by the Rsync button and the "Cluster" menu
+(spec 17), and the cluster label of the reachability monitor.
 
-``core/sync`` decides (``prepare_sync``) and runs (``SyncController``); this only asks, shows and
-reports. The window refreshes what changed when ``synced`` arrives.
+``core/sync`` decides (``prepare_sync``, ``sync_scope``) and runs (``SyncController``); this only
+asks, shows and reports. The window refreshes what changed when ``synced`` arrives; a pull that
+went well ends with a toast (``notice``), not a message box.
 """
 
 from __future__ import annotations
@@ -10,13 +12,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox, QWidget
 
 from ..core.config import AppConfig
 from ..core.sync.controller import SyncController, SyncReport, SyncStatus
 from ..core.sync.monitor import ConnectionMonitor
 from ..core.sync.planner import PlanItem
-from ..core.sync.request import SyncRefusal, prepare_sync
+from ..core.sync.request import SyncRefusal, prepare_sync, sync_scope
 from ..core.sync.rsync import Endpoint
 from .dialogs.sync_dialog import ConflictDialog, SyncDialog
 from .theme.manager import ThemeManager
@@ -29,6 +32,8 @@ class SyncCoordinator(QObject):
     synced = pyqtSignal(object)  # Path: the local folder a sync may have changed
     cluster_changed = pyqtSignal(str, str)  # label (user@host), monitor state
     message = pyqtSignal(str, str, int)  # status bar: text, level, timeout (ms)
+    notice = pyqtSignal(str, str, str)  # toast: text, level, details (the full report)
+    scope_changed = pyqtSignal(str)  # tooltip of the Rsync button: what it would pull
 
     def __init__(
         self,
@@ -44,6 +49,9 @@ class SyncCoordinator(QObject):
         self.dialog: SyncDialog | None = None
         self.conflict_dialog: ConflictDialog | None = None
         self._session_password: str | None = None  # typed once per run, never saved
+        self._scope_folder: Path = config.paths.local_root
+        self._folder_action: QAction | None = None
+        self._project_action: QAction | None = None
         self.monitor = self._new_monitor()
 
     @property
@@ -68,6 +76,28 @@ class SyncCoordinator(QObject):
         old.deleteLater()
         self.monitor = self._new_monitor()
         self.start_monitor()
+        self.show_scope(self._scope_folder)
+
+    # -- scope (spec 17 R1) -----------------------------------------------------------------------
+    def bind_actions(self, folder_action: QAction, project_action: QAction) -> None:
+        """The menu's "Sincronizar <pasta>" and "Sincronizar projeto inteiro", kept up to date."""
+        self._folder_action, self._project_action = folder_action, project_action
+        self.show_scope(self._scope_folder)
+
+    def show_scope(self, folder: Path) -> None:
+        """Say what a pull would cover now that ``folder`` is the current one."""
+        self._scope_folder = folder
+        scope = sync_scope(self.config, folder)
+        enabled = self.config.sync_enabled
+        if self._folder_action is not None:
+            self._folder_action.setText(scope.menu_text)
+            self._folder_action.setToolTip(scope.tooltip)
+            self._folder_action.setEnabled(enabled)
+        if self._project_action is not None:
+            whole = sync_scope(self.config, self.config.paths.local_root)
+            self._project_action.setToolTip(whole.tooltip)
+            self._project_action.setEnabled(enabled)
+        self.scope_changed.emit(scope.tooltip)
 
     def check_connection(self) -> None:
         self.monitor.check()
@@ -118,9 +148,8 @@ class SyncCoordinator(QObject):
 
     def run(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
         controller = SyncController(self.config, self, password=password)
-        dialog = SyncDialog(
-            self.theme, controller, endpoint.spec(), str(folder), self._dialog_parent
-        )
+        scope = sync_scope(self.config, folder, endpoint)
+        dialog = SyncDialog(self.theme, controller, scope, self._dialog_parent)
         dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         controller.conflict_needed.connect(self._ask_conflict)
         controller.finished.connect(self._on_finished)
@@ -143,7 +172,8 @@ class SyncCoordinator(QObject):
 
     def _on_finished(self, report: SyncReport) -> None:
         # The dialog deletes itself on close; the controller goes on the next loop turn.
-        controller, self.controller, self.dialog = self.controller, None, None
+        controller, dialog = self.controller, self.dialog
+        self.controller, self.dialog = None, None
         if controller is not None:
             controller.deleteLater()
         self.monitor.set_syncing(False)
@@ -152,14 +182,19 @@ class SyncCoordinator(QObject):
         if report.status is SyncStatus.FAILED and "Autenticação" in (report.error or ""):
             self._session_password = None
         self.synced.emit(report.local_dir)
-        parent = self._dialog_parent
+        # What needs attention opens over the sync window, which closes after it (spec 17 R2.3).
+        parent = dialog or self._dialog_parent
         if report.status is SyncStatus.FAILED:
             QMessageBox.critical(parent, TITLE, report.message)
         elif report.status is SyncStatus.LOCAL_NEWER:
             QMessageBox.warning(parent, TITLE, report.message)
-        elif report.status is SyncStatus.CANCELLED:
+        if dialog is not None:
+            dialog.finish()
+        if report.status is SyncStatus.CANCELLED:
             self.message.emit(report.message, "warning", 5000)
-        else:
-            QMessageBox.information(parent, TITLE, report.message)
-            self.message.emit(report.message.splitlines()[0], "info", 6000)
+        elif report.status in (SyncStatus.DONE, SyncStatus.UP_TO_DATE):
+            first = report.message.splitlines()[0]
+            self.message.emit(first, "info", 6000)
+            level = "success" if report.status is SyncStatus.DONE else "info"
+            self.notice.emit(first, level, report.details)
         self.finished.emit(report)

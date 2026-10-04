@@ -17,6 +17,8 @@ from pathlib import Path, PurePosixPath
 from .rsync import DryRunItem
 
 MTIME_TOLERANCE = 2.0  # seconds; FAT/NTFS and rsync --modify-window slack
+# Above this a file is flagged in the plan preview (spec 17 R2.3): a warning, not a rule.
+LARGE_FILE_BYTES = 100 * 1024**2
 
 
 class Action(StrEnum):
@@ -36,6 +38,14 @@ class PlanItem:
     @property
     def folder(self) -> str:
         return str(PurePosixPath(self.path).parent)
+
+    @property
+    def name(self) -> str:
+        return PurePosixPath(self.path).name
+
+    @property
+    def is_large(self) -> bool:
+        return self.size > LARGE_FILE_BYTES
 
 
 class PlanStatus(StrEnum):
@@ -64,6 +74,11 @@ class SyncPlan:
         return self._with(Action.LOCAL_NEWER)
 
     @property
+    def large(self) -> list[PlanItem]:
+        """Items above ``LARGE_FILE_BYTES``, whatever their action."""
+        return [item for item in self.items if item.is_large]
+
+    @property
     def local_newer_folders(self) -> list[str]:
         """Folders whose differing files are all newer locally (PRD 'local is newer')."""
         folders: dict[str, set[Action]] = {}
@@ -76,6 +91,10 @@ class SyncPlan:
         if self.new or self.conflicts:
             return PlanStatus.PENDING
         return PlanStatus.LOCAL_NEWER if self.local_newer else PlanStatus.UP_TO_DATE
+
+
+def total_size(items: Iterable[PlanItem]) -> int:
+    return sum(item.size for item in items)
 
 
 def build_plan(

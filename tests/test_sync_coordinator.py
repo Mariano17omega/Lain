@@ -79,27 +79,39 @@ def report(status: SyncStatus, local: Path, **fields) -> SyncReport:
 
 
 @pytest.mark.parametrize(
-    ("status", "box", "message"),
+    ("status", "box", "message", "notice"),
     [
-        (SyncStatus.DONE, "information", ("0 arquivo(s) baixado(s).", "info")),
-        (SyncStatus.LOCAL_NEWER, "warning", None),
-        (SyncStatus.CANCELLED, None, ("Sincronização cancelada.", "warning")),
-        (SyncStatus.FAILED, "critical", None),
+        (SyncStatus.DONE, None, ("0 arquivo(s) baixado(s).", "info"), "success"),
+        (
+            SyncStatus.UP_TO_DATE,
+            None,
+            ("Pasta já sincronizada: nada a transferir.", "info"),
+            "info",
+        ),
+        (SyncStatus.LOCAL_NEWER, "warning", None, None),
+        (SyncStatus.CANCELLED, None, ("Sincronização cancelada.", "warning"), None),
+        (SyncStatus.FAILED, "critical", None, None),
     ],
 )
 def test_the_report_is_shown_after_the_folder_is_refreshed(
-    qtbot, tmp_path, boxes, status, box, message
+    qtbot, tmp_path, boxes, status, box, message, notice
 ):
+    """A pull that went well ends with a toast and the footer, never a message box (spec 17 R3)."""
     coordinator = make(qtbot, tmp_path, auth="key")
-    events = []
+    events, notices = [], []
     coordinator.synced.connect(lambda folder: events.append(("synced", folder, len(boxes))))
     coordinator.message.connect(lambda text, level, _ms: events.append(("message", text, level)))
+    coordinator.notice.connect(lambda text, level, details: notices.append((text, level, details)))
     with qtbot.waitSignal(coordinator.finished) as blocker:
         coordinator._on_finished(report(status, tmp_path, error="boom"))
     assert blocker.args[0].status is status
     assert events[0] == ("synced", tmp_path, 0)  # refreshed before any message box
     assert [b[0] for b in boxes] == ([box] if box else [])
     assert [e[1:] for e in events[1:]] == ([message] if message else [])
+    assert [n[1] for n in notices] == ([notice] if notice else [])
+    if notices:
+        text, _level, details = notices[0]
+        assert text == message[0] and details.startswith(text) and "hpc.example" in details
 
 
 def test_an_authentication_failure_forgets_the_password(qtbot, tmp_path, boxes):

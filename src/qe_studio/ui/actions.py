@@ -35,7 +35,9 @@ ACTIONS: tuple[ActionSpec, ...] = (
     ActionSpec("app.quit", "Arquivo", "Sair", "close", "Ctrl+Q", separator_before=True),
     ActionSpec("nav.back", "Navegar", "Voltar", "navigation.back", "Alt+Left"),
     ActionSpec("nav.forward", "Navegar", "Avançar", "navigation.forward", "Alt+Right"),
+    # "sync.start" says what it pulls: SyncCoordinator.show_scope renames it on every folder change.
     ActionSpec("sync.start", "Cluster", "Sincronizar pasta selecionada", "start_sync"),
+    ActionSpec("sync.project", "Cluster", "Sincronizar projeto inteiro", "start_project_sync"),
     ActionSpec("sync.test", "Cluster", "Testar conexão", "sync.check_connection"),
     ActionSpec("plot.generate", "Gráficos", "Gerar gráfico", "generate_plot", "Ctrl+G"),
     ActionSpec("plot.export", "Gráficos", "Exportar gráfico", "export_plot", "Ctrl+E"),
@@ -63,6 +65,7 @@ def build_menus(window: QMainWindow) -> dict[str, QAction]:
             menus[spec.menu] = bar.addMenu(spec.menu)
         menu = menus[spec.menu]
         assert menu is not None
+        menu.setToolTipsVisible(True)  # only actions given a tooltip show one (the sync scope)
         if spec.separator_before:
             menu.addSeparator()
         action = menu.addAction(spec.text)

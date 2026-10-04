@@ -39,6 +39,9 @@ sync:
     - "core.[0-9]*"
   rsync_binary: rsync
   ssh_binary: ssh
+  # Before downloading, show the plan (new files, updates, sizes, large files) and wait for
+  # "Baixar". false = transfer directly (automation); updates still ask file by file.
+  confirm_plan: true
 
 plot:
   # Default energy window (eV, relative to the reference energy).

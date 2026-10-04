@@ -136,6 +136,10 @@ class ActivityBar(QWidget):
         """The reachability dot of "Rsync" (none when the cluster is not configured)."""
         self.rsync.set_dot(None if state == "disabled" else state)
 
+    def set_sync_tooltip(self, text: str) -> None:
+        """What "Rsync" would pull from the current folder (spec 17 R1)."""
+        self.rsync.setToolTip(text)
+
     def _sync_theme_icon(self, *_args) -> None:
         self.theme_button.set_icon_name("light_mode" if self.theme.name == "dark" else "dark_mode")
 

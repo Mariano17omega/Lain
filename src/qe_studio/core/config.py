@@ -114,6 +114,9 @@ class SyncConfig(_Section):
     exclude: list[str] = Field(default_factory=lambda: list(DEFAULT_EXCLUDES))
     rsync_binary: str = "rsync"
     ssh_binary: str = "ssh"
+    # Show the plan and wait for "Baixar" before transferring (spec 17 R2.5); false transfers
+    # directly (automation, tests). Updates still ask file by file either way.
+    confirm_plan: bool = True
 
 
 class ExportConfig(_Section):
