@@ -7,8 +7,7 @@ from pathlib import Path
 
 from ...qe import projwfc
 from ...qe.pw_output import PwOutput
-from ...sniff import sniff
-from ..base import DetectionResult, LoadError
+from ..base import DetectionResult, LoadError, SniffFn
 
 
 @dataclass
@@ -36,7 +35,7 @@ class PdosDataset:
         return self.channels_nscf if self._use_nscf(source) else self.channels_scf
 
 
-def load_dataset(result: DetectionResult) -> PdosDataset:
+def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
     tot = result.file("pdos_tot")
     try:
         data = projwfc.load_pdos(result.files.get("pdos_atm", []), tot)

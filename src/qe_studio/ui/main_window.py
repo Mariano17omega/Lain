@@ -47,8 +47,9 @@ from ..core.calculations import (
 )
 from ..core.calculations.base import LoadError
 from ..core.config import ConfigError, LoadedConfig, load_config
-from ..core.detection import FolderMemory, manual_result
+from ..core.detection import manual_result
 from ..core.file_ops import rename_item
+from ..core.folder_memory import FolderMemory
 from ..core.plotting.export import existing_targets, export_figure, next_free_stem
 from ..core.plotting.plot_file import (
     apply_stored,
@@ -115,9 +116,10 @@ class _LoadSignals(QObject):
 
 
 class _LoadTask(QRunnable):
-    def __init__(self, target: DetectionResult | _Manual):
+    def __init__(self, target: DetectionResult | _Manual, sniff: Callable):
         super().__init__()
         self.target = target
+        self.sniff = sniff  # the detection service's cache: the files were sniffed already
         self.signals = _LoadSignals()
         self.done = False
 
@@ -125,7 +127,7 @@ class _LoadTask(QRunnable):
         try:
             target = self.target
             result = target.build() if isinstance(target, _Manual) else target
-            dataset = result.module.load_cached(result)
+            dataset = result.module.load_cached(result, self.sniff)
             stored = read_plot_file(result.folder, result.kind)
         except LoadError as exc:
             self.signals.failed.emit(self.target, str(exc))
@@ -195,7 +197,9 @@ class MainWindow(QMainWindow):
         self.theme = theme
         self.settings = settings or QSettings()
         self.memory = memory or FolderMemory()
+        self.memory.set_root(self.root)  # its keys are relative to the project root
         self.service = DetectionService(self.memory, self)
+        self.service.paranoid_refresh = self.config.ui.paranoid_refresh
         self.monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
         self._loads: dict[str, _LoadTask] = {}
         self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
@@ -225,8 +229,9 @@ class MainWindow(QMainWindow):
         self._restore_folder()
         for warning in loaded.warnings:
             log.warning(warning)
-        if loaded.warnings:
-            self.status.set_message(loaded.warnings[0], "warning")
+        # A corrupt folders.json is set aside once: say so before any config warning.
+        if warning := self.memory.load_warning() or next(iter(loaded.warnings), None):
+            self.status.set_message(warning, "warning")
         self.monitor.start()
 
     # -- properties ---------------------------------------------------------------------------------
@@ -647,6 +652,8 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "config.yaml inválido", str(exc))
             return
         self.loaded = loaded
+        self.memory.set_root(self.root)
+        self.service.paranoid_refresh = self.config.ui.paranoid_refresh
         old = self.monitor
         old.stop()
         old.state_changed.disconnect(self._apply_cluster_label)
@@ -787,7 +794,7 @@ class MainWindow(QMainWindow):
         if key in self._loads and not self._loads[key].done:
             return
         self._flush_plot_files(key)  # the worker reads the .plot: pending edits first
-        task = _LoadTask(target)
+        task = _LoadTask(target, self.service.sniff_cache.sniff)
         task.signals.loaded.connect(lambda r, d, s: self._on_loaded(r, d, s, auto_export))
         task.signals.failed.connect(self._on_load_failed)
         self._loads[key] = task

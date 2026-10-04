@@ -7,7 +7,7 @@ from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QSettings, pyqtSigna
 from PyQt6.QtWidgets import QInputDialog, QMessageBox
 
 from qe_studio.core.config import LoadedConfig, parse_config
-from qe_studio.core.detection import FolderMemory
+from qe_studio.core.folder_memory import FolderMemory
 from qe_studio.core.sync.controller import SyncController, SyncStatus
 from qe_studio.core.sync.planner import Decision
 from qe_studio.ui.dialogs.sync_dialog import ConflictDialog, SyncDialog

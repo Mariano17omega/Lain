@@ -139,8 +139,8 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
     ) -> str:
         return render_mod.format_coordinates(x, y, axes_index, dataset, params)
 
-    def load(self, result: DetectionResult) -> PdosDataset:
-        return load_dataset(result)
+    def load(self, result: DetectionResult, sniff: SniffFn) -> PdosDataset:
+        return load_dataset(result, sniff)
 
     def series_colors(
         self, dataset: PdosDataset, params: PdosParams, style: PlotStyle

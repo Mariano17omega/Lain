@@ -21,7 +21,7 @@ from qe_studio.core.plotting.export import (
     next_free_stem,
 )
 from qe_studio.core.plotting.style import DARK, LIGHT, figure_style
-from qe_studio.core.sniff import SniffCache
+from qe_studio.core.sniff import SniffCache, sniff
 
 from conftest import FIXTURES, copy_fixture
 
@@ -30,7 +30,7 @@ CONFIG = AppConfig()
 
 def load(folder: Path):
     (result,) = detect_folder(folder, sniff=SniffCache().sniff)
-    dataset = result.module.load(result)
+    dataset = result.module.load(result, sniff)
     return result.module, dataset, result.module.default_params(CONFIG, dataset)
 
 
@@ -118,7 +118,7 @@ def test_bands_without_eigenvalues_raises(tmp_path):
         shutil.copy(FIXTURES / "si_bands" / name, folder / name)
     (result,) = detect_folder(folder, sniff=SniffCache().sniff)
     with pytest.raises(LoadError, match="bands.x"):
-        result.module.load(result)
+        result.module.load(result, sniff)
 
 
 # -- pdos ----------------------------------------------------------------------------------------
@@ -229,7 +229,7 @@ def test_pdos_palette_follows_the_background():
 def test_load_cache_reuses_dataset():
     (result,) = detect_folder(FIXTURES / "al_bands", sniff=SniffCache().sniff)
     module = module_for("bands")
-    assert module.load_cached(result) is module.load_cached(result)
+    assert module.load_cached(result, sniff) is module.load_cached(result, sniff)
 
 
 # -- performance (NFR §7: < 500 ms for up to 100 bands) ------------------------------------------
@@ -249,7 +249,7 @@ def test_hundred_bands_load_and_render_under_budget(tmp_path):
     (folder / "al.band.out").unlink()
     start = time.perf_counter()
     (result,) = detect_folder(folder, sniff=SniffCache().sniff)
-    dataset = result.module.load(result)
+    dataset = result.module.load(result, sniff)
     assert dataset.bands.n_bands == 100
     params = result.module.default_params(CONFIG, dataset)
     render(result.module, dataset, params)

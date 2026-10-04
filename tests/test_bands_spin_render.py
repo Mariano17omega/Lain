@@ -15,6 +15,7 @@ from qe_studio.core.calculations.params import ordered_sections
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
 from qe_studio.core.plotting.style import LIGHT
 from qe_studio.core.qe.bands_x import BandData
+from qe_studio.core.sniff import sniff
 from spin_helpers import (
     SPIN_BANDS,
     detect_one,
@@ -314,7 +315,7 @@ def test_a_dataset_without_eigenvalues_still_fails_cleanly(tmp_path):
     )
     result = detect_one(folder)
     with pytest.raises(LoadError):
-        result.module.load(result)
+        result.module.load(result, sniff)
 
 
 @pytest.mark.perf
@@ -325,7 +326,7 @@ def test_two_channels_of_a_hundred_bands_load_and_render_under_budget(tmp_path):
         write_gnu(folder / name, x, [5 * np.sin(x + b) + b / 5 + shift for b in range(100)])
     start = time.perf_counter()
     result = detect_one(folder)
-    dataset = result.module.load(result)
+    dataset = result.module.load(result, sniff)
     assert dataset.spin and dataset.bands.n_bands == dataset.bands_down.n_bands == 100
     params = result.module.default_params(CONFIG, dataset)
     render(result.module, dataset, params, LIGHT)

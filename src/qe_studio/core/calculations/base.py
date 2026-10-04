@@ -16,6 +16,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar
 
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
 
     from ..config import AppConfig
-    from ..detection import FolderMemory
+    from ..folder_memory import FolderMemory
     from ..plotting.style import PlotStyle
 
 D = TypeVar("D")  # dataset a module loads (``None`` for detection-only modules)
@@ -101,10 +102,18 @@ class FolderListing:
         return cls(folder, tuple(files))
 
     def relative(self, path: Path) -> str:
+        if (name := self._relatives.get(path)) is not None:
+            return name
         try:
             return path.relative_to(self.folder).as_posix()
         except ValueError:
             return path.as_posix()
+
+    @cached_property
+    def _relatives(self) -> dict[Path, str]:
+        """Relative name of every listed file, computed once: every role of every module matches
+        its globs against them."""
+        return {path: path.relative_to(self.folder).as_posix() for path in self.files}
 
 
 def _pdos_files(subdir: Path) -> list[Path]:
@@ -200,14 +209,16 @@ class CalculationModule(Generic[D, P]):
     def match(
         self,
         listing: FolderListing,
+        sniffs: dict[Path, FileSniff],
         sniff: SniffFn,
         forced: dict[str, list[Path]] | None = None,
     ) -> DetectionResult | None:
         """Fill roles from ``listing``; None when no anchor role is present.
 
-        ``forced`` holds user-mapped files (manual mapping), which take precedence.
+        ``sniffs`` holds the sniff of every file of ``listing``, computed once for all modules
+        (``detection.detect_folder``); ``sniff`` answers for other files (neighbour folders,
+        mapped files). ``forced`` holds user-mapped files (manual mapping), which take precedence.
         """
-        sniffs = {path: sniff(path) for path in listing.files}
         result = DetectionResult(self, listing.folder)
         for role_id, paths in (forced or {}).items():
             existing = [p for p in paths if p.is_file()]
@@ -220,7 +231,7 @@ class CalculationModule(Generic[D, P]):
             named = [
                 p
                 for p in listing.files
-                if _glob_match(listing.relative(p), role.globs) and role.accepts(sniffs[p])
+                if role.accepts(sniffs[p]) and _glob_match(listing.relative(p), role.globs)
             ]
             candidates, method = (named, Method.NAME)
             if not named:
@@ -312,7 +323,9 @@ class CalculationModule(Generic[D, P]):
         """File name (without extension) of the exported figure in ``plots/``."""
         return self.kind
 
-    def load(self, result: DetectionResult) -> D:
+    def load(self, result: DetectionResult, sniff: SniffFn) -> D:
+        """Read the dataset of ``result``. ``sniff`` is the caller's cache (the detection
+        service's in the app), which already holds the sniffs of the detected files."""
         raise NotImplementedError
 
     def render(self, figure: Figure, dataset: D, params: P, style: PlotStyle) -> RenderInfo:
@@ -341,7 +354,7 @@ class CalculationModule(Generic[D, P]):
         """Labels shown as the placeholder of a ``"labels"`` parameter field."""
         return []
 
-    def load_cached(self, result: DetectionResult) -> D:
+    def load_cached(self, result: DetectionResult, sniff: SniffFn) -> D:
         """``load`` memoized on the files' (mtime, size); safe to call from worker threads."""
         key = (
             self.kind,
@@ -355,7 +368,7 @@ class CalculationModule(Generic[D, P]):
             if key in _LOAD_CACHE:
                 _LOAD_CACHE.move_to_end(key)
                 return _LOAD_CACHE[key]
-        dataset = self.load(result)
+        dataset = self.load(result, sniff)
         with _LOAD_LOCK:
             _LOAD_CACHE[key] = dataset
             while len(_LOAD_CACHE) > LOAD_CACHE_SIZE:

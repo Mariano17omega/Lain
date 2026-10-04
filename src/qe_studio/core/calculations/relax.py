@@ -29,7 +29,15 @@ from ..plotting.style import PlotStyle
 from ..qe.pw_input import parse_input
 from ..qe.relax import QE_DEFAULT, RelaxData, read_relax
 from ..sniff import FileKind
-from .base import AxesLimits, CalculationModule, DetectionResult, FileRole, LoadError, output_of
+from .base import (
+    AxesLimits,
+    CalculationModule,
+    DetectionResult,
+    FileRole,
+    LoadError,
+    SniffFn,
+    output_of,
+)
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
 
 if TYPE_CHECKING:
@@ -104,7 +112,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         ),
     )
 
-    def load(self, result: DetectionResult) -> RelaxDataset:
+    def load(self, result: DetectionResult, sniff: SniffFn) -> RelaxDataset:
         output = result.file("relax_out")
         if output is None:
             raise LoadError("Saída do relaxamento não encontrada.")

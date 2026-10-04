@@ -15,6 +15,7 @@ from qe_studio.core.calculations.base import LoadError
 from qe_studio.core.detection import manual_result
 from qe_studio.core.qe.bands_x import BandData, read_gnu
 from qe_studio.core.qe.pw_output import PwOutput
+from qe_studio.core.sniff import sniff
 from spin_helpers import (
     FIXED_FERMI,
     SPIN_BANDS,
@@ -164,7 +165,7 @@ def test_a_fractional_count_or_smearing_splits_the_bands_at_e_f():
 # -- the dataset of the fixtures -----------------------------------------------------------------
 def test_dataset_holds_both_channels_of_the_fixture():
     result = detect_one(SPIN_BANDS)
-    dataset = result.module.load(result)
+    dataset = result.module.load(result, sniff)
     assert dataset.spin and dataset.source == "gnu"
     assert dataset.bands.energies.shape == dataset.bands_down.energies.shape == (14, 45)
     np.testing.assert_allclose(
@@ -186,7 +187,7 @@ def test_dataset_holds_both_channels_of_the_fixture():
 def test_two_fermi_energies_give_each_channel_its_own(tmp_path):
     folder = with_fixed_magnetization(spin_bands_copy(tmp_path))
     result = detect_one(folder)
-    dataset = result.module.load(result)
+    dataset = result.module.load(result, sniff)
     assert dataset.fermi_up_down == FIXED_FERMI
     assert dataset.fermi == pytest.approx(sum(FIXED_FERMI) / 2)
     assert dataset.edges["up"].fermi == FIXED_FERMI[0]
@@ -199,7 +200,7 @@ def test_a_run_without_spin_has_no_spin_data():
     from conftest import FIXTURES
 
     result = detect_one(FIXTURES / "si_bands")
-    dataset = result.module.load(result)
+    dataset = result.module.load(result, sniff)
     assert not dataset.spin and dataset.bands_down is None and dataset.edges == {}
     assert dataset.n_occupied == 4 and dataset.gap == pytest.approx(0.454, abs=0.01)
 
@@ -212,7 +213,7 @@ def test_an_unreadable_down_channel_leaves_the_up_channel_with_a_warning(tmp_pat
     module = detect_one(folder).module
     mapping = {"gnu": [folder / "bands_up.dat.gnu"], "gnu_down": [broken]}
     result = manual_result(module, folder, mapping)
-    dataset = module.load(result)
+    dataset = module.load(result, sniff)
     assert dataset.bands_down is None and not dataset.spin
     assert any("canal ↓ ilegível" in w and "broken.txt" in w for w in dataset.warnings)
 
@@ -226,7 +227,7 @@ def test_pw_output_gives_both_channels_when_bandsx_was_not_run(tmp_path):
         ),
     )  # fmt: skip
     result = detect_one(folder)
-    dataset = result.module.load(result)
+    dataset = result.module.load(result, sniff)
     assert dataset.source == "pw" and dataset.spin
     assert any("lidos da saída do pw.x" in w for w in dataset.warnings)
     up = gnu_energies(SPIN_BANDS / "bands_up.dat.gnu")
@@ -244,11 +245,11 @@ def test_without_any_eigenvalue_source_loading_fails(tmp_path):
     )  # fmt: skip
     result = detect_one(folder)
     with pytest.raises(LoadError):
-        result.module.load(result)
+        result.module.load(result, sniff)
 
 
 def test_a_down_channel_alone_says_so_when_loading_fails(tmp_path):
     folder = spin_bands_copy(tmp_path, remove=("ni.band.out", "bands_up.dat.gnu", "bands_up.dat"))
     result = detect_one(folder)
     with pytest.raises(LoadError, match=r"só o canal ↓ \(bands_dw.dat.gnu\) foi encontrado"):
-        result.module.load(result)
+        result.module.load(result, sniff)

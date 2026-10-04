@@ -1,8 +1,11 @@
 import os
 
+import numpy as np
 import pytest
 
+from qe_studio.core import sniff as sniff_module
 from qe_studio.core.sniff import FileKind, SniffCache, looks_like_input
+from synthetic import make_gnu, make_long_header_pw
 
 from conftest import FIXTURES
 
@@ -39,6 +42,50 @@ def test_band_data_shapes():
     assert cache.sniff(FIXTURES / "al_bands/bands.dat").shape == (16, 91)
     bandsx = cache.sniff(FIXTURES / "al_bands/bands.out").bandsx
     assert bandsx.gnu_name == "bands.dat.gnu"
+
+
+def test_big_gnu_is_detected_without_loading_it(tmp_path, monkeypatch):
+    """Spec 14 R5.1: no size limit, and the sniff streams instead of ``loadtxt``."""
+    path = tmp_path / "bands.dat.gnu"
+    shape = make_gnu(path, mb=80)
+    assert path.stat().st_size > 80 * 2**20
+
+    def no_loadtxt(*args, **kwargs):
+        raise AssertionError("the sniff must not loadtxt a .gnu")
+
+    monkeypatch.setattr(np, "loadtxt", no_loadtxt)
+    result = SniffCache().sniff(path)
+    assert result.kind is FileKind.GNU_DATA
+    assert result.shape == shape
+
+
+def test_big_output_with_a_long_header(tmp_path):
+    """Spec 14 R5.2: above 16 MB the facts printed once come from a 256 KB head."""
+    path = make_long_header_pw(tmp_path / "scf.out", mb=20, header_kb=100)
+    assert path.stat().st_size > 16 * 2**20
+    pw = SniffCache().sniff(path).pw
+    assert pw is not None
+    assert pw.n_kpoints == 47 and pw.n_electrons == 3.0
+    assert pw.calculation == "scf" and pw.fermi == 8.0584 and pw.job_done
+
+
+def test_head_and_tail_are_cut_at_line_ends(tmp_path, monkeypatch):
+    """A line split by the head or tail boundary is dropped, never read in part."""
+    monkeypatch.setattr(sniff_module, "FULL_READ_LIMIT", 0)
+    monkeypatch.setattr(sniff_module, "PW_HEAD_BYTES", 60)
+    monkeypatch.setattr(sniff_module, "PW_TAIL_BYTES", 70)
+    path = tmp_path / "scf.out"
+    path.write_text(
+        "     Program PWSCF v.7.3.1 starts on\n"
+        "     number of k points=  123\n"  # crosses byte 60: dropped from the head
+        + "     filler line\n" * 20
+        + "     the Fermi energy is    12.3456 ev\n"  # crosses the tail start: dropped
+        + "     Self-consistent Calculation\n   JOB DONE.\n"
+    )
+    pw = SniffCache().sniff(path).pw
+    assert pw is not None
+    assert pw.version == "7.3.1" and pw.n_kpoints is None and pw.fermi is None
+    assert pw.job_done
 
 
 def test_unknown_files(tmp_path):

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from ..pw_output import PwOutput
 from ..relax import RelaxData
+from ..structure import format_formula
 from .model import Level, OutputSummary, SummaryIssue, SummaryRow, SummarySection
 from .scan import Facts, Hit
 from .text import clock_text, duration_text, normalize_number
@@ -115,12 +116,9 @@ def _memory_rows(facts: Facts) -> list[SummaryRow]:
 
 # -- Sistema ------------------------------------------------------------------------------------
 def _system(facts: Facts, pw: PwOutput | None) -> list[SummaryRow]:
-    formula = "".join(
-        f"{name}{count if count > 1 else ''}" for name, count in facts.species.items()
-    )
     rows = [
         SummaryRow("Cálculo", (pw.calculation if pw else None) or "—"),
-        SummaryRow("Fórmula", formula or "—"),
+        SummaryRow("Fórmula", format_formula(facts.species) or "—"),
     ]
     for key, label, template, normalize in (
         ("nat", "Átomos na célula", "{}", False),

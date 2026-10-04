@@ -2,101 +2,31 @@
 
 from __future__ import annotations
 
-import json
-import threading
 from collections.abc import Iterable
 from pathlib import Path
 
-from .appdirs import atomic_write_text, data_dir
 from .calculations import REGISTRY, CalculationModule, DetectionResult, FolderListing
 from .calculations.base import SniffFn
+from .folder_memory import FolderMemory
+from .sniff import FileSniff
 from .sniff import sniff as default_sniff
 
 
-class FolderMemory:
-    """User decisions per folder: manual file mappings and typed k-point labels.
+def sniff_once(sniff: SniffFn) -> SniffFn:
+    """``sniff`` memoized for one detection: each file is sniffed (one ``stat`` and a cache lock,
+    at best) once, whichever modules and hooks ask, neighbour folders included (spec 14 R3)."""
+    seen: dict[Path, FileSniff] = {}
 
-    Stored in the app data dir, never inside simulation folders (they get synced).
-    """
+    def memoized(path: Path) -> FileSniff:
+        if (found := seen.get(path)) is None:
+            found = seen[path] = sniff(path)
+        return found
 
-    def __init__(self, path: Path | None = None):
-        self.path = path or data_dir() / "folders.json"
-        self._lock = threading.Lock()
-        self._data: dict[str, dict] | None = None
+    return memoized
 
-    def _load(self) -> dict[str, dict]:
-        if self._data is not None:
-            return self._data
-        try:
-            data: dict[str, dict] = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            data = {}
-        self._data = data
-        return data
 
-    def _entry(self, folder: Path) -> dict:
-        return self._load().setdefault(str(Path(folder).resolve()), {})
-
-    def _save(self) -> None:
-        atomic_write_text(self.path, json.dumps(self._load(), indent=1, ensure_ascii=False))
-
-    def mapping(self, folder: Path, kind: str) -> dict[str, list[Path]] | None:
-        with self._lock:
-            stored = self._load().get(str(Path(folder).resolve()), {}).get("mappings", {})
-            roles = stored.get(kind)
-        return {role: [Path(p) for p in paths] for role, paths in roles.items()} if roles else None
-
-    def set_mapping(self, folder: Path, kind: str, mapping: dict[str, list[Path]]) -> None:
-        with self._lock:
-            mappings = self._entry(folder).setdefault("mappings", {})
-            mappings[kind] = {role: [str(p) for p in paths] for role, paths in mapping.items()}
-            self._save()
-
-    def clear_mapping(self, folder: Path, kind: str) -> None:
-        with self._lock:
-            self._entry(folder).get("mappings", {}).pop(kind, None)
-            self._save()
-
-    def labels(self, folder: Path) -> list[str] | None:
-        with self._lock:
-            return self._load().get(str(Path(folder).resolve()), {}).get("labels")
-
-    def set_labels(self, folder: Path, labels: list[str] | None) -> None:
-        with self._lock:
-            entry = self._entry(folder)
-            if labels:
-                entry["labels"] = list(labels)
-            else:
-                entry.pop("labels", None)
-            self._save()
-
-    def rename(self, old: Path, new: Path) -> None:
-        """Follow a renamed file or folder (call after the move): the entries of ``old`` and its
-        subfolders, and mapped file paths inside it, move to ``new``."""
-        old, new = Path(old), Path(new)
-        pairs = [(old, new), (old.resolve(), new.resolve())]  # keys are resolved, mappings not
-
-        def moved(value: str) -> str:
-            path = Path(value)
-            for before, after in pairs:
-                if path.is_relative_to(before):
-                    return str(after / path.relative_to(before))
-            return value
-
-        with self._lock:
-            data = self._load()
-            changed = False
-            for key, entry in list(data.items()):
-                for roles in entry.get("mappings", {}).values():
-                    for role, paths in roles.items():
-                        updated = [moved(p) for p in paths]
-                        changed |= updated != paths
-                        roles[role] = updated
-                if (new_key := moved(key)) != key:
-                    data[new_key] = data.pop(key)
-                    changed = True
-            if changed:
-                self._save()
+def _sniffs_of(listing: FolderListing, sniff: SniffFn) -> dict[Path, FileSniff]:
+    return {path: sniff(path) for path in listing.files}
 
 
 def detect_folder(
@@ -108,18 +38,21 @@ def detect_folder(
     """Detected calculation types in ``folder``: primary kinds first, else one fallback tag."""
     folder = Path(folder)
     listing = FolderListing.scan(folder)
+    sniff = sniff_once(sniff)
+    sniffs = _sniffs_of(listing, sniff)
+    stored = memory.mappings(folder) if memory else {}
     modules = list(modules)
     results = []
     for module in modules:
         if module.fallback:
             continue
-        forced = memory.mapping(folder, module.kind) if memory else None
-        result = module.match(listing, sniff, forced)
+        forced = stored.get(module.kind)
+        result = module.match(listing, sniffs, sniff, forced)
         if result is not None:
             results.append(result)
     if not results:
         for module in modules:
-            if module.fallback and (result := module.match(listing, sniff)) is not None:
+            if module.fallback and (result := module.match(listing, sniffs, sniff)) is not None:
                 results.append(result)
                 break
     return results
@@ -132,7 +65,9 @@ def manual_result(
     sniff: SniffFn = default_sniff,
 ) -> DetectionResult:
     """Result built from a user mapping (manual mapping dialog, PRD §3.2)."""
-    result = module.match(FolderListing.scan(folder), sniff, forced=mapping)
+    listing = FolderListing.scan(folder)
+    sniff = sniff_once(sniff)
+    result = module.match(listing, _sniffs_of(listing, sniff), sniff, forced=mapping)
     if result is None:  # empty mapping and no anchor file
         missing = [r.id for r in module.roles if r.required]
         result = DetectionResult(module, Path(folder), missing=missing)

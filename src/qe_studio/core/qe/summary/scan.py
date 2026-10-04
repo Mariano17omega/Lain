@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Literal, NamedTuple
 
 from ..relax import NUMBER
+from ..structure import SITE
 from .model import Level, SummaryIssue
 
 Keep = Literal["first", "last", "both", "all"]
@@ -123,7 +124,6 @@ _ERROR_BAR = re.compile(r"^\s*%{4,}\s*$")
 _ERROR_HEAD = re.compile(r"Error in routine\s+(\S+)\s*\(([^)]*)\)\s*:")
 _MESSAGE = re.compile(r"Message from routine\s+(\w+)\s*:")
 _PSEUDO = re.compile(r"PseudoPot\.\s*#\s*(\d+)\s+for\s+(\S+)\s+read from file:")
-_SITE = re.compile(r"^\s*(\d+)\s+([A-Za-z][A-Za-z0-9_-]*)\s+tau\(")
 _ITERATION = re.compile(r"^\s*iteration\s+#")
 _CONVERGED = re.compile(r"convergence has been achieved in\s+(\d+)\s+iterations")
 _NOT_CONVERGED = re.compile(r"convergence NOT achieved after\s+(\d+)\s+iterations")
@@ -237,16 +237,17 @@ class Scanner:
             facts.fermi_line = number
 
     def _feed_site(self, line: str) -> None:
-        match = _SITE.match(line)
+        match = SITE.match(line)
         if match is None:
             return
-        index = int(match.group(1))
+        index = int(match.group("index"))
         if index <= self._last_site:  # a second list (another coordinate format): count one only
             self._sites_done = True
             return
         self._last_site = index
         species = self.facts.species
-        species[match.group(2)] = species.get(match.group(2), 0) + 1
+        name = match.group("species")
+        species[name] = species.get(name, 0) + 1
 
     def _feed_stress(self, number: int, line: str) -> bool:
         """Three rows of six numbers follow ``P=``: Ry/bohr³ then kbar. True if ``line`` was one."""

@@ -27,7 +27,7 @@ from .params import BandsParams
 
 if TYPE_CHECKING:
     from ...config import AppConfig
-    from ...detection import FolderMemory
+    from ...folder_memory import FolderMemory
 
 
 class BandsModule(CalculationModule[BandsDataset, BandsParams]):
@@ -143,8 +143,8 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
     def default_labels(self, dataset: BandsDataset) -> list[str]:
         return list(dataset.labels)
 
-    def load(self, result: DetectionResult) -> BandsDataset:
-        return load_dataset(result)
+    def load(self, result: DetectionResult, sniff: SniffFn) -> BandsDataset:
+        return load_dataset(result, sniff)
 
     def render(
         self, figure: Figure, dataset: BandsDataset, params: BandsParams, style: PlotStyle

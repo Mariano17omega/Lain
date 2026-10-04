@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from qe_studio.core.calculations import Method, module_for
-from qe_studio.core.detection import FolderMemory, detect_folder, manual_result
+from qe_studio.core.calculations import Method
+from qe_studio.core.detection import detect_folder
 from qe_studio.core.sniff import SniffCache
 
 from conftest import FIXTURES, copy_fixture
@@ -123,46 +123,31 @@ def test_empty_and_calc_folders(tmp_path):
     assert calc.badge == "CALC"
 
 
-def test_manual_mapping_memory(tmp_path):
-    folder = tmp_path / "odd"
+def test_each_file_is_sniffed_once_per_detection(tmp_path):
+    """Spec 14 R3: one sniff per file, whichever modules ask, neighbour folders included."""
+    (tmp_path / "02_scf").mkdir()
+    shutil.copy(FIXTURES / "al_pdos_flat/al.scf.out", tmp_path / "02_scf/scf.out")
+    folder = tmp_path / "03_calc"
     folder.mkdir()
-    for name in ("al.scf.out", "bands.dat.gnu"):
-        shutil.copy(FIXTURES / "al_bands" / name, folder / name)
-    memory = FolderMemory(tmp_path / "memory.json")
-    module = module_for("bands")
-    mapping = {"scf_out": [folder / "al.scf.out"], "gnu": [folder / "bands.dat.gnu"]}
-    result = manual_result(module, folder, mapping)
-    assert result.complete and result.method is Method.MANUAL
+    for src in (FIXTURES / "al_bands").iterdir():
+        if src.name != "al.scf.out":
+            shutil.copy(src, folder / src.name)
+    for src in (FIXTURES / "al_pdos_flat").iterdir():
+        if src.name != "al.scf.out":
+            shutil.copy(src, folder / src.name)
+    cache = SniffCache()
+    calls: dict[Path, int] = {}
 
-    memory.set_mapping(folder, "bands", mapping)
-    reloaded = FolderMemory(tmp_path / "memory.json")
-    assert reloaded.mapping(folder, "bands") == mapping
-    (detected,) = detect(folder, memory=reloaded)
-    assert detected.methods["scf_out"] is Method.MANUAL
+    def counting(path):
+        calls[path] = calls.get(path, 0) + 1
+        return cache.sniff(path)
 
-    reloaded.set_labels(folder, ["L", "G"])
-    assert FolderMemory(tmp_path / "memory.json").labels(folder) == ["L", "G"]
-    reloaded.clear_mapping(folder, "bands")
-    assert reloaded.mapping(folder, "bands") is None
-
-
-def test_folder_memory_follows_renames(tmp_path):
-    run, sibling = tmp_path / "run", tmp_path / "run2"
-    (run / "sub").mkdir(parents=True)
-    sibling.mkdir()
-    memory = FolderMemory(tmp_path / "memory.json")
-    memory.set_mapping(run / "sub", "bands", {"gnu": [run / "sub" / "bands.dat.gnu"]})
-    memory.set_labels(run, ["G", "X"])
-    memory.set_labels(sibling, ["L"])  # shares the prefix "run", not the folder
-    renamed = tmp_path / "renamed"
-    run.rename(renamed)
-    memory.rename(run, renamed)
-    reloaded = FolderMemory(tmp_path / "memory.json")
-    assert reloaded.labels(renamed) == ["G", "X"] and reloaded.labels(run) is None
-    assert reloaded.mapping(renamed / "sub", "bands") == {
-        "gnu": [renamed / "sub" / "bands.dat.gnu"]
-    }
-    assert reloaded.labels(sibling) == ["L"]
+    results = detect_folder(folder, sniff=counting)
+    assert sorted(r.badge for r in results) == ["BANDS", "PDOS"]
+    assert all(r.methods["scf_out"] is Method.INFERRED for r in results)
+    assert calls[tmp_path / "02_scf/scf.out"] == 1  # both modules looked for it there
+    assert max(calls.values()) == 1
+    assert set(calls) >= set(folder.iterdir())
 
 
 def test_multiple_pdos_sets_warn(al_pdos_orbitals):

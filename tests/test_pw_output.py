@@ -1,6 +1,7 @@
 import pytest
 
 from qe_studio.core.qe.pw_output import parse_pw_output, read_structure
+from qe_studio.core.qe.structure import header_formula
 
 from conftest import FIXTURES
 
@@ -140,3 +141,33 @@ def test_two_fermi_energies_warning_says_what_the_plots_do():
 def test_electrons_per_spin_channel(rel, up_down):
     out = parse_pw_output((FIXTURES / rel).read_text())
     assert out.n_electrons_up_down == up_down
+
+
+@pytest.mark.parametrize(
+    ("rel", "formula"),
+    [
+        ("al_bands/al.scf.out", "Al"),
+        ("si_bands/si.scf.out", "Si2"),
+        ("kao_slab_relax/relax-kaolinite-slab-001.out", "Al4Si4O18H8"),
+        ("kao_vc_relax/vc-relax.out", "Al4Si4O18H8"),  # ASE's read_structure gives up on it
+    ],
+)
+def test_header_formula(rel, formula):
+    """Spec 14 R6.3: the formula of the bands dataset comes from the header, without ASE."""
+    assert header_formula(FIXTURES / rel) == formula
+
+
+def test_header_formula_reads_only_the_first_site_list(tmp_path):
+    path = tmp_path / "scf.out"
+    path.write_text(
+        "     site n.     atom                  positions (alat units)\n"
+        "         1           Ga  tau(   1) = (   0.0000000   0.0000000   0.0000000  )\n"
+        "         2           As  tau(   2) = (   0.2500000   0.2500000   0.2500000  )\n"
+        "\n"
+        "     Crystallographic axes\n"
+        "         1           Ga  tau(   1) = (  0.0000000  0.0000000  0.0000000  )\n"
+    )
+    assert header_formula(path) == "GaAs"
+    path.write_text("     number of k points=    10\n         1  Si  tau(   1) = ( 0 0 0 )\n")
+    assert header_formula(path) is None
+    assert header_formula(tmp_path / "missing.out") is None

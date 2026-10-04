@@ -100,7 +100,7 @@ def main_window(qtbot, demo_project, tmp_path, monkeypatch):
     monkeypatch.setattr(QMenu, "exec", blocking_menu)
 
     from qe_studio.core.config import LoadedConfig, parse_config
-    from qe_studio.core.detection import FolderMemory
+    from qe_studio.core.folder_memory import FolderMemory
     from qe_studio.ui.main_window import MainWindow
     from qe_studio.ui.theme.manager import ThemeManager
 

@@ -7,14 +7,15 @@ The K_POINTS card itself is parsed here because ASE only writes ``crystal_b`` ca
 
 from __future__ import annotations
 
+import functools
 import io
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
-from ase.io.espresso import read_fortran_namelist
 
 # Namelists each program reads, in the order ``deduce_program`` tries them.
 PROGRAM_NAMELISTS: dict[str, frozenset[str]] = {
@@ -133,6 +134,9 @@ def parse_kpoints(card_lines: list[str] | tuple[str, ...]) -> KPointsCard | None
 
 
 def parse_input(text: str) -> QEInput:
+    # ASE takes ~0.3 s to import (scipy, spacegroups): only when an input is first parsed.
+    from ase.io.espresso import read_fortran_namelist
+
     namelists, cards = read_fortran_namelist(io.StringIO(text))
     namelists = {
         name: {str(k).lower(): v for k, v in values.items()}
@@ -140,6 +144,27 @@ def parse_input(text: str) -> QEInput:
         if name != "_ignored"
     }
     return QEInput(namelists, tuple(cards), parse_kpoints(cards))
+
+
+def read_input(path: Path) -> QEInput | None:
+    """``parse_input`` of a file, None if it cannot be read or parsed; memoized on the file's
+    (path, mtime, size), since detection asks for the same bands.x inputs on every pass.
+
+    The result is shared between callers: treat it as read-only.
+    """
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    return _read_input(str(path), stat.st_mtime_ns, stat.st_size)
+
+
+@functools.lru_cache(maxsize=256)
+def _read_input(path: str, _mtime_ns: int, _size: int) -> QEInput | None:
+    try:
+        return parse_input(Path(path).read_text(encoding="utf-8", errors="replace"))
+    except Exception:  # ASE's namelist reader raises assorted errors on odd inputs
+        return None
 
 
 def format_kpoint_label(label: str) -> str:

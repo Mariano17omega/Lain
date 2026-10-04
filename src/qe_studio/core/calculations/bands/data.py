@@ -8,10 +8,10 @@ from pathlib import Path
 import numpy as np
 
 from ...qe import bands_x
-from ...qe.pw_input import parse_input
+from ...qe.pw_input import QEInput, read_input
 from ...qe.pw_output import PwOutput, read_structure
-from ...sniff import sniff
-from ..base import DetectionResult, LoadError
+from ...qe.structure import header_formula
+from ..base import DetectionResult, LoadError, SniffFn
 
 BOHR_TO_ANGSTROM = 0.529177210903
 EDGE_TOL = 1e-3  # eV: a band within this of E_F is not counted as crossing it
@@ -127,27 +127,23 @@ class BandsDataset:
         return self.fermi
 
 
-def read_bands_input(path: Path | None):
-    if path is None:
-        return None
-    try:
-        return parse_input(path.read_text(encoding="utf-8", errors="replace"))
-    except Exception:
-        return None
+def read_bands_input(path: Path | None) -> QEInput | None:
+    """The parsed input (memoized on the file stamp: detection asks for it on every pass)."""
+    return read_input(path) if path is not None else None
 
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def load_dataset(result: DetectionResult) -> BandsDataset:
+def load_dataset(result: DetectionResult, sniff: SniffFn) -> BandsDataset:
     warnings = list(result.warnings)
     scf_path = result.file("scf_out")
     pw = sniff(scf_path).pw if scf_path else None
     if pw is None or pw.fermi is None:
         warnings.append("energia de Fermi não encontrada: energias absolutas")
     bands, bands_down, source = _eigenvalues(result, pw, warnings)
-    ticks, labels, tick_source = _ticks(result, bands, source, warnings)
+    ticks, labels, tick_source = _ticks(result, bands, source, warnings, sniff)
     dataset = BandsDataset(
         folder=result.folder,
         bands=bands,
@@ -164,8 +160,7 @@ def load_dataset(result: DetectionResult) -> BandsDataset:
     )
     if pw is not None:
         _band_edges(dataset, pw)
-        atoms = read_structure(read_text(scf_path)) if scf_path else None
-        dataset.formula = atoms.get_chemical_formula() if atoms is not None else None
+        dataset.formula = header_formula(scf_path) if scf_path else None
     return dataset
 
 
@@ -218,7 +213,11 @@ def _eigenvalues(
 
 
 def _ticks(
-    result: DetectionResult, bands: bands_x.BandData, source: str, warnings: list[str]
+    result: DetectionResult,
+    bands: bands_x.BandData,
+    source: str,
+    warnings: list[str],
+    sniff: SniffFn,
 ) -> tuple[list[float], list[str], str]:
     x = bands.x
     parsed = read_bands_input(result.file("bands_in"))

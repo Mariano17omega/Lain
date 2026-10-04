@@ -19,7 +19,7 @@ from qe_studio.core.detection import detect_folder, manual_result
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
 from qe_studio.core.plotting.style import LIGHT
 from qe_studio.core.qe.scf import parse_scf, read_scf
-from qe_studio.core.sniff import SniffCache
+from qe_studio.core.sniff import SniffCache, sniff
 
 from conftest import FIXTURES, copy_fixture
 
@@ -79,7 +79,7 @@ def synthetic(
 def load(path: Path):
     """The plot of one output file, as the context menu's "Plotar" builds it."""
     result = manual_result(SCF, path.parent, {"scf_out": [path]}, SniffCache().sniff)
-    dataset = SCF.load(result)
+    dataset = SCF.load(result, sniff)
     return result, dataset, SCF.default_params(CONFIG, dataset)
 
 
@@ -197,7 +197,7 @@ def test_no_complete_iteration_is_a_load_error(tmp_path):
     path = write(tmp_path, synthetic(1, end="running").split("     total energy")[0], "run.out")
     result = manual_result(SCF, tmp_path, {"scf_out": [path]}, SniffCache().sniff)
     with pytest.raises(LoadError, match="Nenhuma iteração SCF completa em run.out"):
-        SCF.load(result)
+        SCF.load(result, sniff)
 
 
 # -- detection and the single-file hooks --------------------------------------------------------

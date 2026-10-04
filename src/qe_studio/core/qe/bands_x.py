@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import re
 from dataclasses import dataclass, field
+from typing import BinaryIO
 
 import numpy as np
 
@@ -50,6 +51,67 @@ def read_gnu(text: str) -> BandData:
     if not all(np.allclose(block[:, 0], x, atol=1e-3) for block in blocks[1:]):
         raise BandsFormatError("eixo x difere entre bandas")
     return BandData(x, np.array([block[:, 1] for block in blocks]))
+
+
+GNU_CHUNK_BYTES = 4 * 1024 * 1024
+
+
+def _two_floats(line: bytes) -> bool:
+    fields = line.split()
+    if len(fields) != 2:
+        return False
+    try:
+        for value in fields:
+            float(value)
+    except ValueError:
+        return False
+    return True
+
+
+def gnu_shape(handle: BinaryIO, chunk_size: int = GNU_CHUNK_BYTES) -> tuple[int, int]:
+    """``(n_bands, n_kpoints)`` of a ``.gnu``, streamed in chunks (the sniff; ``read_gnu`` loads).
+
+    Counts the (x, E) lines and the places where x goes back, which start a new band as in
+    ``read_gnu``. Only the first and last lines are checked for exactly two numbers; every x
+    must be a number. Memory stays at one chunk whatever the file size.
+    """
+    lines = restarts = 0
+    last_x: float | None = None
+    first: bytes | None = None
+    last = b""
+    rest = b""
+    while True:
+        data = handle.read(chunk_size)
+        block = rest + data
+        if data:
+            cut = block.rfind(b"\n") + 1
+            block, rest = block[:cut], block[cut:]
+        tokens = block.split()
+        if tokens:
+            if len(tokens) % 2:
+                raise BandsFormatError("esperadas 2 colunas (x, E)")
+            if first is None:
+                first = block.lstrip().split(b"\n", 1)[0]
+            last = block.rstrip().rsplit(b"\n", 1)[-1]
+            try:
+                xs = np.array(tokens[0::2]).astype(float)
+            except ValueError as exc:
+                raise BandsFormatError(f"não é um arquivo de bandas numérico: {exc}") from exc
+            restarts += int(np.count_nonzero(np.diff(xs) < 0))
+            if last_x is not None and xs[0] < last_x:
+                restarts += 1
+            last_x = float(xs[-1])
+            lines += len(xs)
+        if not data:
+            break
+    if first is None:
+        raise BandsFormatError("arquivo sem dados")
+    if not (_two_floats(first) and _two_floats(last)):
+        raise BandsFormatError("esperadas 2 colunas (x, E)")
+    bands = restarts + 1
+    if lines % bands:
+        raise BandsFormatError("bandas com números diferentes de pontos k")
+    return bands, lines // bands
 
 
 _FLOATS = re.compile(r"-?\d+\.\d+(?:[eE][-+]?\d+)?")

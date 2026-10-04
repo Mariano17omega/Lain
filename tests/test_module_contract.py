@@ -12,6 +12,7 @@ from qe_studio.core.calculations.base import (
     CalculationModule,
     DetectionResult,
     FileRole,
+    SniffFn,
 )
 from qe_studio.core.calculations.params import (
     COMMON_FIELDS,
@@ -26,7 +27,7 @@ from qe_studio.core.detection import detect_folder
 from qe_studio.core.plotting.draw import finish, new_axes
 from qe_studio.core.plotting.export import export_figure
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
-from qe_studio.core.sniff import SniffCache
+from qe_studio.core.sniff import SniffCache, sniff
 from qe_studio.ui.painting import paint_badge
 from qe_studio.ui.plot_session import PlotSession
 from qe_studio.ui.theme.manager import ThemeManager
@@ -68,7 +69,7 @@ class DummyModule(CalculationModule[DummyData, DummyParams]):
         ),
     )
 
-    def load(self, result: DetectionResult) -> DummyData:
+    def load(self, result: DetectionResult, sniff: SniffFn) -> DummyData:
         path = result.file("data")
         assert path is not None
         values = [float(line) for line in path.read_text().split()]
@@ -118,7 +119,7 @@ def detect_dummy(folder: Path) -> DetectionResult:
 def test_dummy_is_detected_loaded_plotted_saved_and_exported(dummy_folder):
     result = detect_dummy(dummy_folder)
     assert result.kind == "dummy" and result.plottable and result.badge_token is None
-    dataset = DUMMY.load_cached(result)
+    dataset = DUMMY.load_cached(result, sniff)
     assert dataset.values == [1, 4, 2, 8, 5]
     params = DUMMY.default_params(AppConfig(), dataset)
     session = PlotSession(result, dataset, params)
@@ -145,7 +146,7 @@ def test_dummy_is_detected_loaded_plotted_saved_and_exported(dummy_folder):
 def test_dummy_flows_through_the_window(qtbot, main_window, dummy_folder):
     window = main_window
     result = detect_dummy(dummy_folder)
-    dataset = DUMMY.load_cached(result)
+    dataset = DUMMY.load_cached(result, sniff)
     window._on_loaded(result, dataset, (None, []), False)
 
     view = window.current_plot()
@@ -192,7 +193,7 @@ def test_every_schema_field_belongs_to_a_section(demo_project, folder, kind):
     result = next(r for r in results if r.kind == kind)
     module = result.module
     sections = {s.name for s in ordered_sections(module)}
-    schema = module.param_schema(module.load(result))
+    schema = module.param_schema(module.load(result, sniff))
     assert {f.section for f in schema} <= sections
     assert all(f.kind != "series" or f.colors for f in schema)
 
@@ -222,14 +223,14 @@ def test_sections_are_ordered_from_the_module_declarations():
 def test_a_module_plots_its_folder_unless_it_says_otherwise(dummy_folder):
     result = detect_dummy(dummy_folder)
     assert result.plot_target == dummy_folder and DUMMY.single_file_role is None
-    session = PlotSession(result, DUMMY.load(result), DummyParams())
+    session = PlotSession(result, DUMMY.load(result, sniff), DummyParams())
     assert session.key == f"plot:dummy:{dummy_folder}"
     assert session.title == "Cálculo de teste · dummy_sim"
     assert module_for_file(SniffCache().sniff(dummy_folder / "a.dummy"), (DUMMY,)) is None
 
 
 def test_base_hooks_have_neutral_defaults(dummy_folder):
-    dataset = DUMMY.load(detect_dummy(dummy_folder))
+    dataset = DUMMY.load(detect_dummy(dummy_folder), sniff)
     params = DummyParams()
     assert DUMMY.format_coordinates(1.23456, 2.0, 0, dataset, params) == "x = 1.235 · y = 2"
     assert DUMMY.series_colors(dataset, params, None) == {}  # type: ignore[arg-type]

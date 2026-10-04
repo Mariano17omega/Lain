@@ -22,7 +22,10 @@ HEAD_BYTES = 8 * 1024
 TAIL_BYTES = 256 * 1024
 FULL_READ_LIMIT = 16 * 1024 * 1024
 INPUT_READ_LIMIT = 2 * 1024 * 1024
-GNU_READ_LIMIT = 64 * 1024 * 1024
+# pw.x outputs above FULL_READ_LIMIT: the facts printed once at the start (k points, electrons…)
+# come from the head, which must hold the site list of big systems; the last ones from the tail.
+PW_HEAD_BYTES = 256 * 1024
+PW_TAIL_BYTES = 1024 * 1024
 
 SKIP_SUFFIXES = {
     ".png", ".jpg", ".jpeg", ".svg", ".pdf", ".eps", ".ps", ".gif", ".ipynb", ".py", ".sh",
@@ -116,16 +119,28 @@ def looks_like_input(path: Path) -> bool:
     return _NAMELIST.search(head) is not None
 
 
-def _read_text(path: Path, file_size: int, limit: int, tail: int = TAIL_BYTES) -> str:
-    """Whole file if small enough, else head + tail (markers live at both ends)."""
+def _read_head_tail(
+    path: Path, file_size: int, limit: int, head: int = HEAD_BYTES, tail: int = TAIL_BYTES
+) -> tuple[str, str]:
+    """The whole text as both head and tail (the same object) if the file is at most ``limit``
+    bytes, else its first ``head`` and last ``tail`` bytes, cut at line ends so that no pattern
+    sees part of a line."""
     with open(path, "rb") as handle:
         if file_size <= limit:
-            data = handle.read()
-        else:
-            data = handle.read(HEAD_BYTES) + b"\n"
-            handle.seek(max(file_size - tail, HEAD_BYTES))
-            data += handle.read()
-    return data.decode("utf-8", errors="replace")
+            text = handle.read().decode("utf-8", errors="replace")
+            return text, text
+        start = handle.read(head)
+        handle.seek(max(file_size - tail, head))
+        end = handle.read()
+    start = start[: start.rfind(b"\n") + 1]
+    end = end[end.find(b"\n") + 1 :]
+    return start.decode("utf-8", errors="replace"), end.decode("utf-8", errors="replace")
+
+
+def _read_text(path: Path, file_size: int, limit: int) -> str:
+    """Whole file if small enough, else head + tail (markers live at both ends)."""
+    head, tail = _read_head_tail(path, file_size, limit)
+    return head if head is tail else f"{head}\n{tail}"
 
 
 def _sniff_uncached(path: Path, size: int) -> FileSniff:
@@ -150,12 +165,13 @@ def _sniff_uncached(path: Path, size: int) -> FileSniff:
         return FileSniff(path, FileKind.FILBAND, shape=(nbnd, nks))
     if _NAMELIST.search(head):
         return _sniff_input(path, size)
-    if path.suffix.lower() == ".gnu" and size <= GNU_READ_LIMIT:
+    if path.suffix.lower() == ".gnu":
         try:
-            data = bands_x.read_gnu(_read_text(path, size, GNU_READ_LIMIT))
+            with open(path, "rb") as handle:
+                shape = bands_x.gnu_shape(handle)  # streamed: no size limit, ``load`` parses
         except bands_x.BandsFormatError:
             return FileSniff(path, FileKind.UNKNOWN)
-        return FileSniff(path, FileKind.GNU_DATA, shape=(data.n_bands, data.n_kpoints))
+        return FileSniff(path, FileKind.GNU_DATA, shape=shape)
     return FileSniff(path, FileKind.UNKNOWN)
 
 
@@ -173,7 +189,8 @@ def _sniff_pdos(path: Path, kind: FileKind) -> FileSniff:
 def _sniff_output(path: Path, size: int, program: str) -> FileSniff:
     kind = _OUTPUT_KINDS.get(program, FileKind.OTHER_OUT)
     if kind is FileKind.PW_OUT:
-        pw = parse_pw_output(_read_text(path, size, FULL_READ_LIMIT, tail=1024 * 1024))
+        head, tail = _read_head_tail(path, size, FULL_READ_LIMIT, PW_HEAD_BYTES, PW_TAIL_BYTES)
+        pw = parse_pw_output(head, tail)
         return FileSniff(
             path,
             kind,
@@ -236,6 +253,18 @@ class SniffCache:
         with self._lock:
             for path in [p for p in self._entries if p.is_relative_to(prefix)]:
                 del self._entries[path]
+
+    def prune(self) -> None:
+        """Drop the entries of files that no longer exist (one ``stat`` each).
+
+        The rest stay: ``sniff`` already checks their (mtime, size) stamp before use.
+        """
+        with self._lock:
+            paths = list(self._entries)
+        gone = [path for path in paths if not path.exists()]
+        with self._lock:
+            for path in gone:
+                self._entries.pop(path, None)
 
     def clear(self) -> None:
         with self._lock:

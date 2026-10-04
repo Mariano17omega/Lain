@@ -168,6 +168,8 @@ class PlotConfig(_Section):
 class UiConfig(_Section):
     theme: Literal["dark", "light"] = "dark"
     hidden_dirs: list[str] = Field(default_factory=lambda: ["tmp", "*.save"])
+    # F5 rereads every file, even those whose (mtime, size) did not change (spec 14 R4.2).
+    paranoid_refresh: bool = False
 
 
 class AppConfig(_Section):

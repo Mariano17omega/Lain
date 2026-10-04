@@ -9,6 +9,7 @@ cut down to one point at x = 0 cannot be split back into bands.
 """
 
 import contextlib
+import io
 import tempfile
 from pathlib import Path
 
@@ -17,7 +18,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from qe_studio.core.qe.bands_x import BandsFormatError, read_gnu
+from qe_studio.core.qe.bands_x import BandsFormatError, gnu_shape, read_gnu
 from qe_studio.core.qe.input_lexer import LexState, scan_line
 from qe_studio.core.qe.input_lint import _lint
 from qe_studio.core.qe.pw_output import parse_pw_output
@@ -95,6 +96,28 @@ def test_read_gnu_bands_of_different_lengths_are_an_error(matrix, separator, dra
     del blocks[band][row]
     with pytest.raises(BandsFormatError):
         read_gnu(gnu_text(blocks, separator))
+
+
+@given(band_matrices(), st.sampled_from(["", " "]), st.booleans(), st.integers(1, 200))
+def test_gnu_shape_agrees_with_read_gnu(matrix, separator, trailing, chunk_size):
+    """The streaming sniff (spec 14 R5.1) sees the shape ``read_gnu`` loads, at any chunk size."""
+    text = gnu_text(gnu_blocks(*matrix), separator, trailing)
+    shape = gnu_shape(io.BytesIO(text.encode()), chunk_size)
+    assert shape == read_gnu(text).energies.shape == matrix[1].shape
+
+
+@given(band_matrices(), st.sampled_from(["", " "]), st.integers(1, 64), st.data())
+def test_gnu_shape_of_a_truncated_file_is_an_error_or_the_loaded_shape(
+    matrix, separator, chunk_size, draw
+):
+    text = gnu_text(gnu_blocks(*matrix), separator)
+    cut = text[: draw.draw(st.integers(0, len(text)))]
+    try:
+        shape = gnu_shape(io.BytesIO(cut.encode()), chunk_size)
+    except BandsFormatError:
+        return  # any other exception type fails the test
+    with contextlib.suppress(BandsFormatError):
+        assert shape == read_gnu(cut).energies.shape
 
 
 # -- pw.x relax/vc-relax output ----------------------------------------------------------------

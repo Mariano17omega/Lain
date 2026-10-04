@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 14 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: a fórmula das bandas vem das linhas `tau(` do cabeçalho da saída SCF (`core/qe/structure.py`, o mesmo código do relax e do resumo), sem ASE e sem memo, em vez do `read_structure` memoizado (decisão de 03/10/2026: o campo não aparece na interface, e o ASE levava 371 ms numa SCF de 15 MB); vale também acima de 16 MB, e o `vc-relax.out` da fixture, que o ASE não lia, ganha fórmula; `parse_pw_output(head, tail=None)`: sem cauda, o texto é o arquivo inteiro e as chamadas antigas não mudam; a regex única de Fermi casa as frases como o pw.x as escreve (como o scanner do resumo), sem `re.I`, que a deixava 6× mais lenta (331 contra 54 ms em 15 MB); o R3 também guarda o nome relativo de cada arquivo da listagem e testa o conteúdo antes dos globs (era o custo da detecção a quente); o `FolderMemory` foi para `core/folder_memory.py`, o JSON é `{"version": 2, "folders": {…}}` (uma pasta chamada `version` colidiria com uma chave solta), a raiz muda por `set_root` (sem recriar a memória, que o serviço e os testes injetam), um arquivo fora da pasta mas dentro da raiz fica como `../outra/arquivo`, a detecção lê os mapeamentos da pasta numa consulta só (`mappings`), um JSON que não é objeto ou com `version` desconhecida também vira cópia `.corrompido-*`, e o aviso de corrompido tem prioridade sobre os do config na barra de status; o ganho do `.gnu` não é velocidade (o `loadtxt` já era C), e sim o fim do limite de 64 MB e memória limitada a um bloco de 4 MB |
 | **Depende de** | spec 7 (job `perf` no CI) |
 | **Usada por** | spec 16 (favoritos/recentes usam a mesma chave relativa de A5) |
 | **Esforço** | M |
@@ -156,25 +156,67 @@
 
 ## Notas de implementação
 - Alterados:
-  - `core/qe/pw_input.py`, `core/qe/pw_output.py`, `core/sniff.py`;
-  - `core/calculations/base.py`, `core/calculations/{bands,pdos,relax}.py`;
-  - `core/detection.py`, `ui/services.py`;
-  - `ui/main_window.py` (`_LoadTask` passa o `sniff`);
+  - `core/qe/pw_input.py` (ASE tardio, `read_input` memoizado), `core/qe/pw_output.py`,
+    `core/qe/bands_x.py` (`gnu_shape`), `core/sniff.py` (`prune`, cabeça e cauda);
+  - novo `core/qe/structure.py` (`SITE`, `format_formula`, `header_formula`), usado por
+    `core/qe/relax.py`, `core/qe/summary/{scan,build}.py` e `core/calculations/bands/data.py`;
+  - `core/calculations/base.py` (`match(listing, sniffs, sniff, forced)`, `load(result, sniff)`,
+    `load_cached(result, sniff)`, nomes relativos em cache no `FolderListing`),
+    `core/calculations/{bands,pdos}/`, `relax.py`, `scf.py`;
+  - `core/detection.py` (`sniff_once`), novo `core/folder_memory.py`, `ui/services.py`;
+  - `ui/main_window.py` (`_LoadTask` recebe o `sniff` do serviço, `memory.set_root`, aviso de
+    `folders.json` corrompido, `paranoid_refresh`);
   - `core/config.py` (`ui.paranoid_refresh`), `config.example.yaml`.
-- `FolderMemory` precisa conhecer `local_root`: o construtor recebe a raiz, e `reload_config`
-  (`main_window.py:587-611`) recria a memória se a raiz mudar.
-- Registrar nesta seção, durante a implementação, a tabela "antes/depois" de cada medição do R1.
+- Testes novos: `tests/synthetic.py` (geradores), `tests/test_perf_detection.py`,
+  `tests/test_folder_memory.py` (com os dois testes de memória que estavam em `test_detection.py`),
+  `tests/test_pw_output_regression.py` + `tests/pw_output_golden.json` (capturado do parser antigo,
+  antes do R5, para as 15 saídas pw.x das fixtures).
+
+### Medições (`uv run pytest -m perf -s tests/test_perf_detection.py`)
+
+Máquina do desenvolvedor (x86_64, 20 threads, SSD, Python 3.11), mediana de 3 execuções, em ms.
+Projeto sintético de `tests/synthetic.py`: 520 pastas em 3 níveis (8 × 8 × 7), folhas alternando
+bandas, PDOS, relax, SCF e texto.
+
+| Medição | Linha de base | R2 | R3 | R4 | R5 | Final | Orçamento |
+|---|---|---|---|---|---|---|---|
+| `detect_folder` nas 520 pastas, a frio | 869 | 971 | 762 | — | 573 | 548 | 1500 |
+| `detect_folder` nas 520 pastas, a quente | 361 | 277 | 74 | — | 83 | 72 | 180 |
+| `sniff` de relax de 200 MB (cabeça + cauda) | 32 | 23 | — | — | 8 | 8 | 100 |
+| `sniff` de relax de 15 MB (lido inteiro) | 446 | 339 | — | — | 118 | 117 | 220 |
+| `sniff` de `.gnu` de 60 MB | 541 | 492 | — | — | 493 | 493 | 1500 |
+| F5 (`invalidate()`) + detecção de 50 pastas | 96 | 83 | 59 | 7 | — | 7 | 48 |
+| `import qe_studio.ui.main_window` (`-X importtime`, subprocesso) | 827 | 403 | — | — | — | 385 | 600 |
+
+"—": não medido nessa etapa (a mudança não toca a medição). R6 e R7 entram na coluna "Final".
+
+O relax de 200 MB já era rápido: acima de 16 MB o sniff lê só 8 KB + 1 MB. O caso caro do O5 é a
+saída logo abaixo de 16 MB, lida inteira. Um `.gnu` acima de 64 MB não era detectado (`UNKNOWN`).
+
+Observações:
+- R2: a detecção a frio sobe, porque o ASE passa a ser importado no primeiro input lido, dentro dela.
+- R3: a quente, o custo estava no `Path.relative_to` de cada arquivo para cada glob de cada papel
+  (60 % do tempo). Com o nome relativo em cache e o teste de conteúdo antes do glob, caiu de 277 para
+  74 ms.
+- R5: com a regex única ainda com `re.I`, o relax de 15 MB ficou em 403 ms; sem `re.I`, em 118 ms.
+- R6: na carga das bandas, o `read_structure` (ASE) levava 371 ms numa SCF de 15 MB, e a fórmula
+  pelo cabeçalho leva 0,02 ms. O `read_input` memoizado responde em 1 µs, contra 0,1 ms do
+  `parse_input` de um input pequeno.
+- R7: com um `FolderMemory`, a detecção a quente pagava um `resolve()` por módulo e por pasta
+  (+37 ms nas 520 pastas). `mappings(folder)` faz uma consulta só por pasta.
+- Os orçamentos ficam em cerca de metade da linha de base onde a etapa prometia ganho, e são absolutos
+  onde não prometia, com margem para máquinas mais lentas. O job `perf` do CI não bloqueia o merge.
 
 ## Critérios de aceite e testes
-- [ ] `tests/test_perf_detection.py` existe, roda no job `perf` do CI e tem a linha de base registrada.
-- [ ] Importar `qe_studio.ui.main_window` não carrega `ase` (`sys.modules`).
-- [ ] `detect_folder` chama `sniff` no máximo uma vez por arquivo da pasta (contador com um sniff falso).
-- [ ] F5 não relê arquivos inalterados: o contador de `_sniff_uncached` fica em zero numa segunda
+- [x] `tests/test_perf_detection.py` existe, roda no job `perf` do CI e tem a linha de base registrada.
+- [x] Importar `qe_studio.ui.main_window` não carrega `ase` (`sys.modules`).
+- [x] `detect_folder` chama `sniff` no máximo uma vez por arquivo da pasta (contador com um sniff falso).
+- [x] F5 não relê arquivos inalterados: o contador de `_sniff_uncached` fica em zero numa segunda
       detecção depois do `invalidate()`. Um arquivo apagado sai do cache.
-- [ ] Um `.gnu` sintético de 80 MB é detectado como `GNU_DATA` com o `shape` correto, sem `loadtxt` no
+- [x] Um `.gnu` sintético de 80 MB é detectado como `GNU_DATA` com o `shape` correto, sem `loadtxt` no
       sniff.
-- [ ] `PwOutput` idêntico, antes e depois, para todas as saídas das fixtures. Numa saída sintética de
+- [x] `PwOutput` idêntico, antes e depois, para todas as saídas das fixtures. Numa saída sintética de
       20 MB com cabeçalho de 100 KB, `n_kpoints` e `n_electrons` são lidos.
-- [ ] `FolderMemory`: um `folders.json` antigo com chave absoluta dentro do `local_root` migra para
+- [x] `FolderMemory`: um `folders.json` antigo com chave absoluta dentro do `local_root` migra para
       relativa e continua resolvendo o mapeamento. Um JSON corrompido gera a cópia `.corrompido-*`, e a
       memória volta vazia.

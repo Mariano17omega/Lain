@@ -9,7 +9,8 @@ from pathlib import Path
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
 
 from ..core.calculations import DetectionResult
-from ..core.detection import FolderMemory, detect_folder
+from ..core.detection import detect_folder
+from ..core.folder_memory import FolderMemory
 from ..core.sniff import FileSniff, SniffCache
 
 
@@ -56,6 +57,8 @@ class DetectionService(QObject):
         super().__init__(parent)
         self.memory = memory
         self.sniff_cache = SniffCache()
+        # F5 drops every sniff, not just those of deleted files (``ui.paranoid_refresh``).
+        self.paranoid_refresh = False
         self._pool = QThreadPool(self)
         self._pool.setMaxThreadCount(2)
         self._lock = threading.Lock()
@@ -102,13 +105,19 @@ class DetectionService(QObject):
         return self.sniff_cache.peek(Path(path))
 
     def invalidate(self, folder: Path | None = None) -> None:
-        """Forget ``folder`` (the whole project when None): its sniffs, and the detection of
-        the folders its files can affect."""
+        """Forget ``folder``: its sniffs, and the detection of the folders its files can affect.
+
+        For the whole project (None, F5) every detection is redone, but the sniffs of files that
+        still exist are kept: each is checked against the file's (mtime, size) when used, so
+        unchanged files are not read again (spec 14 R4). ``paranoid_refresh`` drops them all.
+        """
         with self._lock:
             for key in [k for k in self._results if _affected(k, folder)]:
                 del self._results[key]
-        if folder is None:
+        if folder is None and self.paranoid_refresh:
             self.sniff_cache.clear()
+        elif folder is None:
+            self.sniff_cache.prune()
         else:
             self.sniff_cache.invalidate(Path(folder))
         # Running tasks may have read the old files: start over, their results are dropped.

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from qe_studio.core.detection import detect_folder
+from qe_studio.core.sniff import sniff
 
 pytestmark = pytest.mark.realdata
 
@@ -46,7 +47,7 @@ def test_plottable_folders_load_and_render(tmp_path):
             if not result.plottable:
                 continue
             try:
-                dataset = result.module.load(result)
+                dataset = result.module.load(result, sniff)
             except LoadError as exc:
                 refused.append(f"{folder}: {exc}")
                 continue

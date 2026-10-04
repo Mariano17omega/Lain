@@ -18,6 +18,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .structure import SITE, format_formula
+
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[DEde][-+]?\d+)?"
 QE_DEFAULT_THRESHOLDS = (1.0e-4, 1.0e-3)  # etot_conv_thr (Ry), forc_conv_thr (Ry/Bohr)
 
@@ -34,7 +36,6 @@ _BFGS_END = re.compile(  # "bfgs failed after …": history reset twice, converg
 _ENERGY_THR = re.compile(rf"energy\s+convergence\s+thresh\.\s*=\s*({NUMBER})", re.I)
 _FORCE_THR = re.compile(rf"force\s+convergence\s+thresh\.\s*=\s*({NUMBER})", re.I)
 _CRITERIA = re.compile(rf"criteria:\s*energy\s*<\s*({NUMBER})\s*Ry,\s*force\s*<\s*({NUMBER})", re.I)
-_SITE = re.compile(r"^\s*\d+\s+([A-Za-z][A-Za-z0-9_-]*)\s+tau\(")
 
 
 def _number(text: str) -> float:
@@ -123,8 +124,9 @@ def parse_relax(
             in_header = False
             continue
         if in_header:
-            if "tau(" in line and (match := _SITE.match(line)):
-                species[match.group(1)] = species.get(match.group(1), 0) + 1
+            if "tau(" in line and (match := SITE.match(line)):
+                name = match.group("species")
+                species[name] = species.get(name, 0) + 1
             elif "thresh." in line:
                 for i, pattern in enumerate((_ENERGY_THR, _FORCE_THR)):
                     if header[i] is None and (match := pattern.search(line)):
@@ -172,8 +174,7 @@ def parse_relax(
         job_done=job_done,
         truncated_steps=truncated,
         final_scf_energy=final_energy,
-        formula="".join(f"{name}{count if count > 1 else ''}" for name, count in species.items())
-        or None,
+        formula=format_formula(species),
         bfgs_converged=bfgs_converged,
     )
     data.converged = bfgs_converged or is_relaxed(data)

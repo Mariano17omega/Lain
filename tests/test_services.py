@@ -1,5 +1,6 @@
 import threading
 
+from qe_studio.core import sniff as sniff_module
 from qe_studio.ui import services
 
 
@@ -114,3 +115,58 @@ def test_shutdown_skips_queued_tasks(qtbot, demo_project, monkeypatch):
     gate.set()
     assert service.shutdown()
     assert calls == [demo_project / "01_relax"]
+
+
+def _count_reads(monkeypatch) -> list:
+    reads = []
+    real = sniff_module._sniff_uncached
+
+    def counting(path, size):
+        reads.append(path)
+        return real(path, size)
+
+    monkeypatch.setattr(sniff_module, "_sniff_uncached", counting)
+    return reads
+
+
+def test_refresh_keeps_sniffs_of_unchanged_files(qtbot, demo_project, monkeypatch):
+    """Spec 14 R4: F5 redoes detection without reading unchanged files again."""
+    reads = _count_reads(monkeypatch)
+    service = services.DetectionService()
+    folders = [demo_project / name for name in ("01_relax", "02_scf", "03_bands", "04_pdos")]
+    for folder in folders:
+        service.detect_now(folder)
+    assert reads
+    reads.clear()
+    service.invalidate()
+    assert all(service.results(folder) is None for folder in folders)
+    for folder in folders:
+        service.detect_now(folder)
+    assert reads == []
+    assert service.wait()
+
+
+def test_refresh_drops_sniffs_of_deleted_files(qtbot, demo_project):
+    service = services.DetectionService()
+    service.detect_now(demo_project / "03_bands")
+    deleted = demo_project / "03_bands" / "bands.dat.gnu"
+    assert service.file_sniff(deleted) is not None
+    deleted.unlink()
+    service.invalidate()
+    assert service.file_sniff(deleted) is None
+    assert service.file_sniff(demo_project / "03_bands" / "scf.out") is not None
+    assert service.wait()
+
+
+def test_paranoid_refresh_rereads_everything(qtbot, demo_project, monkeypatch):
+    reads = _count_reads(monkeypatch)
+    service = services.DetectionService()
+    service.paranoid_refresh = True
+    folder = demo_project / "03_bands"
+    service.detect_now(folder)
+    first = sorted(reads)
+    reads.clear()
+    service.invalidate()
+    service.detect_now(folder)
+    assert sorted(reads) == first
+    assert service.wait()

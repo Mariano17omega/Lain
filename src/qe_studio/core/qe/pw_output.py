@@ -16,21 +16,18 @@ from typing import Literal
 
 FermiKind = Literal["fermi", "spin_fermi", "homo_lumo", "homo"]
 
-_FLOAT = r"(-?\d+\.\d+)"
-_FERMI_PATTERNS: list[tuple[FermiKind, re.Pattern[str]]] = [
-    ("fermi", re.compile(rf"the Fermi energy is\s+{_FLOAT}\s*ev", re.I)),
-    (
-        "spin_fermi",
-        re.compile(rf"the spin up/dw Fermi energies are\s+{_FLOAT}\s+{_FLOAT}\s*ev", re.I),
-    ),
-    (
-        "homo_lumo",
-        re.compile(
-            rf"highest occupied, lowest unoccupied level \(ev\):\s+{_FLOAT}\s+{_FLOAT}", re.I
-        ),
-    ),
-    ("homo", re.compile(rf"highest occupied level \(ev\):\s+{_FLOAT}", re.I)),
-]
+_NUMBER = r"-?\d+\.\d+"
+# The four ways pw.x prints the reference energy, as one pattern: one pass over the text, the
+# last match wins. The named group that matched tells which kind it is. The phrases are matched
+# as pw.x writes them (as the summary scanner does): re.I made this pass 6x slower.
+_FERMI = re.compile(
+    rf"the Fermi energy is\s+(?P<fermi>{_NUMBER})\s*[eE][vV]"
+    rf"|the spin up/dw Fermi energies are\s+(?P<spin_up>{_NUMBER})\s+(?P<spin_dw>{_NUMBER})"
+    r"\s*[eE][vV]"
+    rf"|highest occupied, lowest unoccupied level \(ev\):\s+(?P<homo>{_NUMBER})"
+    rf"\s+(?P<lumo>{_NUMBER})"
+    rf"|highest occupied level \(ev\):\s+(?P<homo_only>{_NUMBER})"
+)
 _VERSION = re.compile(r"Program PWSCF\s+v\.?\s*(\S+)")
 _NKS = re.compile(r"number of k points=\s*(\d+)")
 _NELEC = re.compile(r"number of electrons\s*=\s*(-?\d+\.?\d*)")
@@ -87,15 +84,23 @@ def _last(pattern: re.Pattern[str], text: str) -> re.Match[str] | None:
     return match
 
 
-def _calculation(text: str, has_fermi: bool) -> str | None:
-    if "Final enthalpy" in text or "new unit-cell volume" in text:
+def _has(texts: tuple[str, ...], marker: str) -> bool:
+    return any(marker in text for text in texts)
+
+
+def _calculation(texts: tuple[str, ...], has_fermi: bool) -> str | None:
+    if _has(texts, "Final enthalpy") or _has(texts, "new unit-cell volume"):
         return "vc-relax"
-    if "number of bfgs steps" in text or "Begin final coordinates" in text:
+    if _has(texts, "number of bfgs steps") or _has(texts, "Begin final coordinates"):
         return "relax"
-    non_scf = "End of band structure calculation" in text or "Band Structure Calculation" in text
+    non_scf = _has(texts, "End of band structure calculation") or _has(
+        texts, "Band Structure Calculation"
+    )
     if non_scf:
         return "nscf" if has_fermi else "bands"
-    if "End of self-consistent calculation" in text or "Self-consistent Calculation" in text:
+    if _has(texts, "End of self-consistent calculation") or _has(
+        texts, "Self-consistent Calculation"
+    ):
         return "scf"
     return None
 
@@ -111,56 +116,62 @@ def _magnetization(text: str) -> tuple[float | None, float | None]:
     return total, absolute
 
 
-def _spin_polarized(text: str) -> bool:
-    if "Noncollinear calculation" in text:
+def _spin_polarized(texts: tuple[str, ...]) -> bool:
+    if _has(texts, "Noncollinear calculation"):
         return False
     markers = ("Starting magnetic structure", "SPIN UP", "total magnetization")
-    return any(marker in text for marker in markers)
+    return any(_has(texts, marker) for marker in markers)
 
 
-def parse_pw_output(text: str) -> PwOutput:
-    best: tuple[int, FermiKind, re.Match[str]] | None = None
-    for kind, pattern in _FERMI_PATTERNS:
-        match = _last(pattern, text)
-        if match and (best is None or match.start() > best[0]):
-            best = (match.start(), kind, match)
+def _fermi(text: str) -> tuple[FermiKind, float, float | None, tuple[float, float] | None] | None:
+    """(kind, reference energy, LUMO, (E_F↑, E_F↓)) of the last reference energy printed."""
+    match = _last(_FERMI, text)
+    if match is None:
+        return None
+    if (value := match.group("fermi")) is not None:
+        return "fermi", float(value), None, None
+    if (up := match.group("spin_up")) is not None:
+        values = (float(up), float(match.group("spin_dw")))
+        return "spin_fermi", sum(values) / 2, None, values
+    if (homo := match.group("homo")) is not None:
+        return "homo_lumo", float(homo), float(match.group("lumo")), None
+    return "homo", float(match.group("homo_only")), None, None
 
-    fermi = lumo = None
-    fermi_kind: FermiKind | None = None
-    up_down = None
-    if best:
-        _, fermi_kind, match = best
-        values = [float(v) for v in match.groups()]
-        if fermi_kind == "spin_fermi":
-            up_down = (values[0], values[1])
-            fermi = sum(values) / 2
-        else:
-            fermi = values[0]
-            if fermi_kind == "homo_lumo":
-                lumo = values[1]
+
+def parse_pw_output(head: str, tail: str | None = None) -> PwOutput:
+    """Facts of a pw.x output from its ``head`` and ``tail`` (spec 14 R5.2).
+
+    What pw.x prints once at the start (version, k points, electrons, bands, alat) is read from
+    the head; what it prints again as the run goes (Fermi energy, magnetization, convergence,
+    ``JOB DONE``) is the last occurrence, read from the tail; markers may be in either. With
+    ``tail`` None (a file read whole) both are ``head``, and each text is scanned once.
+    """
+    tail = head if tail is None else tail
+    texts = (head,) if tail is head else (head, tail)
+    fermi = _fermi(tail)
 
     def first_int(pattern: re.Pattern[str]) -> int | None:
-        match = pattern.search(text)
+        match = pattern.search(head)
         return int(match.group(1)) if match else None
 
-    nelec = _NELEC.search(text)
-    nelec_spin = _NELEC_SPIN.search(text)
-    alat = _ALAT.search(text)
-    version = _VERSION.search(text)
+    nelec = _NELEC.search(head)
+    nelec_spin = _NELEC_SPIN.search(head)
+    alat = _ALAT.search(head)
+    version = _VERSION.search(head)
     converged = None
-    if "convergence NOT achieved" in text:
+    if "convergence NOT achieved" in tail:
         converged = False
-    elif "convergence has been achieved" in text:
+    elif "convergence has been achieved" in tail:
         converged = True
 
-    total_mag, abs_mag = _magnetization(text)
+    total_mag, abs_mag = _magnetization(tail)
     return PwOutput(
         version=version.group(1) if version else None,
-        calculation=_calculation(text, best is not None),
-        fermi=fermi,
-        fermi_kind=fermi_kind,
-        lumo=lumo,
-        fermi_up_down=up_down,
+        calculation=_calculation(texts, fermi is not None),
+        fermi=fermi[1] if fermi else None,
+        fermi_kind=fermi[0] if fermi else None,
+        lumo=fermi[2] if fermi else None,
+        fermi_up_down=fermi[3] if fermi else None,
         n_kpoints=first_int(_NKS),
         n_electrons=float(nelec.group(1)) if nelec else None,
         n_electrons_up_down=(
@@ -168,11 +179,11 @@ def parse_pw_output(text: str) -> PwOutput:
         ),
         n_bands=first_int(_NBND),
         alat_bohr=float(alat.group(1)) if alat else None,
-        spin_polarized=_spin_polarized(text),
-        noncollinear="Noncollinear calculation" in text,
+        spin_polarized=_spin_polarized(texts),
+        noncollinear="Noncollinear calculation" in head,
         total_magnetization=total_mag,
         absolute_magnetization=abs_mag,
-        job_done="JOB DONE" in text,
+        job_done="JOB DONE" in tail,
         converged=converged,
     )
 

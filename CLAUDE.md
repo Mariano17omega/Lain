@@ -28,7 +28,7 @@ uv run lain [--config path/to/config.yaml] [--verbose]
 uv run pytest                                    # full suite (~40 s), headless
 uv run pytest -m "not realdata and not perf"     # what CI runs (.github/workflows/ci.yml)
 uv run pytest tests/test_detection.py::test_name # single test
-uv run pytest -m perf                            # NFR §7 latency budget (<500 ms, 100 bands)
+uv run pytest -m perf -s                         # latency budgets: plot (NFR §7) and detection (spec 14)
 QE_STUDIO_REAL_DATA=/runs:/other uv run pytest -m realdata   # user's own QE runs (off by default)
 uv run ruff check . && uv run ruff format --check .
 uv run pyright                                   # basic mode over src/ (CI); see [tool.pyright] ignore list
@@ -57,8 +57,8 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 - `test_qe_versions.py` keeps one table with a row per fixture folder and checks each version's
   Fermi/HOMO line, `.gnu` separators, bands.x output and PDOS headers. Adding a QE version =
   a real trimmed run in `tests/fixtures/qe<ver>_<system>/` + a row there (see the fixtures README).
-- `test_properties.py` holds the Hypothesis tests of the parsers (`read_gnu`, `parse_relax`, the input
-  lexer/linter; specs 9, 12 add theirs). `conftest.py` registers profiles `dev` and `ci`
+- `test_properties.py` holds the Hypothesis tests of the parsers (`read_gnu`/`gnu_shape`, `parse_relax`,
+  the input lexer/linter; specs 9, 12 add theirs). `conftest.py` registers profiles `dev` and `ci`
   (`HYPOTHESIS_PROFILE=ci`: fewer examples, no deadline, no example database).
 - `viewer_helpers.py` (`open_text`, `key`) is shared by the text viewer tests, like `sync_helpers.py`
   is by the sync ones.
@@ -68,6 +68,12 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   `test_spin_window.py`); `test_figure_regression.py` compares the artists of no-spin figures and the
   mirrored PDOS (`figure_structure.py`) with data captured before the spin work.
 - `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`.
+- Detection performance (spec 14): `tests/synthetic.py` builds a 520-folder project from the fixtures,
+  a 200 MB relax output, an 80 MB `.gnu` and a 20 MB output with a long header, always in tmp dirs.
+  `test_perf_detection.py` times them (`-m perf -s` prints the numbers; the baseline and budgets are
+  in the spec's notes); its import test (no `ase` after importing `main_window`) is not `perf`.
+  `test_pw_output_regression.py` compares `PwOutput` of every fixture output with
+  `pw_output_golden.json`, captured from the parser before it read head and tail separately.
 - Sync integration tests run the **real `rsync` and `ssh` binaries** (skipped if either is absent).
   Cluster sync is tested against `tests/ssh_server.py`, a **local SSH server built with paramiko**
   (dev dependency): the `ssh_server` fixture yields `(server, remote_root)`, a server on a free
@@ -109,20 +115,31 @@ File names are only hints; everything is identified by content.
 
 1. `core/sniff.py`: `sniff(path)` classifies one file into a `FileKind` (pw.x in/out, bands.x
    in/out, projwfc, dos, `.gnu`, PDOS atm/tot…) by reading head/tail bytes with the parsers in
-   `core/qe/`. `SniffCache` memoizes per (mtime, size) and is thread-safe.
+   `core/qe/`. `SniffCache` memoizes per (mtime, size) and is thread-safe. pw.x outputs up to
+   16 MB are read whole; bigger ones as a 256 KB head (facts printed once: k points, electrons…)
+   and a 1 MB tail (last ones: Fermi, convergence, `JOB DONE`), `parse_pw_output(head, tail)`.
+   A `.gnu` is streamed (`bands_x.gnu_shape`, no size limit), never loaded by the sniff.
 2. `core/calculations/base.py`: each `CalculationModule` declares `FileRole`s (id, content
-   predicate `accepts`, optional PRD naming `globs`, `required`/`multiple`/`anchor`). `match()`
-   fills roles in passes: user mapping (`forced`) → PRD glob verified by content → content only;
-   `finalize()` hooks cross-role logic, and `infer_from_neighbours()` finds the SCF output in the
-   parent or sibling `*scf*` folders. A module with no anchor role present returns `None`.
-3. `core/detection.py`: `detect_folder()` runs every module in `REGISTRY`; `fallback` modules
-   (SCF/CALC info badges) apply only when no primary kind matched. `FolderMemory` stores manual
-   mappings and typed k-point labels in the app data dir, never inside simulation folders (they
-   get synced).
+   predicate `accepts`, optional PRD naming `globs`, `required`/`multiple`/`anchor`).
+   `match(listing, sniffs, sniff, forced)` fills roles in passes: user mapping (`forced`) → PRD glob
+   verified by content → content only; `finalize()` hooks cross-role logic, and
+   `infer_from_neighbours()` finds the SCF output in the parent or sibling `*scf*` folders. A module
+   with no anchor role present returns `None`.
+3. `core/detection.py`: `detect_folder()` sniffs each file once (`sniff_once`: a per-call memo that
+   also covers neighbour folders and the hooks) and runs every module in `REGISTRY` on those sniffs;
+   `fallback` modules (SCF/CALC info badges) apply only when no primary kind matched.
+   `core/folder_memory.py:FolderMemory` stores manual mappings and typed k-point labels in the app
+   data dir (`folders.json`, format version 2), never inside simulation folders (they get synced).
+   Keys are folder paths relative to `paths.local_root` (`"."` = the root, `abs:<path>` outside it;
+   `MainWindow` calls `set_root` on start and config reload) and mapped files are relative to their
+   folder, so a moved or copied project keeps them. Version 1 files (absolute keys) migrate on the
+   first read; an unreadable file is renamed `folders.json.corrompido-<date>`, never overwritten.
 
 **Adding a calculation type** (NFR §7): subclass `CalculationModule[Dataset, Params]` in
 `core/calculations/` (detection-only modules use `CalculationModule[None, CommonParams]`), register
-it in `core/calculations/__init__.py:REGISTRY`, and for plottable modules implement `load`,
+it in `core/calculations/__init__.py:REGISTRY`, and for plottable modules implement
+`load(result, sniff)` (`sniff` is the caller's cache, the service's in the app: read
+`sniff(path).pw` instead of parsing outputs again; never import the module-level `sniff`),
 `default_params`, `param_schema`, `render` (returns `RenderInfo`) and optionally `param_changed`.
 Params are dataclasses extending `CommonParams`; the tuning panel (`ui/widgets/params_body.py`) is
 generated from the `ParamField` list in `param_schema`. **No file in `ui/` may know a module**
@@ -250,7 +267,9 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
 
 - `ui/services.py:DetectionService` caches detection per folder and runs misses in a 2-thread
   `QThreadPool`. Tasks carry a token; `invalidate()` supersedes running tasks so stale results
-  are dropped. `detect_now()` is synchronous: scripts and tests only.
+  are dropped. `detect_now()` is synchronous: scripts and tests only. F5 (`invalidate()` without a
+  folder) keeps the sniffs of files that still exist (`SniffCache.prune`: each entry is checked
+  against its file's (mtime, size) when used anyway); `ui.paranoid_refresh: true` drops them all.
 - `MainWindow` loads datasets via `QRunnable` in the global pool, then renders on the GUI thread.
 - Keep finished `QRunnable`s / their signal objects alive until the next event-loop turn
   (`QTimer.singleShot(0, ...)`) because the slot runs on that signal object.

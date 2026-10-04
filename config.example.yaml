@@ -71,3 +71,6 @@ ui:
   theme: dark
   # Folder names/patterns hidden in the explorer.
   hidden_dirs: [tmp, "*.save"]
+  # F5 (Atualizar) keeps what it read from files whose size and modification time did not
+  # change. true: reread every file on F5 (only needed if something rewrites files keeping both).
+  paranoid_refresh: false

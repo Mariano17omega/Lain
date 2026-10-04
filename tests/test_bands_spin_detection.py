@@ -7,8 +7,10 @@ import pytest
 
 from qe_studio.core.calculations import module_for
 from qe_studio.core.calculations.base import Method
-from qe_studio.core.detection import FolderMemory, manual_result
+from qe_studio.core.detection import manual_result
+from qe_studio.core.folder_memory import FolderMemory
 from qe_studio.core.qe.bands_x import read_gnu
+from qe_studio.core.sniff import sniff
 from spin_helpers import (
     FIXTURES,
     SPIN_BANDS,
@@ -107,7 +109,7 @@ def test_missing_down_channel_warns_and_the_plot_has_the_up_channel_only(tmp_pat
     assert names(result, "gnu") == ["bands_up.dat.gnu"]
     assert "gnu_down" not in result.files and "filband_down" not in result.files
     assert ONLY_UP in result.warnings
-    dataset = result.module.load(result)
+    dataset = result.module.load(result, sniff)
     assert dataset.bands_down is None and not dataset.spin
     assert dataset.bands.n_bands == 14
 
@@ -206,7 +208,7 @@ def test_manual_mapping_of_the_down_channel_is_kept(tmp_path):
     result = manual_result(module, folder, mapping)
     assert result.files["gnu_down"] == [other] and result.methods["gnu_down"] is Method.MANUAL
     assert result.warnings == []
-    assert module.load(result).spin
+    assert module.load(result, sniff).spin
 
     memory = FolderMemory(tmp_path / "folders.json")
     memory.set_mapping(folder, "bands", mapping)

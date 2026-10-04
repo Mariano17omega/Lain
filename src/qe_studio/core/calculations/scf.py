@@ -28,7 +28,15 @@ from ..plotting.draw import (
 from ..plotting.style import PlotStyle
 from ..qe.scf import ScfData, read_scf
 from ..sniff import FileKind
-from .base import AxesLimits, CalculationModule, DetectionResult, FileRole, LoadError, output_of
+from .base import (
+    AxesLimits,
+    CalculationModule,
+    DetectionResult,
+    FileRole,
+    LoadError,
+    SniffFn,
+    output_of,
+)
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
 from .readout import signed
 
@@ -107,7 +115,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
         paths = files.get("scf_out")
         return paths[0] if paths else folder
 
-    def load(self, result: DetectionResult) -> ScfDataset:
+    def load(self, result: DetectionResult, sniff: SniffFn) -> ScfDataset:
         output = result.file("scf_out")
         if output is None:
             raise LoadError("Saída do SCF não encontrada.")

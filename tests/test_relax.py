@@ -19,7 +19,7 @@ from qe_studio.core.detection import detect_folder
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
 from qe_studio.core.plotting.style import LIGHT
 from qe_studio.core.qe.relax import CRITERIA, HEADER, INPUT, QE_DEFAULT, parse_relax, read_relax
-from qe_studio.core.sniff import SniffCache
+from qe_studio.core.sniff import SniffCache, sniff
 
 from conftest import FIXTURES, copy_fixture
 
@@ -30,7 +30,7 @@ RELAX = module_for("relax")
 def load(folder: Path):
     (result,) = detect_folder(folder, sniff=SniffCache().sniff)
     assert result.kind == "relax"
-    dataset = RELAX.load(result)
+    dataset = RELAX.load(result, sniff)
     return result, dataset, RELAX.default_params(CONFIG, dataset)
 
 
@@ -173,7 +173,7 @@ def test_no_complete_step_is_a_load_error(tmp_path):
     (folder / "relax.out").write_text(text + "     number of bfgs steps    =   0\n")
     (result,) = detect_folder(folder, sniff=SniffCache().sniff)
     with pytest.raises(LoadError, match="Nenhum passo de relaxamento completo em relax.out"):
-        RELAX.load(result)
+        RELAX.load(result, sniff)
 
 
 @pytest.mark.parametrize(
