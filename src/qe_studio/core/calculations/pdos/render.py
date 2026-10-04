@@ -12,6 +12,7 @@ from matplotlib.lines import Line2D
 
 from ...config import DEFAULT_ORBITAL_COLORS
 from ...plotting.draw import finish, new_axes
+from ...plotting.gap_label import gap_handle, gap_label
 from ...plotting.style import PlotStyle
 from ...qe import projwfc
 from ..params import RenderInfo
@@ -159,6 +160,10 @@ def render_pdos(
     handles = None
     if spin and mode == "overlay":
         handles = ax.get_legend_handles_labels()[0] + _line_styles(params, style)
+    if params.legend_gap and dataset.gap is not None:
+        if handles is None:
+            handles = ax.get_legend_handles_labels()[0]
+        handles.append(gap_handle(gap_label(dataset.gap.value, approx=dataset.gap.source == "dos")))
     finish(figure, ax, params, handles)
     xlim, ylim = (dos_lim, e_lim) if vertical else (e_lim, dos_lim)
     return RenderInfo(xlim, ylim, summary(dataset, params))

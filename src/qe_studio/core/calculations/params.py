@@ -121,6 +121,15 @@ LEGEND_LOCATIONS = (
     ("outside", "Fora (direita)"),
 )
 
+# Only the band and PDOS modules offer it (it is not in COMMON_FIELDS): a gap needs a spectrum.
+LEGEND_GAP_FIELD = ParamField(
+    "legend_gap",
+    "Gap de energia na legenda",
+    "Legenda",
+    "bool",
+    tooltip="Mostra o gap (CBM − VBM) na legenda. Sem efeito com a legenda oculta ou em sistema metálico.",
+)
+
 COMMON_FIELDS = (
     ParamField("line_width", "Espessura", "Estilo", "float", minimum=0.1, maximum=6, step=0.1),
     ParamField("show_legend", "Mostrar legenda", "Legenda", "bool"),

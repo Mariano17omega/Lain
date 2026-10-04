@@ -283,6 +283,19 @@ without spin keeps the old path (`render._render_plain`, `n_electrons / 2` edges
 (↑ solid, ↓ dashed). The side-by-side layout shares both axes (`draw.side_axes`), so a zoom in either
 panel lands in `axes_limits[0]`. PDOS `spin_mode`: mirror (default) | overlay | up | down | sum.
 
+### Energy gap in the legend (spec 20)
+
+`legend_gap` (default off) is a `bool` of `BandsParams` and `PdosParams` only: the shared
+`calculations/params.py:LEGEND_GAP_FIELD` goes after `COMMON_FIELDS` in both schemas (SCF and relax never see it).
+The entry is text only (`core/plotting/gap_label.py`, Qt-free: `gap_label`, `gap_handle`: an invisible `Line2D`),
+last in the legend, and does nothing with the legend hidden or without a gap (a metal writes no "metálico").
+Bands: `bands/gap.py:gap_entries(dataset)` is the one source of the footer (`summary`, `_spin_gaps`) and the legend:
+no spin → one entry (`channel=None`); spin → `up` / `down` (those with a gap) and `global`; the gap is `CBM − VBM`,
+independent of `reference` and the window. PDOS: `PdosDataset.gap` (`pdos/gap.py:GapInfo`, set in `load_dataset`, so
+the GUI only draws) is the HOMO / LUMO pw.x printed (`homo_lumo`, first of NSCF, SCF; a closed pair = metal) else
+`projwfc.dos_gap` on `PdosData.total` (`dos`, drawn `≈`, 2 decimals): always the system's total, never the drawn
+series, and smeared edges make it read narrower than the true gap.
+
 ### Navigation, filters and selection (spec 16)
 
 Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:

@@ -6,7 +6,13 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from ...config import DEFAULT_ORBITAL_COLORS
-from ..params import COMMON_FIELDS, CommonParams, ParamField, apply_common_config
+from ..params import (
+    COMMON_FIELDS,
+    LEGEND_GAP_FIELD,
+    CommonParams,
+    ParamField,
+    apply_common_config,
+)
 
 if TYPE_CHECKING:
     from ...config import AppConfig
@@ -47,6 +53,7 @@ class PdosParams(CommonParams):
         default_factory=lambda: dict(DEFAULT_ORBITAL_COLORS), metadata={"kind": "colors"}
     )
     show_legend: bool = True
+    legend_gap: bool = False  # the energy gap as a legend entry
     spin_mode: str = "mirror"  # only offered (and used) when the PDOS has two channels
 
 
@@ -136,6 +143,7 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
         ParamField("hidden_series", "Séries", "Projeções", "series", colors="series_colors"),
         ParamField("fermi_color", "Fermi", "Estilo", "color"),
         *COMMON_FIELDS,
+        LEGEND_GAP_FIELD,
     ]
 
 

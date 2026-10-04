@@ -5,7 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..params import COMMON_FIELDS, CommonParams, ParamField, apply_common_config
+from ..params import (
+    COMMON_FIELDS,
+    LEGEND_GAP_FIELD,
+    CommonParams,
+    ParamField,
+    apply_common_config,
+)
 
 if TYPE_CHECKING:
     from ...config import AppConfig
@@ -49,6 +55,7 @@ class BandsParams(CommonParams):
     valence_color: str = "#2563eb"
     conduction_color: str = "#00d2ff"
     fermi_color: str = "#f43f5e"
+    legend_gap: bool = False  # the energy gap as a legend entry (needs show_legend)
     # Spin (only offered when the dataset has two channels). No schema field without spin, so the
     # colors say how to validate a stored value.
     spin_channels: str = "both"
@@ -150,6 +157,7 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
         ParamField("fermi_color", "Fermi", "Estilo", "color"),
         *(_spin_fields() if dataset.spin else []),
         *COMMON_FIELDS,
+        LEGEND_GAP_FIELD,
     ]
 
 

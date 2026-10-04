@@ -20,6 +20,13 @@ ATM_PATTERN = re.compile(
 )
 TOT_PATTERN = re.compile(r"^(?P<prefix>.*?)\.?pdos_tot$")
 ORBITAL_ORDER = "spdf"
+# The gap read off a total DOS curve (``dos_gap``). Energies below this fraction of the curve's
+# maximum count as "no states": a smeared band edge has a long, faint tail that would otherwise
+# close the gap. Raising it widens the tail that is ignored and shrinks the gap found.
+GAP_DOS_REL_TOL = 1e-3
+# How far (eV) from E_F the empty region may lie: E_F sits in a gap or on its edge, but a region
+# further away says nothing about the Fermi level (a metal with a pseudogap elsewhere).
+GAP_SEARCH_EV = 0.25
 
 
 class PdosFormatError(ValueError):
@@ -199,3 +206,33 @@ def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosDa
             total = s.channel if total is None else total + s.channel
         warnings.append("pdos_tot ausente: total = soma das projeções")
     return PdosData(energy, tuple(series), total, total_is_sum, tuple(warnings))
+
+
+def dos_gap(energy: np.ndarray, total: Channel, fermi: float | None) -> float | None:
+    """The energy gap around ``fermi`` read off the total DOS (both spin channels summed), or None.
+
+    The gap is the empty region (``GAP_DOS_REL_TOL`` of the maximum or less) nearest E_F, at most
+    ``GAP_SEARCH_EV`` away, measured from the last point above the threshold below it to the first
+    above it: the error is about the grid step plus the broadening. There is none without E_F, with
+    E_F inside a band (a metal), or when the region reaches the edge of the grid (no states on one
+    side to bound it).
+    """
+    if fermi is None or len(energy) < 3:
+        return None
+    dos = total.up if total.down is None else total.up + total.down
+    peak = float(dos.max())
+    if peak <= 0:
+        return None
+    padded = np.concatenate(([False], dos <= GAP_DOS_REL_TOL * peak, [False]))
+    changes = np.flatnonzero(padded[1:] != padded[:-1])  # runs of empty points: [start, stop)
+    best: tuple[float, int, int] | None = None
+    for start, stop in zip(changes[::2], changes[1::2], strict=True):
+        away = max(float(energy[start]) - fermi, fermi - float(energy[stop - 1]), 0.0)
+        if away <= GAP_SEARCH_EV and (best is None or away < best[0]):
+            best = (away, int(start), int(stop))
+    if best is None:
+        return None
+    _, start, stop = best
+    if start == 0 or stop == len(energy):
+        return None
+    return float(energy[stop] - energy[start - 1])

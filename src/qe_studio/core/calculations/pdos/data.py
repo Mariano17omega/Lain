@@ -8,6 +8,7 @@ from pathlib import Path
 from ...qe import projwfc
 from ...qe.pw_output import PwOutput
 from ..base import DetectionResult, LoadError, SniffFn
+from .gap import GapInfo, pdos_gap
 
 
 @dataclass
@@ -21,6 +22,7 @@ class PdosDataset:
     channels_scf: tuple[float, float] | None = None
     channels_nscf: tuple[float, float] | None = None
     magnetization: float | None = None  # total, μB/cell
+    gap: GapInfo | None = None  # of the system, not of what is drawn
 
     def _use_nscf(self, source: str) -> bool:
         if source == "nscf" and self.fermi_nscf is not None:
@@ -60,6 +62,7 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
         channels_scf=scf.fermi_up_down if scf else None,
         channels_nscf=nscf.fermi_up_down if nscf else None,
         magnetization=magnetization,
+        gap=pdos_gap(scf, nscf, data),
     )
     if dataset.fermi("scf") is None:
         dataset.warnings.append("energia de Fermi não encontrada: energias absolutas")

@@ -15,6 +15,7 @@ from ...qe.pw_input import format_kpoint_label
 from ..params import RenderInfo
 from ..readout import nearest_tick_label, signed
 from .data import BandsDataset, valence_mask
+from .gap import gap_entries, gap_handles
 from .params import ENERGY_NAMES, Y_LABELS, BandsParams
 
 SYMBOL = {"up": "↑", "down": "↓"}
@@ -77,6 +78,7 @@ def _render_plain(
         handles.append(
             Line2D([], [], color=params.fermi_color, lw=0.9, ls=(0, (5, 3)), label="$E_F$")
         )
+    handles += gap_handles(dataset, params)
     ax.set_xticks(ticks, labels)
     xlim = (
         params.xmin if params.xmin is not None else float(x[0]),
@@ -139,6 +141,7 @@ def _render_spin(
     if len(channels) == 2 and not side:
         handles += _channel_styles(params, style)
     handles += fermi_handles
+    handles += gap_handles(dataset, params)
     if side:
         finish_side(figure, axes, params, handles)
     else:
@@ -269,8 +272,8 @@ def summary(dataset: BandsDataset) -> str:
             parts.append(f"M = {dataset.magnetization:.2f} μB/célula")
     elif dataset.edges:  # spin run with the ↑ channel only: not a verdict on the whole system
         parts += _spin_gaps(dataset)
-    elif dataset.gap is not None:
-        parts.append(f"E_gap = {dataset.gap:.3f} eV")
+    elif gaps := gap_entries(dataset):
+        parts.append(f"E_gap = {gaps[0].value:.3f} eV")
     elif dataset.fermi is not None:
         parts.append("metálico")
     parts.append(f"{dataset.bands.n_bands} bandas × {dataset.bands.n_kpoints} pontos k")
@@ -280,13 +283,14 @@ def summary(dataset: BandsDataset) -> str:
 def _spin_gaps(dataset: BandsDataset) -> list[str]:
     """``gap ↑ 1.234 eV``, ``↓ metálico`` per channel, and the global gap when both have one."""
     parts = []
+    gaps = {entry.channel: entry.value for entry in gap_entries(dataset)}
     for channel, edges in dataset.edges.items():
-        if edges.gap is not None:
-            parts.append(f"gap {SYMBOL[channel]} {edges.gap:.3f} eV")
+        if channel in gaps:
+            parts.append(f"gap {SYMBOL[channel]} {gaps[channel]:.3f} eV")
         elif edges.metallic:
             parts.append(f"{SYMBOL[channel]} metálico")
-    if dataset.gap is not None:
-        parts.append(f"gap global {dataset.gap:.3f} eV")
+    if "global" in gaps:
+        parts.append(f"gap global {gaps['global']:.3f} eV")
     return parts
 
 

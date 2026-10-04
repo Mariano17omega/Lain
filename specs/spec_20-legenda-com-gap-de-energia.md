@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 20 (independente das demais; a spec 22 reaproveita o campo e o texto) |
-| **Status** | Rascunho para revisão (reescrita: a primeira versão confundia o gap com a energia de Fermi) |
+| **Status** | Implementada. Desvios: o handle da PDOS entra na lista explícita de handles (`ax.get_legend_handles_labels()` + o texto), não como artista vazio em `ax.plot`, para `ax.get_lines()` não ganhar um artista; o gap exato vem do primeiro entre NSCF e SCF que **imprimiu** HOMO/LUMO (não só "o NSCF, se existir"), e um par impresso que não abre gap (`lumo − homo ≤ EDGE_TOL`) é conclusivo: metal, sem consultar a curva; `gap_handle` mora em `gap_label.py` e o campo é a constante `LEGEND_GAP_FIELD` de `calculations/params.py` (fora de `COMMON_FIELDS`), colocada depois dos campos comuns, no fim da seção "Legenda". A curva de DOS **encolhe** o gap pela cauda do alargamento (≈ 3σ por borda com limiar `GAP_DOS_REL_TOL = 1e-3`): um alargamento gaussiano de 0,04 eV dá ≈ 0,96 eV para 1,2 eV, e um maior erra mais; por isso o `≈`. Sem PDOS de isolante nas fixtures, a curva só foi ajustada em curvas sintéticas |
 | **Depende de** | spec 13 (bandas e PDOS já em pacotes, com spin) |
 | **Usada por** | spec 22 (a figura combinada bandas + DOS) |
 | **Esforço** | M |

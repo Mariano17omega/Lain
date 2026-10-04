@@ -162,3 +162,15 @@ def test_numpy_values_are_written_as_numbers(tmp_path):
     write_plot_file(tmp_path, "bands", params)
     stored, _ = read_plot_file(tmp_path, "bands")
     assert (stored["emin"], stored["xmax"]) == (-2.5, 1.25)
+
+
+@pytest.mark.parametrize("params_class, kind", [(BandsParams, "bands"), (PdosParams, "pdos")])
+def test_legend_gap_round_trips_and_an_old_file_without_it_loads(tmp_path, params_class, kind):
+    write_plot_file(tmp_path, kind, params_class(legend_gap=True))
+    stored, _ = read_plot_file(tmp_path, kind)
+    fresh = params_class()
+    assert apply_stored(fresh, stored) == [] and fresh.legend_gap is True
+    old = {name: value for name, value in stored.items() if name != "legend_gap"}
+    fresh = params_class(legend_gap=False)
+    assert apply_stored(fresh, old) == [] and fresh.legend_gap is False
+    assert apply_stored(params_class(), {"legend_gap": "sim"}) == ["legend_gap"]
