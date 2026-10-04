@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSizePolicy,
     QStatusBar,
     QToolButton,
     QVBoxLayout,
@@ -18,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..theme.manager import ThemeManager
+from .breadcrumb import Breadcrumb
 from .common import IconButton, set_variant
 from .spinner import CircularProgress
 
@@ -154,10 +154,13 @@ class TopBar(QWidget):
         layout.setContentsMargins(8, 0, 8, 0)
         layout.setSpacing(8)
 
-        self.path_chip = QLabel()
-        self.path_chip.setObjectName("pathChip")
-        self.path_chip.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        self.path_chip.setMaximumWidth(420)
+        # History buttons and the clickable path (spec 16 R1, R2); disabled until there is somewhere
+        # to go back or forward to.
+        self.back_button = IconButton(theme, "arrow_back", "Voltar (Alt+←)")
+        self.forward_button = IconButton(theme, "arrow_forward", "Avançar (Alt+→)")
+        for button in (self.back_button, self.forward_button):
+            button.setEnabled(False)
+        self.breadcrumb = Breadcrumb()
         self.led = StatusLed(theme)
         self.cluster_label = QLabel()
         self.cluster_label.setObjectName("clusterLabel")
@@ -166,7 +169,9 @@ class TopBar(QWidget):
         separator.setFixedHeight(18)
         separator.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
-        layout.addWidget(self.path_chip)
+        layout.addWidget(self.back_button)
+        layout.addWidget(self.forward_button)
+        layout.addWidget(self.breadcrumb)
         layout.addWidget(self.led)
         layout.addWidget(self.cluster_label)
         layout.addWidget(separator)
@@ -200,12 +205,16 @@ class TopBar(QWidget):
         theme.theme_changed.connect(self._refresh_icons)
         self._refresh_icons()
 
+    def set_root(self, root: Path) -> None:
+        """The project the breadcrumb starts from."""
+        self.breadcrumb.set_root(root)
+
     def set_path(self, folder: Path) -> None:
-        home = Path.home()
-        text = f"~/{folder.relative_to(home)}" if folder.is_relative_to(home) else str(folder)
-        metrics = self.path_chip.fontMetrics()
-        self.path_chip.setText(metrics.elidedText(text, Qt.TextElideMode.ElideLeft, 380))
-        self.path_chip.setToolTip(str(folder))
+        self.breadcrumb.set_path(folder)
+
+    def set_history(self, can_back: bool, can_forward: bool) -> None:
+        self.back_button.setEnabled(can_back)
+        self.forward_button.setEnabled(can_forward)
 
     def set_cluster(self, label: str, state: str) -> None:
         self.cluster_label.setText(label)

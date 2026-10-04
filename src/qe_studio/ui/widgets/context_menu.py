@@ -3,6 +3,9 @@
 Four actions: Abrir local de origem, Abrir com ▸, Copiar, Renomear. A file one module can plot on
 its own (spec 9) also gets "Plotar" on top. Renaming and plotting touch global state (tabs, plot
 settings, folder memory), so they are handed to the main window.
+
+With several items selected in the grid (spec 16 R5) the menu is shorter: the item count, Abrir local
+de origem, Copiar and, for exactly two QE inputs, Comparar.
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from PyQt6.QtCore import QMimeData, QMimeDatabase, QObject, QPoint, QProcess, QUrl, pyqtSignal
@@ -18,6 +22,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
 from ...core.calculations import module_for_file
 from ...core.desktop_apps import DesktopApp, catalog, expand_exec
+from ...core.sniff import looks_like_input
 from ..dialogs.open_with import ask_command
 from ..services import DetectionService
 from .workspace_tabs import add_action
@@ -48,17 +53,36 @@ class ItemActions(QObject):
     rename_requested = pyqtSignal(Path)
     plot_file_requested = pyqtSignal(Path, str)  # file, kind of the module that plots it
     summary_requested = pyqtSignal(Path)  # "Resumo" of a QE output (spec 12)
+    compare_requested = pyqtSignal(Path, Path)  # "Comparar" of two QE inputs (spec 16 R5.5)
+    favorite_toggled = pyqtSignal(Path, bool)  # folder, now a favorite (spec 16 R4.1)
 
-    def __init__(self, window: QWidget, service: DetectionService):
+    def __init__(
+        self,
+        window: QWidget,
+        service: DetectionService,
+        is_favorite: Callable[[Path], bool] = lambda path: False,
+    ):
         super().__init__(window)
         self.window = window
         self.service = service
-        self._reveals: dict[QObject, Path] = {}  # pending D-Bus calls → item
+        self.is_favorite = is_favorite
+        self._reveals: dict[QObject, list[Path]] = {}  # pending D-Bus calls → items
 
-    def show(self, path: Path, pos: QPoint, can_rename: bool = True) -> None:
-        """The menu of ``path`` at the global position ``pos``."""
-        plot_kind, is_output = self.file_actions_of(path)
-        menu = self.menu(path, can_rename=can_rename, plot_kind=plot_kind, summary=is_output)
+    def show(self, paths: list[Path], pos: QPoint, can_rename: bool = True) -> None:
+        """The menu of the selected ``paths`` at the global position ``pos``."""
+        if len(paths) == 1:
+            path = paths[0]
+            plot_kind, is_output = self.file_actions_of(path)
+            favorite = self.is_favorite(path) if path.is_dir() else None
+            menu = self.menu(
+                path,
+                can_rename=can_rename,
+                plot_kind=plot_kind,
+                summary=is_output,
+                favorite=favorite,
+            )
+        else:
+            menu = self.multi_menu(paths)
         menu.exec(pos)
         menu.deleteLater()
 
@@ -79,9 +103,11 @@ class ItemActions(QObject):
         can_rename: bool = True,
         plot_kind: str | None = None,
         summary: bool = False,
+        favorite: bool | None = None,
     ) -> QMenu:
         """``plot_kind``: the module that plots this file alone (spec 9); ``summary``: it is a QE
-        output (spec 12). Both go on top, apart from the actions every item has."""
+        output (spec 12). Both go on top, apart from the actions every item has. ``favorite``: for
+        a folder, whether it is one already (spec 16 R4.1); None for files."""
         menu = QMenu(self.window)
         if plot_kind is not None:
             add_action(menu, "Plotar", lambda: self.plot_file_requested.emit(path, plot_kind))
@@ -94,8 +120,40 @@ class ItemActions(QObject):
         assert open_with is not None
         open_with.aboutToShow.connect(lambda: self._fill_open_with(open_with, path))
         add_action(menu, "Copiar", lambda: self.copy(path))
+        if favorite is not None:
+            text = "Remover dos favoritos" if favorite else "Adicionar aos favoritos"
+            add_action(menu, text, lambda: self.favorite_toggled.emit(path, not favorite))
         add_action(menu, "Renomear", lambda: self.rename_requested.emit(path), can_rename)
         return menu
+
+    def multi_menu(self, paths: list[Path]) -> QMenu:
+        """The menu of a selection of several items (grid only): no per-item actions."""
+        menu = QMenu(self.window)
+        add_action(menu, f"{len(paths)} itens", lambda: None, enabled=False)
+        menu.addSeparator()
+        add_action(menu, "Abrir local de origem", lambda: self.reveal_all(paths))
+        add_action(menu, "Copiar", lambda: self.copy_all(paths))
+        pair = self.input_pair(paths)
+        if pair is not None:
+            add_action(menu, "Comparar", lambda: self.compare_requested.emit(*pair))
+        if all(path.is_dir() for path in paths):  # favorites are folders
+            every = all(self.is_favorite(path) for path in paths)
+            text = "Remover dos favoritos" if every else "Adicionar aos favoritos"
+            add_action(menu, text, lambda: self._toggle_favorites(paths, not every))
+        return menu
+
+    def _toggle_favorites(self, paths: list[Path], favorite: bool) -> None:
+        for path in paths:
+            self.favorite_toggled.emit(path, favorite)
+
+    @staticmethod
+    def input_pair(paths: list[Path]) -> tuple[Path, Path] | None:
+        """Exactly two QE inputs (spec 11 R4.1, the head of each file), in path order: what
+        "Comparar" takes. Folders are never inputs."""
+        if len(paths) != 2 or any(p.is_dir() or not looks_like_input(p) for p in paths):
+            return None
+        first, second = sorted(paths)
+        return first, second
 
     # -- Abrir com --------------------------------------------------------------------------------
     def _fill_open_with(self, submenu: QMenu, path: Path) -> None:
@@ -143,12 +201,17 @@ class ItemActions(QObject):
     # -- Abrir local de origem --------------------------------------------------------------------
     def reveal(self, path: Path) -> None:
         """Show the item selected in the system file manager (a folder: in its parent)."""
-        if IS_WINDOWS:
-            QProcess.startDetached("explorer", [f"/select,{path}"])
-        elif not self._show_items_dbus(path):
-            self._open_parent(path)
+        self.reveal_all([path])
 
-    def _show_items_dbus(self, path: Path) -> bool:
+    def reveal_all(self, paths: list[Path]) -> None:
+        """Show the items, all selected when the file manager allows it (Windows' Explorer takes
+        one ``/select``: the first)."""
+        if IS_WINDOWS:
+            QProcess.startDetached("explorer", [f"/select,{paths[0]}"])
+        elif not self._show_items_dbus(paths):
+            self._open_parent(paths[0])
+
+    def _show_items_dbus(self, paths: list[Path]) -> bool:
         """FileManager1.ShowItems (Dolphin, Nautilus, Nemo…), answered asynchronously: starting
         the file manager may take seconds. False when there is no session bus."""
         try:
@@ -161,17 +224,17 @@ class ItemActions(QObject):
         call = QDBusMessage.createMethodCall(
             FILE_MANAGER, FILE_MANAGER_PATH, FILE_MANAGER, "ShowItems"
         )
-        call.setArguments([[QUrl.fromLocalFile(str(path)).toString()], ""])
+        call.setArguments([[QUrl.fromLocalFile(str(p)).toString() for p in paths], ""])
         watcher = QDBusPendingCallWatcher(bus.asyncCall(call), self)
-        self._reveals[watcher] = path
+        self._reveals[watcher] = paths
         watcher.finished.connect(self._on_reveal_finished)
         return True
 
     def _on_reveal_finished(self, watcher) -> None:
-        path = self._reveals.pop(watcher, None)
-        if watcher.isError() and path is not None:
+        paths = self._reveals.pop(watcher, None)
+        if watcher.isError() and paths:
             log.info("%s.ShowItems failed: %s", FILE_MANAGER, watcher.error().message())
-            self._open_parent(path)
+            self._open_parent(paths[0])
         watcher.deleteLater()
 
     @staticmethod
@@ -181,12 +244,18 @@ class ItemActions(QObject):
     # -- Copiar -----------------------------------------------------------------------------------
     def copy(self, path: Path) -> None:
         """Clipboard ready to paste in file managers (URL list, GNOME format) or a terminal."""
-        url = QUrl.fromLocalFile(str(path))
+        self.copy_all([path])
+
+    def copy_all(self, paths: list[Path]) -> None:
+        """The same for several items: one URL per line, one path per line as text."""
+        urls = [QUrl.fromLocalFile(str(path)) for path in paths]
         data = QMimeData()
-        data.setUrls([url])
-        data.setData("x-special/gnome-copied-files", b"copy\n" + url.toEncoded().data())
-        data.setText(str(path))
+        data.setUrls(urls)
+        encoded = b"\n".join(url.toEncoded().data() for url in urls)
+        data.setData("x-special/gnome-copied-files", b"copy\n" + encoded)
+        data.setText("\n".join(str(path) for path in paths))
         clipboard = QApplication.clipboard()
         if clipboard is not None:
             clipboard.setMimeData(data)
-        self.message.emit(f"Copiado: {path.name}", "info", 4000)
+        text = f"Copiado: {paths[0].name}" if len(paths) == 1 else f"Copiados: {len(paths)} itens"
+        self.message.emit(text, "info", 4000)

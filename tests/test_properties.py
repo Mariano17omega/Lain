@@ -18,6 +18,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from qe_studio.core.filtering import name_matcher
+from qe_studio.core.navigation import NavigationHistory
 from qe_studio.core.qe.bands_x import BandsFormatError, gnu_shape, read_gnu
 from qe_studio.core.qe.input_lexer import LexState, scan_line
 from qe_studio.core.qe.input_lint import _lint
@@ -374,3 +376,54 @@ def test_summarize_a_cut_file_never_raises(index, draw):
         out = Path(folder) / "run.out"
         out.write_text(cut)
         check_summary(summarize(out), len(cut.splitlines()))
+
+
+# -- spec 16: name filter and navigation history ------------------------------------------------
+@given(st.text(max_size=30), st.text(max_size=30))
+def test_name_matcher_never_raises_and_a_substring_always_matches(text, name):
+    name_matcher(text)(name)
+    plain = text.replace("*", "").replace("?", "")
+    assert name_matcher(plain)(name + plain + name)  # what is typed is found inside a name
+
+
+@given(st.text(alphabet="ab*?.", max_size=8), st.text(alphabet="ab.", max_size=10))
+def test_wildcards_agree_with_a_brute_force_reading(text, name):
+    """``*`` is any run, ``?`` any one character, unanchored: a slice of ``name`` fits."""
+
+    def fits(pattern: str, chunk: str) -> bool:
+        if not pattern:
+            return not chunk
+        head, rest = pattern[0], pattern[1:]
+        if head == "*":
+            return any(fits(rest, chunk[n:]) for n in range(len(chunk) + 1))
+        return bool(chunk) and (head == "?" or head == chunk[0]) and fits(rest, chunk[1:])
+
+    expected = any(
+        fits(text, name[i:j]) for i in range(len(name) + 1) for j in range(i, len(name) + 1)
+    )
+    assert name_matcher(text)(name) is expected
+
+
+@given(st.lists(st.tuples(st.sampled_from("vbf"), st.sampled_from("abcd")), max_size=60))
+def test_history_invariants_hold_for_any_walk(steps):
+    """Visits, backs and forwards in any order: no repeats in a row, bounded stacks, and going back
+    then forward returns to the same folder."""
+    history = NavigationHistory(limit=5)
+    for action, name in steps:
+        folder = Path("/p") / name
+        if action == "v":
+            history.visit(folder)
+        elif action == "b":
+            before = history.current
+            target, skipped = history.back(lambda path: True)
+            assert skipped == []
+            if target is not None:
+                assert history.forward(lambda path: True)[0] == before
+                assert history.back(lambda path: True)[0] == target
+        else:
+            history.forward(lambda path: True)
+        for stack in (history.back_stack, history.forward_stack):
+            assert len(stack) <= 5
+            assert all(a != b for a, b in zip(stack, stack[1:], strict=False))
+        if history.current is not None and history.back_stack:
+            assert history.back_stack[-1] != history.current

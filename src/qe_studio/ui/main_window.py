@@ -30,9 +30,12 @@ from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.file_kinds import viewer_kind
 from ..core.file_ops import rename_item
 from ..core.folder_memory import FolderMemory
+from ..core.nav_store import NavigationStore
 from .actions import build_menus
+from .dialogs.open_many import MANY_FILES, ask_open_many
 from .dialogs.rename import ask_rename
 from .layout_controller import LayoutController
+from .navigation_controller import NavigationController
 from .plot_settings import PlotSettingsStore
 from .plot_workflow import PlotWorkflow
 from .services import DetectionService
@@ -62,6 +65,7 @@ class MainWindow(QMainWindow):
         theme: ThemeManager,
         settings: QSettings | None = None,
         memory: FolderMemory | None = None,
+        navigation: NavigationStore | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -70,6 +74,7 @@ class MainWindow(QMainWindow):
         self.theme = theme
         self.settings = settings or QSettings()
         self.memory = memory or FolderMemory()
+        self.navigation_store = navigation or NavigationStore()
         self.memory.set_root(self.root)  # its keys are relative to the project root
         self.service = DetectionService(self.memory, self)
         self.service.paranoid_refresh = self.config.ui.paranoid_refresh
@@ -84,8 +89,9 @@ class MainWindow(QMainWindow):
         self._restore_folder()
         for warning in loaded.warnings:
             log.warning(warning)
-        # A corrupt folders.json is set aside once: say so before any config warning.
-        if warning := self.memory.load_warning() or next(iter(loaded.warnings), None):
+        # A corrupt folders.json or navigation.json is set aside once: say so before any config warning.
+        stored = self.memory.load_warning() or self.navigation_store.load_warning()
+        if warning := stored or next(iter(loaded.warnings), None):
             self.status.set_message(warning, "warning")
 
     # -- properties ---------------------------------------------------------------------------------
@@ -137,13 +143,22 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         self.status = StatusBar(self.theme)
         self.setStatusBar(self.status)
-        self.item_actions = ItemActions(self, self.service)
 
     def _build_controllers(self) -> None:
         panels = {"tree": self.left, "grid": self.files, "workspace": self.workspace}
         self.panel_layout = LayoutController(
             self, self.splitter, panels, self.top_bar, self.activity, self.settings, self
         )
+        self.navigation = NavigationController(
+            self,
+            self.explorer,
+            self.top_bar,
+            self.root,
+            self.navigation_store,
+            self.settings,
+            parent=self,
+        )
+        self.item_actions = ItemActions(self, self.service, self.navigation.is_favorite)
         self.plot_settings = PlotSettingsStore(self)
         self.plot_workflow = PlotWorkflow(
             service=self.service,
@@ -170,12 +185,16 @@ class MainWindow(QMainWindow):
         self.files.file_activated.connect(self.open_file)
         self.files.folder_activated.connect(self.explorer.select_path)
         self.files.file_selected.connect(self._on_file_selected)
+        self.files.selection_changed.connect(self._on_selection_changed)
+        self.files.files_activated.connect(self.open_files)
         self.explorer.item_menu_requested.connect(self._show_item_menu)
         self.files.item_menu_requested.connect(self._show_item_menu)
         self.item_actions.message.connect(self.status.set_message)
         self.item_actions.rename_requested.connect(self.rename_path)
         self.item_actions.plot_file_requested.connect(self.plot_file)
         self.item_actions.summary_requested.connect(self.open_summary)
+        self.item_actions.compare_requested.connect(self.compare_inputs)
+        self.item_actions.favorite_toggled.connect(self.navigation.set_favorite)
         self.activity.plot_requested.connect(self.toggle_plot)
         self.activity.sync_requested.connect(self.start_sync)
         self.activity.theme_requested.connect(self.toggle_theme)
@@ -194,6 +213,7 @@ class MainWindow(QMainWindow):
         workflow.export_finished.connect(self.export_finished)
         workflow.plot_ready.connect(self.plot_ready)
         workflow.plot_failed.connect(self.plot_failed)
+        self.navigation.message.connect(self.status.set_message)
         sync.cluster_changed.connect(self.top_bar.set_cluster)
         sync.cluster_changed.connect(self.activity.set_cluster)
         sync.message.connect(self.status.set_message)
@@ -218,6 +238,7 @@ class MainWindow(QMainWindow):
         self.plot_settings.flush_now()  # on the spot: the app is leaving
         self.plot_settings.shutdown()
         self.panel_layout.save()
+        self.navigation.shutdown()
         self.settings.setValue("explorer/last_folder", str(self.current_folder()))
         self.settings.setValue("ui/theme", self.theme.name)
         self.settings.sync()
@@ -238,11 +259,19 @@ class MainWindow(QMainWindow):
     def on_folder_selected(self, folder: Path) -> None:
         if folder != self.files.folder:
             self.files.set_folder(folder)
-        self.top_bar.set_path(folder)
+        self.navigation.visited(folder)
         self.status.set_path(self._relative(folder))
 
     def _on_file_selected(self, path: Path) -> None:
-        self.status.set_path(self._relative(path))
+        if len(self.files.selected_paths()) <= 1:  # a selection of several has its own text
+            self.status.set_path(self._relative(path))
+
+    def _on_selection_changed(self, paths: list[Path]) -> None:
+        """Footer of the grid selection (spec 16 R5.3): the count for several items."""
+        if len(paths) > 1:
+            self.status.set_path(f"{len(paths)} itens selecionados")
+        else:
+            self.status.set_path(self._relative(paths[0] if paths else self.files.folder))
 
     def open_file(self, path: Path) -> None:
         kind = viewer_kind(path)
@@ -251,6 +280,15 @@ class MainWindow(QMainWindow):
             return
         self.workspace.open_file(path, kind)
         self.set_panel_visible("workspace", True)
+
+    def open_files(self, paths: list[Path]) -> None:
+        """Enter on a selection: every file opens in the workspace (folders are skipped); more
+        than ``MANY_FILES`` ask first (spec 16 R5.4)."""
+        files = [path for path in paths if not path.is_dir()]
+        if len(files) > MANY_FILES and not ask_open_many(self, len(files)):
+            return
+        for path in files:
+            self.open_file(path)
 
     def reveal_in_explorer(self, path: Path) -> None:
         """Tab menu "Revelar no explorador": select the item in the tree and the grid."""
@@ -280,8 +318,13 @@ class MainWindow(QMainWindow):
         self.status.set_message("Atualizado.", timeout_ms=2500)
 
     # -- context menu (spec 5 R3) -------------------------------------------------------------------
-    def _show_item_menu(self, path: Path, pos: QPoint) -> None:
-        self.item_actions.show(path, pos, can_rename=path != self.root)
+    def _show_item_menu(self, paths: list[Path], pos: QPoint) -> None:
+        self.item_actions.show(paths, pos, can_rename=paths != [self.root])
+
+    def compare_inputs(self, a: Path, b: Path) -> None:
+        """ "Comparar" of two selected inputs: the diff tab (spec 16 R5.5)."""
+        self.workspace.open_diff(a, b)
+        self.set_panel_visible("workspace", True)
 
     def open_summary(self, path: Path) -> None:
         """ "Resumo" of a QE output: a tab in the workspace (spec 12)."""
@@ -313,6 +356,7 @@ class MainWindow(QMainWindow):
             )
             return
         self.workspace.close_tabs_under(path)
+        self.navigation.rename(path, new)
         self.memory.rename(old_resolved, new.resolve())
         self.service.invalidate(path.parent)
         if inside(current):
@@ -376,6 +420,7 @@ class MainWindow(QMainWindow):
             return
         self.loaded = loaded
         self.memory.set_root(self.root)
+        self.navigation.set_root(self.root)
         self.service.paranoid_refresh = self.config.ui.paranoid_refresh
         self.sync.set_config(self.config)
         self._actions["sync.start"].setEnabled(self.config.sync_enabled)

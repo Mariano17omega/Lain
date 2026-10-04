@@ -12,10 +12,9 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime
 from pathlib import Path
 
-from .appdirs import atomic_write_text, data_dir
+from .appdirs import atomic_write_text, data_dir, set_aside_corrupt
 
 log = logging.getLogger(__name__)
 
@@ -130,14 +129,8 @@ class FolderMemory:
 
     def _set_aside(self, problem: object) -> dict:
         """Keep an unreadable ``folders.json`` as ``<name>.corrompido-<date>`` and start empty."""
-        stamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        copy = self.path.with_name(f"{self.path.name}.corrompido-{stamp}")
-        n = 1
-        while copy.exists():
-            n += 1
-            copy = self.path.with_name(f"{self.path.name}.corrompido-{stamp}-{n}")
         try:
-            self.path.rename(copy)
+            copy = set_aside_corrupt(self.path)
         except OSError as exc:
             self._read_only = True
             self._warning = (

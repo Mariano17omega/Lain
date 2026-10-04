@@ -94,6 +94,15 @@ a pull.
    (`job.o12345`, `job.e12345`) show `SEM ERROS` when empty and `ERRO` otherwise; they and the
    submission scripts (`.qsub`, `.slurm`, `.pbs`) open read-only in a tab. The grid cards show
    only that state (list mode also shows sizes); `..`, Backspace or Alt+↑ go up a folder.
+   The path in the top bar is clickable (long ones fold their middle levels into **…**; right-click
+   copies it), and **Alt+←** / **Alt+→**, the ◀ ▶ buttons or the mouse side buttons walk back and
+   forward through the folders visited. **Ctrl+F** in the explorer or the file grid opens a quick
+   filter: part of a name (`*` and `?` are wildcards) and, under **Filtrar ▾**, the detected type of
+   a folder (BANDS, PDOS…) or the state and kind of a file; **Esc** clears it. Folders added to
+   **FAVORITOS** (right-click ▸ *Adicionar aos favoritos*) and the last 10 in **RECENTES** sit above
+   the tree, remembered per project. Ctrl/Shift-click or Ctrl+A select several items in the grid:
+   Enter opens the files, and the right-click menu offers **Abrir local de origem**, **Copiar** and,
+   for two QE inputs, **Comparar**.
    Right-click a file or folder for **Abrir local de origem**, **Abrir com** (installed programs
    for its type, or any other), **Copiar** (paste it in the file manager or a terminal) and
    **Renomear** (never overwrites; tabs showing the item are closed). On an SCF output

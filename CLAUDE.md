@@ -61,13 +61,18 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   the input lexer/linter; specs 9, 12 add theirs). `conftest.py` registers profiles `dev` and `ci`
   (`HYPOTHESIS_PROFILE=ci`: fewer examples, no deadline, no example database).
 - `viewer_helpers.py` (`open_text`, `key`) is shared by the text viewer tests, like `sync_helpers.py`
-  is by the sync ones.
+  is by the sync ones, and `grid_helpers.py` (`show_folder`, `names`, `click`, `select_names`,
+  `reset_modifiers`) by the grid, filter, selection, navigation and favorites ones. Qt keeps the
+  modifiers of the last simulated event (`setCurrentIndex` reads them): after a Ctrl/Shift click or
+  key, call `reset_modifiers`.
 - `tests/fixtures/qe731_ni_spin_{bands,pdos,fixed}/` are real Ni nspin=2 runs (QE 7.3.1): two bands.x
   runs, spin PDOS, and an SCF with `tot_magnetization` (two Fermi energies). `spin_helpers.py` has the
   paths and small helpers of the spin tests (`test_bands_spin_*`, `test_pdos_spin.py`,
   `test_spin_window.py`); `test_figure_regression.py` compares the artists of no-spin figures and the
   mirrored PDOS (`figure_structure.py`) with data captured before the spin work.
-- `main_window` fixture builds a full `MainWindow` with isolated QSettings and `FolderMemory`. The
+- `main_window` fixture builds a full `MainWindow` with isolated QSettings, `FolderMemory` and
+  `NavigationStore` (`tmp_path` files); it is `window_factory()`, which a test calls again (after
+  `window.close()`) to restart the app on the same files. The
   controllers are tested without it too: `test_plot_workflow_unit.py` (a `Rig` with real workspace,
   params panel, status bar and detection service) and `test_sync_coordinator.py`. Dialogs are patched
   where they are imported: `qe_studio.ui.plot_workflow.{ask_mapping,choose_result}`,
@@ -148,6 +153,12 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
 - `ui/plot_settings.py:PlotSettingsStore`: every `.plot` read, write and removal in one private
   single-thread pool, so they happen in order (a regenerate reads what closing the tab wrote);
   edits are debounced 1 s; `flush_now` writes on the spot (window close, before a rename).
+- `ui/navigation_controller.py:NavigationController` (spec 16): the history, the breadcrumb and the
+  favorite / recent folders. `MainWindow.on_folder_selected` is where every folder change arrives
+  and calls `visited`; going back, forward, to a breadcrumb level or to a favorite is
+  `ExplorerPanel.select_path` like a tree click (the history already holds the target, so `visited`
+  pushes nothing). Also owns the side mouse buttons (an application event filter limited to this
+  window) and answers the explorer's two `NavSection`s. `rename_path` tells it before reselecting.
 - `ui/actions.py:ACTIONS`: the window's actions by stable id (`plot.generate`, `plot.export`,
   `view.theme`, `files.refresh`…) with menu, text, shortcut and slot path; `MainWindow._actions`
   holds the `QAction`s (spec 18 reads it).
@@ -258,6 +269,33 @@ without spin keeps the old path (`render._render_plain`, `n_electrons / 2` edges
 (↑ solid, ↓ dashed). The side-by-side layout shares both axes (`draw.side_axes`), so a zoom in either
 panel lands in `axes_limits[0]`. PDOS `spin_mode`: mirror (default) | overlay | up | down | sum.
 
+### Navigation, filters and selection (spec 16)
+
+Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:
+back stack, current, forward stack, 50 each, no repeat in a row, vanished folders skipped and
+forgotten; `breadcrumb_segments`, `collapse_count`), `nav_store.py` (`NavigationStore`: favorites and
+the last 10 recents per project in `navigation.json`, keyed by the resolved `local_root`, paths
+relative to it, favorites saved at once and recents on `flush`, a corrupt file set aside by
+`appdirs.set_aside_corrupt` like `folders.json`) and `filtering.py` (`name_matcher`: case-insensitive
+substring with `*`/`?`; `CategoryFilter`: badges pick folders, states and visual types pick files, a
+kind with nothing ticked is hidden while the other has something).
+
+`ui/widgets/breadcrumb.py:Breadcrumb` sits in the `TopBar` with the ◀ ▶ buttons; the middle levels
+nearest the project collapse into a "…" menu (`relayout`, in `resizeEvent`). `filter_bar.py:FilterBar`
+(name field, "Filtrar ▾" menu, removable chips; Esc clears and hides; typing debounced) is in both
+the explorer and the grid, opened by a Ctrl+F `QShortcut` on the panel with `WidgetWithChildren`
+context, so the text viewer's Ctrl+F never crosses it. `FileFilterProxy` applies the filters from
+caches only (`DetectionService.peek_results`, `file_sniff`): `scope` limits them to the grid's folder
+(its ancestors must stay), `keep_ancestors` is the tree's recursive filtering (only while filtering);
+an undetected folder under a badge filter stays as "detectando…" and `refilter_later` runs when
+`detected` arrives; turning a badge filter on in the grid requests detection of the folders it lists
+(it paints no badges, so nothing else would). The grid's filter is cleared when it changes folder;
+the tree's when navigation (`select_path`) would be hidden by it. `nav_sections.py:NavSection`
+(FAVORITOS, RECENTES) sit above the tree, hidden while empty; a missing folder is dimmed.
+`grid_view.py:GridView` is the grid's `ExtendedSelection` view: Enter with several selected emits
+`enter_many`, `FilePanel` drops `..` from every selection (`selection_changed(list[Path])`) and opens
+at most `MANY_FILES` files without asking (`ask_open_many`).
+
 ### Text viewer and tabs (spec 10)
 
 `ui/widgets/text_viewer.py:TextViewer` = banner bar ("Abrir no editor externo", "Carregar tudo"),
@@ -362,11 +400,17 @@ host keys are always refused.
 ### Context menu (spec 5)
 
 `ui/widgets/context_menu.py:ItemActions` builds the right-click menu for the tree and the grid
-(both panels emit `item_menu_requested(path, pos)` → `MainWindow._show_item_menu` →
-`ItemActions.show`, which reads the cached sniff once, in `file_actions_of`: "Plotar" for a
+(both panels emit `item_menu_requested(paths: list[Path], pos)`, the tree a one-item list →
+`MainWindow._show_item_menu` → `ItemActions.show`, which reads the cached sniff once, in
+`file_actions_of`: "Plotar" for a
 single-file module, "Resumo" for any QE output, both above the four spec-5 actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
 cached `catalog()` per session) and starts them with `QProcess.startDetached(argv)`, never a
-shell. Renaming goes through `MainWindow.rename_path` because it touches global state: write the
+shell. A folder also gets "Adicionar/Remover dos favoritos" (`favorite_toggled`, answered by the
+`NavigationController`). With several items selected in the grid (`multi_menu`) the menu is the
+count title, "Abrir local de origem" (`ShowItems` with every URI), "Copiar" (one URI / path per line),
+"Comparar" for exactly two `looks_like_input` files (path order; `compare_requested` →
+`MainWindow.compare_inputs`) and the favorites item when all are folders; per-item actions are hidden.
+Renaming goes through `MainWindow.rename_path` because it touches global state: write the
 pending `.plot` settings of what it moves (`flush_now(inside=)`), wait for running exports,
 `core/file_ops.rename_item` (refuses existing targets), `Workspace.close_tabs_under`,
 `FolderMemory.rename`, invalidate detection. Tests must patch `QMenu.exec` (the

@@ -1,6 +1,6 @@
 """Render the main window off-screen to PNG (both themes) for visual checks against the mockups.
 
-    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary] [--spin]
+    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary] [--spin] [--nav]
 
 Builds a demo project from the test fixtures (01_relax, 02_scf, 03_bands, 04_pdos).
 """
@@ -78,6 +78,34 @@ def wait_for(signal, timeout_ms: int = 5000) -> None:
     loop.exec()
 
 
+def show_navigation(window, project: Path, app) -> None:
+    """Spec 16: a deep folder (narrow breadcrumb), favorites, recents, a filter and a selection."""
+    from PyQt6.QtCore import QItemSelectionModel
+
+    deep = project / "runs" / "2026" / "campaign" / "a"  # long enough to collapse
+    deep.mkdir(parents=True, exist_ok=True)
+    for folder in (project / "02_scf", project / "04_pdos_orbitals"):
+        window.navigation.set_favorite(folder, True)
+    for folder in (project / "01_relax", project / "02_scf", project / "04_pdos_orbitals"):
+        window.explorer.select_path(folder)
+    window.explorer.select_path(deep)
+    window.top_bar.breadcrumb.setFixedWidth(250)
+    window.explorer.select_path(project / "03_bands")
+    window.top_bar.breadcrumb.setFixedWidth(250)
+    for _ in range(10):
+        app.processEvents()
+    bar = window.files.filter_bar
+    bar.open()
+    bar.field.setText("out")
+    bar._actions[("states", "OK")].setChecked(True)
+    bar.flush()
+    selection = window.files.view.selectionModel()
+    for row in range(window.files.proxy.rowCount(window.files.view.rootIndex())):
+        index = window.files.proxy.index(row, 0, window.files.view.rootIndex())
+        if not window.files.proxy.is_up(index):
+            selection.select(index, QItemSelectionModel.SelectionFlag.Select)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(ROOT / "screenshots"))
@@ -96,6 +124,10 @@ def main() -> int:
     parser.add_argument(
         "--summary", action="store_true", help="the summary tab of the vc-relax output (spec 12)"
     )
+    parser.add_argument(
+        "--nav", action="store_true",
+        help="breadcrumb, favorites, recents, grid filter and multi-selection (spec 16)",
+    )  # fmt: skip
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -174,6 +206,8 @@ def main() -> int:
                 if args.diff == "text":
                     diff.show_text()
                 window.set_panel_visible("workspace", True)
+        if args.nav:
+            show_navigation(window, project, app)
         if args.summary:
             summary = project / "01_relax" / "si.rel.out"
             window.open_summary(summary)

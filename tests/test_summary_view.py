@@ -33,7 +33,7 @@ def trigger_resumo(window, path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(QMenu, "exec", pick)
     window.service.detect_now(path.parent)  # the menu reads the sniff cache only
-    window._show_item_menu(path, QPoint())
+    window._show_item_menu([path], QPoint())
 
 
 def test_resumo_item_opens_the_tab_once_and_shows_the_workspace(

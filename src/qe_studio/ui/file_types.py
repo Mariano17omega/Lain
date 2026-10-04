@@ -41,5 +41,21 @@ def file_visual(path: Path, is_dir: bool = False) -> tuple[str, str]:
     return "draft", "icon_other"
 
 
+# The visual types of the grid's filter (``core.filtering.VISUALS``) by icon color token.
+_VISUAL_CATEGORIES = {
+    "icon_input": "inputs",
+    "icon_output": "saídas",
+    "icon_data": "dados",
+    "icon_image": "imagens",
+    "icon_vector": "imagens",  # svg, eps, pdf: figures too
+}
+
+
+def visual_category(path: Path) -> str:
+    """``inputs``, ``saídas``, ``dados``, ``imagens`` or ``outros``: what a file looks like."""
+    _icon, token = file_visual(path)
+    return _VISUAL_CATEGORIES.get(token, "outros")
+
+
 def level_token(level: str) -> str:
     return LEVEL_TOKENS.get(level, "text_dim")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 APP_DIR = "qe-studio"
@@ -28,3 +29,16 @@ def atomic_write_text(path: Path, text: str) -> None:
     tmp = path.with_name(f".{path.name}.tmp")
     tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)
+
+
+def set_aside_corrupt(path: Path) -> Path:
+    """Rename an unreadable data file to ``<name>.corrompido-<date>`` (a counter when that exists)
+    and return the copy. OSError when it cannot be renamed: the caller must then not overwrite it."""
+    stamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    copy = path.with_name(f"{path.name}.corrompido-{stamp}")
+    n = 1
+    while copy.exists():
+        n += 1
+        copy = path.with_name(f"{path.name}.corrompido-{stamp}-{n}")
+    path.rename(copy)
+    return copy

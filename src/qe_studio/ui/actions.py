@@ -32,6 +32,8 @@ ACTIONS: tuple[ActionSpec, ...] = (
     ),
     ActionSpec("tabs.close", "Arquivo", "Fechar aba", "workspace.close_current", "Ctrl+W"),
     ActionSpec("app.quit", "Arquivo", "Sair", "close", "Ctrl+Q", separator_before=True),
+    ActionSpec("nav.back", "Navegar", "Voltar", "navigation.back", "Alt+Left"),
+    ActionSpec("nav.forward", "Navegar", "Avançar", "navigation.forward", "Alt+Right"),
     ActionSpec("sync.start", "Cluster", "Sincronizar pasta selecionada", "start_sync"),
     ActionSpec("sync.test", "Cluster", "Testar conexão", "sync.check_connection"),
     ActionSpec("plot.generate", "Gráficos", "Gerar gráfico", "generate_plot", "Ctrl+G"),

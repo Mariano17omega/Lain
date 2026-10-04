@@ -100,6 +100,8 @@ ICONS = [
     "edit",
     "add",
     "remove",
+    "star",  # favorites (spec 16)
+    "history",  # recent folders (spec 16)
 ]
 
 

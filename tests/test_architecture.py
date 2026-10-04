@@ -26,6 +26,9 @@ QT_FREE = [
     "qe_studio.core.plotting.session",
     "qe_studio.core.sync.request",
     "qe_studio.core.paths",
+    "qe_studio.core.navigation",
+    "qe_studio.core.filtering",
+    "qe_studio.core.nav_store",
 ]
 
 

@@ -10,6 +10,7 @@ from PyQt6.QtCore import QPoint, Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox
 
+from grid_helpers import menu_texts, rows, show_folder
 from qe_studio.core.plotting.plot_file import read_plot_file
 from qe_studio.core.sniff import FileKind, FileSniff
 from qe_studio.ui.dialogs.open_with import OpenWithDialog
@@ -20,26 +21,14 @@ from qe_studio.ui.widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
 from conftest import FIXTURES
 
 MENU = ["Abrir local de origem", "Abrir com", "Copiar", "Renomear"]
-
-
-def rows(panel):
-    root = panel.view.rootIndex()
-    return [panel.proxy.index(r, 0, root) for r in range(panel.proxy.rowCount(root))]
-
-
-def show_folder(qtbot, window, folder: Path, up: bool = True) -> None:
-    """Select ``folder`` in the tree and wait until the grid lists it (with ".." first)."""
-    window.explorer.select_path(folder)
-
-    def listed():
-        items = rows(window.files)
-        return (
-            window.files.folder == folder
-            and len(items) > 1
-            and (window.files.proxy.is_up(items[0]) == up)
-        )
-
-    qtbot.waitUntil(listed, timeout=5000)
+# Folders also offer the star after "Copiar" (spec 16 R4.1).
+FOLDER_MENU = [
+    "Abrir local de origem",
+    "Abrir com",
+    "Copiar",
+    "Adicionar aos favoritos",
+    "Renomear",
+]
 
 
 def generate(qtbot, window, folder):
@@ -130,32 +119,28 @@ def test_right_click_requests_a_menu(qtbot, main_window, demo_project, monkeypat
         files._on_context_menu(QPoint(viewport.width() - 2, viewport.height() - 2))  # empty
     with qtbot.waitSignal(files.item_menu_requested) as blocker:
         files._on_context_menu(files.view.visualRect(item).center())
-    assert blocker.args[0] == files.proxy.path(item)
+    assert blocker.args[0] == [files.proxy.path(item)]
 
     tree = window.explorer
     index = tree.proxy.index_for(demo_project / "02_scf")
     with qtbot.waitSignal(tree.item_menu_requested) as blocker:
         tree._on_context_menu(tree.tree.visualRect(index).center())
-    assert blocker.args[0] == demo_project / "02_scf"
+    assert blocker.args[0] == [demo_project / "02_scf"]
     assert len(menus) == 2  # the main window showed both
 
 
-def test_menu_has_exactly_the_four_actions(main_window, demo_project, monkeypatch):
+def test_menu_has_exactly_the_expected_actions(main_window, demo_project, monkeypatch):
     shown = []
     monkeypatch.setattr(
         QMenu, "exec", lambda menu, pos: shown.append([(a.text(), a.isEnabled()) for a in menu.actions()])
     )  # fmt: skip
     window = main_window
-    window.files.item_menu_requested.emit(demo_project / "03_bands" / "bands.in", QPoint(5, 5))
-    window.explorer.item_menu_requested.emit(demo_project / "04_pdos", QPoint(5, 5))
-    window._show_item_menu(demo_project, QPoint())
-    assert [[text for text, _ in menu] for menu in shown] == [MENU, MENU, MENU]
-    assert [enabled for _, enabled in shown[1]] == [True, True, True, True]
-    assert [enabled for _, enabled in shown[2]] == [True, True, True, False]  # the root
-
-
-def menu_texts(menu) -> list[str]:
-    return [a.text() for a in menu.actions() if not a.isSeparator()]
+    window.files.item_menu_requested.emit([demo_project / "03_bands" / "bands.in"], QPoint(5, 5))
+    window.explorer.item_menu_requested.emit([demo_project / "04_pdos"], QPoint(5, 5))
+    window._show_item_menu([demo_project], QPoint())
+    assert [[text for text, _ in menu] for menu in shown] == [MENU, FOLDER_MENU, FOLDER_MENU]
+    assert [enabled for _, enabled in shown[1]] == [True] * 5
+    assert [enabled for _, enabled in shown[2]] == [True, True, True, True, False]  # the root
 
 
 def detected(window, folder: Path) -> None:
@@ -168,7 +153,7 @@ def test_scf_output_menu_starts_with_plotar(main_window, demo_project, monkeypat
     window = main_window
     for folder in ("02_scf", "03_bands"):  # a bands folder also holds an SCF output
         detected(window, demo_project / folder)
-        window._show_item_menu(demo_project / folder / "scf.out", QPoint())
+        window._show_item_menu([demo_project / folder / "scf.out"], QPoint())
     assert [menu_texts(menu) for menu in shown] == [["Plotar", "Resumo", *MENU]] * 2
     assert shown[0].actions()[2].isSeparator() and len(shown[0].actions()) == 7
 
@@ -192,11 +177,11 @@ def test_other_files_have_no_plotar_and_only_outputs_have_resumo(
     shown = []
     monkeypatch.setattr(QMenu, "exec", lambda menu, pos: shown.append(menu))
     detected(main_window, demo_project / folder)
-    main_window._show_item_menu(demo_project / folder / name, QPoint())
+    main_window._show_item_menu([demo_project / folder / name], QPoint())
     assert menu_texts(shown[0]) == [*top, *MENU]
     assert shown[0].actions()[len(top)].isSeparator() == bool(top)  # one group, then a separator
-    main_window._show_item_menu(demo_project / folder, QPoint())  # folders have neither
-    assert menu_texts(shown[1]) == MENU
+    main_window._show_item_menu([demo_project / folder], QPoint())  # folders have neither
+    assert menu_texts(shown[1]) == FOLDER_MENU
 
 
 def test_unsniffed_file_has_no_plotar_or_resumo_but_asks_for_detection(
@@ -208,7 +193,7 @@ def test_unsniffed_file_has_no_plotar_or_resumo_but_asks_for_detection(
     monkeypatch.setattr(QMenu, "exec", lambda menu, pos: shown.append(menu_texts(menu)))
     monkeypatch.setattr(window.service, "file_sniff", lambda path: None)  # not in the cache
     monkeypatch.setattr(window.service, "results", lambda f: requested.append(f))
-    window._show_item_menu(folder / "scf.out", QPoint())
+    window._show_item_menu([folder / "scf.out"], QPoint())
     assert shown == [MENU] and requested == [folder]
 
 
@@ -221,7 +206,7 @@ def test_plotar_opens_the_convergence_tab_without_saving(
     detected(window, folder)
     monkeypatch.setattr(QMenu, "exec", lambda menu, pos: menu.actions()[0].trigger())  # "Plotar"
     with qtbot.waitSignal(window.plot_ready, timeout=10_000):
-        window._show_item_menu(folder / "al.scf.out", QPoint())
+        window._show_item_menu([folder / "al.scf.out"], QPoint())
     tabs = window.workspace.tabs
     assert tabs.tabText(tabs.currentIndex()) == "Convergência SCF · al.scf.out"
     assert not (folder / "plots").exists()
@@ -309,7 +294,7 @@ def test_reveal_in_file_manager(main_window, demo_project, monkeypatch):
     asked = []
     monkeypatch.setattr(actions, "_show_items_dbus", lambda p: asked.append(p) or True)
     actions.reveal(path)
-    assert asked == [path] and opened == []
+    assert asked == [[path]] and opened == []
 
     class FailedCall:  # no FileManager1 on this desktop: the answer is an error
         def isError(self):
@@ -322,7 +307,7 @@ def test_reveal_in_file_manager(main_window, demo_project, monkeypatch):
             pass
 
     call = FailedCall()
-    actions._reveals[call] = path
+    actions._reveals[call] = [path]
     actions._on_reveal_finished(call)
     assert opened == [QUrl.fromLocalFile(str(path.parent))]
     monkeypatch.setattr(actions, "_show_items_dbus", lambda p: False)  # no session bus

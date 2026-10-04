@@ -99,7 +99,7 @@ def test_folder_selection_updates_panels(qtbot, main_window, demo_project):
     window = main_window
     window.on_folder_selected(demo_project / "04_pdos")
     assert window.files.folder == demo_project / "04_pdos"
-    assert window.top_bar.path_chip.toolTip() == str(demo_project / "04_pdos")
+    assert window.top_bar.breadcrumb.toolTip() == str(demo_project / "04_pdos")
     assert window.status.path.text() == "04_pdos"
 
 

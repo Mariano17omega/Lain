@@ -59,6 +59,11 @@ class DetectionService(QObject):
         self.request(Path(folder))
         return None
 
+    def peek_results(self, folder: Path) -> list[DetectionResult] | None:
+        """Cached results only: never schedules detection (filters run for every row)."""
+        with self._lock:
+            return self._results.get(str(folder))
+
     def request(self, folder: Path, fresh: bool = False) -> None:
         """Schedule detection; ``fresh`` jumps the queue and supersedes a task already running."""
         key = str(folder)

@@ -89,7 +89,10 @@ def demo_project(tmp_path) -> Path:
 
 
 @pytest.fixture
-def main_window(qtbot, demo_project, tmp_path, monkeypatch):
+def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
+    """``make(**stores)`` builds a ``MainWindow`` on ``demo_project`` with isolated QSettings and
+    stores. Called again with the same ``tmp_path`` files it is a restart of the app: whatever the
+    first window saved is read back. Every window made is closed at teardown."""
     from PyQt6.QtCore import QSettings
     from PyQt6.QtWidgets import QMenu
 
@@ -101,20 +104,38 @@ def main_window(qtbot, demo_project, tmp_path, monkeypatch):
 
     from qe_studio.core.config import LoadedConfig, parse_config
     from qe_studio.core.folder_memory import FolderMemory
+    from qe_studio.core.nav_store import NavigationStore
     from qe_studio.ui.main_window import MainWindow
     from qe_studio.ui.theme.manager import ThemeManager
 
-    config = parse_config({"paths": {"local_root": str(demo_project)}})
-    theme = ThemeManager("dark")
-    theme.apply()
-    settings = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
-    window = MainWindow(
-        LoadedConfig(config, None), theme, settings, FolderMemory(tmp_path / "memory.json")
-    )
-    qtbot.addWidget(window)
-    window.show()
-    yield window
-    window.close()
+    windows = []
+
+    def make(**kwargs):
+        kwargs.setdefault("navigation", NavigationStore(tmp_path / "navigation.json"))
+        config = parse_config({"paths": {"local_root": str(demo_project)}})
+        theme = ThemeManager("dark")
+        theme.apply()
+        settings = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+        window = MainWindow(
+            LoadedConfig(config, None),
+            theme,
+            settings,
+            FolderMemory(tmp_path / "memory.json"),
+            **kwargs,
+        )
+        qtbot.addWidget(window)
+        window.show()
+        windows.append(window)
+        return window
+
+    yield make
+    for window in windows:
+        window.close()
+
+
+@pytest.fixture
+def main_window(window_factory):
+    return window_factory()
 
 
 @pytest.fixture

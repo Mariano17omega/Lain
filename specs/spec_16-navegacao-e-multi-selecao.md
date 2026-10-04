@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 16 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: a lógica sem widgets ficou em `core/navigation.py` (histórico, segmentos do breadcrumb), `core/nav_store.py` (favoritos e recentes) e `core/filtering.py` (nome e categorias), e a ligação em `ui/navigation_controller.py`, e não em `ui/navigation.py` (CLAUDE.md, spec 15 R5.3); o campo de filtro fica numa linha abaixo do cabeçalho do painel (a contagem "(k de n)" fica no cabeçalho); o duplo clique com vários itens abre só o clicado (o clique já troca a seleção), Enter abre todos; os botões laterais do mouse usam um filtro de eventos da aplicação limitado à janela (o Qt entrega o clique ao widget sob o cursor); o filtro de badge na grade pede a detecção das subpastas listadas (a grade não pinta badges, então nada mais a pediria), mas o filtro em si só lê o cache; categoria vazia esconde o tipo oposto (estado "INCOMPLETO" lista só arquivos, badge "RELAX" só pastas); o filtro da grade é limpo ao mudar de pasta e o da árvore ao navegar para algo que ele esconderia; a raiz não entra nos recentes; "Comparar" abre os dois inputs em ordem de caminho; "Remover dos favoritos" aparece quando todos os itens já são favoritos |
 | **Depende de** | spec 5 (menu de contexto, `..`), spec 10 (Ctrl+F por foco), spec 11 ("Comparar" inputs), spec 14 (chave relativa da memória) |
 | **Usada por** | spec 18 (a paleta de comandos lista favoritos e recentes) |
 | **Esforço** | G |
