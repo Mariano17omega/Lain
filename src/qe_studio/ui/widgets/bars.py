@@ -98,6 +98,7 @@ class ActivityBar(QWidget):
     grid_toggled = pyqtSignal(bool)
     plot_requested = pyqtSignal()
     sync_requested = pyqtSignal()
+    create_requested = pyqtSignal()  # "Criar cálculo" (spec 26)
     theme_requested = pyqtSignal()
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
@@ -115,8 +116,11 @@ class ActivityBar(QWidget):
             theme, "bolt", "Plot", "Mostrar/ocultar o gráfico (sem salvar)", True
         )
         self.rsync = ActivityButton(theme, "sync", "Rsync", "Sincronizar com o cluster")
+        self.new_calc = ActivityButton(
+            theme, "add_circle", "Criar", "Criar cálculo (scripts e inputs)"
+        )
         self.theme_button = ActivityButton(theme, "dark_mode", "Tema", "Alternar tema (Ctrl+T)")
-        for button in (self.tree, self.grid, self.plot, self.rsync):
+        for button in (self.tree, self.grid, self.plot, self.rsync, self.new_calc):
             layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch(1)
         layout.addWidget(self.theme_button, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -127,6 +131,7 @@ class ActivityBar(QWidget):
         self.grid.toggled.connect(self.grid_toggled)
         self.plot.clicked.connect(self.plot_requested)
         self.rsync.clicked.connect(self.sync_requested)
+        self.new_calc.clicked.connect(self.create_requested)
         self.theme_button.clicked.connect(self.theme_requested)
         theme.theme_changed.connect(self._sync_theme_button)
         theme.mode_changed.connect(self._sync_theme_button)

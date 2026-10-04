@@ -48,6 +48,7 @@ ICONS = [
     "bolt",
     "monitoring",
     "sync",
+    "add_circle",  # "Criar cálculo" (spec 26)
     "tune",
     "dark_mode",
     "light_mode",

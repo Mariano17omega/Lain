@@ -57,7 +57,7 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["qe_studio"]
-known-local-folder = ["calc_helpers", "conftest", "ssh_server", "sync_helpers", "viewer_helpers"]
+known-local-folder = ["calc_dialog_helpers", "calc_helpers", "conftest", "ssh_server", "sync_helpers", "viewer_helpers"]
 
 [tool.pyright]
 include = ["src"]

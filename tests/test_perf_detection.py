@@ -162,7 +162,8 @@ def test_calc_create_import_skips_pymatgen_and_jinja2():
     """The window of spec 26 imports the registry and the writer: neither loads them."""
     code = (
         "import sys, qe_studio.core.calc_create.types, qe_studio.core.calc_create.writer, "
-        "qe_studio.core.calc_create.kpath, qe_studio.core.calc_create.scf_info; "
+        "qe_studio.core.calc_create.kpath, qe_studio.core.calc_create.scf_info, "
+        "qe_studio.core.calc_create.preview; "
         "print(sorted(m for m in ('ase', 'pymatgen', 'spglib', 'jinja2') if m in sys.modules))"
     )
     run = subprocess.run(

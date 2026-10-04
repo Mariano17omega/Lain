@@ -479,6 +479,31 @@ SGE `.qsub` of a calculation. `jinja2` and `pymatgen` are runtime dependencies i
   folder (`CreateError`). Tests: `tests/calc_helpers.py` and `test_lattice.py`, `test_kpath.py`, `test_calc_*.py`
   (`test_calc_roundtrip.py` fills generated folders with fixture outputs and detects them).
 
+### "Criar cálculo" window (spec 26)
+
+`ui/calc_create_controller.py:CalcCreateController.for_window` connects `ActivityBar.create_requested` (button
+`new_calc`, "Criar") and the `calc.create` action (Ferramentas); both are disabled while `local_root` is not a
+folder (`FirstRunController.refreshed` → `update_available`). One non-modal window at a time; "Criar" runs
+`writer.create_folder` in `run_task` (footer spinner "Criando …", window `set_busy`), then closes it, refreshes
+the parent, `select_path`s the folder and shows `preview.created_notice` as a `success` toast (signals `created` /
+`failed`); `CreateError` → `QMessageBox.critical`, window stays open. The window never writes.
+
+- `ui/dialogs/calc_create/`: `dialog.CalcCreateDialog` (steps in a `QStackedWidget`; `continue_` rebuilds step 2
+  only when the type or the `ScfInfo` object changed; Esc / X / "Cancelar" ask `ask_discard` only when
+  `TabsPage.dirty`; emits `create_requested(CreateRequest)`), `setup_page.SetupPage` (type combo, SCF via
+  `looks_like_input` then `read_scf` in a `TaskGroup` → `scf_ready`, `choose_scf` / `choose_folder` module
+  functions, `problems()` gate "Continuar"), `tabs_page.TabsPage` (a tab per `CalcPlan.files` entry: `FieldForm`
+  | `FilePreview` in a `QSplitter`, then "Arquivos" and "Descrição"; edits replan after `debounce_ms` (tests: 0 or
+  `flush()`); `blocking()` = first plan error, the "Criar" tooltip), `form.FieldForm` (widget per `FormField.kind`,
+  `mark(field_problems)` sets the `invalid` property), `kmesh.KMeshEditor`, `preview.FilePreview` (read-only
+  `CodeView`, `InputHighlighter` / `ShellHighlighter`, changed lines in `diff_change_bg`) and `FilesView`.
+- `ui/widgets/kpath_editor.py:KPathEditor`: the `crystal_b` table; `suggest` is injected (`tabs_page` passes
+  `partial(suggest_path, crystal)`: tests patch `tabs_page.suggest_path`), runs in `run_task`; `changed(user)`.
+- Tests: `test_calc_create_preview.py` (core), `test_kpath_editor.py`, `test_calc_create_dialog.py` (window alone,
+  `calc_dialog_helpers.py`: `pick_scf`, `fill_setup`, `to_files`), `test_calc_create_ui.py` (main window),
+  `test_shell_highlighter.py`. Patch `dialog.ask_discard` in every test that leaves a dirty window: a real
+  question blocks, even at teardown; and do not `qtbot.addWidget` the dialog (delete-on-close).
+
 ### Navigation, filters and selection (spec 16)
 
 Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:

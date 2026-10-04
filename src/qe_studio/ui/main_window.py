@@ -34,6 +34,7 @@ from ..core.file_ops import rename_item
 from ..core.folder_memory import FolderMemory
 from ..core.nav_store import NavigationStore
 from .actions import build_menus
+from .calc_create_controller import CalcCreateController
 from .derive_controller import DeriveController
 from .dialogs.open_many import MANY_FILES, ask_open_many
 from .dialogs.rename import ask_rename
@@ -193,6 +194,7 @@ class MainWindow(QMainWindow):
         self.focus_areas = FocusController.for_window(self)  # tab order and Ctrl+1..4
         self.grids = GridsController.for_window(self)  # "Grids" button and window (spec 23)
         self.derive = DeriveController.for_window(self)  # "Gerar SCF convergido" (spec 24)
+        self.calc_create = CalcCreateController.for_window(self)  # "Criar cálculo" (spec 26)
 
     def _build_menus(self) -> None:
         self._actions = build_menus(self)

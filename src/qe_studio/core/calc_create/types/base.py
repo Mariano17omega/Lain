@@ -25,6 +25,7 @@ __all__ = [
     "FormField",
     "PlannedFile",
     "Work",
+    "field_problems",
     "is_empty",
     "resolve",
 ]
@@ -111,6 +112,24 @@ def _coerce(form_field: FormField, value: Any) -> Any:
     return str(value).strip()
 
 
+def _resolve_one(form_field: FormField, value: Any) -> tuple[Any, str | None]:
+    """The field's value (an empty one → its default) and its problem, if any."""
+    if is_empty(value):
+        value = form_field.default
+    problem = None
+    if not is_empty(value):
+        try:
+            value = _coerce(form_field, value)
+        except (TypeError, ValueError):
+            problem = f"Valor inválido em {form_field.label}: {value}"
+            value = None
+    if is_empty(value):
+        value = None
+        if form_field.required and problem is None:
+            problem = f"Preencha {form_field.label}"
+    return value, problem
+
+
 def resolve(
     fields: Sequence[FormField], values: Mapping[str, Any]
 ) -> tuple[dict[str, Any], list[str]]:
@@ -119,21 +138,20 @@ def resolve(
     resolved: dict[str, Any] = {}
     errors: list[str] = []
     for form_field in fields:
-        value = values.get(form_field.id)
-        if is_empty(value):
-            value = form_field.default
-        if not is_empty(value):
-            try:
-                value = _coerce(form_field, value)
-            except (TypeError, ValueError):
-                errors.append(f"Valor inválido em {form_field.label}: {value}")
-                value = None
-        if is_empty(value):
-            value = None
-            if form_field.required:
-                errors.append(f"Preencha {form_field.label}")
-        resolved[form_field.id] = value
+        resolved[form_field.id], problem = _resolve_one(form_field, values.get(form_field.id))
+        if problem is not None:
+            errors.append(problem)
     return resolved, errors
+
+
+def field_problems(fields: Sequence[FormField], values: Mapping[str, Any]) -> dict[str, str]:
+    """The problem of each field that has one, by field id (the window marks those fields)."""
+    problems = {}
+    for form_field in fields:
+        _value, problem = _resolve_one(form_field, values.get(form_field.id))
+        if problem is not None:
+            problems[form_field.id] = problem
+    return problems
 
 
 @dataclass

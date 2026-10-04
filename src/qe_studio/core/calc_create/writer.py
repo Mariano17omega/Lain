@@ -25,6 +25,8 @@ __all__ = [
     "files_to_write",
     "folder_name",
     "preview_name",
+    "validate_parent",
+    "validate_suffix",
     "validate_target",
 ]
 
@@ -47,19 +49,28 @@ def folder_name(type_: CalcType, suffix: str) -> str:
     return f"{type_.folder_prefix}_{suffix.strip()}"
 
 
-def validate_target(parent: Path, suffix: str) -> list[str]:
-    """What keeps the folder from being created ([] = it can be). Only ``stat``s, no reading."""
-    problems = []
+def validate_suffix(suffix: str) -> list[str]:
+    """What is wrong with the name typed for the folder ([] = nothing)."""
     suffix = suffix.strip()
     if not suffix:
-        problems.append("Informe o nome da pasta")
-    elif not _SUFFIX.fullmatch(suffix) or suffix in (".", ".."):
-        problems.append("Use só letras sem acento, números, ponto, hífen e sublinhado no nome")
+        return ["Informe o nome da pasta"]
+    if not _SUFFIX.fullmatch(suffix) or suffix in (".", ".."):
+        return ["Use só letras sem acento, números, ponto, hífen e sublinhado no nome"]
+    return []
+
+
+def validate_parent(parent: Path) -> list[str]:
+    """What keeps the folder from being created in ``parent`` ([] = nothing). Only ``stat``s."""
     if not parent.is_dir():
-        problems.append(f"A pasta {parent} não existe")
-    elif not os.access(parent, os.W_OK | os.X_OK):
-        problems.append(f"Sem permissão de escrita em {parent}")
-    return problems
+        return [f"A pasta {parent} não existe"]
+    if not os.access(parent, os.W_OK | os.X_OK):
+        return [f"Sem permissão de escrita em {parent}"]
+    return []
+
+
+def validate_target(parent: Path, suffix: str) -> list[str]:
+    """What keeps the folder from being created ([] = it can be). Only ``stat``s, no reading."""
+    return validate_suffix(suffix) + validate_parent(parent)
 
 
 def preview_name(parent: Path, type_: CalcType, suffix: str) -> str:

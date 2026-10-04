@@ -33,6 +33,7 @@ AFTER_EDIT = "Depois de editar, use Ferramentas ▸ Recarregar config.yaml"
 
 class FirstRunController(QObject):
     message = pyqtSignal(str, str, int)  # text, level, timeout ms
+    refreshed = pyqtSignal()  # after every refresh: the project folder may have changed
 
     def __init__(
         self,
@@ -102,6 +103,7 @@ class FirstRunController(QObject):
             )
         self.overlay.setVisible(state is not None)
         self._place()
+        self.refreshed.emit()
 
     def _place(self) -> None:
         self.overlay.setGeometry(self._splitter.geometry())

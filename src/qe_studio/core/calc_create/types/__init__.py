@@ -6,13 +6,22 @@ A new type is a module with a ``CalcType`` subclass (and its templates) register
 from __future__ import annotations
 
 from .bandas import BandasType
-from .base import CalcPlan, CalcType, FormField, PlannedFile, resolve
+from .base import CalcPlan, CalcType, FormField, PlannedFile, field_problems, resolve
 from .pdos import PdosType
 from .relax import RelaxType
 from .scf import ScfType
 from .vc_relax import VcRelaxType
 
-__all__ = ["REGISTRY", "CalcPlan", "CalcType", "FormField", "PlannedFile", "by_id", "resolve"]
+__all__ = [
+    "REGISTRY",
+    "CalcPlan",
+    "CalcType",
+    "FormField",
+    "PlannedFile",
+    "by_id",
+    "field_problems",
+    "resolve",
+]
 
 REGISTRY: tuple[CalcType, ...] = (ScfType(), RelaxType(), VcRelaxType(), BandasType(), PdosType())
 

@@ -1,0 +1,38 @@
+/* "Criar cálculo" window (spec 26). */
+#calcCreateDialog {
+    background: ${chrome};
+}
+#calcTabs::pane {
+    border: 1px solid ${border};
+    background: ${panel};
+}
+#calcTabs > QTabBar {
+    background: ${tab_inactive};
+}
+#calcFiles, #kpathTable {
+    background: ${panel};
+    alternate-background-color: ${panel_alt};
+    color: ${text};
+    border: 1px solid ${border};
+    gridline-color: ${border};
+}
+#calcFiles QHeaderView::section, #kpathTable QHeaderView::section {
+    background: ${chrome};
+    color: ${text_muted};
+    border: none;
+    border-bottom: 1px solid ${border};
+    padding: 4px 8px;
+    font-size: 11px;
+}
+#calcNotes {
+    background: ${input};
+    color: ${text};
+    border: 1px solid ${border};
+}
+/* A field with a problem (required and empty, or an invalid value). Focus keeps its ring. */
+QLineEdit[invalid="true"]:!focus,
+QComboBox[invalid="true"]:!focus,
+QSpinBox[invalid="true"]:!focus,
+#kpathTable[invalid="true"] {
+    border: 1px solid ${error};
+}

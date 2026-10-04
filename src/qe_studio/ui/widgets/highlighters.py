@@ -136,3 +136,32 @@ class InputHighlighter(ThemedHighlighter):
                 fmt.setUnderlineStyle(QTextCharFormat.UnderlineStyle.WaveUnderline)
                 fmt.setUnderlineColor(color)
                 self.setFormat(column, 1, fmt)
+
+
+SHELL_KEYWORDS = (
+    "if then else elif fi for in do done case esac while until function select export source "
+    "local return exit set unset"
+)
+# Later rules win where they overlap: a variable inside a string keeps its color, anything inside a
+# comment is the comment's, and a ``#$`` scheduler directive is not a comment.
+SHELL_RULES = (
+    _rule(rf"\b(?:{'|'.join(SHELL_KEYWORDS.split())})\b", "syn_namelist"),
+    _rule(r"(?:^|(?<=[\s;]))\.(?=\s)", "syn_namelist"),  # ". script": source
+    _rule(r'"(?:[^"\\]|\\.)*"|\'[^\']*\'', "syn_string"),
+    _rule(r"\$\{[^}]*\}|\$[A-Za-z_]\w*|\$[0-9@#?*$!-]", "syn_logical"),
+    _rule(r"(?:^|(?<=\s))#.*", "syn_comment"),
+    _rule(r"^#\$.*", "syn_card"),
+    _rule(r"(?<=^#\$)\s*-\w+", "syn_card_option", bold=True),
+)
+
+
+class ShellHighlighter(ThemedHighlighter):
+    """SGE job scripts (``.qsub``, spec 26 R6): ``#$`` directives and their option, comments,
+    strings, variables and shell keywords, in the input highlighter's ``syn_*`` colors."""
+
+    def highlightBlock(self, text: str | None) -> None:
+        text = text or ""
+        for rule in SHELL_RULES:
+            for match in rule.pattern.finditer(text):
+                start, end = match.span()
+                self.setFormat(start, end - start, self.fmt(rule.token, rule.bold))
