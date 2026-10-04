@@ -8,7 +8,7 @@ followed by one ``pdos`` column per m; only ``ldos`` is used. ``<filpdos>.pdos_t
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -152,14 +152,20 @@ def _group_key(series: PdosSeries, grouping: str) -> tuple[str, str]:
     raise ValueError(f"agrupamento desconhecido: {grouping}")
 
 
-def aggregate(data: PdosData, grouping: str = "species_orbital") -> dict[tuple[str, str], Channel]:
+def aggregate(
+    data: PdosData, grouping: str = "species_orbital", atoms: Collection[int] | None = None
+) -> dict[tuple[str, str], Channel]:
     """Sum series into (species, orbital) groups; empty string = summed over that axis.
 
-    Order: species by first atom index, then s, p, d, f.
+    Order: species by first atom index, then s, p, d, f. ``atoms`` (1-based atom numbers) keeps
+    only the series of those atoms; None keeps all. The order ranks species over all atoms, so a
+    filter never changes it.
     """
     species_rank = {name: i for i, name in enumerate(data.species)}
     groups: dict[tuple[str, str], Channel] = {}
     for series in data.series:
+        if atoms is not None and series.atom not in atoms:
+            continue
         key = _group_key(series, grouping)
         groups[key] = groups[key] + series.channel if key in groups else series.channel
     return dict(
@@ -168,6 +174,15 @@ def aggregate(data: PdosData, grouping: str = "species_orbital") -> dict[tuple[s
             key=lambda item: (species_rank.get(item[0][0], -1), ORBITAL_ORDER.find(item[0][1])),
         )
     )
+
+
+def selected_total(data: PdosData, atoms: Collection[int]) -> Channel | None:
+    """Sum of every projection of ``atoms``; None when none of them has a file."""
+    total: Channel | None = None
+    for series in data.series:
+        if series.atom in atoms:
+            total = series.channel if total is None else total + series.channel
+    return total
 
 
 def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosData:

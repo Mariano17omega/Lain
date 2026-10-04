@@ -296,6 +296,32 @@ the GUI only draws) is the HOMO / LUMO pw.x printed (`homo_lumo`, first of NSCF,
 `projwfc.dos_gap` on `PdosData.total` (`dos`, drawn `≈`, 2 decimals): always the system's total, never the drawn
 series, and smeared edges make it read narrower than the true gap.
 
+### Atom selection in the PDOS (spec 21)
+
+`PdosParams.atoms` (`list[int] | None`, 1-based, `None` = all) is picked in `ui/dialogs/atoms.py:AtomsDialog` (button
+"Átomos…" of the "Projeções" section, a `ParamField(..., "atoms")` that `ParamsBody` turns into the button + "3 de 12"; it
+asks the module for `atoms_of(dataset) -> AtomChoices(sites, compound)`, disabled when `sites` is empty). The selection is
+**per compound**, not per folder: `core/compounds.py` has `compound_key` (the species sequence in input order: positions
+never matter, a different order is another compound), `compound_of(sites)`, `normalize_selection` (all or nothing valid
+= `None`) and `CompoundStore` (`compounds.json` in the data dir, like `NavigationStore`: lazy read, atomic write, a corrupt
+file set aside, `save(key, formula, None)` removes the entry). `core/qe/structure.py:read_sites` streams the pw.x header
+(positions in alat units → Å, no ASE) in the load worker; `PdosDataset.sites` / `.compound`.
+
+A parameter kept in a user store instead of `<kind>.plot` declares `field(metadata={"store": ...})`
+(`plot_file.stored_elsewhere`; `stored_params` and `apply_stored` skip it, an old `.plot` with the key is ignored). The base
+class has three hooks for it: `stored_params(dataset, stores)` (read: `build_session(..., stores=)` applies it over the
+defaults, before the `.plot`, so `defaults` hold it), `save_stored(dataset, params, name, stores)` (write) and `atoms_of`.
+`Stores` (`calculations/base.py`) is the bag of stores a module may use; `PlotWorkflow` owns it (`compounds=` kwarg, the
+window's `self.compounds`). `PlotWorkflow._on_param_changed` calls `PlotSession.persist(name, stores)`: for a store-backed
+field it saves through the hook and copies the value into `session.defaults` (not a plot edit: no `.plot` write, and
+"Restaurar padrões" keeps it); otherwise the `.plot` write is scheduled as before. Regenerating reads the store again.
+
+The filter is `projwfc.aggregate(data, grouping, atoms)`, applied before grouping and `hidden_series`; colors follow the
+order of all atoms (`series_colors` lists only the groups left). With `atoms` set, "DOS total" is the sum of the chosen
+atoms (`projwfc.selected_total`, label "Soma dos átomos selecionados") instead of `pdos_tot`; the summary says "N de M
+átomos"; the gap (`PdosDataset.gap`) stays the system's. `tests/atoms_helpers.py:pdos_folder(root, species)` builds a
+many-atom PDOS folder from `al_pdos_flat` (atom *n* = the fixture times *n*).
+
 ### Navigation, filters and selection (spec 16)
 
 Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:

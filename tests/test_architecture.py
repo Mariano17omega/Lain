@@ -38,6 +38,8 @@ QT_FREE = [
     "qe_studio.core.about",
     "qe_studio.core.colors",
     "qe_studio.core.fontscale",
+    "qe_studio.core.compounds",
+    "qe_studio.core.qe.structure",
 ]
 
 

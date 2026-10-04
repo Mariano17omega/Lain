@@ -13,6 +13,7 @@ from qe_studio.core.calculations.base import (
     DetectionResult,
     FileRole,
     SniffFn,
+    Stores,
 )
 from qe_studio.core.calculations.params import (
     COMMON_FIELDS,
@@ -22,13 +23,16 @@ from qe_studio.core.calculations.params import (
     apply_common_config,
     ordered_sections,
 )
+from qe_studio.core.compounds import AtomChoices, Compound, CompoundStore
 from qe_studio.core.config import AppConfig
 from qe_studio.core.detection import detect_folder
 from qe_studio.core.plotting.draw import finish, new_axes
 from qe_studio.core.plotting.export import export_figure
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
-from qe_studio.core.plotting.session import PlotSession
+from qe_studio.core.plotting.session import PlotSession, build_session
+from qe_studio.core.qe.structure import Site
 from qe_studio.core.sniff import SniffCache, sniff
+from qe_studio.ui.dialogs.atoms import AtomsAnswer
 from qe_studio.ui.painting import paint_badge
 from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.param_widgets import Section
@@ -49,6 +53,10 @@ class DummyParams(CommonParams):
     color: str = "#ff0000"
     ymin: float | None = None
     ymax: float | None = None
+    pick: list[int] | None = field(default=None, metadata={"store": "dummy"})  # a user store's
+
+
+STORE_KEY = "dummy"
 
 
 class DummyModule(CalculationModule[DummyData, DummyParams]):
@@ -85,8 +93,20 @@ class DummyModule(CalculationModule[DummyData, DummyParams]):
             ParamField("color", "Cor", "Teste", "color"),
             ParamField("ymin", "y mín", "Teste", "float", optional=True, minimum=-1e6),
             ParamField("ymax", "y máx", "Teste", "float", optional=True, minimum=-1e6),
+            ParamField("pick", "Pontos", "Teste", "atoms"),
             *COMMON_FIELDS,
         ]
+
+    def atoms_of(self, dataset: DummyData) -> AtomChoices:
+        sites = tuple(Site(i, "X", float(i), 0.0, 0.0) for i in range(1, len(dataset.values) + 1))
+        return AtomChoices(sites, Compound(STORE_KEY, f"X{len(sites)}"))
+
+    def stored_params(self, dataset: DummyData, stores: Stores) -> dict:
+        picked = stores.compounds.selection(STORE_KEY)
+        return {} if picked is None else {"pick": picked}
+
+    def save_stored(self, dataset: DummyData, params: DummyParams, name: str, stores: Stores):
+        stores.compounds.save(STORE_KEY, "X", params.pick)
 
     def apply_limits(self, params: DummyParams, axes_limits: AxesLimits) -> None:
         params.ymin, params.ymax = axes_limits[0][1]
@@ -279,3 +299,81 @@ def test_every_module_describes_its_badge():
 
 def test_a_module_without_description_tips_its_name_only():
     assert DUMMY.badge_tooltip() == DUMMY.display_name
+
+
+# -- parameters kept in a user store (spec 21) ----------------------------------------------------
+def test_a_store_backed_parameter_never_reaches_the_plot_file(dummy_folder, tmp_path):
+    dataset = DUMMY.load(detect_dummy(dummy_folder), sniff)
+    params = DUMMY.default_params(AppConfig(), dataset)
+    params.pick = [2, 3]
+    folder = tmp_path / "sim"
+    folder.mkdir()
+    write_plot_file(folder, "dummy", params)
+    stored, _warnings = read_plot_file(folder, "dummy")
+    assert stored is not None and "pick" not in stored
+    fresh = DUMMY.default_params(AppConfig(), dataset)
+    assert apply_stored(fresh, {"pick": [1], "color": "#00ff00"}, DUMMY.param_schema(dataset)) == []
+    assert fresh.pick is None and fresh.color == "#00ff00"
+
+
+def test_the_session_takes_store_values_over_the_defaults(dummy_folder, tmp_path):
+    result = detect_dummy(dummy_folder)
+    dataset = DUMMY.load(result, sniff)
+    stores = Stores(CompoundStore(tmp_path / "compounds.json"))
+    memory = None  # never read: there is no legacy data for it to hold
+
+    def build(open_session=None):
+        return build_session(
+            result, dataset, AppConfig(), (None, []), memory, open_session, stores
+        )[0]  # type: ignore[arg-type]
+
+    assert build().params.pick is None
+    stores.compounds.save(STORE_KEY, "X5", [1, 5])
+    session = build()
+    assert session.params.pick == [1, 5] and session.defaults.pick == [1, 5] and not session.edited
+
+    session.params.pick = [2]
+    assert session.persist("pick", stores) is True
+    assert stores.compounds.selection(STORE_KEY) == [2] and not session.edited
+    session.params.color = "#00ff00"
+    assert session.persist("color", stores) is False and session.edited
+
+
+def test_the_window_offers_and_saves_a_store_backed_parameter(
+    qtbot, main_window, dummy_folder, monkeypatch
+):
+    from PyQt6.QtWidgets import QPushButton
+
+    window = main_window
+    window.compounds.save(STORE_KEY, "X5", [2, 3])
+    result = detect_dummy(dummy_folder)
+    window.plot_workflow.show_loaded(result, DUMMY.load_cached(result, sniff), (None, []))
+    session = window.current_plot().session
+    assert session.params.pick == [2, 3]
+
+    seen = []
+
+    def ask(parent, choices, selected):
+        seen.append((len(choices.sites), selected))
+        return AtomsAnswer([4])
+
+    monkeypatch.setattr("qe_studio.ui.widgets.params_body.ask_atoms", ask)
+    (button,) = [b for b in window.params.body.findChildren(QPushButton) if b.text() == "Átomos…"]
+    button.click()
+    assert seen == [(5, [2, 3])] and session.params.pick == [4]
+    assert window.compounds.selection(STORE_KEY) == [4]
+    window.plot_settings.flush_now()
+    assert not (dummy_folder / "dummy.plot").exists()  # not a plot edit
+
+
+def test_modules_without_atoms_have_neutral_hooks(dummy_folder):
+    from qe_studio.core.calculations.base import CalculationModule as Base
+
+    module = DummyModule()
+    dataset = module.load(detect_dummy(dummy_folder), sniff)
+    stores = Stores(CompoundStore())
+    assert Base.atoms_of(module, dataset) is None
+    assert Base.stored_params(module, dataset, stores) == {}
+    assert Base.save_stored(module, dataset, DummyParams(), "pick", stores) is None
+    bands = next(m for m in REGISTRY if m.kind == "bands")
+    assert bands.atoms_of(None) is None and bands.stored_params(None, stores) == {}  # type: ignore[arg-type]

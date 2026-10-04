@@ -5,8 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ...compounds import Compound, compound_of
 from ...qe import projwfc
 from ...qe.pw_output import PwOutput
+from ...qe.structure import Site, read_sites
 from ..base import DetectionResult, LoadError, SniffFn
 from .gap import GapInfo, pdos_gap
 
@@ -23,6 +25,10 @@ class PdosDataset:
     channels_nscf: tuple[float, float] | None = None
     magnetization: float | None = None  # total, μB/cell
     gap: GapInfo | None = None  # of the system, not of what is drawn
+    sites: tuple[
+        Site, ...
+    ] = ()  # atoms of the SCF / NSCF header, in input order (empty: unreadable)
+    compound: Compound | None = None  # who they are, for the saved atom selection
 
     def _use_nscf(self, source: str) -> bool:
         if source == "nscf" and self.fermi_nscf is not None:
@@ -49,6 +55,11 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
         return sniff(path).pw if path else None
 
     scf, nscf = pw_of("scf_out"), pw_of("nscf_out")
+    sites: tuple[Site, ...] = ()
+    for role in ("scf_out", "nscf_out"):
+        if (path := result.file(role)) and (found := read_sites(path)):
+            sites = tuple(found)
+            break
     magnetization = next(
         (pw.total_magnetization for pw in (scf, nscf) if pw and pw.total_magnetization is not None),
         None,
@@ -63,6 +74,8 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
         channels_nscf=nscf.fermi_up_down if nscf else None,
         magnetization=magnetization,
         gap=pdos_gap(scf, nscf, data),
+        sites=sites,
+        compound=compound_of(sites),
     )
     if dataset.fermi("scf") is None:
         dataset.warnings.append("energia de Fermi não encontrada: energias absolutas")

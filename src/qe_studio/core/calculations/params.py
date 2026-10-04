@@ -10,7 +10,8 @@ if TYPE_CHECKING:
     from .base import CalculationModule
 
 # "series": a list of hidden series names plus ``ParamField.colors``, the dict of color overrides.
-FieldKind = Literal["float", "int", "bool", "color", "choice", "text", "labels", "series"]
+# "atoms": the atoms to plot (``list[int] | None``), picked in a window and kept per compound.
+FieldKind = Literal["float", "int", "bool", "color", "choice", "text", "labels", "series", "atoms"]
 
 
 @dataclass(frozen=True)

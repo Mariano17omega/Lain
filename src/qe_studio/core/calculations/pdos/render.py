@@ -39,8 +39,13 @@ def series_colors(dataset: PdosDataset, params: PdosParams, style: PlotStyle) ->
     """Color of every group for the current grouping (user overrides first)."""
     orbital_colors = {**DEFAULT_ORBITAL_COLORS, **params.orbital_colors}
     species_index = {name: i for i, name in enumerate(dataset.data.species)}
+    # Colors follow the order of *all* the atoms, so choosing atoms never recolors a group; only
+    # the groups that still have a series are listed.
+    shown = projwfc.aggregate(dataset.data, params.grouping, params.atoms)
     colors = {}
     for i, key in enumerate(projwfc.aggregate(dataset.data, params.grouping)):
+        if key not in shown:
+            continue
         label = series_label(key)
         species, orbital = key
         if orbital:
@@ -120,12 +125,11 @@ def render_pdos(
             elif down is not None and mode == "overlay":
                 draw(down, color, None, width, alpha, None, ls=DOWN_DASH, fill=False)
 
-    if params.show_total and data.total is not None:
-        label = "Total (Σ PDOS)" if data.total_is_sum else "Total"
-        color = params.total_color or style.total_dos
-        channel(data.total, color, label, params.line_width, 0.12)
+    total, total_label = _total(data, params)
+    if params.show_total and total is not None:
+        channel(total, params.total_color or style.total_dos, total_label, params.line_width, 0.12)
     colors = series_colors(dataset, params, style)
-    for key, ch in projwfc.aggregate(data, params.grouping).items():
+    for key, ch in projwfc.aggregate(data, params.grouping, params.atoms).items():
         label = series_label(key)
         if label not in params.hidden_series:
             channel(ch, colors[label], label, params.line_width, 0.22)
@@ -167,6 +171,14 @@ def render_pdos(
     finish(figure, ax, params, handles)
     xlim, ylim = (dos_lim, e_lim) if vertical else (e_lim, dos_lim)
     return RenderInfo(xlim, ylim, summary(dataset, params))
+
+
+def _total(data: projwfc.PdosData, params: PdosParams) -> tuple[projwfc.Channel | None, str]:
+    """The "DOS total" curve and its legend label. pdos_tot holds every atom, which would mislead
+    next to a subset of them: then it is the sum of what is drawn."""
+    if params.atoms is not None:
+        return projwfc.selected_total(data, params.atoms), "Soma dos átomos selecionados"
+    return data.total, "Total (Σ PDOS)" if data.total_is_sum else "Total"
 
 
 def _fermi_lines(
@@ -231,6 +243,9 @@ def summary(dataset: PdosDataset, params: PdosParams) -> str:
         parts.append(f"E_F = {fermi:.4f} eV ({source})")
     data = dataset.data
     parts.append(f"{len(data.series)} projeções · {len(data.species)} espécies")
+    if params.atoms is not None:
+        every = {s.atom for s in data.series}
+        parts.append(f"{len(every & set(params.atoms))} de {len(every)} átomos")
     if data.spin_polarized:
         parts.append("spin polarizado")
         if dataset.magnetization is not None:

@@ -102,6 +102,7 @@ def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
 
     monkeypatch.setattr(QMenu, "exec", blocking_menu)
 
+    from qe_studio.core.compounds import CompoundStore
     from qe_studio.core.config import LoadedConfig, parse_config
     from qe_studio.core.folder_memory import FolderMemory
     from qe_studio.core.nav_store import NavigationStore
@@ -114,6 +115,7 @@ def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
         """``loaded``: a ``LoadedConfig`` of its own (first run, missing root…) instead of one
         whose ``local_root`` is ``demo_project``."""
         kwargs.setdefault("navigation", NavigationStore(tmp_path / "navigation.json"))
+        kwargs.setdefault("compounds", CompoundStore(tmp_path / "compounds.json"))
         config = parse_config({"paths": {"local_root": str(demo_project)}})
         theme = ThemeManager("dark")
         theme.apply()

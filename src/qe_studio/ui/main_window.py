@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import APP_NAME, __version__
+from ..core.compounds import CompoundStore
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.file_kinds import viewer_kind
 from ..core.file_ops import rename_item
@@ -72,6 +73,7 @@ class MainWindow(QMainWindow):
         settings: QSettings | None = None,
         memory: FolderMemory | None = None,
         navigation: NavigationStore | None = None,
+        compounds: CompoundStore | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -81,6 +83,7 @@ class MainWindow(QMainWindow):
         self.settings = settings or QSettings()
         self.memory = memory or FolderMemory()
         self.navigation_store = navigation or NavigationStore()
+        self.compounds = compounds or CompoundStore()  # atoms chosen per compound (spec 21)
         self.memory.set_root(self.root)  # its keys are relative to the project root
         self.service = DetectionService(self.memory, self)
         self.service.paranoid_refresh = self.config.ui.paranoid_refresh
@@ -178,6 +181,7 @@ class MainWindow(QMainWindow):
             theme=self.theme,
             config=lambda: self.config,
             dialog_parent=self,
+            compounds=self.compounds,
             parent=self,
         )
         self.sync = SyncCoordinator(self.config, self.theme, self, self)

@@ -47,6 +47,9 @@ class PdosParams(CommonParams):
     fill_occupied: bool = True
     show_fermi_line: bool = True
     fermi_color: str = "#f43f5e"
+    # 1-based atoms shown, None = all. Kept per compound in the user's CompoundStore, never in the
+    # (per-folder) .plot: see ``stored_elsewhere``.
+    atoms: list[int] | None = field(default=None, metadata={"store": "compound"})
     hidden_series: list[str] = field(default_factory=list)
     series_colors: dict[str, str] = field(default_factory=dict)
     orbital_colors: dict[str, str] = field(
@@ -135,6 +138,7 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
         ),
         ParamField("show_total", "DOS total", "Projeções", "bool"),
         ParamField("fill_occupied", "Preencher estados ocupados", "Projeções", "bool"),
+        ParamField("atoms", "Átomos", "Projeções", "atoms"),
         *(
             [ParamField("spin_mode", "Spin", "Projeções", "choice", choices=SPIN_MODES)]
             if dataset.data.spin_polarized

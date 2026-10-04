@@ -23,7 +23,9 @@ from PyQt6.QtWidgets import (
 
 from ...core.calculations.base import Dataset
 from ...core.calculations.params import CommonParams, ParamField, ordered_sections
+from ...core.compounds import atoms_summary
 from ...core.plotting.session import PlotSession
+from ..dialogs.atoms import ask_atoms
 from ..theme.manager import ThemeManager
 from .common import set_variant
 from .param_widgets import ColorButton, Section, SeriesList
@@ -201,6 +203,9 @@ class ParamsBody(QWidget):
             section.add_full(self._series)
             self._refresh_series()
             return
+        elif field.kind == "atoms":
+            section.add_full(self._atoms_widget(field))
+            return
         else:  # text / labels
             edit = QLineEdit(str(value))
             if field.kind == "labels":
@@ -211,6 +216,43 @@ class ParamsBody(QWidget):
             self._setters[name] = lambda v, e=edit: e.setText(str(v))
             widget = edit
         section.add_row(field.label, widget, field.tooltip)
+
+    def _atoms_widget(self, field: ParamField) -> QWidget:
+        """The "Átomos…" button and how many atoms are shown; the window and the choices are the
+        module's (``atoms_of``), disabled when the atoms could not be read."""
+        name, session = field.name, self.session
+        choices = session.module.atoms_of(session.dataset)
+        total = len(choices.sites) if choices else 0
+        button = QPushButton("Átomos…")
+        button.setAccessibleName(field.label)
+        summary = set_variant(QLabel(), "readout")
+
+        def show(value: list[int] | None) -> None:
+            summary.setText(atoms_summary(value, total) if total else "")
+
+        def pick() -> None:
+            if choices is None:
+                return
+            answer = ask_atoms(self, choices, getattr(session.params, name))
+            if answer is not None:
+                self._set(name, answer.atoms)
+                show(answer.atoms)
+
+        if choices is None or not choices.available:
+            button.setEnabled(False)
+            button.setToolTip("Não foi possível ler os átomos da saída do SCF")
+        else:
+            button.setToolTip("Escolher os átomos cujos orbitais são plotados")
+            button.clicked.connect(pick)
+        widget = QWidget()
+        row = QHBoxLayout(widget)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(button)
+        row.addWidget(summary, 1)
+
+        show(getattr(session.params, name))
+        self._setters[name] = show
+        return widget
 
     def _color_widget(self, name: str, value: str) -> QWidget:
         swatch = ColorButton(value)

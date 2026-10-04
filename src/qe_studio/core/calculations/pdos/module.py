@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from matplotlib.figure import Figure
 
+from ...compounds import AtomChoices
 from ...plotting.style import PlotStyle
 from ...qe import projwfc
 from ...sniff import FileKind, FileSniff
@@ -17,9 +18,11 @@ from ..base import (
     FileRole,
     FolderListing,
     SniffFn,
+    Stores,
     output_of,
 )
 from ..params import ParamField, RenderInfo
+from . import atoms as atoms_mod
 from . import params as params_mod
 from . import render as render_mod
 from .data import PdosDataset, load_dataset
@@ -142,6 +145,17 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
 
     def load(self, result: DetectionResult, sniff: SniffFn) -> PdosDataset:
         return load_dataset(result, sniff)
+
+    def atoms_of(self, dataset: PdosDataset) -> AtomChoices:
+        return atoms_mod.atoms_of(dataset)
+
+    def stored_params(self, dataset: PdosDataset, stores: Stores) -> dict[str, Any]:
+        return atoms_mod.stored_params(dataset, stores)
+
+    def save_stored(
+        self, dataset: PdosDataset, params: PdosParams, name: str, stores: Stores
+    ) -> None:
+        atoms_mod.save_stored(dataset, params, name, stores)
 
     def series_colors(
         self, dataset: PdosDataset, params: PdosParams, style: PlotStyle

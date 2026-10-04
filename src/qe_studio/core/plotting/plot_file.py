@@ -1,8 +1,9 @@
 """Plot settings saved next to the simulation as ``<kind>.plot`` (YAML), one file per plot kind.
 
-The file holds every field of the module's parameter dataclass. It is read in the load worker and
-applied over ``default_params`` field by field, so a hand-edited or outdated file can only drop
-the values it gets wrong, never break the plot.
+The file holds every field of the module's parameter dataclass except those kept in a user store
+(``stored_elsewhere``). It is read in the load worker and applied over ``default_params`` field by
+field, so a hand-edited or outdated file can only drop the values it gets wrong, never break the
+plot.
 """
 
 from __future__ import annotations
@@ -61,9 +62,16 @@ def write_plot_file(folder: Path, kind: str, params: Any) -> Path:
     return path
 
 
+def stored_elsewhere(params: Any) -> set[str]:
+    """Fields kept in a per-user store, not in the (per-folder, synced) ``.plot``: they declare
+    ``field(metadata={"store": ...})`` (e.g. the atoms of a PDOS, saved per compound)."""
+    return {f.name for f in fields(params) if f.metadata.get("store")}
+
+
 def stored_params(params: Any) -> dict[str, Any]:
     """``params`` as the file stores them (what ``read_plot_file`` returns)."""
-    return _plain(asdict(params))
+    elsewhere = stored_elsewhere(params)
+    return _plain({k: v for k, v in asdict(params).items() if k not in elsewhere})
 
 
 def _plain(value: Any) -> Any:
@@ -98,7 +106,7 @@ def apply_stored(
         if kind := f.metadata.get("kind"):
             kinds.setdefault(f.name, kind)
     choices = {f.name: [c[0] for c in f.choices] for f in schema if f.kind == "choice"}
-    names = {f.name for f in declared}
+    names = {f.name for f in declared} - stored_elsewhere(params)
     ignored = []
     for name, value in stored.items():
         if name not in names:

@@ -16,11 +16,11 @@ import matplotlib
 from matplotlib.figure import Figure
 
 from ..calculations import DetectionResult
-from ..calculations.base import AxesLimits, CalculationModule, D, P, SniffFn
+from ..calculations.base import AxesLimits, CalculationModule, D, P, SniffFn, Stores
 from ..calculations.params import RenderInfo
 from ..detection import ManualTarget
 from .mpl_lock import MPL_LOCK
-from .plot_file import apply_stored, stored_params
+from .plot_file import apply_stored, stored_elsewhere, stored_params
 from .style import PlotStyle, figure_style
 
 if TYPE_CHECKING:
@@ -92,6 +92,16 @@ class PlotSession(Generic[D, P]):
                 log.exception("cursor readout of %s failed", self.kind)
             return ""
 
+    def persist(self, name: str, stores: Stores) -> bool:
+        """After an edit of ``name``: if it is kept in a user store (not in ``<kind>.plot``), save it
+        there and make it the new default, so it is neither a plot edit (no ``.plot`` write) nor
+        undone by "Restaurar padrões". False when ``name`` is an ordinary ``.plot`` parameter."""
+        if name not in stored_elsewhere(self.params):
+            return False
+        self.module.save_stored(self.dataset, self.params, name, stores)
+        setattr(self.defaults, name, copy.deepcopy(getattr(self.params, name)))
+        return True
+
     def reset_view(self) -> None:
         """Axis limits back to their initial values (keeps colors and other edits)."""
         for name in self.module.view_fields:
@@ -131,16 +141,22 @@ def build_session(
     stored: tuple[dict[str, Any] | None, list[str]],
     memory: FolderMemory,
     open_session: PlotSession | None = None,
+    stores: Stores | None = None,
 ) -> tuple[PlotSession, list[str]]:
     """The session of a loaded plot, and the warnings for the user.
 
-    Parameters: the module defaults (kept as the session's ``defaults``), then the stored
-    ``<kind>.plot`` (``stored`` is ``read_plot_file``'s answer) or, without one, the settings kept
-    in ``FolderMemory`` before ``.plot`` existed. Regenerating an edited open plot
-    (``open_session``) keeps its edits instead: they may not have reached the file yet.
+    Parameters: the module defaults, with what the user ``stores`` keep (e.g. the atoms chosen for
+    the compound) over them: that is the session's ``defaults``. Then the stored ``<kind>.plot``
+    (``stored`` is ``read_plot_file``'s answer) or, without one, the settings kept in
+    ``FolderMemory`` before ``.plot`` existed. Regenerating an edited open plot (``open_session``)
+    keeps its edits instead: they may not have reached the file yet. Store-kept parameters are
+    always read from the store again, never from the open plot.
     """
     module = result.module
     params = module.default_params(config, dataset)
+    if stores is not None:
+        for name, value in module.stored_params(dataset, stores).items():
+            setattr(params, name, value)
     values, warnings = stored
     if open_session is not None and open_session.edited:
         values, warnings = stored_params(open_session.params), []

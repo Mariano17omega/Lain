@@ -20,6 +20,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar
 
+from ..compounds import AtomChoices, CompoundStore
 from ..qe import projwfc
 from ..sniff import FileKind, FileSniff
 from .params import CommonParams, ParamField, RenderInfo
@@ -39,6 +40,18 @@ SniffFn = Callable[[Path], FileSniff]
 
 # Folders never scanned below the simulation folder itself.
 IGNORED_SUBDIRS = re.compile(r"^(tmp|plots|out|.*\.save|\..*)$", re.I)
+
+
+@dataclass(frozen=True)
+class Stores:
+    """The per-user stores a module may read and write (``CalculationModule.stored_params`` /
+    ``save_stored``). They live in the app data dir, never in the (synced) simulation folder."""
+
+    compounds: CompoundStore
+
+    def pop_warnings(self) -> list[str]:
+        """Messages about stores that were corrupt, once each."""
+        return [w for w in (self.compounds.pop_warning(),) if w]
 
 
 class Dataset(Protocol):
@@ -359,6 +372,19 @@ class CalculationModule(Generic[D, P]):
     def default_labels(self, dataset: D) -> list[str]:
         """Labels shown as the placeholder of a ``"labels"`` parameter field."""
         return []
+
+    def atoms_of(self, dataset: D) -> AtomChoices | None:
+        """The atoms a plot can be restricted to (spec 21) or None for a module without atoms. An
+        empty ``sites`` means they could not be read: the picker is offered but disabled."""
+        return None
+
+    def stored_params(self, dataset: D, stores: Stores) -> dict[str, Any]:
+        """Parameter values kept in ``stores`` instead of ``<kind>.plot`` (fields declared with
+        ``metadata={"store": ...}``); applied over the defaults, before the ``.plot``."""
+        return {}
+
+    def save_stored(self, dataset: D, params: P, name: str, stores: Stores) -> None:
+        """The user edited ``name``, a parameter kept in ``stores``: save it there."""
 
     def load_cached(self, result: DetectionResult, sniff: SniffFn) -> D:
         """``load`` memoized on the files' (mtime, size); safe to call from worker threads."""

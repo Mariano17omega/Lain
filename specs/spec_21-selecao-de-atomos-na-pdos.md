@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 21 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios: as seleções chegam ao módulo por um `Stores` (saco de stores do usuário, hoje só `compounds`) e um terceiro hook, `save_stored(dataset, params, name, stores)`, grava a edição; `PlotSession.persist(name, stores)` o chama e copia o valor para `defaults`, então escolher átomos não é uma edição do gráfico (nenhum `.plot` é agendado) e "Restaurar padrões" mantém a escolha do composto; `plot_file.stored_elsewhere(params)` lista os campos com `metadata={"store": …}` e `stored_params` / `apply_stored` os ignoram; as cores das séries seguem a ordem de **todos** os átomos (filtrar não recolore) e a lista de séries do painel só mostra os grupos com átomo marcado; `ask_atoms` devolve um `AtomsAnswer` (`atoms=None` = todos) ou `None` ao cancelar; `AtomChoices.available` é falso sem sítios, e o botão é criado desabilitado; os sítios vêm de `read_sites` no worker do `load_dataset` (não do `PwOutput`, cujo golden não muda) |
 | **Depende de** | spec 20 (mesma seção de parâmetros e mesmos goldens); spec 13 (PDOS em pacote) |
 | **Usada por** | spec 22 (a DOS da figura combinada respeita a seleção) |
 | **Esforço** | M |

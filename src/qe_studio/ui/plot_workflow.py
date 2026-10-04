@@ -20,7 +20,8 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QInputDialog, QMessageBox, QWidget
 
 from ..core.calculations import DetectionResult, module_for, module_for_file
-from ..core.calculations.base import LoadError
+from ..core.calculations.base import LoadError, Stores
+from ..core.compounds import CompoundStore
 from ..core.config import AppConfig
 from ..core.detection import (
     Ambiguous,
@@ -85,11 +86,13 @@ class PlotWorkflow(QObject):
         theme: ThemeManager,
         config: Callable[[], AppConfig],
         dialog_parent: QWidget,
+        compounds: CompoundStore | None = None,
         parent: QObject | None = None,
     ):
         super().__init__(parent)
         self.service, self.workspace, self.params = service, workspace, params
         self.memory, self.settings, self.status, self.theme = memory, settings, status, theme
+        self.stores = Stores(compounds or CompoundStore())  # kept per user, not per folder
         self._config = config
         self._dialog_parent = dialog_parent
         self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
@@ -301,8 +304,9 @@ class PlotWorkflow(QObject):
         existing = self.workspace.widget_for(key)
         open_session = existing.session if isinstance(existing, PlotView) else None
         session, warnings = build_session(
-            result, dataset, self._config(), stored, self.memory, open_session
+            result, dataset, self._config(), stored, self.memory, open_session, self.stores
         )
+        warnings += self.stores.pop_warnings()
         if existing is not None:
             self.workspace.close_key(key)
         view = PlotView(self.theme, session)
@@ -338,10 +342,12 @@ class PlotWorkflow(QObject):
             self.settings.flush(widget.session.key)
             self.params.discard(widget.session.key)
 
-    def _on_param_changed(self, _name: str) -> None:
+    def _on_param_changed(self, name: str) -> None:
         self._render_timer.start()
-        if self.params.session is not None:
-            self.settings.mark(self.params.session)
+        session = self.params.session
+        # What a user store keeps (the atoms of a compound) is saved there, not in the .plot.
+        if session is not None and not session.persist(name, self.stores):
+            self.settings.mark(session)
 
     def _on_limits_changed(self) -> None:
         # Pan/zoom or Reset in the plot toolbar (always the visible, current plot).
