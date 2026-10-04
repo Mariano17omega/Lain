@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+####################################################
+########       Configuração do pw.x         ########
+####################################################
+PWCOMMAND="/opt/espresso-7.1/bin/pw.x -nk 8"
+#
+###       Grid Set Up                   ###
+#$ -N "test"
+#$ -pe physica 64
+#$ -cwd
+#$ -j y
+#
+###        Intel MPI Set Up             ###
+export OMP_NUM_THREADS=1
+export I_MPI_SHM=bdw_avx2
+. /opt/intel/oneapi/mkl/latest/env/vars.sh
+. /opt/intel/oneapi/mpi/latest/env/vars.sh
+MPICOMMAND="/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
+####################################################
+########        Executa as Simulacao        ########
+####################################################
+
+${MPICOMMAND} ${PWCOMMAND} -i "relax.in" > "relax.out"
+
+
+exit 0

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+####################################################
+########       Configuração do pw.x         ########
+####################################################
+PPCOMMAND="/opt/espresso-7.1/bin/pp.x" 
+PWCOMMAND="/opt/espresso-7.1/bin/pw.x -nk 4"
+PWCOMMAND_SINGLE="/opt/espresso-7.1/bin/pw.x"
+#
+###       Grid Set Up                   ###
+#$ -N "DfO2"
+#$ -pe physica 32
+#$ -cwd
+#$ -j y
+#
+###        Intel MPI Set Up             ###
+export OMP_NUM_THREADS=1
+export I_MPI_SHM=bdw_avx2
+. /opt/intel/oneapi/mkl/latest/env/vars.sh
+. /opt/intel/oneapi/mpi/latest/env/vars.sh
+MPICOMMAND="/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
+####################################################
+########        Executa as Simulacao        ########
+####################################################
+mkdir -p cdd_xsf
+
+${MPICOMMAND} ${PWCOMMAND} -i scf_ilita_mehg.in > scf_ilita_mehg.out
+${MPICOMMAND} ${PWCOMMAND} -i scf_ilita.in      > scf_ilita.out
+${PWCOMMAND_SINGLE} -i scf_mehg.in > scf_mehg.out
+
+${PPCOMMAND} -i pp_ilita_mehg_charge.in > pp_ilita_mehg_charge.out
+${PPCOMMAND} -i pp_ilita_charge.in      > pp_ilita_charge.out
+${PPCOMMAND} -i pp_mehg_charge.in       > pp_mehg_charge.out
+
+${PPCOMMAND} -i pp_charge_diff.in > pp_charge_diff.out
+
+exit 0

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Executa o programa pw.x, v. 7.1 
+# Cicero Mota, mota@ufam.edu.br: Sep 1, 2018; Jun 29, 2022; Jul 18, 2022.
+# Mariano S. onairam17@gmail.com: Apr 17, 2025.
+####################################################
+########       Configuração do pw.x         ########
+####################################################
+PWCOMMAND="/opt/espresso-7.1/bin/pw.x -nk 8"
+PROJWFCCOMMAND="/opt/espresso-7.1/bin/projwfc.x"
+#
+###       Grid Set Up                   ###
+#$ -N "pdo2"
+#$ -pe physica 64
+#$ -cwd
+#$ -j y
+#
+###        Intel MPI Set Up             ###
+export OMP_NUM_THREADS=1
+export I_MPI_SHM=bdw_avx2
+. /opt/intel/oneapi/mkl/latest/env/vars.sh
+. /opt/intel/oneapi/mpi/latest/env/vars.sh
+MPICOMMAND="/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
+####################################################
+########        Executa as Simulacao        ########
+####################################################
+
+cat > "proj.in" << EOF
+&PROJWFC
+  prefix = 'ilita_mehg'
+  outdir = './tmp/'
+  DeltaE = 0.01
+  filpdos = 'ilita_mehg.dat'
+  Emin = -25.0
+  Emax = 25.0
+  ngauss = 0
+  degauss = 0.01
+/
+EOF
+    
+
+${MPICOMMAND} ${PWCOMMAND} -i "scf.in" > "scf.out"
+
+${MPICOMMAND} ${PWCOMMAND} -i "nscf.in" > "nscf.out"
+
+${PROJWFCCOMMAND} -i "proj.in" > "proj.out"
+
+
+mkdir -p orbitals
+mv *wfc* orbitals/ 2>/dev/null
+
+####################################
+exit 0
