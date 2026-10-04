@@ -29,6 +29,10 @@ QT_FREE = [
     "qe_studio.core.navigation",
     "qe_studio.core.filtering",
     "qe_studio.core.nav_store",
+    "qe_studio.core.fuzzy",
+    "qe_studio.core.folder_index",
+    "qe_studio.core.config_template",
+    "qe_studio.core.about",
 ]
 
 

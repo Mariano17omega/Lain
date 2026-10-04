@@ -81,7 +81,7 @@ def test_generate_opens_a_tab_and_asks_for_the_panels(qtbot, rig, demo_project):
     assert rig.workflow.current_plot() is view and rig.params.session is session
     assert rig.panels == ["workspace", "params"]
     assert ("Estrutura de bandas: 03_bands", "info") in rig.messages
-    assert rig.status.readout.text().startswith("03_bands · E_F = 8.0584 eV")
+    assert rig.status.readout.full_text().startswith("03_bands · E_F = 8.0584 eV")
     assert rig.status.spinner.isHidden() and rig.workflow.busy.labels == []
 
 

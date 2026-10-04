@@ -24,6 +24,11 @@ def cache_dir() -> Path:
     return Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / APP_DIR
 
 
+def log_path() -> Path:
+    """The rotating application log (``setup_logging``; "Ajuda ▸ Abrir log" opens it)."""
+    return cache_dir() / "qe_studio.log"
+
+
 def atomic_write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.name}.tmp")

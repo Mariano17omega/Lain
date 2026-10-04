@@ -48,6 +48,7 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
     view_fields: ClassVar[tuple[str, ...]] = ("emin", "emax", "dos_max")
     sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Projeções", "Legenda"),)
     display_name: ClassVar[str] = "Densidade de estados projetada"
+    description: ClassVar[str] = "pdos_tot e arquivos de PDOS por átomo detectados"
     plottable: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole("scf_out", "Saída SCF (pw.x)", output_of(FileKind.PW_OUT, "scf"), ("scf*.out",)),

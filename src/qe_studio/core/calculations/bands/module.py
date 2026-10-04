@@ -37,6 +37,7 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
     view_fields: ClassVar[tuple[str, ...]] = ("emin", "emax", "xmin", "xmax")
     sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Spin", "Estilo"),)
     display_name: ClassVar[str] = "Estrutura de bandas"
+    description: ClassVar[str] = "bands.x/.gnu detectados"
     plottable: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole(

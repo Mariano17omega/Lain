@@ -96,6 +96,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
     view_fields: ClassVar[tuple[str, ...]] = ("xmin", "xmax")
     sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Convergência", "Eixo X"),)
     display_name: ClassVar[str] = "Convergência SCF"
+    description: ClassVar[str] = "Cálculo SCF (pw.x)"
     plottable: ClassVar[bool] = True
     fallback: ClassVar[bool] = True  # only when no other kind was detected in the folder
     single_file_role: ClassVar[str | None] = "scf_out"

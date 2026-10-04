@@ -4,8 +4,9 @@
 
 The window is the composition root (spec 15 R4): it builds the widgets and three controllers,
 ``LayoutController`` (panels and window state), ``PlotWorkflow`` (detect → plot → export) and
-``SyncCoordinator`` (cluster pull), registers the actions and wires the signals. It keeps only what
-touches several of them: renaming, reloading the config and closing.
+``SyncCoordinator`` (cluster pull), plus the help, command palette and first-run controllers
+(spec 18), registers the actions and wires the signals. It keeps only what touches several of
+them: renaming, reloading the config and closing.
 """
 
 from __future__ import annotations
@@ -34,8 +35,11 @@ from ..core.nav_store import NavigationStore
 from .actions import build_menus
 from .dialogs.open_many import MANY_FILES, ask_open_many
 from .dialogs.rename import ask_rename
+from .first_run import FirstRunController
+from .help_controller import HelpController
 from .layout_controller import LayoutController
 from .navigation_controller import NavigationController
+from .palette_controller import PaletteController
 from .plot_settings import PlotSettingsStore
 from .plot_workflow import PlotWorkflow
 from .services import DetectionService
@@ -87,6 +91,7 @@ class MainWindow(QMainWindow):
         self.panel_layout.restore()
         self.sync.start_monitor()
         self._restore_folder()
+        self.first_run.refresh()
         for warning in loaded.warnings:
             log.warning(warning)
         # A corrupt folders.json or navigation.json is set aside once: say so before any config warning.
@@ -173,6 +178,9 @@ class MainWindow(QMainWindow):
             parent=self,
         )
         self.sync = SyncCoordinator(self.config, self.theme, self, self)
+        self.help = HelpController.for_window(self)
+        self.command_palette = PaletteController.for_window(self)
+        self.first_run = FirstRunController.for_window(self)
 
     def _build_menus(self) -> None:
         self._actions = build_menus(self)
@@ -214,6 +222,8 @@ class MainWindow(QMainWindow):
         workflow.plot_ready.connect(self.plot_ready)
         workflow.plot_failed.connect(self.plot_failed)
         self.navigation.message.connect(self.status.set_message)
+        self.help.message.connect(self.status.set_message)
+        self.first_run.message.connect(self.status.set_message)
         sync.cluster_changed.connect(self.top_bar.set_cluster)
         sync.cluster_changed.connect(self.activity.set_cluster)
         sync.message.connect(self.status.set_message)
@@ -313,6 +323,7 @@ class MainWindow(QMainWindow):
 
     def refresh(self) -> None:
         self.service.invalidate()
+        self.command_palette.invalidate()  # its folder index is rebuilt on the next open
         self.explorer.refresh()
         self.files.refresh()
         self.status.set_message("Atualizado.", timeout_ms=2500)
@@ -403,21 +414,33 @@ class MainWindow(QMainWindow):
 
     def open_config(self) -> None:
         if self.loaded.path is None:
-            QMessageBox.information(
-                self,
-                "config.yaml",
-                "Nenhum config.yaml carregado. Copie config.example.yaml para config.yaml "
-                "e reinicie o Lain.",
-            )
+            self.first_run.create_config()  # no config to open: offer to create one (spec 18 R5.5)
             return
         self.open_file(self.loaded.path)
 
     def reload_config(self) -> None:
+        self.load_config_file(self.loaded.path)
+
+    def load_config_file(self, path: Path | None) -> None:
+        """Load the config at ``path`` (None: look it up again) and apply it to the window."""
         try:
-            loaded = load_config(self.loaded.path)
+            loaded = load_config(path)
         except ConfigError as exc:
             QMessageBox.critical(self, "config.yaml inválido", str(exc))
             return
+        self._apply_loaded(loaded)
+        message = loaded.warnings[0] if loaded.warnings else "config.yaml recarregado."
+        self.status.set_message(message, "warning" if loaded.warnings else "info", 5000)
+
+    def use_session_root(self, folder: Path) -> None:
+        """Browse ``folder`` as the project for this session only: the config file is not written,
+        and the next reload goes back to its ``paths.local_root`` (spec 18 R5.2)."""
+        paths = self.config.paths.model_copy(update={"local_root": folder})
+        config = self.config.model_copy(update={"paths": paths})
+        self._apply_loaded(LoadedConfig(config, self.loaded.path, self.loaded.warnings))
+
+    def _apply_loaded(self, loaded: LoadedConfig) -> None:
+        old_root = self.root
         self.loaded = loaded
         self.memory.set_root(self.root)
         self.navigation.set_root(self.root)
@@ -428,8 +451,9 @@ class MainWindow(QMainWindow):
         self.files.apply_config(self.root, self.config.ui.hidden_dirs)
         self.setWindowTitle(f"{APP_NAME} v{__version__} — [Projeto: {self.root}]")
         self.refresh()
-        message = loaded.warnings[0] if loaded.warnings else "config.yaml recarregado."
-        self.status.set_message(message, "warning" if loaded.warnings else "info", 5000)
+        if self.root != old_root:  # a new project: start at its top
+            self.explorer.select_path(self.root)
+        self.first_run.refresh()
 
     # -- cluster sync (SyncCoordinator) -------------------------------------------------------------
     def start_sync(self) -> None:

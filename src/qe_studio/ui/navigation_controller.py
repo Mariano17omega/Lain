@@ -170,6 +170,14 @@ class NavigationController(QObject):
     def _on_path_copied(self, path: str) -> None:
         self.message.emit(f"Copiado: {path}", "info", 4000)
 
+    @staticmethod
+    def shortcut_help() -> list[tuple[str, str, str]]:
+        """(action, keys, where) of the mouse buttons (Alt+←/→ are menu actions)."""
+        return [
+            ("Voltar no histórico", "Botão lateral (voltar)", "Navegação"),
+            ("Avançar no histórico", "Botão lateral (avançar)", "Navegação"),
+        ]
+
     def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:
         if (
             isinstance(event, QMouseEvent)

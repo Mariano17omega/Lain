@@ -1,0 +1,19 @@
+/* Command palette (Ctrl+K): a frameless popup with a search field and a list. */
+#commandPalette {
+    background: ${popover};
+    border: 1px solid ${border_strong};
+    border-radius: 6px;
+}
+#commandPalette QLineEdit {
+    background: ${input};
+    border: 1px solid ${border};
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: ${text};
+}
+#commandPalette QListView {
+    background: transparent;
+    border: none;
+    outline: none;
+}

@@ -93,6 +93,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     view_fields: ClassVar[tuple[str, ...]] = ("xmin", "xmax")
     sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Relaxamento", "Eixo X"),)
     display_name: ClassVar[str] = "Otimização estrutural"
+    description: ClassVar[str] = "Saída de relax/vc-relax do pw.x com passos BFGS"
     plottable: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole(

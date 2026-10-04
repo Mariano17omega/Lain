@@ -6,10 +6,12 @@ from qe_studio.core.config import (
     ENV_CONFIG,
     AppConfig,
     ConfigError,
+    LoadedConfig,
     find_config,
     load_config,
     parse_config,
 )
+from qe_studio.core.config_template import create_config, template_text, with_local_root
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -70,6 +72,13 @@ def test_missing_config_uses_defaults(tmp_path, monkeypatch):
     assert loaded.config == AppConfig()
     assert any("não encontrado" in w for w in loaded.warnings)
     assert any("sincronização desativada" in w for w in loaded.warnings)
+    assert loaded.first_run  # spec 18 R5: the welcome state
+
+
+def test_only_a_missing_config_is_a_first_run(tmp_path):
+    loaded = load_config(write(tmp_path / "c.yaml", ""), environ={}, cwd=tmp_path)
+    assert not loaded.first_run
+    assert not LoadedConfig(AppConfig(), None).first_run  # built in code: tests, scripts
 
 
 def test_empty_file_uses_defaults(tmp_path):
@@ -185,3 +194,34 @@ def test_other_unknown_keys_are_still_errors(data):
 def test_removed_key_with_wrong_parent_type_is_left_to_validation(data):
     with pytest.raises(ConfigError):
         parse_config(data)
+
+
+# -- the packaged template (spec 18 R5.4) ------------------------------------------------------
+def test_packaged_template_is_the_example_in_the_repository_root():
+    packaged = ROOT / "src" / "qe_studio" / "resources" / "config.example.yaml"
+    assert packaged.read_bytes() == (ROOT / "config.example.yaml").read_bytes()
+    assert template_text() == packaged.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("folder", ["/data/project", "/with space/a:b#c", "/ação/ünï"])
+def test_with_local_root_writes_a_valid_yaml_value(tmp_path, folder):
+    text = with_local_root(template_text(), folder)
+    path = write(tmp_path / "config.yaml", text)
+    loaded = load_config(path, environ={}, cwd=tmp_path)
+    assert loaded.config.paths.local_root == Path(folder)
+    assert text.count("local_root:") == template_text().count("local_root:")  # one line changed
+    # Everything but that line is the template.
+    changed = [
+        a for a, b in zip(text.splitlines(), template_text().splitlines(), strict=True) if a != b
+    ]
+    assert len(changed) == 1
+
+
+def test_create_config_writes_the_template_and_refuses_to_overwrite(tmp_path):
+    target = tmp_path / "new" / "qe-studio" / "config.yaml"
+    assert create_config(target) == target
+    assert target.read_text(encoding="utf-8") == template_text()
+    target.write_text("mine: true\n", encoding="utf-8")
+    with pytest.raises(FileExistsError):
+        create_config(target, local_root=tmp_path)
+    assert target.read_text(encoding="utf-8") == "mine: true\n"

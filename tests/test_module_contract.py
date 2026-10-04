@@ -268,3 +268,14 @@ def test_paint_badge_uses_the_token_or_the_generic_colours(qtbot, token):
     left = paint_badge(painter, 78, 10, "ANY", theme, token)
     painter.end()
     assert left < 78 and image.pixelColor(int(left) + 4, 10).alpha() > 0
+
+
+def test_every_module_describes_its_badge():
+    for module in REGISTRY:
+        assert module.description, module.kind
+        tip = module.badge_tooltip()
+        assert tip.splitlines() == [module.display_name, module.description]
+
+
+def test_a_module_without_description_tips_its_name_only():
+    assert DUMMY.badge_tooltip() == DUMMY.display_name

@@ -15,13 +15,14 @@ from PyQt6.QtCore import (
     QThreadPool,
     pyqtSignal,
 )
-from PyQt6.QtGui import QActionGroup, QFont, QKeySequence, QPainter, QPen, QShortcut
+from PyQt6.QtGui import QActionGroup, QFont, QFontMetrics, QKeySequence, QPainter, QPen, QShortcut
 from PyQt6.QtWidgets import (
     QListView,
     QMenu,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -38,12 +39,15 @@ from .common import IconButton, PanelHeader, selection_of, viewport_of
 from .filter_bar import FilterBar
 from .fs_model import SORT_DATE, SORT_NAME, SORT_SIZE, FileFilterProxy, make_fs_model
 from .grid_view import GridView
+from .item_tooltips import folder_tooltip, is_tooltip, state_tooltip
 
 CARD = QSize(148, 86)
 ROW = 26
 
 
 class FileCardDelegate(QStyledItemDelegate):
+    META_BAND = 26  # height of the card's bottom strip that holds the state line
+
     def __init__(self, panel: FilePanel):
         super().__init__()
         self.panel = panel
@@ -148,6 +152,33 @@ class FileCardDelegate(QStyledItemDelegate):
             return ("", "text_dim") if self.panel.grid_mode else (human_size(size), "text_dim")
         text, token = label[0], level_token(label[1])
         return (text, token) if self.panel.grid_mode else (f"{human_size(size)} · {text}", token)
+
+    def helpEvent(self, event, view, option, index) -> bool:
+        """Tooltips (spec 18 R3): a folder card explains its badges, a file its state label."""
+        if event is None or view is None or not index.isValid():
+            return super().helpEvent(event, view, option, index)
+        text = self._tooltip_at(event.pos(), option.rect, index) if is_tooltip(event) else ""
+        if not text:
+            return super().helpEvent(event, view, option, index)
+        QToolTip.showText(event.globalPos(), text, view.viewport(), option.rect)
+        return True
+
+    def _tooltip_at(self, pos: QPoint, rect: QRect, index: QModelIndex) -> str:
+        proxy, service = self.panel.proxy, self.panel.service
+        if proxy.is_up(index):
+            return ""
+        path = proxy.path(index)
+        if proxy.is_dir(index):
+            return folder_tooltip(service, path)
+        size = proxy.fs.size(proxy.mapToSource(index))
+        meta = self._meta(path, False, size)[0]
+        if self.panel.grid_mode:  # the state is the line under the name
+            in_meta = pos.y() >= rect.bottom() - self.META_BAND
+        else:  # the state ends the row
+            in_meta = (
+                pos.x() >= rect.right() - QFontMetrics(mono_font(10)).horizontalAdvance(meta) - 16
+            )
+        return state_tooltip(service, path, size) if in_meta else ""
 
 
 class FilePanel(QWidget):
@@ -359,6 +390,16 @@ class FilePanel(QWidget):
         self.proxy.invalidate()
         order = Qt.SortOrder.AscendingOrder if column == SORT_NAME else Qt.SortOrder.DescendingOrder
         self.proxy.sort(0, order)
+
+    @staticmethod
+    def shortcut_help() -> list[tuple[str, str, str]]:
+        """(action, keys, where) of the keys this panel handles itself (not menu actions)."""
+        return [
+            ("Subir uma pasta", "Backspace", "Grade de arquivos"),
+            ("Subir uma pasta", "Alt+↑", "Grade de arquivos"),
+            ("Filtrar a grade", "Ctrl+F", "Grade de arquivos"),
+            ("Abrir os arquivos selecionados", "Enter", "Grade de arquivos"),
+        ]
 
     def go_up(self) -> None:
         """Folder above, never leaving the project root."""

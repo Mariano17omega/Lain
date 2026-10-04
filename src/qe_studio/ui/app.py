@@ -11,7 +11,7 @@ from PyQt6.QtCore import QSettings, QThreadPool
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from .. import APP_NAME, __version__
-from ..core.appdirs import cache_dir
+from ..core.appdirs import log_path
 from ..core.config import ConfigError, load_config
 from ..core.plotting.style import register_fonts
 from .app_identity import configure_application
@@ -21,10 +21,10 @@ from .theme.manager import THEMES, ThemeManager
 def setup_logging(verbose: bool = False) -> None:
     handlers: list[logging.Handler] = [logging.StreamHandler()]
     try:
-        log_dir = cache_dir()
-        log_dir.mkdir(parents=True, exist_ok=True)
+        path = log_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
         handlers.append(
-            RotatingFileHandler(log_dir / "qe_studio.log", maxBytes=1_000_000, backupCount=2)
+            RotatingFileHandler(path, maxBytes=1_000_000, backupCount=2, encoding="utf-8")
         )
     except OSError:
         pass
@@ -45,7 +45,7 @@ def install_excepthook() -> None:
             QMessageBox.critical(
                 None,
                 "Erro inesperado",
-                f"{kind.__name__}: {value}\n\nDetalhes no log ({cache_dir() / 'qe_studio.log'}).",
+                f"{kind.__name__}: {value}\n\nDetalhes no log ({log_path()}).",
             )
 
     sys.excepthook = hook

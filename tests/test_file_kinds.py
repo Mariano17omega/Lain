@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from qe_studio.core.file_kinds import human_size, is_job_log, status_label, viewer_kind
+from qe_studio.core.file_kinds import (
+    human_size,
+    is_job_log,
+    status_label,
+    status_tooltip,
+    viewer_kind,
+)
 from qe_studio.core.sniff import FileKind, FileSniff
 from qe_studio.ui.file_types import file_visual, level_token
 
@@ -64,6 +70,17 @@ def test_viewer_kind(tmp_path):
 )
 def test_is_job_log(name, expected):
     assert is_job_log(Path(name)) is expected
+
+
+def test_status_tooltip_explains_every_label():
+    assert "JOB DONE" in status_tooltip("OK", None)
+    assert "JOB DONE" in status_tooltip("INCOMPLETO", None)
+    assert "não registrou erros" in status_tooltip("SEM ERROS", None)
+    assert "mensagens de erro" in status_tooltip("ERRO", None)
+    warned = FileSniff(Path("scf.out"), FileKind.PW_OUT, job_done=True, warnings=("a", "b"))
+    assert status_tooltip("AVISO", warned) == "a\nb"  # the sniff's warnings, one per line
+    assert status_tooltip("AVISO", None)  # never empty
+    assert status_tooltip("OUTRO", None) == ""
 
 
 def test_status_label():

@@ -190,6 +190,8 @@ class CalculationModule(Generic[D, P]):
     kind: ClassVar[str]
     badge: ClassVar[str]
     display_name: ClassVar[str]
+    # One short sentence for the badge tooltip (spec 18 R3); the UI never keeps its own table.
+    description: ClassVar[str] = ""
     roles: ClassVar[tuple[FileRole, ...]]
     plottable: ClassVar[bool] = False
     fallback: ClassVar[bool] = False  # informational badge, only when no primary kind matched
@@ -204,6 +206,10 @@ class CalculationModule(Generic[D, P]):
 
     def role(self, role_id: str) -> FileRole:
         return next(r for r in self.roles if r.id == role_id)
+
+    def badge_tooltip(self) -> str:
+        """The name and the sentence the badge tooltip shows (two lines)."""
+        return f"{self.display_name}\n{self.description}" if self.description else self.display_name
 
     # -- detection -----------------------------------------------------------------------
     def match(

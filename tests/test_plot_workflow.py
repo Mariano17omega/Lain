@@ -69,7 +69,7 @@ def test_generate_bands_exports_to_plots(qtbot, main_window, demo_project, no_di
         "bands.png",
         "bands.svg",
     ]
-    assert "E_F = 8.0584 eV" in window.status.readout.text()
+    assert "E_F = 8.0584 eV" in window.status.readout.full_text()
     assert no_dialogs["overwrite"] == []
     assert to_hex(imread(folder / "plots" / "bands.png")[0, 0]) == "#ffffff"  # dark app theme
 
@@ -269,7 +269,7 @@ def test_relax_plot(qtbot, main_window, demo_project, no_dialogs):
         "relax.png",
         "relax.svg",
     ]
-    assert window.status.readout.text().startswith("01_relax · Relaxado ✓ · 6 passos BFGS")
+    assert window.status.readout.full_text().startswith("01_relax · Relaxado ✓ · 6 passos BFGS")
     window.params.set_param("panels", "energy")
     assert [p.name for p in export(qtbot, window)] == [
         "relax_energia.png",
@@ -294,7 +294,7 @@ def test_scf_folder_plots_the_convergence_without_a_mapping(
     assert tabs.tabText(tabs.currentIndex()) == "Convergência SCF · scf.out"
     assert session.key == f"plot:scf:{folder / 'scf.out'}"
     assert (folder / "plots" / "scf.png").exists()
-    assert window.status.readout.text().startswith("scf.out · Convergiu ✓ em 4 iterações")
+    assert window.status.readout.full_text().startswith("scf.out · Convergiu ✓ em 4 iterações")
 
 
 def test_plot_file_previews_one_output_without_saving(qtbot, main_window, demo_project, no_dialogs):
@@ -309,7 +309,7 @@ def test_plot_file_previews_one_output_without_saving(qtbot, main_window, demo_p
     assert tabs.tabText(tabs.currentIndex()) == "Convergência SCF · scf.out"
     assert not (folder / "plots").exists() and no_dialogs["mapping"] == []
     assert window.workspace.isVisible() and window.left.currentWidget() is window.params
-    assert window.status.readout.text().startswith("scf.out · Convergiu ✓")
+    assert window.status.readout.full_text().startswith("scf.out · Convergiu ✓")
 
     window.params.set_param("scale", "linear")  # the settings go to <folder>/scf.plot
     window.plot_settings.flush_now()

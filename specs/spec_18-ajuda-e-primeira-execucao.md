@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 18 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada |
 | **Depende de** | spec 15 (registro de ações), spec 16 (favoritos/recentes na paleta) |
 | **Usada por** | nenhuma |
 | **Esforço** | M |
@@ -164,20 +164,20 @@ Novo menu "Ajuda", o último da barra:
   real).
 
 ## Critérios de aceite e testes
-- [ ] O menu "Ajuda" tem `["Atalhos de teclado", "Paleta de comandos", "Abrir log", "Abrir pasta de
+- [x] O menu "Ajuda" tem `["Atalhos de teclado", "Paleta de comandos", "Abrir log", "Abrir pasta de
       dados", "Sobre o Lain"]`.
-- [ ] O diálogo de atalhos lista Ctrl+G, Ctrl+E, Ctrl+T, F5, Ctrl+K, Ctrl+F (grade e texto), Alt+←/→ e
+- [x] O diálogo de atalhos lista Ctrl+G, Ctrl+E, Ctrl+T, F5, Ctrl+K, Ctrl+F (grade e texto), Alt+←/→ e
       Backspace.
-- [ ] "Sobre" mostra a versão e o caminho do log. "Copiar informações" põe esses dados na área de
+- [x] "Sobre" mostra a versão e o caminho do log. "Copiar informações" põe esses dados na área de
       transferência.
-- [ ] Paleta: digitar "gerar" mostra "Gerar gráfico (Ctrl+G)", e Enter dispara a ação. Com `/rel`,
+- [x] Paleta: digitar "gerar" mostra "Gerar gráfico (Ctrl+G)", e Enter dispara a ação. Com `/rel`,
       mostra só pastas cujo nome casa (ex.: `01_relax` do `demo_project`). O índice é montado em worker.
-- [ ] Tooltip do badge RELAX contém "Otimização estrutural". Tooltip do rótulo INCOMPLETO contém "JOB
+- [x] Tooltip do badge RELAX contém "Otimização estrutural". Tooltip do rótulo INCOMPLETO contém "JOB
       DONE".
-- [ ] Readout longo numa janela de 600 px de largura fica elidido, e o tooltip tem o texto completo.
-- [ ] Sem config (XDG temporário, cwd sem config): estado vazio visível. "Escolher pasta…" com diálogo e
+- [x] Readout longo numa janela de 600 px de largura fica elidido, e o tooltip tem o texto completo.
+- [x] Sem config (XDG temporário, cwd sem config): estado vazio visível. "Escolher pasta…" com diálogo e
       confirmação patchados cria `~/.config/qe-studio/config.yaml` (XDG temporário) com o `local_root`
       escolhido, e a árvore mostra a pasta.
-- [ ] Config com `local_root` inexistente: estado vazio. "Escolher pasta…" não altera o arquivo de
+- [x] Config com `local_root` inexistente: estado vazio. "Escolher pasta…" não altera o arquivo de
       config (hash igual antes e depois).
-- [ ] `resources/config.example.yaml` é idêntico ao da raiz.
+- [x] `resources/config.example.yaml` é idêntico ao da raiz.

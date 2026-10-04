@@ -86,7 +86,7 @@ def test_up_entry_goes_to_the_parent(qtbot, main_window, demo_project):
     qtbot.waitUntil(lambda: files.proxy.is_up(rows(files)[0]), timeout=5000)
     files.view.activated.emit(rows(files)[0])
     assert files.folder == demo_project and window.current_folder() == demo_project
-    assert window.status.path.text() == "."
+    assert window.status.path.full_text() == "."
 
 
 def test_keyboard_goes_up(qtbot, main_window, demo_project):

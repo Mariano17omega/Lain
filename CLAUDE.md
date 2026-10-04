@@ -296,6 +296,40 @@ the tree's when navigation (`select_path`) would be hidden by it. `nav_sections.
 `enter_many`, `FilePanel` drops `..` from every selection (`selection_changed(list[Path])`) and opens
 at most `MANY_FILES` files without asking (`ask_open_many`).
 
+### Help, command palette and first run (spec 18)
+
+`ui/actions.py:ACTIONS` ends with the "Ajuda" menu (F1 shortcuts, Ctrl+K palette, log, data folder,
+about). Three controllers are built by `for_window(window)` factories (keeps `main_window.py` thin):
+`ui/help_controller.py:HelpController`, `ui/palette_controller.py:PaletteController` and
+`ui/first_run.py:FirstRunController`; slot paths in `ACTIONS` reach them as `help.*` and
+`command_palette.open` (never `palette`: that is a `QWidget` method).
+
+- **Shortcuts dialog** (`ui/dialogs/shortcuts.py`, non-modal, one at a time): rows are the registry's
+  actions that have a key, plus `shortcut_help() -> list[(action, keys, where)]` of the widgets that
+  handle keys themselves (`FilePanel`, `ExplorerPanel`, `Workspace`, `NavigationController`; `TextViewer`
+  is a `staticmethod` over its module `SHORTCUTS` table, which also builds its `QShortcut`s). A new
+  widget shortcut = an entry there; keys already in `ACTIONS` are not repeated.
+- **About** (`ui/dialogs/about.py`, `core/about.py`): versions come from `importlib.metadata`, so ASE is
+  never imported (spec 14). `core/appdirs.log_path()` is the one place for the log path.
+- **Palette**: `core/fuzzy.py` (`rank`, accent/case-blind subsequence, scopes `>` `/` `@`, recency only
+  breaks ties) is Qt-free; `core/folder_index.py:list_folders` is the worker's walk (same hidden-dir
+  rule as the panels, breadth first, 20 000 cap, symlinks skipped). `PaletteController` builds rows
+  (enabled actions, favorites, recents, tabs, index folders) and the index lazily on the first open;
+  `refresh()` (F5) and root swaps call `invalidate()`. `widgets/command_palette.py` is only the window.
+- **Tooltips** (R3): `CalculationModule.description` + `badge_tooltip()` and
+  `core/file_kinds.status_tooltip` hold the wording; `widgets/item_tooltips.py` and the delegates'
+  `helpEvent` read caches only (`peek_results`, `file_sniff`). `ui/painting.badge_layout` is shared by
+  paint and hit-test.
+- **Footer** (R4): `widgets/elided_label.py:ElidedLabel` + `StatusBar._fit_labels` (budgets set from the
+  bar's width, message keeps 200 px). Tests read `.full_text()`, not `.text()`.
+- **First run** (R5): `LoadedConfig.first_run` is True only when the lookup found no file (a
+  `LoadedConfig(cfg, None)` built in code is not a first run). `FirstRunController.state` is `first_run`,
+  `missing_root` (`local_root` is not a dir) or None; the overlay (`widgets/empty_state.py`) sits on the
+  splitter's parent. Lain only *creates* a config (`core/config_template.create_config`, mode `"x"`);
+  with an existing config "Escolher pasta…" is session-only (`MainWindow.use_session_root`). The
+  template ships as `src/qe_studio/resources/config.example.yaml`; `tests/test_config.py` keeps it
+  identical to the root `config.example.yaml`.
+
 ### Text viewer and tabs (spec 10)
 
 `ui/widgets/text_viewer.py:TextViewer` = banner bar ("Abrir no editor externo", "Carregar tudo"),

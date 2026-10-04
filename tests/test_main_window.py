@@ -100,7 +100,7 @@ def test_folder_selection_updates_panels(qtbot, main_window, demo_project):
     window.on_folder_selected(demo_project / "04_pdos")
     assert window.files.folder == demo_project / "04_pdos"
     assert window.top_bar.breadcrumb.toolTip() == str(demo_project / "04_pdos")
-    assert window.status.path.text() == "04_pdos"
+    assert window.status.path.full_text() == "04_pdos"
 
 
 def test_open_text_and_image(qtbot, main_window, demo_project, tmp_path):

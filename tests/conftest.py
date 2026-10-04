@@ -110,14 +110,16 @@ def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
 
     windows = []
 
-    def make(**kwargs):
+    def make(loaded=None, **kwargs):
+        """``loaded``: a ``LoadedConfig`` of its own (first run, missing root…) instead of one
+        whose ``local_root`` is ``demo_project``."""
         kwargs.setdefault("navigation", NavigationStore(tmp_path / "navigation.json"))
         config = parse_config({"paths": {"local_root": str(demo_project)}})
         theme = ThemeManager("dark")
         theme.apply()
         settings = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
         window = MainWindow(
-            LoadedConfig(config, None),
+            loaded or LoadedConfig(config, None),
             theme,
             settings,
             FolderMemory(tmp_path / "memory.json"),

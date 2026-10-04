@@ -18,6 +18,7 @@ class CalcModule(CalculationModule[None, CommonParams]):
     badge: ClassVar[str] = "CALC"
     badge_token: ClassVar[str | None] = "calc"
     display_name: ClassVar[str] = "Cálculo QE"
+    description: ClassVar[str] = "Saída do QE sem tipo plotável"
     fallback: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole("output", "Saída do Quantum ESPRESSO", _any_output, multiple=True, anchor=True),

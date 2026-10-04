@@ -67,6 +67,23 @@ def status_label(path: Path, size: int, sniff: FileSniff | None) -> tuple[str, s
     return None
 
 
+STATE_TOOLTIPS = {
+    "OK": "Execução concluída (JOB DONE)",
+    "INCOMPLETO": "Sem JOB DONE: job rodando ou interrompido",
+    "ERRO": "O job registrou mensagens de erro (arquivo não vazio)",
+    "SEM ERROS": "Arquivo vazio: o job não registrou erros",
+}
+
+
+def status_tooltip(label: str, sniff: FileSniff | None) -> str:
+    """What a ``status_label`` means, for its tooltip. AVISO lists the sniff's warnings, one per
+    line. Never reads the file."""
+    if label == "AVISO":
+        warnings = sniff.warnings if sniff is not None else ()
+        return "\n".join(warnings) or "Execução concluída com avisos"
+    return STATE_TOOLTIPS.get(label, "")
+
+
 def human_size(size: int) -> str:
     value = float(size)
     for unit in ("B", "KB", "MB", "GB"):

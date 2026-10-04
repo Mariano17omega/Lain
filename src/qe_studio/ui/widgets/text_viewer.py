@@ -29,6 +29,18 @@ from .search_bar import SearchBar
 
 log = logging.getLogger(__name__)
 TOO_BIG = "Arquivo grande demais para o visualizador: use o editor externo"
+# (name, keys, what it does): the one table the QShortcuts and "Ajuda ▸ Atalhos de teclado" read.
+SHORTCUTS = (
+    ("find", "Ctrl+F", "Buscar no texto"),
+    ("next", "F3", "Próxima ocorrência"),
+    ("previous", "Shift+F3", "Ocorrência anterior"),
+    ("line", "Ctrl+L", "Ir à linha"),
+    ("start", "Ctrl+Home", "Ir ao início"),
+    ("end", "Ctrl+End", "Ir ao fim"),
+    ("next_issue", "F8", "Próximo problema do input"),
+    ("previous_issue", "Shift+F8", "Problema anterior do input"),
+    ("escape", "Esc", "Fechar a busca"),
+)
 
 
 def _tool(text: str, tip: str) -> QToolButton:
@@ -102,21 +114,27 @@ class TextViewer(QWidget):
         self.line_button.clicked.connect(self.ask_line)
         self.search.closed.connect(self._on_search_closed)
         self._shortcuts: dict[str, QShortcut] = {}
-        for name, keys, slot in (
-            ("find", "Ctrl+F", self.open_search),
-            ("next", "F3", self.search.next_match),
-            ("previous", "Shift+F3", self.search.previous_match),
-            ("line", "Ctrl+L", self.ask_line),
-            ("start", "Ctrl+Home", self.editor.go_start),
-            ("end", "Ctrl+End", self.editor.go_end),
-            ("next_issue", "F8", self.input_view.goto_next),
-            ("previous_issue", "Shift+F8", self.input_view.goto_previous),
-            ("escape", "Esc", self.search.dismiss),
-        ):
-            self._shortcuts[name] = self._shortcut(keys, slot)
+        slots = {
+            "find": self.open_search,
+            "next": self.search.next_match,
+            "previous": self.search.previous_match,
+            "line": self.ask_line,
+            "start": self.editor.go_start,
+            "end": self.editor.go_end,
+            "next_issue": self.input_view.goto_next,
+            "previous_issue": self.input_view.goto_previous,
+            "escape": self.search.dismiss,
+        }
+        for name, keys, _what in SHORTCUTS:
+            self._shortcuts[name] = self._shortcut(keys, slots[name])
         # Esc only means something while the bar is open: otherwise the key goes on its way.
         self._shortcuts["escape"].setEnabled(False)
         self._start_load(full=False)
+
+    @staticmethod
+    def shortcut_help() -> list[tuple[str, str, str]]:
+        """(action, keys, where) for "Ajuda ▸ Atalhos de teclado"; needs no open tab."""
+        return [(what, keys, "Visualizador de texto") for _name, keys, what in SHORTCUTS]
 
     def _shortcut(self, keys: str, slot) -> QShortcut:
         """Active only while the focus is inside this viewer: Ctrl+F in the explorer or the grid

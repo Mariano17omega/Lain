@@ -200,6 +200,9 @@ class LoadedConfig:
     config: AppConfig
     path: Path | None
     warnings: list[str] = field(default_factory=list)
+    # True only when the lookup found no config.yaml at all (spec 18 R5: the welcome state). A
+    # LoadedConfig built in code with ``path=None`` (tests, scripts) is not a first run.
+    first_run: bool = False
 
 
 def user_config_path() -> Path:
@@ -319,6 +322,7 @@ def load_config(
             config,
             None,
             ["config.yaml não encontrado; usando valores padrão.", *_warnings(config)],
+            first_run=True,
         )
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))

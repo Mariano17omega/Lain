@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 from ..theme.manager import ThemeManager
 from .breadcrumb import Breadcrumb
 from .common import IconButton, set_variant
+from .elided_label import ElidedLabel
 from .spinner import CircularProgress
 
 LED_TOKENS = {
@@ -226,6 +227,12 @@ class TopBar(QWidget):
 
 
 class StatusBar(QStatusBar):
+    # The message keeps this much; when the bar is narrower the readout and the path are elided.
+    MESSAGE_MIN_WIDTH = 200
+    # Layout margins and gaps of the bar that no label accounts for.
+    SLACK = 24
+    LABEL_MIN_WIDTH = 48
+
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("statusBar")
@@ -238,8 +245,9 @@ class StatusBar(QStatusBar):
         self.busy.setObjectName("busyLabel")
         self.busy.hide()
         self.message = QLabel()
-        self.readout = QLabel()
-        self.path = QLabel()
+        self.message.setMinimumWidth(self.MESSAGE_MIN_WIDTH)
+        self.readout = ElidedLabel()
+        self.path = ElidedLabel()
         self.addWidget(self.spinner)
         self.addWidget(self.busy)
         self.addWidget(self.message, 1)
@@ -270,9 +278,41 @@ class StatusBar(QStatusBar):
         self.busy.setText(text or "")
         self.spinner.setVisible(text is not None)
         self.busy.setVisible(text is not None)
+        self._fit_labels()
 
     def set_readout(self, text: str) -> None:
-        self.readout.setText(text)
+        self.readout.set_full_text(text)
+        self._fit_labels()
 
     def set_path(self, text: str) -> None:
-        self.path.setText(text)
+        self.path.set_full_text(text)
+        self._fit_labels()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._fit_labels()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._fit_labels()
+
+    def _fit_labels(self) -> None:
+        """Elide the readout and the path so the message keeps ``MESSAGE_MIN_WIDTH``.
+
+        The room left is shared: the path gets at most half of it, or more when the readout is
+        short. Budgets are set from here (not left to the layout) so the result does not depend
+        on how a box layout shrinks its items. Until the bar is shown its width means nothing.
+        """
+        if not self.isVisible():
+            return
+        fixed = sum(w.sizeHint().width() for w in (self.spinner, self.busy) if not w.isHidden())
+        room = max(0, self.width() - fixed - self.MESSAGE_MIN_WIDTH - self.SLACK)
+        readout, path = self.readout.natural_width(), self.path.natural_width()
+        if readout + path <= room:
+            self.readout.set_budget(None)
+            self.path.set_budget(None)
+            return
+        path_budget = min(path, max(room // 2, room - readout))
+        path_budget = max(path_budget, self.LABEL_MIN_WIDTH)
+        self.path.set_budget(path_budget)
+        self.readout.set_budget(max(room - path_budget, self.LABEL_MIN_WIDTH))

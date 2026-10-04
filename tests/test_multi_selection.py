@@ -49,15 +49,15 @@ def test_grid_selects_several_and_the_tree_stays_single(main_window):
 def test_ctrl_and_shift_click_select_and_the_footer_counts(qtbot, main_window, bands):
     window, files = main_window, main_window.files
     click(qtbot, files, "bands.in")
-    assert window.status.path.text() == "03_bands/bands.in"
+    assert window.status.path.full_text() == "03_bands/bands.in"
     click(qtbot, files, "bands.out", ctrl=True)
     click(qtbot, files, "scf.out", ctrl=True)
     assert [p.name for p in files.selected_paths()] == ["bands.in", "bands.out", "scf.out"]
-    assert window.status.path.text() == "3 itens selecionados"
+    assert window.status.path.full_text() == "3 itens selecionados"
     click(qtbot, files, "bands.out", ctrl=True)  # toggles it off
-    assert window.status.path.text() == "2 itens selecionados"
+    assert window.status.path.full_text() == "2 itens selecionados"
     click(qtbot, files, "bands.in")  # a plain click goes back to one
-    assert window.status.path.text() == "03_bands/bands.in"
+    assert window.status.path.full_text() == "03_bands/bands.in"
     click(qtbot, files, "bands.out", shift=True)  # range from bands.in
     assert len(files.selected_paths()) >= 2
 

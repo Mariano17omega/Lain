@@ -4,27 +4,29 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QModelIndex, QPoint, QRect, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QKeySequence, QPainter, QShortcut
+from PyQt6.QtCore import QModelIndex, QPoint, QPointF, QRect, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QFontMetrics, QKeySequence, QPainter, QShortcut
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
+    QToolTip,
     QTreeView,
     QVBoxLayout,
     QWidget,
 )
 
-from ...core.file_kinds import human_size, status_label
+from ...core.file_kinds import human_size, status_label, status_tooltip
 from ...core.filtering import BADGES, NO_BADGE
 from ..file_types import file_visual, level_token
-from ..painting import mono_font, paint_badge, ui_font
+from ..painting import BADGE_GAP, badge_layout, mono_font, paint_badge, ui_font
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
 from .common import IconButton, PanelHeader, selection_of, viewport_of
 from .filter_bar import FilterBar
 from .fs_model import FileFilterProxy, make_fs_model
+from .item_tooltips import is_tooltip
 from .nav_sections import NavSection
 
 ROW_HEIGHT = 22
@@ -66,7 +68,7 @@ class ExplorerDelegate(QStyledItemDelegate):
                 left = paint_badge(
                     painter, right, center, result.badge, self.theme, result.badge_token
                 )
-                right = left - 4
+                right = left - BADGE_GAP
             if self.proxy.is_pending(index):  # a badge filter waits for this folder's detection
                 right = self._paint_pending(painter, right, rect)
         else:
@@ -104,8 +106,7 @@ class ExplorerDelegate(QStyledItemDelegate):
         self, painter: QPainter, path: Path, size: int, right: float, rect: QRect
     ) -> float:
         painter.setFont(mono_font(10))
-        label = status_label(path, size, self.service.file_sniff(path))
-        text, token = (label[0], level_token(label[1])) if label else (human_size(size), "text_dim")
+        text, token, _label = self._file_meta(path, size)
         width = painter.fontMetrics().horizontalAdvance(text)
         painter.setPen(self.theme.color(token))
         painter.drawText(
@@ -114,6 +115,42 @@ class ExplorerDelegate(QStyledItemDelegate):
             text,
         )
         return right - width - 6
+
+    def _file_meta(self, path: Path, size: int) -> tuple[str, str, str | None]:
+        """(text, color token, state label) at the right of a file row: its state, else its size."""
+        label = status_label(path, size, self.service.file_sniff(path))
+        if label is None:
+            return human_size(size), "text_dim", None
+        return label[0], level_token(label[1]), label[0]
+
+    def helpEvent(self, event, view, option, index) -> bool:
+        """Tooltips of the badges and of the state label (spec 18 R3), from the caches only."""
+        if event is None or view is None or not index.isValid():
+            return super().helpEvent(event, view, option, index)
+        text = self._tooltip_at(event.pos(), option.rect, index) if is_tooltip(event) else ""
+        if not text:
+            return super().helpEvent(event, view, option, index)
+        QToolTip.showText(event.globalPos(), text, view.viewport(), option.rect)
+        return True
+
+    def _tooltip_at(self, pos: QPoint, rect: QRect, index: QModelIndex) -> str:
+        path = self.proxy.path(index)
+        right, center = rect.right() - 6, rect.center().y() + 0.5
+        if self.proxy.is_dir(index):
+            results = self.service.peek_results(path) or []
+            items = [(result.badge, result) for result in reversed(results)]
+            for box, result in badge_layout(items, right, center):
+                if box.adjusted(-1, -4, 1, 4).contains(QPointF(pos)):
+                    return result.module.badge_tooltip()
+            return ""
+        size = self.proxy.fs.size(self.proxy.mapToSource(index))
+        text, _token, label = self._file_meta(path, size)
+        if label is None:
+            return ""
+        width = QFontMetrics(mono_font(10)).horizontalAdvance(text)
+        if QRect(int(right - width), rect.top(), width + 1, rect.height()).contains(pos):
+            return status_tooltip(label, self.service.file_sniff(path))
+        return ""
 
 
 class ExplorerPanel(QWidget):
@@ -227,6 +264,11 @@ class ExplorerPanel(QWidget):
         if path is None:
             return self._root
         return path if path.is_dir() else path.parent
+
+    @staticmethod
+    def shortcut_help() -> list[tuple[str, str, str]]:
+        """(action, keys, where) of the keys this panel handles itself (not menu actions)."""
+        return [("Filtrar a árvore", "Ctrl+F", "Árvore de pastas")]
 
     def select_path(self, path: Path) -> None:
         if Path(path) == self._root:

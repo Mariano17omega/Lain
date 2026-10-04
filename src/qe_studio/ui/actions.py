@@ -1,6 +1,7 @@
 """The window's actions by stable id: menu, text, shortcut and slot (spec 15 R4.6).
 
-One table, so the menus and later the command palette (spec 18) list the same actions. ``slot`` is
+One table, so the menus, the shortcuts dialog and the command palette (spec 18) list the same
+actions. ``slot`` is
 an attribute path on the window (``"sync.check_connection"``: its sync coordinator's method).
 """
 
@@ -43,6 +44,11 @@ ACTIONS: tuple[ActionSpec, ...] = (
         "config.open", "Ferramentas", "Abrir config.yaml", "open_config", separator_before=True
     ),
     ActionSpec("config.reload", "Ferramentas", "Recarregar config.yaml", "reload_config"),
+    ActionSpec("help.shortcuts", "Ajuda", "Atalhos de teclado", "help.show_shortcuts", "F1"),
+    ActionSpec("help.palette", "Ajuda", "Paleta de comandos", "command_palette.open", "Ctrl+K"),
+    ActionSpec("help.log", "Ajuda", "Abrir log", "help.open_log"),
+    ActionSpec("help.data", "Ajuda", "Abrir pasta de dados", "help.open_data_dir"),
+    ActionSpec("help.about", "Ajuda", "Sobre o Lain", "help.show_about"),
 )
 
 

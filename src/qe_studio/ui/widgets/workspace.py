@@ -123,6 +123,11 @@ class Workspace(QStackedWidget):
     def keys(self) -> list[str]:
         return list(self._keys)
 
+    @staticmethod
+    def shortcut_help() -> list[tuple[str, str, str]]:
+        """(action, keys, where) of the tab bar's mouse gestures (Ctrl+W is a menu action)."""
+        return [("Fechar a aba", "Botão do meio", "Abas")]
+
     def items(self) -> list[tuple[str, QWidget]]:
         return list(self._keys.items())
 
