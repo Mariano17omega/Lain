@@ -7,7 +7,7 @@ import colorsys
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.colors import to_hex, to_rgb
-from matplotlib.figure import Figure
+from matplotlib.figure import FigureBase
 from matplotlib.lines import Line2D
 
 from ...config import DEFAULT_ORBITAL_COLORS
@@ -69,7 +69,7 @@ def spin_mode(dataset: PdosDataset, params: PdosParams) -> str:
 
 
 def render_pdos(
-    figure: Figure, dataset: PdosDataset, params: PdosParams, style: PlotStyle
+    figure: FigureBase, dataset: PdosDataset, params: PdosParams, style: PlotStyle
 ) -> RenderInfo:
     ax = new_axes(figure, style)
     fermi = dataset.fermi(params.fermi_source)

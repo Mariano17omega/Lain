@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 23 |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios:<br>- **Sem constrained layout.** Numa `SubFigure` ele abre uma fresta de ~0,13 in entre bandas e DOS (o `w_pad` dos dois lados mais o rótulo Γ que vaza), o que desfaz a junção da spec 22. A figura do Grid não tem layout engine; cada célula se ajusta com `core/plotting/cell_layout.fit_cell` (o `tight_layout` de uma célula: margens externas pelas decorações, espaço interno como o módulo definiu).<br>- "Gerar" também salva a grade. Os ajustes do Grid (`GridParams`) moram na entrada dela em `grids.json`; editar no painel grava lá, nunca num `grid.plot`.<br>- `PlotRef(path, kind, partner)`: `path` é o que o plot mostra (pasta, ou a saída de um SCF), não "folder".<br>- A aba é `plot:grid:<nome>` (padrão das chaves de plot), não `grid:<nome>`.<br>- O zoom numa célula muda os parâmetros da cópia da sessão dessa célula (memória do Grid), sem gravar o `.plot` da pasta nem re-renderizar.<br>- O roteamento de eixos é genérico (hook `axes_routes` + `PlotSession.routes`): `PlotView` não ganhou subclasse e continua sem saber de módulos.<br>- O Grid não tem "Restaurar padrões" nem seção "Arquivos" no painel.<br>- Nome padrão de uma grade nova: o primeiro número livre (`1`, `2`…); substituir outra grade salva pede confirmação. |
 | **Depende de** | spec 15 (controladores, `for_window`), spec 22 (a figura combinada pode ser uma célula) |
 | **Usada por** | nenhuma |
 | **Esforço** | G |

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from matplotlib.figure import FigureBase
 from matplotlib.lines import Line2D
 
 from ..plotting.draw import (
@@ -182,7 +182,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         return EXPORT_STEMS.get(params.panels, self.kind)
 
     def render(
-        self, figure: Figure, dataset: RelaxDataset, params: RelaxParams, style: PlotStyle
+        self, figure: FigureBase, dataset: RelaxDataset, params: RelaxParams, style: PlotStyle
     ) -> RenderInfo:
         data = dataset.data
         shown = self.panels_shown(params)

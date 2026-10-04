@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from matplotlib.figure import FigureBase
 from matplotlib.lines import Line2D
 
 from ..plotting.draw import (
@@ -206,7 +206,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
         return " · ".join([text, *parts])
 
     def render(
-        self, figure: Figure, dataset: ScfDataset, params: ScfParams, style: PlotStyle
+        self, figure: FigureBase, dataset: ScfDataset, params: ScfParams, style: PlotStyle
     ) -> RenderInfo:
         data = dataset.data
         shown = panels_shown(params, data)

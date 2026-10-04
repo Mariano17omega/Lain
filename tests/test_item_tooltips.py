@@ -154,6 +154,7 @@ def test_a_wide_window_shows_everything(qtbot, main_window):
 def test_widening_the_window_restores_the_text(qtbot, narrow):
     status = narrow.status
     status.set_readout(READOUT)
+    status.set_path("03_bands/subpasta/bands.in")  # the top bar keeps the window ~900 px wide
     qtbot.waitUntil(lambda: status.readout.text() != READOUT, timeout=3000)
     narrow.resize(1440, 700)
     qtbot.waitUntil(lambda: status.readout.text() == READOUT, timeout=3000)

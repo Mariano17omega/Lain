@@ -40,6 +40,11 @@ QT_FREE = [
     "qe_studio.core.fontscale",
     "qe_studio.core.compounds",
     "qe_studio.core.qe.structure",
+    "qe_studio.core.plotting.grid",
+    "qe_studio.core.plotting.cell_layout",
+    "qe_studio.core.plotting.grid_session",
+    "qe_studio.core.grid_store",
+    "qe_studio.core.calculations.grid",
 ]
 
 

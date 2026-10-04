@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from matplotlib.figure import Figure
+from matplotlib.figure import FigureBase
 
 from ...plotting.style import PlotStyle
 from ...sniff import FileKind, FileSniff
@@ -148,7 +148,7 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
         return load_dataset(result, sniff)
 
     def render(
-        self, figure: Figure, dataset: BandsDataset, params: BandsParams, style: PlotStyle
+        self, figure: FigureBase, dataset: BandsDataset, params: BandsParams, style: PlotStyle
     ) -> RenderInfo:
         return render_mod.render_bands(figure, dataset, params, style)
 

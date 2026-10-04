@@ -56,6 +56,7 @@ ACTIONS: tuple[ActionSpec, ...] = (
     ActionSpec("sync.test", "Cluster", "Testar conexão", "sync.check_connection"),
     ActionSpec("plot.generate", "Gráficos", "Gerar gráfico", "generate_plot", "Ctrl+G"),
     ActionSpec("plot.export", "Gráficos", "Exportar gráfico", "export_plot", "Ctrl+E"),
+    ActionSpec("grids.open", "Gráficos", "Grids…", "grids.open"),
     ActionSpec("view.theme", "Ferramentas", "Alternar tema", "toggle_theme", "Ctrl+T"),
     ActionSpec(
         "config.open", "Ferramentas", "Abrir config.yaml", "open_config", separator_before=True

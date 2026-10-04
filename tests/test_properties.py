@@ -19,7 +19,9 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from qe_studio.core.filtering import name_matcher
+from qe_studio.core.grid_store import GridStore
 from qe_studio.core.navigation import NavigationHistory
+from qe_studio.core.plotting.grid import MAX_SIZE, GridCell, GridSpec, PlotRef
 from qe_studio.core.qe.bands_x import BandsFormatError, gnu_shape, read_gnu
 from qe_studio.core.qe.input_lexer import LexState, scan_line
 from qe_studio.core.qe.input_lint import _lint
@@ -427,3 +429,60 @@ def test_history_invariants_hold_for_any_walk(steps):
             assert all(a != b for a, b in zip(stack, stack[1:], strict=False))
         if history.current is not None and history.back_stack:
             assert history.back_stack[-1] != history.current
+
+
+# -- saved grids (spec 23) -------------------------------------------------------------------------
+SEGMENT = st.text("abcxyz_-.áç 0123456789", min_size=1, max_size=8).filter(
+    lambda name: name.strip(".") and name == name.strip()
+)
+INSIDE = st.lists(SEGMENT, min_size=1, max_size=3).map(lambda parts: ("in", parts))
+OUTSIDE = st.lists(SEGMENT, min_size=1, max_size=3).map(lambda parts: ("out", parts))
+
+
+@st.composite
+def grid_specs(draw):
+    rows, cols = draw(st.integers(1, MAX_SIZE)), draw(st.integers(1, MAX_SIZE))
+    positions = draw(
+        st.lists(
+            st.tuples(st.integers(0, rows - 1), st.integers(0, cols - 1)),
+            min_size=1,
+            max_size=rows * cols,
+            unique=True,
+        )
+    )
+    cells = []
+    for row, col in positions:
+        path = draw(st.one_of(INSIDE, OUTSIDE))
+        partner = draw(st.none() | INSIDE | OUTSIDE)
+        kind = draw(st.sampled_from(["bands", "pdos", "relax", "scf", "bands_dos"]))
+        title = draw(st.text(max_size=12))
+        cells.append(GridCell(row, col, (path, kind, partner), title))  # paths placed per root
+    name = draw(st.text(min_size=1, max_size=10).filter(lambda n: n.strip() and "/" not in n))
+    return GridSpec(name, rows, cols, cells)
+
+
+def _placed(spec: GridSpec, root: Path, outside: Path) -> GridSpec:
+    def where(path):
+        side, parts = path
+        return (root if side == "in" else outside).joinpath(*parts)
+
+    cells = []
+    for cell in spec.cells:
+        path, kind, partner = cell.ref
+        ref = PlotRef(where(path), kind, where(partner) if partner is not None else None)
+        cells.append(GridCell(cell.row, cell.col, ref, cell.title))
+    return GridSpec(spec.name, spec.rows, spec.cols, cells)
+
+
+@given(grid_specs())
+def test_grid_store_round_trip_in_a_moved_project(spec):
+    """Any valid grid comes back the same, and a moved project finds its folders where it is now
+    (folders outside it stay where they were)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        root, moved, outside = base / "project", base / "moved", base / "elsewhere"
+        saved = _placed(spec, root, outside)
+        assert saved.validate() == []
+        GridStore(base / "grids.json", root).save(saved)
+        assert GridStore(base / "grids.json", root).get(spec.name) == saved
+        assert GridStore(base / "grids.json", moved).get(spec.name) == _placed(spec, moved, outside)

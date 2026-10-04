@@ -38,6 +38,7 @@ from .dialogs.open_many import MANY_FILES, ask_open_many
 from .dialogs.rename import ask_rename
 from .first_run import FirstRunController
 from .focus_controller import FocusController
+from .grids_controller import GridsController
 from .help_controller import HelpController
 from .layout_controller import LayoutController
 from .navigation_controller import NavigationController
@@ -189,6 +190,7 @@ class MainWindow(QMainWindow):
         self.command_palette = PaletteController.for_window(self)
         self.first_run = FirstRunController.for_window(self)
         self.focus_areas = FocusController.for_window(self)  # tab order and Ctrl+1..4
+        self.grids = GridsController.for_window(self)  # "Grids" button and window (spec 23)
 
     def _build_menus(self) -> None:
         self._actions = build_menus(self)
@@ -388,6 +390,7 @@ class MainWindow(QMainWindow):
         self.workspace.close_tabs_under(path)
         self.navigation.rename(path, new)
         self.memory.rename(old_resolved, new.resolve())
+        self.grids.rename(old_resolved, new.resolve())
         self.service.invalidate(path.parent)
         if inside(current):
             self.explorer.select_path(new / current.relative_to(path))

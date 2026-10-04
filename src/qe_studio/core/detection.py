@@ -18,6 +18,7 @@ from .calculations import (
 from .calculations.bands_dos import ordered_pair, pair_result
 from .calculations.base import LoadError, SniffFn
 from .folder_memory import FolderMemory
+from .plotting.grid import PlotRef
 from .plotting.plot_file import read_plot_file
 from .sniff import FileSniff
 from .sniff import sniff as default_sniff
@@ -168,6 +169,55 @@ class PairTarget:
         if not isinstance(partner, str) or not partner:
             return None
         return cls(bands, Path(os.path.normpath(bands / partner)), sniff, memory)
+
+
+@dataclass(frozen=True)
+class FolderTarget:
+    """The plot of one kind in a folder, detected again in the load worker: a grid cell whose tab
+    is closed (spec 23). The folder may be gone or no longer hold that kind."""
+
+    folder: Path
+    kind: str
+    sniff: SniffFn
+    memory: FolderMemory | None = None
+
+    @property
+    def module(self) -> CalculationModule:
+        return module_for(self.kind)
+
+    @property
+    def plot_target(self) -> Path:
+        return self.folder
+
+    @property
+    def plot_id(self) -> str:
+        return str(self.folder)
+
+    def build(self) -> DetectionResult:
+        if not self.folder.is_dir():
+            raise LoadError(f"Pasta não encontrada: {self.folder}")
+        results = detect_folder(self.folder, self.sniff, self.memory)
+        found = next((r for r in results if r.kind == self.kind and r.plottable), None)
+        if found is None:
+            name = self.module.display_name.lower()
+            raise LoadError(f"Nenhum cálculo de {name} completo em {self.folder.name}.")
+        return found
+
+
+def ref_target(
+    ref: PlotRef, sniff: SniffFn, memory: FolderMemory | None = None
+) -> ManualTarget | PairTarget | FolderTarget:
+    """How to plot a grid cell's ``ref`` again: a figure of two folders, the output file of a
+    single-file module, or a folder's detection. Stats the path (worker): a missing output file
+    raises ``LoadError`` here, a missing folder in ``build``."""
+    module = module_for(ref.kind)
+    if ref.partner is not None:
+        return PairTarget(ref.path, ref.partner, sniff, memory)
+    if module.single_file_role is not None and not ref.path.is_dir():
+        if not ref.path.is_file():
+            raise LoadError(f"Arquivo não encontrado: {ref.path}")
+        return ManualTarget(module, ref.path.parent, {module.single_file_role: [ref.path]}, sniff)
+    return FolderTarget(ref.path, ref.kind, sniff, memory)
 
 
 @dataclass(frozen=True)

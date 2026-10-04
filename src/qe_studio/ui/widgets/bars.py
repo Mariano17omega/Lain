@@ -159,6 +159,7 @@ class ActivityBar(QWidget):
 class TopBar(QWidget):
     generate_requested = pyqtSignal()
     plot_file_requested = pyqtSignal()
+    grids_requested = pyqtSignal()
     panel_toggled = pyqtSignal(str, bool)  # "tree" | "grid" | "workspace"
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
@@ -212,6 +213,12 @@ class TopBar(QWidget):
         self.generate.setToolTip("Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)")
         self.generate.clicked.connect(self.generate_requested)
         layout.addWidget(self.generate)
+        # A grid of the open plots in one figure (spec 23).
+        self.grids = QPushButton("Grids")
+        self.grids.setObjectName("gridsButton")
+        self.grids.setToolTip("Unir gráficos abertos numa grade N×M (uma só figura)")
+        self.grids.clicked.connect(self.grids_requested)
+        layout.addWidget(self.grids)
         # Only while an output one module can plot on its own is open (the window decides).
         self.plot_file = QPushButton("Plotar SCF")
         self.plot_file.setObjectName("plotFileButton")
@@ -246,6 +253,7 @@ class TopBar(QWidget):
     def _refresh_icons(self, *_args) -> None:
         self.generate.setIcon(self.theme.icon("bolt", "primary_fg", size=14))
         self.plot_file.setIcon(self.theme.icon("monitoring", "text_secondary", size=14))
+        self.grids.setIcon(self.theme.icon("grid_view", "text_secondary", size=14))
 
 
 class StatusBar(QStatusBar):

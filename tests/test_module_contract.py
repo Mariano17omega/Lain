@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
+from matplotlib.figure import Figure
 from PyQt6.QtGui import QImage, QPainter
 
 from qe_studio.core.calculations import REGISTRY, describe_plottable, module_for_file
@@ -204,7 +205,7 @@ def test_no_file_of_the_ui_knows_the_dummy_module():
 def test_ui_does_not_branch_on_plot_kinds():
     for path in UI_DIR.rglob("*.py"):
         text = path.read_text()
-        for kind in ("bands", "pdos", "relax", "scf", "bands_dos"):
+        for kind in ("bands", "pdos", "relax", "scf", "bands_dos", "grid"):
             assert f'kind == "{kind}"' not in text, path.name
 
 
@@ -260,6 +261,38 @@ def test_base_hooks_have_neutral_defaults(dummy_folder):
     assert DUMMY.default_labels(dataset) == []
     DUMMY.legacy_params(params, dataset.folder, None)  # type: ignore[arg-type]  # no-op
     assert params == DummyParams()
+    # Spec 23: its parameters live in a .plot, it can be a grid cell, its axes are its own.
+    assert DUMMY.plot_file and DUMMY.grid_cell
+    assert DUMMY.axes_routes(Figure(), dataset) is None
+
+
+def test_a_named_figure_keys_its_tab_by_name_and_shows_its_parts(dummy_folder, tmp_path):
+    """A figure of other plots that belongs to no folder (a grid, spec 23)."""
+    part = detect_dummy(dummy_folder)
+    result = DetectionResult(DUMMY, tmp_path, parts=(part,), plot_name="mine")
+    assert result.plot_id == "mine" and result.targets == (dummy_folder,)
+    session = PlotSession(result, DUMMY.load(part, sniff), DummyParams())
+    assert session.key == "plot:dummy:mine" and session.composite
+    assert session.paths == (dummy_folder,) and session.ref.path == dummy_folder
+    nested = DetectionResult(DUMMY, tmp_path, parts=(result, part))
+    assert nested.targets == (dummy_folder, dummy_folder)
+
+
+def test_a_module_without_plot_file_keeps_every_edit_in_its_store(dummy_folder, tmp_path):
+    class Stored(DummyModule):
+        plot_file = False
+        saved: list = []
+
+        def save_stored(self, dataset, params, name, stores):
+            self.saved.append(name)
+
+    module = Stored()
+    result = detect_dummy(dummy_folder)
+    result.module = module
+    session = PlotSession(result, module.load(result, sniff), DummyParams())
+    session.params.ymin = 3.0
+    assert session.persist("ymin", None)  # type: ignore[arg-type]
+    assert module.saved == ["ymin"] and session.defaults.ymin == 3.0
 
 
 def test_a_module_that_is_not_selectable_is_never_offered_for_mapping(dummy_folder):

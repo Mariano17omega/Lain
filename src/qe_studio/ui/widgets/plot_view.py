@@ -200,7 +200,8 @@ class PlotView(QWidget):
         self.setObjectName("plotView")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.theme, self.session = theme, session
-        self._limits: AxesLimits | None = None  # axis limits the params already describe
+        # Axis limits the params already describe, per session the axes belong to (a grid's cells).
+        self._limits: dict[int, AxesLimits] = {}
         self._retry = QTimer(self)  # render again once an export releases matplotlib
         self._retry.setSingleShot(True)
         self._retry.setInterval(RETRY_MS)
@@ -264,30 +265,48 @@ class PlotView(QWidget):
         """The module words the cursor readout of every axes (the toolbar shows it in
         ``#plotMessage``). Rendering rebuilds the axes, so this runs after every render.
 
-        The closures hold the session, never the view: the figure belongs to the view, and a
-        reference back to it would keep a closed tab alive.
+        Each axes reads out through the session it belongs to, with its index there: the plot's
+        own, or a grid cell's (``PlotSession.routes``). The closures hold the session, never the
+        view: the figure belongs to the view, and a reference back to it would keep a closed tab
+        alive.
         """
-        for index, ax in enumerate(self.figure.axes):
-            ax.format_coord = partial(_readout, self.session, index)  # type: ignore[method-assign]
+        for ax, (owner, index) in zip(
+            self.figure.axes, self.session.routes(self.figure), strict=True
+        ):
+            ax.format_coord = partial(_readout, owner, index)  # type: ignore[method-assign]
+
+    def _owners(self) -> list[PlotSession]:
+        """The sessions the axes belong to: this plot's, or each cell's of a grid."""
+        owners = {id(owner): owner for owner, _index in self.session.routes(self.figure)}
+        return list(owners.values()) or [self.session]
 
     def _reset(self) -> None:
-        self.session.reset_view()
+        for owner in self._owners():
+            owner.reset_view()
         self.render()
         self.limits_changed.emit()
 
-    def _axis_limits(self) -> AxesLimits | None:
-        """``(xlim, ylim)`` of every axes, in ``figure.axes`` order (what ``apply_limits`` gets)."""
-        if not self.figure.axes:
-            return None
-        return [(ax.get_xlim(), ax.get_ylim()) for ax in self.figure.axes]
+    def _axis_limits(self) -> dict[int, AxesLimits]:
+        """``(xlim, ylim)`` of every axes in ``figure.axes`` order, grouped by the session they
+        belong to (keyed by its ``id``): what each one's ``apply_limits`` gets."""
+        limits: dict[int, AxesLimits] = {}
+        for ax, (owner, _index) in zip(
+            self.figure.axes, self.session.routes(self.figure), strict=True
+        ):
+            limits.setdefault(id(owner), []).append((ax.get_xlim(), ax.get_ylim()))
+        return limits
 
     def _on_release(self, _event=None) -> None:
-        """Pan/zoom, scroll or Back/Forward: store the new view in the params (exports)."""
+        """Pan/zoom, scroll or Back/Forward: store the new view in the params (exports). In a grid
+        only the cells whose view changed are told, so the others keep their automatic limits."""
         limits = self._axis_limits()
+        owners = {id(owner): owner for owner in self._owners()}
         # Compared with the last stored view, not the rendered one: Back to the first view
         # must still undo a zoom already written into the params.
-        if limits is None or limits == self._limits:
+        changed = [key for key, view in limits.items() if view != self._limits.get(key)]
+        if not changed:
             return
         self._limits = limits
-        self.session.apply_limits(limits)
+        for key in changed:
+            owners[key].apply_limits(limits[key])
         self.limits_changed.emit()

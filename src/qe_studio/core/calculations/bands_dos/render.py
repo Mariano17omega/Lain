@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from matplotlib.figure import Figure
+from matplotlib.figure import FigureBase
 from matplotlib.ticker import MaxNLocator
 
 from ...plotting.draw import bands_dos_axes, finish_joined
@@ -32,7 +32,7 @@ class ClearOfJoin(MaxNLocator):
 
 
 def render_bands_dos(
-    figure: Figure, dataset: BandsDosDataset, params: BandsDosParams, style: PlotStyle
+    figure: FigureBase, dataset: BandsDosDataset, params: BandsDosParams, style: PlotStyle
 ) -> RenderInfo:
     """One reference for both panels, the bands' (``reference``): the DOS energies are shifted by
     it too, and its Fermi line and filled states follow the bands' E_F."""

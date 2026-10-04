@@ -67,7 +67,9 @@ class ParamsBody(QWidget):
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(0)
         column.addWidget(self._summary())
-        column.addWidget(self._files_section())
+        module, result = session.module, session.result
+        if module.selectable or any(result.files.get(r.id) for r in module.roles):
+            column.addWidget(self._files_section())  # a grid has neither files nor a mapping
         for definition in ordered_sections(session.module):
             fields = [f for f in self.schema if f.section == definition.name]
             if not fields:
@@ -80,13 +82,14 @@ class ParamsBody(QWidget):
                 button.clicked.connect(self.export_requested)
                 section.add_full(button)
             column.addWidget(section)
-        restore = QPushButton("Restaurar padrões")
-        restore.setToolTip(f"Voltar todos os ajustes ao padrão e apagar {session.kind}.plot")
-        restore.clicked.connect(self.restore_requested)
-        footer = QHBoxLayout()
-        footer.setContentsMargins(10, 10, 8, 10)
-        footer.addWidget(restore)
-        column.addLayout(footer)
+        if module.plot_file:  # what "Restaurar padrões" removes; a grid keeps its settings
+            restore = QPushButton("Restaurar padrões")
+            restore.setToolTip(f"Voltar todos os ajustes ao padrão e apagar {session.kind}.plot")
+            restore.clicked.connect(self.restore_requested)
+            footer = QHBoxLayout()
+            footer.setContentsMargins(10, 10, 8, 10)
+            footer.addWidget(restore)
+            column.addLayout(footer)
         column.addStretch(1)
 
     # -- values ---------------------------------------------------------------------------------

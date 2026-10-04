@@ -13,12 +13,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic
 
 import matplotlib
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, FigureBase
 
 from ..calculations import DetectionResult
 from ..calculations.base import AxesLimits, CalculationModule, D, P, SniffFn, Stores
 from ..calculations.params import RenderInfo
-from ..detection import ManualTarget, PairTarget
+from ..detection import FolderTarget, ManualTarget, PairTarget
+from .grid import PlotRef
 from .mpl_lock import MPL_LOCK
 from .plot_file import apply_stored, stored_elsewhere, stored_params
 from .style import PlotStyle, figure_style
@@ -61,13 +62,20 @@ class PlotSession(Generic[D, P]):
 
     @property
     def paths(self) -> tuple[Path, ...]:
-        """Every folder (or file) the plot shows: two for a figure of two folders (spec 22)."""
-        return tuple(part.plot_target for part in self.result.parts) or (self.plot_target,)
+        """Every folder (or file) the plot shows: two for a figure of two folders (spec 22), all
+        of a grid's plots (spec 23)."""
+        return self.result.targets
 
     @property
     def composite(self) -> bool:
-        """A figure of several folders' results (bands + DOS), not the plot of one folder."""
-        return bool(self.result.parts)
+        """A figure of several folders' results (bands + DOS, a grid), not the plot of one folder."""
+        return bool(self.result.parts or self.result.plot_name)
+
+    @property
+    def ref(self) -> PlotRef:
+        """What a grid cell keeps to plot this again (spec 23)."""
+        paths = self.paths
+        return PlotRef(paths[0], self.kind, paths[1] if len(paths) > 1 else None)
 
     @property
     def key(self) -> str:
@@ -86,10 +94,26 @@ class PlotSession(Generic[D, P]):
     def edited(self) -> bool:
         return self.params != self.defaults
 
-    def render(self, figure: Figure, style: PlotStyle) -> RenderInfo:
-        with MPL_LOCK, matplotlib.rc_context(style.rc(self.params.font_size)):
-            self.info = self.module.render(figure, self.dataset, self.params, style)
+    def render(self, figure: FigureBase, style: PlotStyle, params: P | None = None) -> RenderInfo:
+        """Draw into ``figure`` (a grid cell is a ``SubFigure``); ``params`` instead of the
+        session's (a grid cell with its own title draws a copy without the plot's)."""
+        params = self.params if params is None else params
+        with MPL_LOCK, matplotlib.rc_context(style.rc(params.font_size)):
+            self.info = self.module.render(figure, self.dataset, params, style)
         return self.info
+
+    def routes(self, figure: Figure) -> list[tuple[PlotSession, int]]:
+        """The session and its own axes index of every axes of ``figure``: this one for a plot, a
+        cell's for a grid (readout, pan/zoom and Reset go there)."""
+        routes = self.module.axes_routes(figure, self.dataset)
+        return routes if routes is not None else [(self, i) for i in range(len(figure.axes))]
+
+    def copy(self) -> PlotSession[D, P]:
+        """A session with the data of this one and a copy of its parameters (a grid cell takes an
+        open plot as it is now: edits made later in its tab are not the grid's)."""
+        twin = PlotSession(self.result, self.dataset, copy.deepcopy(self.params))
+        twin.defaults = copy.deepcopy(self.defaults)
+        return twin
 
     def format_coordinates(self, x: float, y: float, axes_index: int) -> str:
         """Cursor readout of the module. It runs inside a mouse event: a failure is logged once
@@ -105,8 +129,9 @@ class PlotSession(Generic[D, P]):
     def persist(self, name: str, stores: Stores) -> bool:
         """After an edit of ``name``: if it is kept in a user store (not in ``<kind>.plot``), save it
         there and make it the new default, so it is neither a plot edit (no ``.plot`` write) nor
-        undone by "Restaurar padrões". False when ``name`` is an ordinary ``.plot`` parameter."""
-        if name not in stored_elsewhere(self.params):
+        undone by "Restaurar padrões". False when ``name`` is an ordinary ``.plot`` parameter.
+        A module without a ``.plot`` (``plot_file`` False: a grid) keeps every parameter so."""
+        if self.module.plot_file and name not in stored_elsewhere(self.params):
             return False
         self.module.save_stored(self.dataset, self.params, name, stores)
         setattr(self.defaults, name, copy.deepcopy(getattr(self.params, name)))
@@ -129,7 +154,7 @@ def plot_key(target: Path | str, kind: str) -> str:
     return f"plot:{kind}:{target}"
 
 
-Target = DetectionResult | ManualTarget | PairTarget
+Target = DetectionResult | ManualTarget | PairTarget | FolderTarget
 
 
 def target_key(target: Target) -> str:
@@ -141,7 +166,8 @@ def load_plot(target: Target, sniff: SniffFn) -> tuple[DetectionResult, Any]:
     """Worker: the detection result (a manual mapping is matched here, a pair of folders detected
     and paired) and its data. ``sniff`` is the detection service's cache: the files were sniffed
     already. Raises ``LoadError`` (message for the user) or any parsing error."""
-    result = target.build() if isinstance(target, ManualTarget | PairTarget) else target
+    built = isinstance(target, ManualTarget | PairTarget | FolderTarget)
+    result = target.build() if built else target
     return result, result.module.load_cached(result, sniff)
 
 

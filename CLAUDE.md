@@ -361,6 +361,51 @@ path. `PairTarget.from_plot_file(bands)` (worker) reopens the pair named in `ban
   is the DOS compound's).
 - **Ticks.** `ClearOfJoin` keeps DOS tick labels off the last k label.
 
+### Grids of plots (spec 23)
+
+"Grids" (top bar button, action `grids.open`) puts open plots in one figure, N×M up to 6×6, a `SubFigure` per cell,
+each drawn by its own module (vector export, pan/zoom per cell).
+
+- **Definition** (`core/plotting/grid.py`, Qt-free, imports no module): `PlotRef(path, kind, partner)` (`path` is what
+  the plot shows: a folder, or the output file of a single-file module such as SCF; `partner` the DOS folder of bands +
+  DOS), `GridCell(row, col, ref, title)` (0-based), `GridSpec.validate()` (Portuguese sentences).
+  `PlotSession.ref` makes the ref of a plot.
+- **Store** (`core/grid_store.py:GridStore`, `grids.json` in the data dir, like `CompoundStore`): grids by name, paths
+  relative to the root in force (`abs:` outside it; another project resolves them there, nothing is deleted), the
+  grid figure's settings under `params`, `rename(old, new)` (called by `MainWindow.rename_path`).
+  `PlotWorkflow` owns it as `Stores.grids`.
+- **Module** (`core/calculations/grid/`, kind `grid`, in `REGISTRY`, no roles, never detected or loaded from files):
+  `GridDataset(spec, cells)` where each `GridCellData` holds a *copy* of a plot session or the reason it has none
+  ("Plot indisponível: …"). `render` adds one `SubFigure` per position in row-major order, draws each cell with
+  `PlotSession.render(cell, style, params=)` (a cell title replaces the plot's: drawn from a copy with `title=""`) and
+  fits it with `core/plotting/cell_layout.fit_cell`. `GridParams`: cell size (figure size = cols × rows of it,
+  `derived` like name/rows/cols), titles, font of the titles, background, export. Exports go to
+  `<local_root>/plots/grid_<name>.*`; the tab is `plot:grid:<name>`.
+- **No layout engine.** A `SubFigure` has no `tight_layout` (`draw.tight` skips it), and constrained layout pads every
+  axes on both sides, which split the joined bands + DOS panels. `fit_cell` is `tight_layout` for one cell: it moves
+  the outer edges of the cell's axes grid until ticks, labels, legends and the cell's suptitle fit, keeping the
+  module's inner spacing (`wspace=0` for bands + DOS).
+- **Generic hooks it added.** `DetectionResult.plot_name` (a figure that belongs to no folder keys its tab by name) and
+  `targets` (every folder shown, recursive: renaming any closes the tab). ClassVars `plot_file` (False: no
+  `<kind>.plot`; `PlotSettingsStore` skips it, `ParamsBody` has no "Restaurar padrões", `PlotSession.persist` sends
+  every edit to `save_stored`, which writes `GridStore.save_params`) and `grid_cell` (False: never a cell). Hook
+  `axes_routes(figure, dataset)`: the session and local index of every axes; `PlotSession.routes` defaults to the
+  plot itself. `PlotView` reads it for the cursor readout, pan/zoom (only the cells whose view changed get
+  `apply_limits`, in memory: a cell's `.plot` is never written from a grid) and Reset, so it knows no grid.
+  `PlotSession.copy()` (a cell takes an open plot as it is now) and `render(..., params=)`.
+  `PlotWorkflow.show_session(session)` opens any session's tab (`show_loaded` builds one and calls it).
+- **Reloading a cell** (`core/detection.py`): `ref_target(ref, sniff, memory)` → `PairTarget` (partner),
+  `ManualTarget` (single-file module; a missing file is a `LoadError`) or `FolderTarget` (detect again, take the
+  plottable result of the kind; a missing folder or kind is a `LoadError`).
+- **UI.** `ui/grids_controller.py:GridsController.for_window` (store root set before each use, so the window needs
+  no `set_root` call), `ui/grid_loader.py:GridLoader` (open tab → `session.copy()`; else `ref_target` + `load_plot`
+  in the global pool, the `.plot` through the settings queue, `build_session`; then
+  `core/plotting/grid_session.build_grid_session` → `ready` → `show_session`; footer spinner "Carregando grid…"),
+  `ui/dialogs/grid_dialog.py` (non-modal, one at a time; "Gerar" saves too, then closes; replacing another saved grid
+  asks), `grid_cells.py` (the table: combo of open plots plus the saved refs, "(pasta não encontrada)"), and
+  `ui/widgets/grid_preview.py` (the thumbnail). Tests: `tests/plot_grid_helpers.py` (not `grid_helpers.py`, the file
+  grid's) builds sessions and grids from the fixtures.
+
 ### Navigation, filters and selection (spec 16)
 
 Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:

@@ -69,7 +69,10 @@ class PlotSettingsStore(QObject):
         return key in self._dirty
 
     def mark(self, session: PlotSession) -> None:
-        """The user edited ``session`` (panel or pan/zoom): write it after a pause."""
+        """The user edited ``session`` (panel or pan/zoom): write it after a pause. A plot without
+        a ``.plot`` (a grid: ``plot_file`` False) has nothing to write."""
+        if not session.module.plot_file:
+            return
         self._dirty[session.key] = session
         self._timer.start()
 
@@ -102,6 +105,8 @@ class PlotSettingsStore(QObject):
         """ "Restaurar padrões": drop the pending edits and remove the file, after the queued
         writes (a write still queued for it is dropped)."""
         self._dirty.pop(session.key, None)
+        if not session.module.plot_file:
+            return
         self._writes.submit(
             session.key, _delete, session.folder, session.kind, on_done=self._report
         )

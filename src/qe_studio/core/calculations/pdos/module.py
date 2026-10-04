@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from matplotlib.figure import Figure
+from matplotlib.figure import FigureBase
 
 from ...compounds import AtomChoices
 from ...plotting.style import PlotStyle
@@ -163,7 +163,7 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
         return render_mod.series_colors(dataset, params, style)
 
     def render(
-        self, figure: Figure, dataset: PdosDataset, params: PdosParams, style: PlotStyle
+        self, figure: FigureBase, dataset: PdosDataset, params: PdosParams, style: PlotStyle
     ) -> RenderInfo:
         return render_mod.render_pdos(figure, dataset, params, style)
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
-from matplotlib.figure import Figure
+from matplotlib.figure import FigureBase
 from matplotlib.lines import Line2D
 from matplotlib.ticker import AutoMinorLocator
 
@@ -24,7 +24,7 @@ DOWN_DASH = (0, (4, 2))  # the ↓ channel, when both share an axes
 
 
 def render_bands(
-    figure: Figure, dataset: BandsDataset, params: BandsParams, style: PlotStyle
+    figure: FigureBase, dataset: BandsDataset, params: BandsParams, style: PlotStyle
 ) -> RenderInfo:
     if dataset.spin:
         return _render_spin(figure, dataset, params, style)
@@ -69,7 +69,7 @@ def band_xlim(
 
 
 def _render_plain(
-    figure: Figure, dataset: BandsDataset, params: BandsParams, style: PlotStyle
+    figure: FigureBase, dataset: BandsDataset, params: BandsParams, style: PlotStyle
 ) -> RenderInfo:
     ax = new_axes(figure, style)
     handles = draw_plain(ax, dataset, params, style, dataset.reference(params.reference))
@@ -129,7 +129,7 @@ def draw_plain(
 
 # -- spin (two channels) -------------------------------------------------------------------------
 def _render_spin(
-    figure: Figure, dataset: BandsDataset, params: BandsParams, style: PlotStyle
+    figure: FigureBase, dataset: BandsDataset, params: BandsParams, style: PlotStyle
 ) -> RenderInfo:
     """↑ and ↓ overlaid on one axes (↓ dashed) or in two panels side by side (``sharey``)."""
     channels = shown_channels(dataset, params)

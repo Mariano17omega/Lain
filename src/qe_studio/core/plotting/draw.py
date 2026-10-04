@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, FigureBase
 
 from ..calculations.params import CommonParams
 from .style import PlotStyle
@@ -12,7 +12,7 @@ DASHED = (0, (5, 3))  # threshold lines
 MAX_TICKS = 20  # integer X ticks are thinned above this many
 
 
-def new_axes(figure: Figure, style: PlotStyle) -> Axes:
+def new_axes(figure: FigureBase, style: PlotStyle) -> Axes:
     figure.clear()
     figure.set_facecolor(style.figure_bg)
     ax = figure.add_subplot()
@@ -20,7 +20,7 @@ def new_axes(figure: Figure, style: PlotStyle) -> Axes:
     return ax
 
 
-def stacked_axes(figure: Figure, style: PlotStyle, rows: int) -> list[Axes]:
+def stacked_axes(figure: FigureBase, style: PlotStyle, rows: int) -> list[Axes]:
     """``rows`` panels sharing the X axis (inner tick labels hidden), top to bottom."""
     figure.clear()
     figure.set_facecolor(style.figure_bg)
@@ -30,7 +30,7 @@ def stacked_axes(figure: Figure, style: PlotStyle, rows: int) -> list[Axes]:
     return list(axes)
 
 
-def side_axes(figure: Figure, style: PlotStyle, columns: int) -> list[Axes]:
+def side_axes(figure: FigureBase, style: PlotStyle, columns: int) -> list[Axes]:
     """``columns`` panels side by side sharing both axes (inner tick labels hidden)."""
     figure.clear()
     figure.set_facecolor(style.figure_bg)
@@ -40,7 +40,7 @@ def side_axes(figure: Figure, style: PlotStyle, columns: int) -> list[Axes]:
     return list(axes)
 
 
-def bands_dos_axes(figure: Figure, style: PlotStyle, ratios: tuple[float, float]) -> list[Axes]:
+def bands_dos_axes(figure: FigureBase, style: PlotStyle, ratios: tuple[float, float]) -> list[Axes]:
     """Two panels side by side sharing the Y axis (the energy of bands + DOS), widths in
     ``ratios``, no space between them (``finish_joined`` keeps it so)."""
     figure.clear()
@@ -51,6 +51,13 @@ def bands_dos_axes(figure: Figure, style: PlotStyle, ratios: tuple[float, float]
     for ax in axes:
         ax.set_facecolor(style.axes_bg)
     return list(axes)
+
+
+def tight(figure: FigureBase) -> None:
+    """``tight_layout`` of a whole figure. A ``SubFigure`` (a cell of a grid, spec 23) has none: the
+    grid fits each cell itself (``cell_layout.fit_cell``)."""
+    if isinstance(figure, Figure):
+        figure.tight_layout(pad=0.6)
 
 
 def add_legend(ax: Axes, params: CommonParams, handles: list | None = None) -> None:
@@ -68,34 +75,34 @@ def add_legend(ax: Axes, params: CommonParams, handles: list | None = None) -> N
         ax.legend(handles=handles, **kwargs)
 
 
-def finish(figure: Figure, ax: Axes, params: CommonParams, handles: list | None = None) -> None:
+def finish(figure: FigureBase, ax: Axes, params: CommonParams, handles: list | None = None) -> None:
     """Title, legend and layout. ``handles`` = legend artists (None = axes' labelled artists)."""
     if params.title.strip():
         ax.set_title(params.title.strip(), fontsize=params.font_size * 1.1, pad=8)
     add_legend(ax, params, handles)
-    figure.tight_layout(pad=0.6)
+    tight(figure)
 
 
 def finish_side(
-    figure: Figure, axes: list[Axes], params: CommonParams, handles: list | None = None
+    figure: FigureBase, axes: list[Axes], params: CommonParams, handles: list | None = None
 ) -> None:
     """Like ``finish`` for panels side by side: the title spans the figure, the legend sits in the
     first panel."""
     if params.title.strip():
         figure.suptitle(params.title.strip(), fontsize=params.font_size * 1.1)
     add_legend(axes[0], params, handles)
-    figure.tight_layout(pad=0.6)
+    tight(figure)
 
 
 def finish_joined(
-    figure: Figure, legend_ax: Axes, params: CommonParams, handles: list | None = None
+    figure: FigureBase, legend_ax: Axes, params: CommonParams, handles: list | None = None
 ) -> None:
     """Like ``finish_side`` for panels with no space between them (``bands_dos_axes``): the
     legend sits in ``legend_ax`` and the layout keeps the panels together."""
     if params.title.strip():
         figure.suptitle(params.title.strip(), fontsize=params.font_size * 1.1)
     add_legend(legend_ax, params, handles)
-    figure.tight_layout(pad=0.6)
+    tight(figure)
     figure.subplots_adjust(wspace=0)
 
 

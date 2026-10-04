@@ -10,7 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from matplotlib.figure import Figure
+from matplotlib.figure import FigureBase
 
 from ...compounds import AtomChoices
 from ...plotting.style import PlotStyle
@@ -72,7 +72,7 @@ class BandsDosModule(CalculationModule[BandsDosDataset, BandsDosParams]):
         return f"{self.display_name} — {formula or target.name}"
 
     def render(
-        self, figure: Figure, dataset: BandsDosDataset, params: BandsDosParams, style: PlotStyle
+        self, figure: FigureBase, dataset: BandsDosDataset, params: BandsDosParams, style: PlotStyle
     ) -> RenderInfo:
         return render_mod.render_bands_dos(figure, dataset, params, style)
 

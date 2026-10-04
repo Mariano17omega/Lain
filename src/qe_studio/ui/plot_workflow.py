@@ -33,6 +33,7 @@ from ..core.detection import (
     plottable_modules,
 )
 from ..core.folder_memory import FolderMemory
+from ..core.grid_store import GridStore
 from ..core.plotting.session import PlotSession, build_session, load_plot, target_key
 from ..core.tasks import TaskGroup
 from .busy import BusyTracker
@@ -88,12 +89,14 @@ class PlotWorkflow(QObject):
         config: Callable[[], AppConfig],
         dialog_parent: QWidget,
         compounds: CompoundStore | None = None,
+        grids: GridStore | None = None,
         parent: QObject | None = None,
     ):
         super().__init__(parent)
         self.service, self.workspace, self.params = service, workspace, params
         self.memory, self.settings, self.status, self.theme = memory, settings, status, theme
-        self.stores = Stores(compounds or CompoundStore())  # kept per user, not per folder
+        # Kept per user, not per folder: atoms per compound, the saved grids and their settings.
+        self.stores = Stores(compounds or CompoundStore(), grids or GridStore())
         self._config = config
         self._dialog_parent = dialog_parent
         self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
@@ -306,21 +309,26 @@ class PlotWorkflow(QObject):
         auto_export: bool = False,
     ) -> PlotSession:
         """The plot tab of a loaded result (replacing an open one of the same plot)."""
-        key = target_key(result)
-        existing = self.workspace.widget_for(key)
+        existing = self.workspace.widget_for(target_key(result))
         open_session = existing.session if isinstance(existing, PlotView) else None
         session, warnings = build_session(
             result, dataset, self._config(), stored, self.memory, open_session, self.stores
         )
-        warnings += self.stores.pop_warnings()
-        if existing is not None:
-            self.workspace.close_key(key)
+        return self.show_session(session, warnings, auto_export)
+
+    def show_session(
+        self, session: PlotSession, warnings: list[str] | None = None, auto_export: bool = False
+    ) -> PlotSession:
+        """The tab of ``session`` (a loaded plot, a grid), replacing an open one with its key."""
+        warnings = list(warnings or []) + self.stores.pop_warnings()
+        if self.workspace.widget_for(session.key) is not None:
+            self.workspace.close_key(session.key)
         view = PlotView(self.theme, session)
         view.rendered.connect(self._on_rendered)
         view.limits_changed.connect(self._on_limits_changed)
         view.export_requested.connect(self.export)
         self.workspace.add(
-            key, view, session.title, ("bubble_chart", "accent"), str(session.plot_target)
+            session.key, view, session.title, ("bubble_chart", "accent"), str(session.plot_target)
         )
         self.panel_requested.emit("workspace")  # workspace.add made the tab current: bound
         self.panel_requested.emit("params")

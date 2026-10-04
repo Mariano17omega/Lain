@@ -26,10 +26,12 @@ from ..sniff import FileKind, FileSniff
 from .params import CommonParams, ParamField, RenderInfo
 
 if TYPE_CHECKING:
-    from matplotlib.figure import Figure
+    from matplotlib.figure import Figure, FigureBase
 
     from ..config import AppConfig
     from ..folder_memory import FolderMemory
+    from ..grid_store import GridStore
+    from ..plotting.session import PlotSession
     from ..plotting.style import PlotStyle
 
 D = TypeVar("D")  # dataset a module loads (``None`` for detection-only modules)
@@ -48,10 +50,12 @@ class Stores:
     ``save_stored``). They live in the app data dir, never in the (synced) simulation folder."""
 
     compounds: CompoundStore
+    grids: GridStore | None = None  # the saved grids and their settings (spec 23)
 
     def pop_warnings(self) -> list[str]:
         """Messages about stores that were corrupt, once each."""
-        return [w for w in (self.compounds.pop_warning(),) if w]
+        grids = self.grids.pop_warning() if self.grids is not None else None
+        return [w for w in (self.compounds.pop_warning(), grids) if w]
 
 
 class Dataset(Protocol):
@@ -151,6 +155,8 @@ class DetectionResult:
     warnings: list[str] = field(default_factory=list)
     # Results of other folders plotted together in one figure (bands + DOS, spec 22), in order.
     parts: tuple[DetectionResult, ...] = ()
+    # A figure that belongs to no folder names itself (a grid, spec 23): the name keys its tab.
+    plot_name: str = ""
 
     @property
     def kind(self) -> str:
@@ -178,8 +184,16 @@ class DetectionResult:
         return self.module.plot_target(self.folder, self.files)
 
     @property
+    def targets(self) -> tuple[Path, ...]:
+        """Every folder (or file) the plot shows: its parts' (theirs too), or its own target."""
+        return tuple(t for part in self.parts for t in part.targets) or (self.plot_target,)
+
+    @property
     def plot_id(self) -> str:
-        """What keys the plot's tab: its target, or the targets of its parts joined by ``|``."""
+        """What keys the plot's tab: its name, its target, or the targets of its parts joined by
+        ``|``."""
+        if self.plot_name:
+            return self.plot_name
         if self.parts:
             return "|".join(str(part.plot_target) for part in self.parts)
         return str(self.plot_target)
@@ -227,6 +241,10 @@ class CalculationModule(Generic[D, P]):
     single_file_role: ClassVar[str | None] = None
     # Offered in the manual mapping dialog. False for figures built from other results (spec 22).
     selectable: ClassVar[bool] = True
+    # Parameters kept in ``<folder>/<kind>.plot``. False: every edit goes to ``save_stored`` (a grid).
+    plot_file: ClassVar[bool] = True
+    # Can be a cell of a grid (spec 23); a grid cannot.
+    grid_cell: ClassVar[bool] = True
 
     def role(self, role_id: str) -> FileRole:
         return next(r for r in self.roles if r.id == role_id)
@@ -364,7 +382,7 @@ class CalculationModule(Generic[D, P]):
         service's in the app), which already holds the sniffs of the detected files."""
         raise NotImplementedError
 
-    def render(self, figure: Figure, dataset: D, params: P, style: PlotStyle) -> RenderInfo:
+    def render(self, figure: FigureBase, dataset: D, params: P, style: PlotStyle) -> RenderInfo:
         raise NotImplementedError
 
     # -- view hooks: keep the UI free of per-module knowledge ----------------------------------
@@ -381,6 +399,11 @@ class CalculationModule(Generic[D, P]):
     def format_coordinates(self, x: float, y: float, axes_index: int, dataset: D, params: P) -> str:
         """Cursor readout over axes number ``axes_index``."""
         return f"x = {x:.4g} · y = {y:.4g}"
+
+    def axes_routes(self, figure: Figure, dataset: D) -> list[tuple[PlotSession, int]] | None:
+        """For a figure made of other plots (a grid): the session and the index there of every axes
+        of ``figure`` (readout, pan/zoom and Reset go to them). None: the axes are this plot's own."""
+        return None
 
     def series_colors(self, dataset: D, params: P, style: PlotStyle) -> dict[str, str]:
         """Color of every series, for modules with a ``"series"`` parameter field."""

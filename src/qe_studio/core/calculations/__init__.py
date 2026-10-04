@@ -6,6 +6,7 @@ from ..sniff import FileSniff
 from .bands import BandsModule
 from .bands_dos import BandsDosModule
 from .base import CalculationModule, DetectionResult, FileRole, FolderListing, Method
+from .grid import GridModule
 from .info import CalcModule
 from .pdos import PdosModule
 from .relax import RelaxModule
@@ -18,6 +19,7 @@ REGISTRY: tuple[CalculationModule[Any, Any], ...] = (
     ScfModule(),
     CalcModule(),
     BandsDosModule(),  # never detected: made from two folders (spec 22)
+    GridModule(),  # never detected: made from open plots (spec 23)
 )
 
 
