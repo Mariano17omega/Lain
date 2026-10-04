@@ -3,6 +3,11 @@
 ``pw_output_golden.json`` was captured from ``parse_pw_output(whole text)`` before the parser was
 split into head and tail, for every ``Program PWSCF`` file under ``tests/fixtures/``. Update it only
 when a field is *meant* to change.
+
+A new ``PwOutput`` field (spec 24 added ``geometry_converged``): for every key of the JSON, parse
+the fixture with ``parse_pw_output(whole text)``, check that ``normalized(...)`` differs from the
+stored dict only in the new key, store it and write the file back with ``json.dumps(…, indent=1)``
+plus a final newline, so the diff shows just the new lines.
 """
 
 import dataclasses

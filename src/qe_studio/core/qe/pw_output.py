@@ -61,7 +61,9 @@ class PwOutput:
     total_magnetization: float | None = None
     absolute_magnetization: float | None = None
     job_done: bool = False
-    converged: bool | None = None
+    converged: bool | None = None  # of the (last) SCF
+    # Of the BFGS geometry optimization (relax / vc-relax): None when no marker was read.
+    geometry_converged: bool | None = None
 
     @property
     def warnings(self) -> list[str]:
@@ -138,6 +140,19 @@ def _fermi(text: str) -> tuple[FermiKind, float, float | None, tuple[float, floa
     return "homo", float(match.group("homo_only")), None, None
 
 
+def _geometry_converged(tail: str) -> bool | None:
+    """Whether BFGS converged, from the last marker in ``tail`` (spec 24 R3.2). ``End of BFGS
+    Geometry Optimization`` is no proof: pw.x also prints it after running out of ``nstep``."""
+    converged = tail.rfind("bfgs converged")
+    failed = max(
+        tail.rfind("bfgs failed"),
+        tail.rfind("The maximum number of steps has been reached"),
+    )
+    if converged < 0 and failed < 0:
+        return False if "End of BFGS Geometry Optimization" in tail else None
+    return converged > failed
+
+
 def parse_pw_output(head: str, tail: str | None = None) -> PwOutput:
     """Facts of a pw.x output from its ``head`` and ``tail`` (spec 14 R5.2).
 
@@ -185,6 +200,7 @@ def parse_pw_output(head: str, tail: str | None = None) -> PwOutput:
         absolute_magnetization=abs_mag,
         job_done="JOB DONE" in tail,
         converged=converged,
+        geometry_converged=_geometry_converged(tail),
     )
 
 

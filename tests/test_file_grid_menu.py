@@ -167,7 +167,7 @@ def test_scf_output_menu_starts_with_plotar(main_window, demo_project, monkeypat
         ("03_bands", "bands.dat.gnu", []),
         ("04_pdos", "nscf.out", ["Resumo"]),
         ("04_pdos", "projwfc.out", ["Resumo"]),
-        ("01_relax", "si.rel.out", ["Resumo"]),
+        ("01_relax", "si.rel.out", ["Resumo", "Gerar SCF convergido"]),  # spec 24
         ("01_relax", "si.rel.in", []),
     ],
 )

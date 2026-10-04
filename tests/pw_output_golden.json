@@ -16,7 +16,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": null
+  "converged": null,
+  "geometry_converged": null
  },
  "al_bands/al.scf.out": {
   "version": "7.3.1",
@@ -35,7 +36,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": null
  },
  "al_pdos_flat/al.nscf.out": {
   "version": "7.3.1",
@@ -54,7 +56,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": null
+  "converged": null,
+  "geometry_converged": null
  },
  "al_pdos_flat/al.scf.out": {
   "version": "7.3.1",
@@ -73,7 +76,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": null
  },
  "kao_slab_relax/relax-kaolinite-slab-001.out": {
   "version": "7.1",
@@ -92,7 +96,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": true
  },
  "kao_supercell_relax/relax-kaolinite-slab-001-2x1x.out": {
   "version": "7.1",
@@ -111,7 +116,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": true
  },
  "kao_vc_relax/vc-relax.out": {
   "version": "7.1",
@@ -130,7 +136,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": true
  },
  "qe731_ni_spin_bands/ni.band.out": {
   "version": "7.3.1",
@@ -149,7 +156,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": null
+  "converged": null,
+  "geometry_converged": null
  },
  "qe731_ni_spin_bands/ni.scf.out": {
   "version": "7.3.1",
@@ -168,7 +176,8 @@
   "total_magnetization": 0.71,
   "absolute_magnetization": 0.81,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": null
  },
  "qe731_ni_spin_fixed/ni.scf.out": {
   "version": "7.3.1",
@@ -193,7 +202,8 @@
   "total_magnetization": 0.5,
   "absolute_magnetization": 0.63,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": null
  },
  "qe731_ni_spin_pdos/ni.nscf.out": {
   "version": "7.3.1",
@@ -212,7 +222,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": null
+  "converged": null,
+  "geometry_converged": null
  },
  "qe731_ni_spin_pdos/ni.scf.out": {
   "version": "7.3.1",
@@ -231,7 +242,8 @@
   "total_magnetization": 0.71,
   "absolute_magnetization": 0.81,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": null
  },
  "si_bands/si.band.out": {
   "version": "7.3.1",
@@ -250,7 +262,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": null
+  "converged": null,
+  "geometry_converged": null
  },
  "si_bands/si.scf.out": {
   "version": "7.3.1",
@@ -269,7 +282,8 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": null
  },
  "si_relax/si.rel.out": {
   "version": "7.3.1",
@@ -288,6 +302,7 @@
   "total_magnetization": null,
   "absolute_magnetization": null,
   "job_done": true,
-  "converged": true
+  "converged": true,
+  "geometry_converged": true
  }
 }

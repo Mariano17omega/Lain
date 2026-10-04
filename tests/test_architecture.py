@@ -45,6 +45,10 @@ QT_FREE = [
     "qe_studio.core.plotting.grid_session",
     "qe_studio.core.grid_store",
     "qe_studio.core.calculations.grid",
+    "qe_studio.core.qe.input_edit",
+    "qe_studio.core.qe.final_structure",
+    "qe_studio.core.qe.scf_from_relax",
+    "qe_studio.core.unique_names",
 ]
 
 

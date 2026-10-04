@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 24 (independente das specs 20–23; a spec 25 reaproveita o editor e os nomes sem sobrescrever) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Desvios:<br>- **`geometry_converged`:** `True` só com `bfgs converged`. `End of BFGS Geometry Optimization` sozinho não basta, porque o pw.x também o imprime quando esgota `nstep` (logo depois de "The maximum number of steps has been reached."). `False` com `bfgs failed`, com o fim de `nstep` ou com `End of BFGS` sem `bfgs converged`; `None` sem marcador.<br>- **vc-relax com `CELL_PARAMETERS (alat= x)`:** `celldm(1) = x` fica (o alat impresso, 8 casas), porque com `ibrav = 0` o card em `alat` precisa dele; `celldm(2..6)`, `A`, `B`, `C` e `cos*` saem. Com a célula em `angstrom`/`bohr` sai tudo. Posições em `alat` com a célula em `angstrom`/`bohr` dão erro: o alat do SCF seria outro e converter unidades está fora de escopo.<br>- **`pair_input`:** o papel `relax_in` só pareia se o `relax_out` do mesmo resultado é esta saída (numa pasta com dois relax, não pega o input errado).<br>- `&IONS`/`&CELL` saem **todas** as ocorrências (a fixture slab tem `&IONS` e `&ions`).<br>- `Entry` do lexer ganhou `value_start`/`value_end` (fora da igualdade); `InputEditor` ganhou `raw`, `keys` e `has_namelist`.<br>- `scf_from_relax(final, in_text, name)` recebe a `FinalStructure` já lida; `generate_scf_file` lê os arquivos no worker.<br>- Um input em latin-1 é lido como tal e gravado em UTF-8. |
 | **Depende de** | spec 5 (menu de contexto), spec 11 (lexer de input), spec 17 (toast) |
 | **Usada por** | spec 25 (geração dos inputs derivados do SCF) |
 | **Esforço** | M |

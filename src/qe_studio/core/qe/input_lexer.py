@@ -88,12 +88,16 @@ class LintIssue:
 
 @dataclass(frozen=True)
 class Entry:
-    """One ``key = value`` of a namelist. ``key`` is lowercase, indices included (``celldm(1)``)."""
+    """One ``key = value`` of a namelist. ``key`` is lowercase, indices included (``celldm(1)``).
+    ``value_start``/``value_end`` are the value's columns (both after the ``=`` when it has none):
+    what the input editor rewrites. They take no part in equality."""
 
     key: str
     value_text: str
     line: int
     col: int
+    value_start: int = field(default=0, compare=False)
+    value_end: int = field(default=0, compare=False)
 
 
 @dataclass(frozen=True)
@@ -291,10 +295,10 @@ def _namelist_content(
         name = re.sub(r"\s+", "", code[key.start : key.end]).lower()
         if not values:
             issue(key.start, eq.end, f"Valor ausente para {name}")
-            text = ""
+            start = end = eq.end
         else:
-            text = code[values[0].start : values[-1].end]
-        scan.entries.append(Entry(name, text, lineno, key.start))
+            start, end = values[0].start, values[-1].end
+        scan.entries.append(Entry(name, code[start:end], lineno, key.start, start, end))
 
     i = 0
     while i < len(atoms):

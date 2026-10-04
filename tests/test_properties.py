@@ -23,6 +23,7 @@ from qe_studio.core.grid_store import GridStore
 from qe_studio.core.navigation import NavigationHistory
 from qe_studio.core.plotting.grid import MAX_SIZE, GridCell, GridSpec, PlotRef
 from qe_studio.core.qe.bands_x import BandsFormatError, gnu_shape, read_gnu
+from qe_studio.core.qe.input_edit import InputEditor, unquote
 from qe_studio.core.qe.input_lexer import LexState, scan_line
 from qe_studio.core.qe.input_lint import _lint
 from qe_studio.core.qe.pw_output import parse_pw_output
@@ -315,6 +316,52 @@ def test_well_formed_namelists_have_no_issues(pairs, separator, newline):
     doc = _lint(text)
     assert doc.issues == []
     assert [e.key for e in doc.namelists["control"]] == [key for key, _ in pairs]
+
+
+# -- input editor (spec 24) ----------------------------------------------------------------------
+@given(INPUT_TEXT)
+def test_editor_without_operations_gives_the_text_back(text):
+    assert InputEditor.from_text(text).text() == text
+
+
+@given(INPUT_TEXT, KEYS, VALUES, st.sampled_from(["control", "system", "ions"]))
+def test_editor_operations_never_fail_on_any_text(text, key, value, namelist):
+    editor = InputEditor.from_text(text)
+    editor.set(namelist, key, value)
+    editor.get(namelist, key)
+    editor.remove(namelist, key)
+    editor.remove_namelist(namelist)
+    editor.replace_card("K_POINTS", "gamma", ["  "])
+    assert editor.issues == []  # an operation that raised would be listed here
+    assert isinstance(editor.text(), str)
+
+
+@given(
+    st.lists(st.tuples(KEYS, VALUES), min_size=1, max_size=8, unique_by=lambda pair: pair[0]),
+    st.sampled_from([",\n", "\n", ", "]),
+    st.sampled_from(["\n", "\r\n"]),
+    KEYS,
+    VALUES,
+)
+def test_editor_set_then_get_gives_the_value_and_touches_one_line(
+    pairs, separator, newline, key, value
+):
+    body = "".join(f"  {k} = {v}{separator}" for k, v in pairs)
+    text = newline.join(
+        ["&control", body, "/", "&system", "  nat = 2 ! two", "/", "K_POINTS gamma", ""]
+    )
+    editor = InputEditor.from_text(text)
+    editor.set("control", key, value)
+    assert editor.issues == []
+    assert editor.get("control", key) == unquote(value)
+    before, after = text.split("\n"), editor.text().split("\n")
+    if key in dict(pairs):  # replaced in place: only the lines of that entry differ
+        assert len(after) == len(before)
+        changed = [i for i, (a, b) in enumerate(zip(before, after, strict=True)) if a != b]
+        assert all(key in before[i] for i in changed)
+    else:  # one new line, the rest byte for byte
+        at = next(i for i, (a, b) in enumerate(zip(before, after, strict=False)) if a != b)
+        assert after[:at] + after[at + 1 :] == before
 
 
 # -- output summary (spec 12) ------------------------------------------------------------------

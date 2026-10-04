@@ -1,8 +1,10 @@
 """Right-click menu for files and folders in the explorer tree and the file grid (spec 5 R3).
 
 Four actions: Abrir local de origem, Abrir com ▸, Copiar, Renomear. A file one module can plot on
-its own (spec 9) also gets "Plotar" on top. Renaming and plotting touch global state (tabs, plot
-settings, folder memory), so they are handed to the main window.
+its own (spec 9) also gets "Plotar" on top, a QE output "Resumo" (spec 12) and a converged relax /
+vc-relax output "Gerar SCF convergido" (spec 24; disabled, with the reason as tooltip, when its
+input is missing). Renaming, plotting and generating touch global state (tabs, plot settings,
+folder memory, the file panels), so they are handed to the main window and its controllers.
 
 With several items selected in the grid (spec 16 R5) the menu is shorter: the item count, Abrir local
 de origem, Copiar and, for exactly two QE inputs, Comparar; for a folder of bands and one of PDOS,
@@ -24,6 +26,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 from ...core.calculations import module_for_file
 from ...core.calculations.bands_dos import bands_dos_pair
 from ...core.desktop_apps import DesktopApp, catalog, expand_exec
+from ...core.qe.scf_from_relax import scf_availability
 from ...core.sniff import looks_like_input
 from ..dialogs.open_with import ask_command
 from ..services import DetectionService
@@ -57,6 +60,7 @@ class ItemActions(QObject):
     summary_requested = pyqtSignal(Path)  # "Resumo" of a QE output (spec 12)
     compare_requested = pyqtSignal(Path, Path)  # "Comparar" of two QE inputs (spec 16 R5.5)
     bands_dos_requested = pyqtSignal(Path, Path)  # bands folder, DOS folder (spec 22)
+    scf_from_relax_requested = pyqtSignal(Path)  # "Gerar SCF convergido" of an output (spec 24)
     favorite_toggled = pyqtSignal(Path, bool)  # folder, now a favorite (spec 16 R4.1)
 
     def __init__(
@@ -83,6 +87,7 @@ class ItemActions(QObject):
                 plot_kind=plot_kind,
                 summary=is_output,
                 favorite=favorite,
+                scf=self.scf_state(path),
             )
         else:
             menu = self.multi_menu(paths)
@@ -100,6 +105,13 @@ class ItemActions(QObject):
         module = module_for_file(sniff)
         return (module.kind if module else None), sniff.is_output
 
+    def scf_state(self, path: Path) -> str | None:
+        """The "Gerar SCF convergido" item (spec 24): None hides it, "" enables it, any other
+        text is why it is disabled. From the caches (and the head of the paired input)."""
+        service = self.service
+        results = service.peek_results(path.parent)
+        return scf_availability(path, service.file_sniff(path), results, service.file_sniff)
+
     def menu(
         self,
         path: Path,
@@ -107,16 +119,27 @@ class ItemActions(QObject):
         plot_kind: str | None = None,
         summary: bool = False,
         favorite: bool | None = None,
+        scf: str | None = None,
     ) -> QMenu:
         """``plot_kind``: the module that plots this file alone (spec 9); ``summary``: it is a QE
-        output (spec 12). Both go on top, apart from the actions every item has. ``favorite``: for
-        a folder, whether it is one already (spec 16 R4.1); None for files."""
+        output (spec 12); ``scf``: see ``scf_state`` (spec 24). They go on top, apart from the
+        actions every item has. ``favorite``: for a folder, whether it is one already (spec 16
+        R4.1); None for files."""
         menu = QMenu(self.window)
         if plot_kind is not None:
             add_action(menu, "Plotar", lambda: self.plot_file_requested.emit(path, plot_kind))
         if summary:
             add_action(menu, "Resumo", lambda: self.summary_requested.emit(path))
-        if plot_kind is not None or summary:
+        if scf is not None:
+            add_action(
+                menu,
+                "Gerar SCF convergido",
+                lambda: self.scf_from_relax_requested.emit(path),
+                enabled=not scf,
+                tooltip=scf,
+            )
+            menu.setToolTipsVisible(True)  # the reason of a disabled item
+        if plot_kind is not None or summary or scf is not None:
             menu.addSeparator()
         add_action(menu, "Abrir local de origem", lambda: self.reveal(path))
         open_with = menu.addMenu("Abrir com")

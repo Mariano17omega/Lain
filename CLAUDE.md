@@ -406,6 +406,40 @@ each drawn by its own module (vector export, pan/zoom per cell).
   `ui/widgets/grid_preview.py` (the thumbnail). Tests: `tests/plot_grid_helpers.py` (not `grid_helpers.py`, the file
   grid's) builds sessions and grids from the fixtures.
 
+### Input editor and "Gerar SCF convergido" (spec 24)
+
+- **`core/qe/input_edit.py:InputEditor`** (Qt-free, never raises) edits an input's *text* and keeps the rest byte for
+  byte: lines split on `\n` with a CR flag each (`text()` of an unedited editor is the original), re-indexed with
+  `scan_line` after every operation. `get` (last occurrence, no outer quotes) / `raw`, `set` (in place; a new key is a
+  line above the `/`, or goes before a `/` that shares its line; a new namelist goes after the last one before it in
+  `NAMELIST_ORDER`, in the case of the first namelist), `remove` (the line, or only `key = value,` on a shared line),
+  `remove_namelist` (the first; returns whether it removed), `keys`, `card` (`input_lint.Card`), `replace_card`
+  (header option swapped inside its brackets; blank lines after the body stay; a missing card goes at the end).
+  Repeated namelists: the first one, as pw.x. A failing operation restores the text and adds to `issues`. The lexer's
+  `Entry` has `value_start` / `value_end` (`compare=False`) for it. Spec 25 builds on it.
+- **`core/unique_names.py`**: `next_free(path, first=1)` (`_1`, `_2`…; folders get the number at the end) and
+  `write_new(path, text)` (`O_EXCL` in a loop, newline as in `text`, a failed write removes its file). The figure export
+  keeps `next_free_stem` (`_2` first).
+- **Geometry convergence**: `PwOutput.geometry_converged` from the tail: True only with `bfgs converged`; False with
+  `bfgs failed`, `The maximum number of steps has been reached` or a bare `End of BFGS Geometry Optimization` (pw.x
+  prints it when `nstep` runs out too); None without a marker (a huge output's 1 MB tail missed it).
+- **`core/qe/final_structure.py`**: `read_final_structure(path)` streams to the first `Begin final coordinates` …
+  `End final coordinates` block: positions lines as printed (`if_pos` kept) and, for a vc-relax, `FinalCell(unit, alat
+  text, rows)`.
+- **`core/qe/scf_from_relax.py`**: `can_generate_scf(sniff)` (pw.x relax / vc-relax, `geometry_converged is True`,
+  `JOB DONE`); `pair_input(output, results)` (`X.in` that `looks_like_input`, else the `relax_in` of the result whose
+  `relax_out` is this output); `scf_availability(...)` → None (no item) / "" (enabled) / the disabled tooltip, from
+  caches only; `scf_from_relax(final, in_text)` (`calculation='scf'`, no `restart_mode`/`nstep`/`&IONS`/`&CELL`, every
+  occurrence; `nat` must match; vc-relax: final `CELL_PARAMETERS`, `ibrav = 0`, no `celldm`/`A…cosBC`, except an
+  `alat` cell, which keeps `celldm(1)` = the printed alat); `generate_scf_file` (worker) writes
+  `scf_convergido_<prefix>.in` (`pwscf` without a prefix) through `write_new`. Errors are `ScfError` (Portuguese).
+- **UI**: `ItemActions.scf_state` → `menu(scf=)` puts the item under "Resumo" (disabled with the reason as tooltip,
+  `setToolTipsVisible`); `scf_from_relax_requested(Path)` → `ui/derive_controller.py:DeriveController.for_window`
+  (`TaskGroup` by output, spinner "Gerando SCF convergido…" in `plot_workflow.busy`, toast `success` + refresh of the
+  folder, or `QMessageBox.warning`; signals `generated(Path)` / `failed(str)` for tests). Tests:
+  `test_input_edit.py`, the editor properties in `test_properties.py`, `test_unique_names.py`,
+  `test_scf_from_relax.py`, `test_scf_from_relax_ui.py`.
+
 ### Navigation, filters and selection (spec 16)
 
 Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:

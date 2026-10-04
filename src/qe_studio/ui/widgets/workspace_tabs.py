@@ -15,10 +15,14 @@ def add_action(
     slot: Callable[[], object],
     enabled: bool = True,
     icon: QIcon | None = None,
+    tooltip: str = "",
 ) -> None:
+    """A menu item; ``tooltip`` shows only if the menu has ``setToolTipsVisible(True)``."""
     action = menu.addAction(text) if icon is None else menu.addAction(icon, text)
     assert action is not None
     action.setEnabled(enabled)
+    if tooltip:
+        action.setToolTip(tooltip)
     action.triggered.connect(lambda _checked=False: slot())
 
 
