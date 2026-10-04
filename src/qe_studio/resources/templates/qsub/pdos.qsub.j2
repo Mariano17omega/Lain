@@ -1,0 +1,16 @@
+{% extends "qsub/_base.qsub.j2" %}
+{% block programs %}
+PROJWFCCOMMAND="{{ qe_bin }}/projwfc.x"
+{% endblock %}
+{% block body %}
+${MPICOMMAND} ${PWCOMMAND} -i "scf.in" > "scf.out"
+
+${MPICOMMAND} ${PWCOMMAND} -i "nscf.in" > "nscf.out"
+
+${PROJWFCCOMMAND} -i "projwfc.in" > "projwfc.out"
+{% endblock %}
+{% block post %}
+
+mkdir -p orbitals
+mv *wfc* orbitals/ 2>/dev/null
+{% endblock %}

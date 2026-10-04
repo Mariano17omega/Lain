@@ -1,0 +1,13 @@
+{% extends "qsub/_base.qsub.j2" %}
+{% block programs %}
+BANDSCOMMAND="{{ qe_bin }}/bands.x"
+{% endblock %}
+{% block body %}
+${MPICOMMAND} ${PWCOMMAND} -i "scf.in" > "scf.out"
+
+${MPICOMMAND} ${PWCOMMAND} -i "bands.in" > "bands.out"
+{% for stem in bands_x %}
+
+${BANDSCOMMAND} -i "{{ stem }}.in" > "{{ stem }}.out"
+{% endfor %}
+{% endblock %}

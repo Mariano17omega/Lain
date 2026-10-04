@@ -1,5 +1,7 @@
 """Names that never overwrite (spec 24 R2): ``name``, then ``name_1``, ``name_2``…
 
+Folders (spec 25 R7) always get the number at the end of the name: ``bandas_Al.v2_1``.
+
 The figure export keeps its own ``_2``-first versions (``plotting.export.next_free_stem``).
 """
 
@@ -50,4 +52,27 @@ def write_new(path: Path, text: str) -> Path:
         except BaseException:
             target.unlink(missing_ok=True)
             raise
+        return target
+
+
+def next_free_dir(path: Path) -> Path:
+    """``path`` or its first free ``<name>_N`` (N from 1), the number always at the end of the
+    name. Creates nothing (the preview of ``make_new_dir``)."""
+    if not _taken(path):
+        return path
+    return next(
+        candidate for n in count(1) if not _taken(candidate := path.with_name(f"{path.name}_{n}"))
+    )
+
+
+def make_new_dir(path: Path) -> Path:
+    """Create ``path`` or its first free ``<name>_N`` and return it. ``mkdir`` with
+    ``exist_ok=False`` in a loop: a folder (or file) that appears in the meantime is never reused,
+    the next name is tried instead. The parent must exist."""
+    while True:
+        target = next_free_dir(path)
+        try:
+            target.mkdir()
+        except FileExistsError:
+            continue
         return target

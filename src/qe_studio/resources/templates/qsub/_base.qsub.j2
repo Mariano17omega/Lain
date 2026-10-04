@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+####################################################
+########       Configuração do pw.x         ########
+####################################################
+PWCOMMAND="{{ qe_bin }}/pw.x -nk {{ nk }}"
+{% block programs %}{% endblock %}
+#
+###       Grid Set Up                   ###
+#$ -N "{{ job_name }}"
+#$ -pe {{ parallel_env }} {{ np }}
+#$ -cwd
+#$ -j y
+#
+###        Intel MPI Set Up             ###
+export OMP_NUM_THREADS={{ omp_threads }}
+{% for line in env_lines %}
+{{ line }}
+{% endfor %}
+MPICOMMAND="{{ mpi_command }}"
+####################################################
+########        Executa as Simulacao        ########
+####################################################
+
+{% block body %}{% endblock %}
+{% block post %}{% endblock %}
+
+####################################################
+exit 0

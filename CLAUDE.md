@@ -440,6 +440,45 @@ each drawn by its own module (vector export, pan/zoom per cell).
   `test_input_edit.py`, the editor properties in `test_properties.py`, `test_unique_names.py`,
   `test_scf_from_relax.py`, `test_scf_from_relax_ui.py`.
 
+### "Criar cálculo" backend (spec 25)
+
+`core/calc_create/` (Qt-free; the window is spec 26) turns the user's SCF input into a new folder with the inputs and the
+SGE `.qsub` of a calculation. `jinja2` and `pymatgen` are runtime dependencies imported inside functions only
+(`test_perf_detection.py` checks neither loads with `main_window` nor with the package's modules).
+
+- **Structure without ASE.** ASE's `read_espresso_in` refuses `ibrav != 0`, so `core/qe/lattice.py` ports QE 7.1's
+  `latgen` (every ibrav, QE's own vectors and its 13-digit `sqrt(2)`/`sqrt(3)`) and `abc2celldm`; `crystal_from_editor`
+  gives `Crystal(cell Å, labels, frac)` or raises `StructureError` (`crystal_sg` is not supported).
+- **`scf_info.py`**: `scf_info(text, path)` (pure) / `read_scf(path)` (worker; adds `scf_bands`, the Kohn-Sham states
+  of `X.out` next to `X.in`) → `ScfInfo` (prefix [`pwscf`], outdir, nspin, occupations, nbnd, `kmesh`, `crystal` or
+  `structure_problem`, warnings for an absolute outdir and a relative/missing pseudo_dir; `value(namelist, key)` reads
+  the text as written). `calculation` other than scf → `ScfInputError`.
+- **Types** (`types/`, `REGISTRY`, `by_id`): `CalcType` ClassVars `id`, `label`, `folder_prefix`, `script_template`,
+  `input_templates`, `default_nk`; `fields(scf, jobs)` = the script's three (`types/script.py`: `job_name` sanitized
+  to 15 chars, `np` = `jobs.cores`, `nk`) + `input_fields(scf)`; `plan(scf, values, jobs)` never raises nor reads a
+  file: `resolve` (empty → default, invalid / required-without-value → `errors`), then the script and `inputs(work)`.
+  `CalcPlan(files, notes, errors)`: files in tab order (script first), `notes` warn, `errors` block "Criar".
+  `FormField.group` is the `PlannedFile.name` whose tab shows it. A new type = a module + its templates + a registry
+  entry. The pw.x inputs are edits of the SCF's text (`edits.py`: `put_*` change a value only when it differs, so an
+  unchanged field keeps its line; `ensure_smearing`); `scf.in` of bandas/pdos is the SCF byte for byte. Bandas with
+  `nspin = 2` writes `bands_pp_up.in` / `bands_pp_dw.in` (`spin_component` 1/2, `filband` `bands_up.dat` /
+  `bands_dw.dat`: the names spec 13 pairs). NP not a multiple of nk is a note (pw.x stops on it in `mp_start_pools`).
+- **Templates** (`resources/templates/`, `render.py`: `FunctionLoader` over `importlib.resources`, `StrictUndefined`,
+  `trim_blocks`/`lstrip_blocks`, filters `fstr`/`fnum`): `qsub/_base.qsub.j2` is the reference header once
+  (`Documentation/Referencia_de_scripts_QSUB`), each `qsub/<type>.qsub.j2` extends it with its commands; `qe/bandas/
+  bands_pp.in.j2`, `qe/pdos/projwfc.in.j2`. The cluster side comes from `config.yaml` `jobs:` (`JobsConfig`:
+  `qe_bin`, `mpi_command`, `parallel_env`, `omp_threads`, `env_lines`, `cores`), never from the form.
+- **K-points** (`kpath.py`): `KMesh` (`K_POINTS automatic`), `KPoint(label, frac, npts)`, `KPath(points, breaks,
+  warnings)`, `to_card` (`crystal_b`; weight `npts`, 1 at a break and at the end, `! Gamma` labels). `suggest_path`
+  (worker) runs `HighSymmKpath(setyawan_curtarolo)` and converts pymatgen's standard-cell fractions to the input's
+  with the integer matrix of `Lattice.find_all_mappings` closest to the identity (a supercell input warns that the
+  bands fold); no pymatgen, no structure or an unknown element → `KPathUnavailable`.
+- **`writer.py`**: `validate_target`, `preview_name` (`unique_names.next_free_dir`), `files_to_write` (+
+  `descricao.md` when the notes have text), `create_folder` (worker): `unique_names.make_new_dir` (`mkdir` loop,
+  `_N` always at the end), every file `open(…, "x")`, a failure removes only the files it wrote and `rmdir`s its
+  folder (`CreateError`). Tests: `tests/calc_helpers.py` and `test_lattice.py`, `test_kpath.py`, `test_calc_*.py`
+  (`test_calc_roundtrip.py` fills generated folders with fixture outputs and detects them).
+
 ### Navigation, filters and selection (spec 16)
 
 Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:

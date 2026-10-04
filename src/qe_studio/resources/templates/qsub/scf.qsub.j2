@@ -1,0 +1,4 @@
+{% extends "qsub/_base.qsub.j2" %}
+{% block body %}
+${MPICOMMAND} ${PWCOMMAND} -i "scf.in" > "scf.out"
+{% endblock %}

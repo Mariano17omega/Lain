@@ -49,6 +49,22 @@ QT_FREE = [
     "qe_studio.core.qe.final_structure",
     "qe_studio.core.qe.scf_from_relax",
     "qe_studio.core.unique_names",
+    "qe_studio.core.qe.lattice",
+    "qe_studio.core.calc_create",
+    "qe_studio.core.calc_create.render",
+    "qe_studio.core.calc_create.kpath",
+    "qe_studio.core.calc_create.scf_info",
+    "qe_studio.core.calc_create.edits",
+    "qe_studio.core.calc_create.writer",
+    "qe_studio.core.calc_create.types",
+    "qe_studio.core.calc_create.types.base",
+    "qe_studio.core.calc_create.types.script",
+    "qe_studio.core.calc_create.types.fields",
+    "qe_studio.core.calc_create.types.scf",
+    "qe_studio.core.calc_create.types.relax",
+    "qe_studio.core.calc_create.types.vc_relax",
+    "qe_studio.core.calc_create.types.bandas",
+    "qe_studio.core.calc_create.types.pdos",
 ]
 
 

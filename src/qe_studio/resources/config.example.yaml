@@ -80,3 +80,22 @@ ui:
   # F5 (Atualizar) keeps what it read from files whose size and modification time did not
   # change. true: reread every file on F5 (only needed if something rewrites files keeping both).
   paranoid_refresh: false
+
+jobs:
+  # Cluster side of the .qsub scripts "Criar cálculo" writes (SGE + Intel MPI). The defaults are
+  # those of the reference scripts; the window never edits them (only job name, NP and -nk).
+  # Folder of pw.x, bands.x and projwfc.x on the cluster.
+  qe_bin: /opt/espresso-7.1/bin
+  # MPI launcher put before pw.x (bands.x and projwfc.x run without it).
+  mpi_command: /opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh
+  # Parallel environment of "#$ -pe <parallel_env> NP".
+  parallel_env: physica
+  # export OMP_NUM_THREADS=<omp_threads>
+  omp_threads: 1
+  # Lines after OMP_NUM_THREADS in the Intel MPI block, as written.
+  env_lines:
+    - export I_MPI_SHM=bdw_avx2
+    - . /opt/intel/oneapi/mkl/latest/env/vars.sh
+    - . /opt/intel/oneapi/mpi/latest/env/vars.sh
+  # Default of the NP field (cores of the job).
+  cores: 64

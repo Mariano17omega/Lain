@@ -180,12 +180,45 @@ class UiConfig(_Section):
     paranoid_refresh: bool = False
 
 
+DEFAULT_ENV_LINES = [
+    "export I_MPI_SHM=bdw_avx2",
+    ". /opt/intel/oneapi/mkl/latest/env/vars.sh",
+    ". /opt/intel/oneapi/mpi/latest/env/vars.sh",
+]
+
+
+class JobsConfig(_Section):
+    """The cluster side of the ``.qsub`` scripts "Criar cálculo" writes (spec 25 R6.3). The
+    defaults are the reference scripts' (``Documentation/Referencia_de_scripts_QSUB``)."""
+
+    qe_bin: str = "/opt/espresso-7.1/bin"  # on the cluster (POSIX), like remote_root
+    mpi_command: str = "/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
+    parallel_env: str = "physica"  # #$ -pe <parallel_env> NP
+    omp_threads: int = Field(default=1, ge=1)
+    env_lines: list[str] = Field(default_factory=lambda: list(DEFAULT_ENV_LINES))
+    cores: int = Field(default=64, ge=1)  # default of the NP field
+
+    @field_validator("qe_bin")
+    @classmethod
+    def _strip_slash(cls, value: str) -> str:
+        value = value.strip()
+        return value.rstrip("/") if value not in ("", "/") else value
+
+    @field_validator("parallel_env", "mpi_command")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("não pode ficar vazio")
+        return value.strip()
+
+
 class AppConfig(_Section):
     paths: PathsConfig = Field(default_factory=PathsConfig)
     cluster: ClusterConfig = Field(default_factory=ClusterConfig)
     sync: SyncConfig = Field(default_factory=SyncConfig)
     plot: PlotConfig = Field(default_factory=PlotConfig)
     ui: UiConfig = Field(default_factory=UiConfig)
+    jobs: JobsConfig = Field(default_factory=JobsConfig)
 
     @property
     def sync_enabled(self) -> bool:

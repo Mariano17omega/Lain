@@ -1,0 +1,4 @@
+{% extends "qsub/_base.qsub.j2" %}
+{% block body %}
+${MPICOMMAND} ${PWCOMMAND} -i "vc-relax.in" > "vc-relax.out"
+{% endblock %}

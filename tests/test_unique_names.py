@@ -63,3 +63,35 @@ def test_a_failed_write_leaves_no_file(tmp_path):
     else:
         raise AssertionError("expected an encoding error")
     assert list(tmp_path.iterdir()) == []
+
+
+def test_make_new_dir_numbers_folders_at_the_end(tmp_path):
+    from qe_studio.core.unique_names import make_new_dir, next_free_dir
+
+    base = tmp_path / "bandas_Al.v2"
+    assert next_free_dir(base) == base
+    assert make_new_dir(base) == base and base.is_dir()
+    assert next_free_dir(base) == tmp_path / "bandas_Al.v2_1"
+    assert make_new_dir(base) == tmp_path / "bandas_Al.v2_1"
+    (tmp_path / "bandas_Al.v2_2").write_text("a file takes the name too")
+    assert make_new_dir(base) == tmp_path / "bandas_Al.v2_3"
+    assert (tmp_path / "bandas_Al.v2_2").read_text() == "a file takes the name too"
+
+
+def test_make_new_dir_moves_on_when_the_name_is_taken_meanwhile(tmp_path, monkeypatch):
+    from qe_studio.core import unique_names
+
+    base = tmp_path / "pdos_Si"
+    real = unique_names.next_free_dir
+    taken = []
+
+    def racing(path):
+        target = real(path)
+        if not taken:  # another process creates it between the check and the mkdir
+            target.mkdir()
+            taken.append(target)
+        return target
+
+    monkeypatch.setattr(unique_names, "next_free_dir", racing)
+    assert unique_names.make_new_dir(base) == tmp_path / "pdos_Si_1"
+    assert taken == [base]

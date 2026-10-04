@@ -14,12 +14,13 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TypeVar
 
 from .input_lexer import CardHeader, Entry, Kind, LexState, LineScan, Mode, scan_line
 from .input_lint import Card
 
-__all__ = ["NAMELIST_ORDER", "InputEditor", "normalize_key", "unquote"]
+__all__ = ["NAMELIST_ORDER", "InputEditor", "normalize_key", "read_input_text", "unquote"]
 
 # The order of pw.x's namelists: a new one goes where it belongs among those present.
 NAMELIST_ORDER = ("control", "system", "electrons", "ions", "cell")
@@ -58,6 +59,16 @@ def unquote(value_text: str) -> str:
     if len(text) >= 2 and text[0] in _QUOTES and text[-1] == text[0]:
         return text[1:-1]
     return text
+
+
+def read_input_text(path: Path) -> str:
+    """The text of an input: UTF-8, or latin-1 for an old comment (its characters kept). Workers
+    only."""
+    raw = path.read_bytes()
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
 
 
 def _rank(name: str) -> int:

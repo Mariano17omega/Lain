@@ -18,6 +18,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from qe_studio.core.calc_create.kpath import KMesh, KPath, KPoint, to_card
 from qe_studio.core.filtering import name_matcher
 from qe_studio.core.grid_store import GridStore
 from qe_studio.core.navigation import NavigationHistory
@@ -26,6 +27,7 @@ from qe_studio.core.qe.bands_x import BandsFormatError, gnu_shape, read_gnu
 from qe_studio.core.qe.input_edit import InputEditor, unquote
 from qe_studio.core.qe.input_lexer import LexState, scan_line
 from qe_studio.core.qe.input_lint import _lint
+from qe_studio.core.qe.pw_input import parse_kpoints
 from qe_studio.core.qe.pw_output import parse_pw_output
 from qe_studio.core.qe.relax import parse_relax
 from qe_studio.core.qe.scf import parse_scf
@@ -533,3 +535,46 @@ def test_grid_store_round_trip_in_a_moved_project(spec):
         GridStore(base / "grids.json", root).save(saved)
         assert GridStore(base / "grids.json", root).get(spec.name) == saved
         assert GridStore(base / "grids.json", moved).get(spec.name) == _placed(spec, moved, outside)
+
+
+# -- K_POINTS cards of "Criar cálculo" (spec 25 R5) ------------------------------------------------
+_FRACTION = st.floats(-1, 1, allow_nan=False).map(lambda v: round(v, 8))
+_LABEL = st.text("ABGKLMNRSUWXYZ_0123456789ag", max_size=6).filter(lambda t: t == t.strip())
+
+
+@st.composite
+def kpaths(draw):
+    points = draw(
+        st.lists(
+            st.builds(
+                KPoint, _LABEL, st.tuples(_FRACTION, _FRACTION, _FRACTION), st.integers(1, 200)
+            ),
+            min_size=2,
+            max_size=15,
+        )
+    )
+    breaks = draw(st.sets(st.integers(0, len(points) - 2)))
+    return KPath(tuple(points), frozenset(breaks))
+
+
+@given(kpaths())
+def test_crystal_b_card_round_trip(path):
+    """What ``to_card`` writes, Lain's own ``K_POINTS`` reader reads back: points, weights (1 at a
+    break and at the end) and labels, and the path has as many points as pw.x will compute."""
+    option, body = to_card(path)
+    card = parse_kpoints([f"K_POINTS {option}", *body])
+    assert card.mode == "crystal_b"
+    np.testing.assert_allclose(card.points, [p.frac for p in path.points], atol=1e-8)
+    assert card.weights.tolist() == path.weights()
+    assert card.weights[-1] == 1 and all(card.weights[i] == 1 for i in path.breaks)
+    assert card.labels == tuple(p.label for p in path.points)
+    assert card.path_length == sum(path.weights()[:-1]) + 1
+
+
+@given(st.tuples(*[st.integers(1, 60)] * 3), st.tuples(*[st.integers(0, 1)] * 3))
+def test_automatic_card_round_trip(n, shift):
+    mesh = KMesh(n, shift)
+    option, body = mesh.card()
+    card = parse_kpoints([f"K_POINTS {option}", *body])
+    assert card.points.tolist() == [list(n)] and card.weights.tolist() == list(shift)
+    assert KMesh.parse(body[0]) == mesh

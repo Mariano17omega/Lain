@@ -225,3 +225,30 @@ def test_create_config_writes_the_template_and_refuses_to_overwrite(tmp_path):
     with pytest.raises(FileExistsError):
         create_config(target, local_root=tmp_path)
     assert target.read_text(encoding="utf-8") == "mine: true\n"
+
+
+def test_jobs_defaults_are_the_reference_scripts():
+    jobs = AppConfig().jobs
+    assert jobs.qe_bin == "/opt/espresso-7.1/bin"
+    assert jobs.mpi_command == "/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
+    assert (jobs.parallel_env, jobs.omp_threads, jobs.cores) == ("physica", 1, 64)
+    assert jobs.env_lines == [
+        "export I_MPI_SHM=bdw_avx2",
+        ". /opt/intel/oneapi/mkl/latest/env/vars.sh",
+        ". /opt/intel/oneapi/mpi/latest/env/vars.sh",
+    ]
+
+
+def test_jobs_validation(tmp_path):
+    path = tmp_path / "config.yaml"
+    path.write_text("jobs:\n  qe_bin: /sw/qe/bin/\n  cores: 32\n")
+    jobs = load_config(path, environ={}, cwd=tmp_path).config.jobs
+    assert (jobs.qe_bin, jobs.cores) == ("/sw/qe/bin", 32)
+    for bad in (
+        "jobs:\n  calculos: 1\n",
+        "jobs:\n  omp_threads: 0\n",
+        "jobs:\n  parallel_env: ' '\n",
+    ):
+        path.write_text(bad)
+        with pytest.raises(ConfigError):
+            load_config(path, environ={}, cwd=tmp_path)

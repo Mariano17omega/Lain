@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from ..sniff import FileKind, FileSniff, looks_like_input
 from ..unique_names import write_new
 from .final_structure import FinalStructure, read_final_structure
-from .input_edit import InputEditor
+from .input_edit import InputEditor, read_input_text
 
 if TYPE_CHECKING:
     from ..calculations.base import DetectionResult
@@ -179,14 +179,6 @@ def scf_name(prefix: str | None) -> str:
     return f"{SCF_STEM}{SEP}{clean}.in"
 
 
-def _read_input(path: Path) -> str:
-    raw = path.read_bytes()
-    try:
-        return raw.decode("utf-8")
-    except UnicodeDecodeError:  # an old latin-1 comment: keep its characters
-        return raw.decode("latin-1")
-
-
 def generate_scf_file(output: Path, results: Iterable[DetectionResult] | None) -> GeneratedScf:
     """Write the SCF of ``output`` in its folder under the first free name (never over a file).
     Raises ``ScfError`` and writes nothing when it cannot. Workers only: reads both files."""
@@ -194,7 +186,7 @@ def generate_scf_file(output: Path, results: Iterable[DetectionResult] | None) -
     if pair is None:
         raise ScfError(NO_INPUT)
     try:
-        in_text = _read_input(pair)
+        in_text = read_input_text(pair)
         final = read_final_structure(output)
     except OSError as exc:
         name = Path(exc.filename).name if exc.filename else output.name
