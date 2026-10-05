@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-4 |
-| **Status** | Proposta |
+| **Status** | Implementada |
 | **Depende de** | spec 14 (desempenho), spec 15 (`core/tasks.py`) |
 | **Usada por** | spec 27-5 (o fechamento só fica rápido de verdade com loaders canceláveis) |
 | **Esforço** | M |
@@ -98,3 +98,10 @@
 - [ ] Cache: respeita o orçamento de bytes; dataset gigante não é guardado; carga única por chave; `invalidate` esvazia.
 - [ ] Picos: `read_gnu` ≤ 2,5× e `read_filband` ≤ 3× o arquivo; saídas idênticas às antigas.
 - [ ] `ruff`, `pyright` sem regressão; suíte `-m "not realdata and not perf"` verde.
+
+## Notas da implementação
+- O cache e a carga única por chave ficaram em `core/calculations/load_cache.py` (`base.py` tinha 474 linhas): `LoadCache` com orçamentos injetáveis para os testes, e o singleton do app. Quem espera por uma carga que falhou ou foi cancelada carrega por conta própria (não herda o erro do outro).
+- `nbytes_of` conta uma *view* pela matriz-raiz (uma vez só), senão `BandData.x` (view da tabela inteira do `loadtxt`) passava despercebido. Pelo mesmo motivo `read_gnu` e `read_filband` copiam `x` e `kpoints`: o resultado ocupa ~0,4× o arquivo em vez de ~1,1×.
+- Medido (`tracemalloc`, ~4 MB de `.gnu` e ~2 MB de filband): pico de `read_gnu(path)` ≈ 1,2× o arquivo (antes ≈ 5×) e de `read_filband` ≈ 1,7× o texto (antes ≈ 10×). `read_filband` recusa de saída um cabeçalho que anuncia mais números do que o texto comporta, para não alocar por um cabeçalho corrompido.
+- `cancel.checked` consulta a cada lote de 10 000 linhas (lotes de `islice`, +10 % no `parse_relax` de um arquivo grande; um contador por linha custava +30 %). `summarize` consulta em `_observe`.
+- Fechar a aba por substituição (regenerar) não esvazia o cache: a aba nova mostra o mesmo dataset e o `bands_dos`/grids contam com ele.

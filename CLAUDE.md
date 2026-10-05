@@ -122,6 +122,11 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   nested `mkdir -p`, key and password), `test_sync_push_plan.py` (Qt-free) and `test_sync_push_ui.py`;
   `sync_helpers.run_push(..., confirm=, plans=, before_confirm=)` runs one. A host-less push makes
   only the last missing level (local rsync ignores `--rsync-path`).
+- Spec 27-4: `test_load_cache.py` builds a `LoadCache` with small budgets (the real constants have their own test),
+  `test_cancel_loaders.py` runs every loader under `cancel.bind(token)` and in a started-then-cancelled `run_task`
+  (`cancelled_midway`), `test_parser_memory.py` measures peaks with `tracemalloc` on `synthetic.make_gnu` /
+  `make_filband` and compares with the old readers, which live only there, and `test_tab_close_loads.py` closes tabs
+  mid-load. `conftest.py` empties the process-wide dataset cache around every test (`drop_cached()`).
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
@@ -258,7 +263,16 @@ on the base class:
   values by field kind (`color`, `choice`, series colors), never by name: a parameter without a
   schema field declares `field(metadata={"kind": "color" | "colors"})` on its dataclass.
 
-`load_cached()` memoizes `load()` on file stamps and is called from worker threads.
+`load_cached()` memoizes `load()` on file stamps and is called from worker threads (spec 27-4):
+`core/calculations/load_cache.py:LoadCache` keeps the datasets within 8 entries *and* `LOAD_CACHE_BYTES` (256 MB, counted
+by `core/sizing.py:nbytes_of`: every ndarray reached through dataclasses / containers, a view through its root array; a
+dataset over the whole budget is returned, never kept), loads a key once however many threads ask (a waiter whose loader
+failed or was cancelled loads it itself) and does not keep the result of a cancelled task. `drop_cached(under, *,
+min_bytes)` empties it by folder: `DetectionService.invalidate` (F5, sync, rename, remap) and `PlotWorkflow._on_tab_closing`
+(`CLOSE_DROP_MIN_BYTES` = 4 MB; not when the tab is only being replaced by its regenerated plot, `_replacing`).
+The bands.x readers keep their peak near the file: `read_gnu(path)` hands the file to numpy's C reader (`read_gnu_text`
+is the same for text in memory) and `read_filband` fills the array the header announces; neither result may be a view
+of the parsed table.
 `tests/test_module_contract.py` has a `DummyModule` that exercises the whole contract; extend it
 when the contract grows.
 
@@ -692,6 +706,14 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
   that still exist (`SniffCache.prune`: each entry is checked against its file's (mtime, size) when
   used anyway); `ui.paranoid_refresh: true` drops them all.
 - `PlotWorkflow` loads datasets in the global pool, then renders on the GUI thread. Exports run in a
+- Cancellation is cooperative (spec 27-4): `core/cancel.py` (Qt-free) has a thread-local the task runner sets
+  (`_Runnable.run` binds the `TaskHandle` and clears it in `finally`), `check()` (raises `Cancelled` when the task of
+  this thread was cancelled; does nothing outside a task, so parsers stay plain functions), `is_cancelled()` and
+  `checked(lines)` (a check per batch of `CHECK_EVERY_LINES`, never per line). A `Cancelled` ending a task is neither a
+  result nor an error: no callback, no log. Called by `summarize_lines`, `parse_relax`, `load_pdos` (between files),
+  `read_gnu` / `read_filband` (between phases), `textfile.read_slice` (between chunks) / `read_preview` and `LoadCache`;
+  `TaskGroup.shutdown` therefore ends a running loader at its next check. Closing a plot tab cancels its pending load
+  (`_on_tab_closing`); `SummaryView` and `TextViewer` cancel theirs when they die. A new long loop in `core/` calls `check()`.
   worker with their own `Figure` + `FigureCanvasAgg`. matplotlib's global state is serialized by
   `MPL_LOCK` (`threading.RLock`): `PlotSession.render`, `render_figure` and `export_figure` hold it;
   on screen `PlotView.render` and `ScaledFigureCanvas.draw` only *try* it and retry after 50 ms, so

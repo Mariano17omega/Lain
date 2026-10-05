@@ -235,7 +235,7 @@ def test_pw_output_gives_both_channels_when_bandsx_was_not_run(tmp_path):
     assert dataset.bands.energies.shape == dataset.bands_down.energies.shape == up.shape
     np.testing.assert_allclose(dataset.bands.energies, up, atol=2e-3)  # pw.x prints 4 decimals
     np.testing.assert_allclose(dataset.bands_down.energies, down, atol=2e-3)
-    gnu_x = read_gnu((SPIN_BANDS / "bands_up.dat.gnu").read_text()).x
+    gnu_x = read_gnu(SPIN_BANDS / "bands_up.dat.gnu").x
     np.testing.assert_allclose(dataset.bands.x, gnu_x, atol=2e-3)
 
 

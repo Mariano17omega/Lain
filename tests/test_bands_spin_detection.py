@@ -151,7 +151,7 @@ def test_inputs_of_both_channels_writing_one_file_give_it_to_no_channel(tmp_path
 
 def test_channels_with_different_k_counts_warn(tmp_path):
     folder = spin_bands_copy(tmp_path)
-    data = read_gnu((folder / "bands_dw.dat.gnu").read_text())
+    data = read_gnu(folder / "bands_dw.dat.gnu")
     write_gnu(folder / "bands_dw.dat.gnu", data.x[:-1], [band[:-1] for band in data.energies])
     result = detect_one(folder)
     assert "os canais ↑/↓ têm pontos k diferentes" in result.warnings
@@ -234,7 +234,7 @@ def test_the_fixed_magnetization_scf_is_detected_as_spin(tmp_path):
 
 def test_gnu_files_are_up_and_down_after_copying_a_fixture_elsewhere(tmp_path):
     folder = copy_fixture("qe731_ni_spin_bands", tmp_path)
-    up = read_gnu((folder / "bands_up.dat.gnu").read_text())
-    down = read_gnu((folder / "bands_dw.dat.gnu").read_text())
+    up = read_gnu(folder / "bands_up.dat.gnu")
+    down = read_gnu(folder / "bands_dw.dat.gnu")
     assert up.energies.shape == down.energies.shape == (14, 45)
     assert not np.allclose(up.energies, down.energies)  # exchange splitting

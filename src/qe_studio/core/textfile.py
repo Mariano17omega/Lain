@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import cancel
+
 LARGE_FILE = 4 * 1024 * 1024
 HEAD_BYTES = 1024 * 1024
 TAIL_BYTES = 2 * 1024 * 1024
@@ -77,12 +79,28 @@ def _count_newlines(handle, start: int, end: int) -> int:
     handle.seek(start)
     remaining, count = max(0, end - start), 0
     while remaining > 0:
+        cancel.check()
         chunk = handle.read(min(_CHUNK, remaining))
         if not chunk:
             break
         count += chunk.count(b"\n")
         remaining -= len(chunk)
     return count
+
+
+def _read_whole(handle, size: int) -> str:
+    """The whole file, in chunks (the task can be cancelled between them) into one buffer."""
+    buffer = bytearray(size)
+    view, filled = memoryview(buffer), 0
+    while filled < size:
+        cancel.check()
+        got = handle.readinto(view[filled : filled + _CHUNK])
+        if not got:  # the file shrank meanwhile
+            break
+        filled += got
+    view.release()
+    del buffer[filled:]
+    return buffer.decode("utf-8", "replace")
 
 
 def read_slice(path: Path, full: bool = False) -> TextSlice:
@@ -93,7 +111,7 @@ def read_slice(path: Path, full: bool = False) -> TextSlice:
     size = path.stat().st_size
     with open(path, "rb") as handle:
         if full or size <= LARGE_FILE:
-            return TextSlice(handle.read().decode("utf-8", "replace"), size)
+            return TextSlice(_read_whole(handle, size), size)
         head = handle.read(HEAD_BYTES).decode("utf-8", "replace")
         tail_start = size - TAIL_BYTES
         omitted = _count_newlines(handle, HEAD_BYTES, tail_start)

@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pytest
 
-from qe_studio.core.qe.bands_x import parse_bandsx_output, read_gnu
+from qe_studio.core.qe.bands_x import parse_bandsx_output, read_gnu, read_gnu_text
 from qe_studio.core.qe.projwfc import header_columns, load_pdos
 from qe_studio.core.qe.pw_output import parse_pw_output
 from qe_studio.core.sniff import FileKind, SniffCache
@@ -181,7 +181,7 @@ def test_pw_output(run, name):
 @pytest.mark.parametrize(("run", "name"), cases("gnu"))
 def test_gnu_separator(run, name, separator):
     text = with_separator((FIXTURES / run.folder / name).read_text(), separator)
-    data = read_gnu(text)
+    data = read_gnu_text(text)
     assert data.energies.shape == run.gnu[name]
     assert np.all(np.diff(data.x) >= 0) and data.x[0] == 0
 
@@ -201,7 +201,7 @@ def test_bandsx_output(run, name):
     gnu = run.bandsx[name]
     assert out.gnu_name == gnu and out.job_done
     # The high-symmetry x coordinates span exactly the path the .gnu file plots.
-    data = read_gnu((FIXTURES / run.folder / gnu).read_text())
+    data = read_gnu(FIXTURES / run.folder / gnu)
     assert out.hs_x[0] == 0
     assert out.hs_x[-1] == pytest.approx(data.x[-1], abs=2e-4)
 

@@ -18,6 +18,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .. import cancel
 from .structure import SITE, format_formula
 
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[DEde][-+]?\d+)?"
@@ -108,7 +109,7 @@ def parse_relax(
         )
         pending = None
 
-    for line in lines:
+    for line in cancel.checked(lines):
         # Substring checks first: most lines match nothing and regexes are the slow part.
         if "JOB DONE" in line:
             job_done = True

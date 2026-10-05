@@ -8,6 +8,7 @@ from .bands_dos import BandsDosModule
 from .base import CalculationModule, DetectionResult, FileRole, FolderListing, Method
 from .grid import GridModule
 from .info import CalcModule
+from .load_cache import CLOSE_DROP_MIN_BYTES, drop_cached
 from .pdos import PdosModule
 from .relax import RelaxModule
 from .scf import ScfModule
@@ -52,6 +53,7 @@ def describe_plottable(modules: tuple[CalculationModule[Any, Any], ...] = REGIST
 
 
 __all__ = [
+    "CLOSE_DROP_MIN_BYTES",
     "REGISTRY",
     "CalculationModule",
     "DetectionResult",
@@ -59,6 +61,7 @@ __all__ = [
     "FolderListing",
     "Method",
     "describe_plottable",
+    "drop_cached",
     "module_for",
     "module_for_file",
 ]

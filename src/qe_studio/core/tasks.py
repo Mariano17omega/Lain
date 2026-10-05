@@ -39,6 +39,8 @@ from typing import Any
 from PyQt6 import sip
 from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, QThreadPool, pyqtSignal
 
+from . import cancel
+
 log = logging.getLogger(__name__)
 
 
@@ -66,7 +68,8 @@ class _Callback:
 
 
 class TaskHandle:
-    """A submitted task. ``fn`` may poll ``cancelled`` to stop early; its result is dropped anyway."""
+    """A submitted task. ``fn`` may stop early with ``core.cancel.check()`` (it sees this handle
+    through a thread-local); its result is dropped anyway."""
 
     def __init__(self, key: Hashable | None = None):
         self.key = key
@@ -185,7 +188,10 @@ class _Runnable(QRunnable):
             handle._started = True  # before reading the flag: see TaskGroup.shutdown
             if not handle._cancelled and self.fn is not None:
                 try:
-                    handle._result = self.fn(*self.args, **self.kwargs)
+                    with cancel.bind(handle):
+                        handle._result = self.fn(*self.args, **self.kwargs)
+                except cancel.Cancelled:  # the task saw its own cancellation (``cancel.check()``)
+                    handle._cancelled = True  # never a result or an error
                 except Exception as exc:  # reported on the GUI thread, never lost in the worker
                     handle._error = exc
         finally:

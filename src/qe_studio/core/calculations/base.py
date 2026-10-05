@@ -11,8 +11,6 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
-import threading
-from collections import OrderedDict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -23,6 +21,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar
 from ..compounds import AtomChoices, CompoundStore
 from ..qe import projwfc
 from ..sniff import FileKind, FileSniff
+from .load_cache import CACHE
 from .params import CommonParams, ParamField, RenderInfo
 
 if TYPE_CHECKING:
@@ -427,7 +426,8 @@ class CalculationModule(Generic[D, P]):
         """The user edited ``name``, a parameter kept in ``stores``: save it there."""
 
     def load_cached(self, result: DetectionResult, sniff: SniffFn) -> D:
-        """``load`` memoized on the files' (mtime, size); safe to call from worker threads."""
+        """``load`` memoized on the files' (mtime, size), within a memory budget and loaded once
+        per key (``load_cache``); safe to call from worker threads."""
         key = (
             self.kind,
             tuple(
@@ -436,21 +436,8 @@ class CalculationModule(Generic[D, P]):
                 )
             ),
         )
-        with _LOAD_LOCK:
-            if key in _LOAD_CACHE:
-                _LOAD_CACHE.move_to_end(key)
-                return _LOAD_CACHE[key]
-        dataset = self.load(result, sniff)
-        with _LOAD_LOCK:
-            _LOAD_CACHE[key] = dataset
-            while len(_LOAD_CACHE) > LOAD_CACHE_SIZE:
-                _LOAD_CACHE.popitem(last=False)
-        return dataset
-
-
-LOAD_CACHE_SIZE = 8
-_LOAD_CACHE: OrderedDict[tuple, Any] = OrderedDict()
-_LOAD_LOCK = threading.Lock()
+        files = [p for paths in result.files.values() for p in paths]
+        return CACHE.get_or_load(key, files, lambda: self.load(result, sniff))
 
 
 def _stamp(path: Path) -> tuple[str, int, int]:

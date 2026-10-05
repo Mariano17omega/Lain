@@ -5,9 +5,12 @@ from __future__ import annotations
 import io
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import BinaryIO
 
 import numpy as np
+
+from .. import cancel
 
 
 class BandsFormatError(ValueError):
@@ -30,16 +33,33 @@ class BandData:
         return self.energies.shape[1]
 
 
-def read_gnu(text: str) -> BandData:
-    """Parse ``<filband>.gnu``: one (x, E) block per band, x restarting at 0 for each band.
+def read_gnu(path: Path) -> BandData:
+    """Parse the file ``<filband>.gnu``: one (x, E) block per band, x restarting at 0 for each band.
 
-    Block separators differ between QE versions (empty line in 7.3, a single space in 7.1),
-    so bands are split where x decreases instead of on blank lines.
+    Read by numpy's C reader straight from the file (no copy of the text: the peak stays near
+    the file's size); ``read_gnu_text`` is the same for text already in memory.
     """
+    cancel.check()
+    try:
+        data = np.loadtxt(path, ndmin=2, encoding="utf-8")
+    except ValueError as exc:
+        raise BandsFormatError(f"não é um arquivo de bandas numérico: {exc}") from exc
+    return _assemble_gnu(data)
+
+
+def read_gnu_text(text: str) -> BandData:
+    """``read_gnu`` for the text of a ``.gnu`` (tests, callers that have it already)."""
     try:
         data = np.loadtxt(io.StringIO(text), ndmin=2)
     except ValueError as exc:
         raise BandsFormatError(f"não é um arquivo de bandas numérico: {exc}") from exc
+    return _assemble_gnu(data)
+
+
+def _assemble_gnu(data: np.ndarray) -> BandData:
+    """Bands from the (x, E) table. Block separators differ between QE versions (empty line in
+    7.3, a single space in 7.1), so bands are split where x decreases instead of on blank lines."""
+    cancel.check()
     if data.size == 0 or data.shape[1] != 2:
         raise BandsFormatError("esperadas 2 colunas (x, E)")
     starts = np.flatnonzero(np.diff(data[:, 0]) < 0) + 1
@@ -47,9 +67,10 @@ def read_gnu(text: str) -> BandData:
     nks = len(blocks[0])
     if any(len(block) != nks for block in blocks):
         raise BandsFormatError("bandas com números diferentes de pontos k")
-    x = blocks[0][:, 0]
+    x = blocks[0][:, 0].copy()  # a view would keep the whole table alive
     if not all(np.allclose(block[:, 0], x, atol=1e-3) for block in blocks[1:]):
         raise BandsFormatError("eixo x difere entre bandas")
+    cancel.check()
     return BandData(x, np.array([block[:, 1] for block in blocks]))
 
 
@@ -136,17 +157,25 @@ def read_filband(text: str) -> FilbandData:
     """Parse the raw ``filband`` file: header, then per k-point 3 coordinates + nbnd energies.
 
     Fields are fixed-width Fortran and may touch (``-116.798-116.798``), so floats are taken
-    by regex rather than whitespace splitting.
+    by regex rather than whitespace splitting. The numbers go straight into an array of the
+    size the header announces: no list of strings or floats in between, no slice of the text.
     """
     header = read_filband_header(text)
     if header is None:
         raise BandsFormatError("cabeçalho &plot ausente")
     nbnd, nks = header
-    values = np.array([float(v) for v in _FLOATS.findall(text[text.index("/") + 1 :])])
-    if values.size < nks * (3 + nbnd):
-        raise BandsFormatError(f"esperados {nks} pontos k com {nbnd} bandas")
-    rows = values[: nks * (3 + nbnd)].reshape(nks, 3 + nbnd)
-    return FilbandData(rows[:, :3], rows[:, 3:].T.copy())
+    cancel.check()
+    wanted = nks * (3 + nbnd)
+    if wanted > len(text) // 3:  # a number takes 3 characters at least: a corrupt header must
+        raise BandsFormatError(f"esperados {nks} pontos k com {nbnd} bandas")  # not allocate
+    numbers = (float(m.group()) for m in _FLOATS.finditer(text, text.index("/") + 1))
+    try:
+        values = np.fromiter(numbers, dtype=float, count=wanted)
+    except ValueError as exc:  # fewer numbers than the header announces
+        raise BandsFormatError(f"esperados {nks} pontos k com {nbnd} bandas") from exc
+    cancel.check()
+    rows = values.reshape(nks, 3 + nbnd)
+    return FilbandData(rows[:, :3].copy(), rows[:, 3:].T.copy())
 
 
 def path_coordinates(kpoints: np.ndarray) -> np.ndarray:

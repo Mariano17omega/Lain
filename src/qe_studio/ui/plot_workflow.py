@@ -19,7 +19,13 @@ from typing import Any
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QInputDialog, QMessageBox, QWidget
 
-from ..core.calculations import DetectionResult, module_for, module_for_file
+from ..core.calculations import (
+    CLOSE_DROP_MIN_BYTES,
+    DetectionResult,
+    drop_cached,
+    module_for,
+    module_for_file,
+)
 from ..core.calculations.base import LoadError, Stores
 from ..core.compounds import CompoundStore
 from ..core.config import AppConfig
@@ -102,6 +108,7 @@ class PlotWorkflow(QObject):
         self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
         self._loading: dict[str, _Loading] = {}  # by plot key
         self._loads = TaskGroup()  # by plot key, in the global pool
+        self._replacing: str | None = None  # key of the tab a new session is about to replace
         self._plot_file_source: tuple[Path, str] | None = None  # what "Plotar SCF" plots
         # Busy indicator (spec 15 R2): counted by name, so a task that never ends cannot leave a
         # global cursor behind; detections, loads and exports all show in the footer.
@@ -326,7 +333,11 @@ class PlotWorkflow(QObject):
         """The tab of ``session`` (a loaded plot, a grid), replacing an open one with its key."""
         warnings = list(warnings or []) + self.stores.pop_warnings()
         if self.workspace.widget_for(session.key) is not None:
-            self.workspace.close_key(session.key)
+            self._replacing = session.key  # the new tab shows this dataset: it stays cached
+            try:
+                self.workspace.close_key(session.key)
+            finally:
+                self._replacing = None
         view = PlotView(self.theme, session)
         view.rendered.connect(self._on_rendered)
         view.limits_changed.connect(self._on_limits_changed)
@@ -357,8 +368,15 @@ class PlotWorkflow(QObject):
 
     def _on_tab_closing(self, widget) -> None:
         if isinstance(widget, PlotView):
-            self.settings.flush(widget.session.key)
-            self.params.discard(widget.session.key)
+            key = widget.session.key
+            self.settings.flush(key)
+            self.params.discard(key)
+            # Closing the tab ends a load of it still pending (a regenerate): nothing opens later.
+            self._loads.cancel(key)
+            self._finish_load(key)
+            if key != self._replacing:  # big datasets go with their tab (spec 27-4 R2.4)
+                for path in widget.session.paths:
+                    drop_cached(path, min_bytes=CLOSE_DROP_MIN_BYTES)
 
     def _on_param_changed(self, name: str) -> None:
         self._render_timer.start()

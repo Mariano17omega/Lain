@@ -66,4 +66,4 @@ def write_gnu(path: Path, x: np.ndarray, bands: list[np.ndarray]) -> None:
 
 
 def gnu_energies(path: Path) -> np.ndarray:
-    return read_gnu(path.read_text()).energies
+    return read_gnu(path).energies

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 
-from ..core.calculations import DetectionResult
+from ..core.calculations import DetectionResult, drop_cached
 from ..core.detection import detect_folder
 from ..core.folder_memory import FolderMemory
 from ..core.sniff import FileSniff, SniffCache
@@ -97,8 +97,11 @@ class DetectionService(QObject):
 
         For the whole project (None, F5) every detection is redone, but the sniffs of files that
         still exist are kept: each is checked against the file's (mtime, size) when used, so
-        unchanged files are not read again (spec 14 R4). ``paranoid_refresh`` drops them all.
+        unchanged files are not read again (spec 14 R4). ``paranoid_refresh`` drops them all. The
+        loaded datasets of the folder go too (of every folder for the whole project): files that
+        changed make new cache keys anyway, so this is what frees their memory (spec 27-4).
         """
+        drop_cached(None if folder is None else Path(folder))
         with self._lock:
             for key in [k for k in self._results if _affected(k, folder)]:
                 del self._results[key]

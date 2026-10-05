@@ -73,6 +73,9 @@ QT_FREE = [
     "qe_studio.core.calc_create.types.vc_relax",
     "qe_studio.core.calc_create.types.bandas",
     "qe_studio.core.calc_create.types.pdos",
+    "qe_studio.core.cancel",
+    "qe_studio.core.sizing",
+    "qe_studio.core.calculations.load_cache",
 ]
 
 

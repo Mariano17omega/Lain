@@ -14,6 +14,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .. import cancel
+
 ATM_PATTERN = re.compile(
     r"^(?P<prefix>.*?)\.?pdos_atm#(?P<atom>\d+)\((?P<species>[^)]+)\)"
     r"_wfc#(?P<wfc>\d+)\((?P<l>[spdf])(?:_j(?P<j>\d+(?:\.\d+)?))?\)$"
@@ -190,6 +192,7 @@ def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosDa
     energy: np.ndarray | None = None
     series = []
     for path in sorted(atm_files, key=lambda p: p.name):
+        cancel.check()  # one file is short, a hundred of them are not
         meta = parse_atm_name(path.name)
         if meta is None:
             continue

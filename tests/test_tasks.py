@@ -1,6 +1,7 @@
 """The one background-task helper (spec 15 R1): callbacks on the GUI thread, cancellation, groups."""
 
 import threading
+import time
 
 import pytest
 from PyQt6.QtCore import QCoreApplication, QEvent, QObject, QThreadPool
@@ -211,3 +212,107 @@ def test_closing_a_text_viewer_with_a_pending_read(qtbot, tmp_path, monkeypatch)
     assert handle.wait(5)
     qtbot.wait(50)
     assert loaded == []
+
+
+# -- cooperative cancellation (spec 27-4 R1) -----------------------------------------------------
+def test_check_outside_a_task_does_nothing():
+    from qe_studio.core import cancel
+
+    cancel.check()
+    assert not cancel.is_cancelled()
+    assert list(cancel.checked(range(25_000))) == list(range(25_000))
+
+
+def test_a_task_that_checks_stops_when_cancelled_without_any_callback(qtbot, caplog):
+    from qe_studio.core import cancel
+
+    receiver, steps, running = Receiver(), [], threading.Event()
+
+    def loop():
+        for step in range(10_000):
+            steps.append(step)
+            running.set()
+            cancel.check()
+            time.sleep(0.005)
+        return "finished"
+
+    handle = run_task(loop, on_done=receiver.done, on_error=receiver.failed)
+    assert running.wait(5)
+    handle.cancel()
+    assert handle.wait(2)  # the loop ended at its next check, long before 50 s
+    qtbot.wait(50)
+    assert len(steps) < 10_000 and handle.cancelled
+    assert receiver.results == [] and receiver.errors == []
+    assert "background task failed" not in caplog.text
+
+
+def test_a_group_task_cancelled_inside_a_check_never_calls_back(qtbot):
+    from qe_studio.core import cancel
+
+    receiver, running = Receiver(), threading.Event()
+
+    def wait_for_cancel():
+        running.set()
+        while True:
+            cancel.check()
+            time.sleep(0.002)
+
+    group = TaskGroup()
+    group.submit("k", wait_for_cancel, on_done=receiver.done, on_error=receiver.failed)
+    assert running.wait(5)
+    group.cancel("k")
+    assert group.shutdown(2000)  # only returns in time because the task sees the flag
+    qtbot.wait(50)
+    assert receiver.results == [] and receiver.errors == [] and len(group) == 0
+
+
+def test_shutdown_ends_a_running_task_that_checks(qtbot):
+    from qe_studio.core import cancel
+
+    running, group = threading.Event(), TaskGroup()
+
+    def long_work():
+        running.set()
+        for _ in range(10_000):
+            cancel.check()
+            time.sleep(0.005)
+
+    group.submit("k", long_work)
+    assert running.wait(5)
+    started = time.monotonic()
+    assert group.shutdown(5000)
+    assert time.monotonic() - started < 2
+
+
+def test_the_token_is_cleared_when_the_task_is_over(qtbot):
+    from qe_studio.core import cancel
+
+    seen = []
+
+    def work():
+        seen.append(cancel.is_cancelled())
+
+    handle = run_task(work)
+    assert handle.wait(5)
+    handle.cancel()  # after the end: nothing a later task on that thread may see
+
+    def next_work():
+        seen.append(cancel.is_cancelled())
+
+    handle = run_task(next_work)
+    assert handle.wait(5)
+    assert seen == [False, False]
+
+
+def test_a_cancelled_exception_with_the_flag_off_is_still_not_a_result(qtbot):
+    from qe_studio.core import cancel
+
+    receiver = Receiver()
+
+    def raises():
+        raise cancel.Cancelled
+
+    handle = run_task(raises, on_done=receiver.done, on_error=receiver.failed)
+    assert handle.wait(5)
+    qtbot.wait(50)
+    assert receiver.results == [] and receiver.errors == []

@@ -171,7 +171,7 @@ def _from_files(
     gnu_role, filband_role = CHANNEL_ROLES[channel]
     if (gnu := result.file(gnu_role)) is not None:
         try:
-            return bands_x.read_gnu(read_text(gnu)), "gnu"
+            return bands_x.read_gnu(gnu), "gnu"
         except (OSError, bands_x.BandsFormatError) as exc:
             errors.append(f"{gnu.name}: {exc}")
     if (filband := result.file(filband_role)) is not None:

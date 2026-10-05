@@ -147,6 +147,32 @@ def test_the_result_of_a_superseded_read_is_dropped(qtbot, main_window, demo_pro
     assert view.summary == shown and view.stack.currentIndex() == CONTENT
 
 
+def test_closing_the_tab_cancels_the_read_in_progress(
+    qtbot, main_window, demo_project, monkeypatch
+):
+    """Spec 27-4 R1.4: a closed summary tab neither gets its read nor keeps the worker going."""
+    window = main_window
+    path = demo_project / "01_relax" / "si.rel.out"
+    gate = threading.Event()
+
+    def gated(path):
+        gate.wait(5)
+        return summarize(path)
+
+    monkeypatch.setattr(summary_view, "summarize", gated)
+    view = window.workspace.open_summary(path)
+    handle = view._task
+    qtbot.waitUntil(lambda: handle.started, timeout=5000)
+    loaded = []
+    view.loaded.connect(lambda: loaded.append(1))
+    window.workspace.close_key(summary_key(path))
+    qtbot.waitUntil(lambda: handle.cancelled, timeout=5000)  # the view died with its tab
+    gate.set()
+    assert handle.wait(5)
+    qtbot.wait(50)
+    assert loaded == []
+
+
 def test_expandable_rows_start_collapsed(qtbot, main_window, demo_project):
     view = open_summary(qtbot, main_window, demo_project / "02_scf" / "scf.out")
     pseudos = row_of(view, "Pseudopotenciais")

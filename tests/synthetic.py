@@ -139,3 +139,19 @@ def _separated(block: str, count: int) -> Iterable[str]:
         if i:
             yield "\n"
         yield block
+
+
+def make_filband(path: Path, mb: int = 2, n_bands: int = 20) -> tuple[int, int]:
+    """A raw bands.x ``filband`` file of about ``mb`` MB (per k point a line of 3 coordinates, then
+    the energies, ten per line in 9-character fields); returns ``(n_bands, n_kpoints)``."""
+    per_k = 34 + n_bands * 9 + -(-n_bands // 10)  # bytes: the k line, the energies, their newlines
+    n_kpoints = mb * MB // per_k + 1
+    rng = np.random.default_rng(7)
+    with open(path, "w") as handle:
+        handle.write(f" &plot nbnd={n_bands:4d}, nks={n_kpoints:6d} /\n")
+        for k in range(n_kpoints):
+            handle.write(f"  {0.001 * k:9.6f}  {0.0:9.6f}  {0.5:9.6f}\n")
+            energies = rng.uniform(-20, 60, n_bands)
+            for start in range(0, n_bands, 10):
+                handle.write("".join(f"{e:9.3f}" for e in energies[start : start + 10]) + "\n")
+    return n_bands, n_kpoints

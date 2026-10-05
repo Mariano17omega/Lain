@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import textfile
+from . import cancel, textfile
 from .file_kinds import human_size, is_job_log
 from .qe.input_extract import Chip, extract
 from .qe.input_lint import InputDoc, lint
@@ -51,6 +51,7 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
     """Text, banner and line numbers of ``path``. Queue logs say whether the job wrote errors
     (spec 4 R4); a large file is cut to its ends unless ``full`` (spec 10 R4)."""
     piece = textfile.read_slice(path, full=full)
+    cancel.check()
     banner, level = "", "warning"
     if piece.truncated:
         banner = (
@@ -61,6 +62,7 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
         banner = f"Arquivo completo ({human_size(piece.size)})."
     job_log = is_job_log(path)
     info = _sniff(path)
+    cancel.check()
     output = info is not None and info.is_output
     # A redirected QE output is judged by the run itself, as in the file label.
     judged_by_run = output and info is not None and info.job_done is not None

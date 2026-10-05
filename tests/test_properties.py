@@ -23,7 +23,7 @@ from qe_studio.core.filtering import name_matcher
 from qe_studio.core.grid_store import GridStore
 from qe_studio.core.navigation import NavigationHistory
 from qe_studio.core.plotting.grid import MAX_SIZE, GridCell, GridSpec, PlotRef
-from qe_studio.core.qe.bands_x import BandsFormatError, gnu_shape, read_gnu
+from qe_studio.core.qe.bands_x import BandsFormatError, gnu_shape, read_gnu_text
 from qe_studio.core.qe.input_edit import InputEditor, unquote
 from qe_studio.core.qe.input_lexer import LexState, scan_line
 from qe_studio.core.qe.input_lint import _lint
@@ -72,7 +72,7 @@ def gnu_text(blocks, separator: str, trailing: bool = False) -> str:
 @given(band_matrices(), st.sampled_from(["", " "]), st.booleans())
 def test_read_gnu_round_trip(matrix, separator, trailing):
     x, energies = matrix
-    data = read_gnu(gnu_text(gnu_blocks(x, energies), separator, trailing))
+    data = read_gnu_text(gnu_text(gnu_blocks(x, energies), separator, trailing))
     assert data.energies.shape == energies.shape
     np.testing.assert_allclose(data.x, x, atol=1e-6)
     np.testing.assert_allclose(data.energies, energies, atol=1e-6)
@@ -83,7 +83,7 @@ def test_read_gnu_any_truncation_is_a_format_error_or_a_result(matrix, separator
     text = gnu_text(gnu_blocks(*matrix), separator)
     cut = draw.draw(st.integers(0, len(text)))
     with contextlib.suppress(BandsFormatError):  # any other exception type fails the test
-        read_gnu(text[:cut])
+        read_gnu_text(text[:cut])
 
 
 @given(band_matrices(min_bands=2), st.sampled_from(["", " "]), st.integers(0, COLUMN))
@@ -92,7 +92,7 @@ def test_read_gnu_cut_inside_the_last_line_is_an_error(matrix, separator, offset
     text = gnu_text(gnu_blocks(*matrix), separator)
     last_line = text.rstrip("\n").rfind("\n") + 1
     with pytest.raises(BandsFormatError):
-        read_gnu(text[: last_line + offset])
+        read_gnu_text(text[: last_line + offset])
 
 
 @given(band_matrices(min_bands=2, min_kpoints=3), st.sampled_from(["", " "]), st.data())
@@ -102,7 +102,7 @@ def test_read_gnu_bands_of_different_lengths_are_an_error(matrix, separator, dra
     row = draw.draw(st.integers(0, len(blocks[band]) - 1))
     del blocks[band][row]
     with pytest.raises(BandsFormatError):
-        read_gnu(gnu_text(blocks, separator))
+        read_gnu_text(gnu_text(blocks, separator))
 
 
 @given(band_matrices(), st.sampled_from(["", " "]), st.booleans(), st.integers(1, 200))
@@ -110,7 +110,7 @@ def test_gnu_shape_agrees_with_read_gnu(matrix, separator, trailing, chunk_size)
     """The streaming sniff (spec 14 R5.1) sees the shape ``read_gnu`` loads, at any chunk size."""
     text = gnu_text(gnu_blocks(*matrix), separator, trailing)
     shape = gnu_shape(io.BytesIO(text.encode()), chunk_size)
-    assert shape == read_gnu(text).energies.shape == matrix[1].shape
+    assert shape == read_gnu_text(text).energies.shape == matrix[1].shape
 
 
 @given(band_matrices(), st.sampled_from(["", " "]), st.integers(1, 64), st.data())
@@ -124,7 +124,7 @@ def test_gnu_shape_of_a_truncated_file_is_an_error_or_the_loaded_shape(
     except BandsFormatError:
         return  # any other exception type fails the test
     with contextlib.suppress(BandsFormatError):
-        assert shape == read_gnu(cut).energies.shape
+        assert shape == read_gnu_text(cut).energies.shape
 
 
 # -- pw.x relax/vc-relax output ----------------------------------------------------------------

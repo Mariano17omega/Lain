@@ -27,6 +27,16 @@ def pytest_collection_modifyitems(items):
 
 
 @pytest.fixture(autouse=True)
+def _empty_dataset_cache():
+    """The loaded datasets are process-wide (spec 27-4): no test starts with another's."""
+    from qe_studio.core.calculations import drop_cached
+
+    drop_cached()
+    yield
+    drop_cached()
+
+
+@pytest.fixture(autouse=True)
 def _isolated_user_dirs(tmp_path_factory, monkeypatch):
     """Keep app data/config/cache writes out of the real home directory."""
     base = tmp_path_factory.mktemp("userdirs")

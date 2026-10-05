@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
+from ... import cancel
 from ...sniff import sniff
 from ..pw_output import PwOutput
 from ..relax import parse_relax
@@ -37,6 +38,8 @@ def _observe(lines: Iterable[str], scanner: Scanner) -> Iterator[str]:
     """Pass the lines through, letting the scanner see each one (so a second parser can share
     the read)."""
     for number, line in enumerate(lines, 1):
+        if number % cancel.CHECK_EVERY_LINES == 0:
+            cancel.check()
         scanner.feed(number, line)
         yield line
 
