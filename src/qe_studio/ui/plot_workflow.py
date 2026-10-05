@@ -344,11 +344,14 @@ class PlotWorkflow(QObject):
                 self._replacing = None
         view = PlotView(self.theme, session)
         view.rendered.connect(self._on_rendered)
+        view.drawing_changed.connect(self._on_drawing)
         view.limits_changed.connect(self._on_limits_changed)
         view.export_requested.connect(self.export)
         self.workspace.add(
             session.key, view, session.title, ("bubble_chart", "accent"), str(session.plot_target)
         )
+        if view.drawing:  # started in the constructor, before anything was connected
+            self._on_drawing(session.key, True)
         self.panel_requested.emit("workspace")  # workspace.add made the tab current: bound
         self.panel_requested.emit("params")
         self.message.emit(
@@ -373,6 +376,8 @@ class PlotWorkflow(QObject):
     def _on_tab_closing(self, widget) -> None:
         if isinstance(widget, PlotView):
             key = widget.session.key
+            widget.cancel_load()  # a figure still being drawn
+            self.busy.end(f"draw:{key}")
             self.settings.flush(key)
             self.params.discard(key)
             # Closing the tab ends a load of it still pending (a regenerate): nothing opens later.
@@ -419,6 +424,14 @@ class PlotWorkflow(QObject):
         view = self.current_plot()
         if view is not None:
             view.render()
+
+    def _on_drawing(self, key: str, drawing: bool) -> None:
+        """A worker draws (or has drawn) the figure of the plot ``key``: footer and tab spinner."""
+        if drawing:
+            self.busy.begin(f"draw:{key}", "Desenhando…")
+        else:
+            self.busy.end(f"draw:{key}")
+        self.workspace.set_busy(key, drawing)
 
     def _on_rendered(self, _info) -> None:
         # Any open plot re-renders on a theme change: show what the current one says.

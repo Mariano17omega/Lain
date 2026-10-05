@@ -71,3 +71,8 @@ def draw(session, dpi: float = 72) -> Figure:
     session.render(figure, session.style)
     figure.canvas.draw()
     return figure
+
+
+def settled(qtbot, view, timeout: int = 20_000) -> None:
+    """Wait for a grid tab to show its figure: a grid is drawn by a worker (spec 27-8)."""
+    qtbot.waitUntil(lambda: not view.render_pending, timeout=timeout)

@@ -264,6 +264,9 @@ def test_base_hooks_have_neutral_defaults(dummy_folder):
     # Spec 23: its parameters live in a .plot, it can be a grid cell, its axes are its own.
     assert DUMMY.plot_file and DUMMY.grid_cell
     assert DUMMY.axes_routes(Figure(), dataset) is None
+    assert (
+        not DUMMY.render_in_worker
+    )  # spec 27-8: only a figure too slow for the GUI thread is drawn off it
 
 
 def test_a_named_figure_keys_its_tab_by_name_and_shows_its_parts(dummy_folder, tmp_path):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
@@ -11,17 +12,23 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PyQt6.QtCore import QRect, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QImage, QPainter
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from ...core.calculations.base import AxesLimits
 from ...core.plotting.mpl_lock import MPL_LOCK
+from ...core.plotting.offscreen import Drawn, Target, draw_offscreen, snapshot
 from ...core.plotting.session import PlotSession
 from ...core.plotting.style import register_fonts
+from ...core.tasks import TaskHandle, run_task
 from ..theme.manager import ThemeManager
 from .common import IconButton
 
+log = logging.getLogger(__name__)
+
 MARGIN = 16
 RETRY_MS = 50  # matplotlib busy with an export: render or draw again after this
+RESIZE_MS = 150  # a figure drawn by a worker is drawn again this long after the last resize
 
 
 class ScaledFigureCanvas(FigureCanvasQTAgg):
@@ -29,12 +36,20 @@ class ScaledFigureCanvas(FigureCanvasQTAgg):
 
     The preview therefore has exactly the layout, font proportions and line weights of the
     exported file, just magnified or reduced.
+
+    A figure that ``worker_draws`` (spec 27-8) is drawn by a worker: the canvas never draws it on a
+    resize (``resized`` says the size changed) and takes the worker's picture over with ``adopt``.
     """
+
+    resized = pyqtSignal()
 
     def __init__(self, figure: Figure):
         super().__init__(figure)
         self._inches = tuple(figure.get_size_inches())
         self.rc: dict = {}  # style rcParams; mathtext is parsed at draw time
+        self.worker_draws = False
+        # The picture kept (with the bytes it reads) while a resize is redrawn by the worker.
+        self._stale: tuple[QImage, bytes] | None = None
         self._redraw = QTimer(self)
         self._redraw.setSingleShot(True)
         self._redraw.setInterval(RETRY_MS)
@@ -50,6 +65,7 @@ class ScaledFigureCanvas(FigureCanvasQTAgg):
         try:
             with matplotlib.rc_context(self.rc):
                 super().draw()
+            self._stale = None  # the figure has its own pixels again
         finally:
             MPL_LOCK.release()
 
@@ -57,7 +73,48 @@ class ScaledFigureCanvas(FigureCanvasQTAgg):
         self._inches = (width, height)
         self.figure.set_size_inches(width, height, forward=False)
 
+    def adopt(self, drawn: Drawn) -> None:
+        """Show the figure a worker drew, with its pixels: it becomes this canvas's figure. Nothing is
+        drawn here, so it costs a few attribute writes; pan/zoom draw it again as usual."""
+        figure = drawn.figure
+        # matplotlib keeps the canvas's event handlers (the toolbar's pan/zoom, ours) on the figure:
+        # the new one gets the registry. Its own ``pick`` handlers stay in the old figure's, unused.
+        figure._canvas_callbacks = self.figure._canvas_callbacks  # pyright: ignore[reportAttributeAccessIssue]
+        figure.set_canvas(self)
+        self.figure = figure
+        figure._original_dpi = figure.dpi / self.device_pixel_ratio  # pyright: ignore[reportAttributeAccessIssue]
+        self._inches = tuple(figure.get_size_inches())
+        self.rc = drawn.rc
+        # What FigureCanvasAgg.draw leaves behind and ``paintEvent`` reads (``get_renderer``'s key).
+        self.renderer = drawn.canvas.renderer
+        self._lastKey = drawn.canvas._lastKey  # pyright: ignore[reportAttributeAccessIssue]
+        self._draw_pending = False
+        self._stale = None
+        self.update()
+
+    def _keep_picture(self) -> None:
+        """Before a resize: keep what is on show, to stretch it until the worker's new picture
+        arrives (the resized figure has no pixels yet)."""
+        renderer = getattr(self, "renderer", None)
+        if self._stale is None and renderer is not None:
+            data = bytes(renderer.buffer_rgba())
+            image = QImage(data, renderer.width, renderer.height, QImage.Format.Format_RGBA8888)
+            self._stale = (image, data)  # the image does not own its bytes
+
+    def paintEvent(self, event) -> None:
+        if self._stale is None:
+            super().paintEvent(event)
+            return
+        painter = QPainter(self)
+        try:
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            painter.drawImage(self.rect(), self._stale[0])
+        finally:
+            painter.end()
+
     def resizeEvent(self, event) -> None:
+        if self.worker_draws:
+            self._keep_picture()
         width_in = self._inches[0]
         logical_dpi = max(event.size().width() / width_in, 10.0)
         # Private matplotlib API, the same calls its own Qt canvas makes when the screen changes.
@@ -66,6 +123,9 @@ class ScaledFigureCanvas(FigureCanvasQTAgg):
             logical_dpi * self.device_pixel_ratio, forward=False
         )
         super().resizeEvent(event)
+        if self.worker_draws:
+            self._draw_pending = False  # the base class queued a draw: the worker draws instead
+            self.resized.emit()
 
 
 class AspectBox(QWidget):
@@ -194,6 +254,9 @@ class PlotView(QWidget):
     limits_changed = pyqtSignal()
     export_requested = pyqtSignal()
     rendered = pyqtSignal(object)  # RenderInfo
+    drawing_changed = pyqtSignal(
+        str, bool
+    )  # session key, a worker is drawing the figure (spec 27-8)
 
     def __init__(self, theme: ThemeManager, session: PlotSession, parent: QWidget | None = None):
         super().__init__(parent)
@@ -206,10 +269,20 @@ class PlotView(QWidget):
         self._retry.setSingleShot(True)
         self._retry.setInterval(RETRY_MS)
         self._retry.timeout.connect(self.render)
+        # A figure drawn by a worker (``render_in_worker``): its task, the picture it was asked for
+        # (or the one on show) and the pause after a resize.
+        self._task: TaskHandle | None = None
+        self._target_now: Target | None = None
+        self._resize_timer = QTimer(self)
+        self._resize_timer.setSingleShot(True)
+        self._resize_timer.setInterval(RESIZE_MS)
+        self._resize_timer.timeout.connect(self._redraw_after_resize)
         register_fonts()
         params = session.params
         self.figure = Figure(figsize=params.figure_size)
         self.canvas = ScaledFigureCanvas(self.figure)
+        self.canvas.worker_draws = session.module.render_in_worker
+        self.canvas.resized.connect(self._on_resized)
         self.toolbar = PlotToolbar(theme, self.canvas)
         self.box = AspectBox(self.canvas, params.figure_width / params.figure_height)
         layout = QVBoxLayout(self)
@@ -236,20 +309,27 @@ class PlotView(QWidget):
 
     @property
     def render_pending(self) -> bool:
-        """A render waits for an export to release matplotlib."""
-        return self._retry.isActive()
+        """A render waits for an export to release matplotlib, or a worker is drawing the figure."""
+        return self._retry.isActive() or self.drawing or self._resize_timer.isActive()
+
+    @property
+    def drawing(self) -> bool:
+        """A worker is drawing the figure (``render_in_worker``); the last picture stays meanwhile."""
+        return self._task is not None
 
     def render(self) -> None:
         """Draw the session. While an export holds matplotlib (``MPL_LOCK``) the render is
-        retried a moment later instead: the GUI thread never waits for the export."""
+        retried a moment later instead: the GUI thread never waits for the export. A figure that
+        takes seconds (``render_in_worker``) is drawn by a worker and shown when it is done."""
+        if self.session.module.render_in_worker:
+            self._render_in_worker()
+            return
         if not MPL_LOCK.acquire(blocking=False):
             self._retry.start()
             return
         try:
             params = self.session.params
-            if self.canvas._inches != params.figure_size:
-                self.canvas.set_inches(*params.figure_size)
-                self.box.set_ratio(params.figure_width / params.figure_height)
+            self._apply_figure_size(params)
             style = self.session.style  # not the app theme: the figure looks like the export
             self.canvas.rc = style.rc(params.font_size)
             info = self.session.render(self.figure, style)
@@ -260,6 +340,75 @@ class PlotView(QWidget):
         finally:
             MPL_LOCK.release()
         self.rendered.emit(info)
+
+    def _apply_figure_size(self, params) -> None:
+        if self.canvas._inches != params.figure_size:
+            self.canvas.set_inches(*params.figure_size)
+            self.box.set_ratio(params.figure_width / params.figure_height)
+
+    # -- a figure drawn by a worker (spec 27-8 R2 step 3) --------------------------------------------
+    def _target(self, params) -> Target:
+        """The picture the canvas shows now: what its resize event would make of the dpi."""
+        logical_dpi = max(self.canvas.width() / params.figure_width, 10.0)
+        return Target(params.figure_size, logical_dpi * self.canvas.device_pixel_ratio)
+
+    def _render_in_worker(self) -> None:
+        """Draw the session's parameters as they are now in a worker; a render still running is
+        superseded (it stops between cells). The picture on show stays until the new one is ready."""
+        self._resize_timer.stop()
+        self._retry.stop()
+        if self._task is not None:
+            self._task.cancel()
+        params = snapshot(self.session)
+        self._apply_figure_size(
+            params
+        )  # a resize of the canvas may follow: ``_on_resized`` sees it
+        self._target_now = self._target(params)
+        self._task = run_task(
+            draw_offscreen,
+            self.session,
+            params,
+            self._target_now,
+            on_done=self._adopt,
+            on_error=self._draw_failed,
+        )
+        self.drawing_changed.emit(self.session.key, True)
+
+    def _adopt(self, drawn: Drawn) -> None:
+        """The worker is done: the figure and its pixels replace what is on show."""
+        self._task = None
+        if drawn.target != self._target(self.session.params):
+            self._render_in_worker()  # the size changed while drawing: this picture does not fit
+            return
+        self.figure = drawn.figure
+        self.canvas.adopt(drawn)
+        self._install_readout()
+        self._limits = self._axis_limits()
+        self.toolbar.nav.update()  # drop the pan/zoom history of the previous drawing
+        self.drawing_changed.emit(self.session.key, False)
+        self.rendered.emit(drawn.info)
+
+    def _draw_failed(self, error: Exception) -> None:
+        self._task = None
+        self.drawing_changed.emit(self.session.key, False)
+        log.error("drawing %s failed", self.session.kind, exc_info=error)
+        raise error  # the window's exception reporter shows it, like a render on the GUI thread
+
+    def _on_resized(self) -> None:
+        if self._target_now is not None and self._target_now != self._target(self.session.params):
+            self._resize_timer.start()  # the resize may go on: draw once it stops
+
+    def _redraw_after_resize(self) -> None:
+        if self._target_now != self._target(self.session.params):
+            self._render_in_worker()
+
+    def cancel_load(self) -> None:
+        """Window close or tab close: the figure being drawn is not needed any more."""
+        self._resize_timer.stop()
+        if self._task is not None:
+            self._task.cancel()
+            self._task = None
+            self.drawing_changed.emit(self.session.key, False)
 
     def _install_readout(self) -> None:
         """The module words the cursor readout of every axes (the toolbar shows it in

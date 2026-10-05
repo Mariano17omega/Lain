@@ -7,6 +7,7 @@ import copy
 import matplotlib
 from matplotlib.figure import Figure, FigureBase, SubFigure
 
+from ... import cancel
 from ...plotting.cell_layout import fit_cell
 from ...plotting.style import PlotStyle
 from ..params import RenderInfo
@@ -59,6 +60,7 @@ def _draw_cell(cell: SubFigure, data: GridCellData, params: GridParams) -> None:
     """The plot as its session draws it; a title of the cell takes the place of the plot's own."""
     session = data.session
     assert session is not None
+    cancel.check()  # a grid takes seconds: a superseded render stops between cells
     title = data.cell.title.strip() if params.show_titles else ""
     own = None
     if title:

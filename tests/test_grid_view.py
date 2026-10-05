@@ -2,7 +2,7 @@
 
 from matplotlib.backend_bases import MouseEvent
 
-from plot_grid_helpers import BANDS, RELAX, grid_of
+from plot_grid_helpers import BANDS, RELAX, grid_of, settled
 from qe_studio.ui.widgets.plot_view import PlotView
 
 
@@ -12,6 +12,7 @@ def grid_view(qtbot, main_window, tmp_path):
     qtbot.addWidget(view)
     view.resize(900, 500)
     view.show()
+    settled(qtbot, view)
     view.canvas.draw()
     bands, relax = (data.session for data in grid.dataset.cells)
     return view, bands, relax

@@ -88,6 +88,7 @@ QT_FREE = [
     "qe_studio.core.plotting.grid",
     "qe_studio.core.plotting.cell_layout",
     "qe_studio.core.plotting.grid_session",
+    "qe_studio.core.plotting.offscreen",
     "qe_studio.core.grid_store",
     "qe_studio.core.calculations.grid",
     "qe_studio.core.qe.input_edit",

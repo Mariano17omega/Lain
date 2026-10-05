@@ -3,6 +3,7 @@
 import json
 import shutil
 
+from plot_grid_helpers import settled
 from qe_studio.core.appdirs import data_dir
 from qe_studio.core.plotting.plot_file import plot_file_path, write_plot_file
 from qe_studio.ui.widgets.plot_view import PlotView
@@ -28,6 +29,7 @@ def generate(qtbot, window, name="Al", saved=False):
     session = ready.args[0]
     view = window.workspace.widget_for(session.key)
     assert isinstance(view, PlotView)
+    settled(qtbot, view)  # a grid is drawn by a worker
     return view
 
 
@@ -121,3 +123,57 @@ def test_the_grid_exports_into_the_project_plots(qtbot, main_window, demo_projec
     with qtbot.waitSignal(main_window.export_finished, timeout=20_000) as done:
         assert main_window.export_plot()
     assert done.args[0] == [demo_project / "plots" / "grid_Al.png"]
+
+
+def test_the_footer_and_the_tab_say_a_grid_is_being_drawn(qtbot, main_window, tmp_path):
+    """A grid is drawn by a worker (spec 27-8): the window shows it as busy until the picture is in."""
+    from plot_grid_helpers import BANDS, RELAX, grid_of
+
+    grid = grid_of([(0, 0, BANDS, ""), (0, 1, RELAX, "")], tmp_path)
+    workflow, workspace = main_window.plot_workflow, main_window.workspace
+    workflow.show_session(grid)
+    view = workspace.widget_for(grid.key)
+    assert isinstance(view, PlotView) and view.drawing
+    assert workflow.busy.labels == ["Desenhando…"] and not main_window.status.spinner.isHidden()
+    assert view in workspace._busy  # the tab's spinner
+    settled(qtbot, view)
+    assert workflow.busy.labels == [] and main_window.status.spinner.isHidden()
+    assert view not in workspace._busy
+
+
+def test_closing_a_grid_tab_that_is_being_drawn_leaves_nothing_busy(qtbot, main_window, tmp_path):
+    from plot_grid_helpers import BANDS, RELAX, grid_of
+
+    grid = grid_of([(0, 0, BANDS, ""), (0, 1, RELAX, "")], tmp_path)
+    main_window.plot_workflow.show_session(grid)
+    view = main_window.workspace.widget_for(grid.key)
+    assert view.drawing
+    main_window.workspace.close_all()
+    assert main_window.plot_workflow.busy.labels == [] and main_window.status.spinner.isHidden()
+    assert not view.drawing
+
+
+def test_closing_the_window_while_a_grid_is_drawn_is_not_late(qtbot, main_window, tmp_path):
+    import time
+
+    from plot_grid_helpers import BANDS, RELAX, grid_of
+    from qe_studio.core.plotting.mpl_lock import MPL_LOCK
+
+    grid = grid_of([(0, 0, BANDS, ""), (0, 1, RELAX, "")] * 4, tmp_path, rows=2, cols=4)
+    main_window.plot_workflow.show_session(grid)
+    view = main_window.workspace.widget_for(grid.key)
+
+    def worker_is_drawing() -> bool:
+        if MPL_LOCK.acquire(blocking=False):  # free: take nothing with us
+            MPL_LOCK.release()
+            return False
+        return True
+
+    qtbot.waitUntil(worker_is_drawing, timeout=5000)
+    start = time.perf_counter()
+    main_window.close()
+    assert (
+        time.perf_counter() - start < 4
+    )  # the worker stops between cells; nobody waits for it all
+    assert main_window.shutdown_report is not None and main_window.shutdown_report.late == []
+    assert not view.drawing

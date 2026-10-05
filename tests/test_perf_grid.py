@@ -1,39 +1,41 @@
-"""Latency of the figures that are drawn on the GUI thread (spec 27-8 R1, report T2): a 6×6 grid, a
-PDOS of many atoms and bands + DOS.
+"""Latency of the figures the window draws (spec 27-8 R1, report T2): a PDOS of many atoms and bands +
+DOS, which the GUI thread draws, and a 6×6 grid, which a worker draws (R2 step 3).
 
 Run with ``uv run pytest -m perf -s tests/test_perf_grid.py`` to see the timings; the baseline is in
-the notes of ``specs/Archived/spec_27-8-*.md``. Each case times what ``plot_grid_helpers.draw`` does
+the notes of ``specs/spec_27-8-*.md``. The simple figures time what ``plot_grid_helpers.draw`` does
 (the module's render and the Agg ``canvas.draw()``) on a session built beforehand, the median of
-``RUNS``.
+``RUNS``. A grid is timed as the longest stall of the GUI thread (a timer that should tick every
+``TICK_MS``) while its tab draws it again, and as the time until the new picture is shown.
 """
 
 from __future__ import annotations
 
 import statistics
+import time
 from pathlib import Path
 
 import pytest
+from PyQt6.QtCore import QTimer
 
 from atoms_helpers import pdos_folder
-from plot_grid_helpers import BANDS, BANDS_DOS, PDOS, RELAX, SCF, draw, grid_of, session_of
+from plot_grid_helpers import BANDS, BANDS_DOS, PDOS, RELAX, SCF, draw, grid_of, session_of, settled
 from qe_studio.core.plotting.grid import PlotRef
+from qe_studio.ui.theme.manager import ThemeManager
+from qe_studio.ui.widgets.plot_view import PlotView
 from test_perf_detection import report, timed
 
-# Seconds. The report asks for action above ~1 s for a grid; the simple figures keep the PRD §7
-# target. They are absolute budgets with margin for slower machines (the CI perf job never blocks).
+# Seconds. The report asks for action when a grid takes over ~1 s of the GUI thread; the simple figures
+# keep the PRD §7 target. Absolute budgets with margin for slower machines (the CI perf job never
+# blocks). The grid's are the longest stall of the GUI thread and the time to the new picture: the
+# worker takes about 2.4 s (the baseline before it was drawn on the GUI thread), the GUI none of it.
 BUDGET = {
-    "grid_mixed": 1.0,
-    "grid_pdos": 1.0,
+    "grid_stall": 0.25,
+    "grid_latency": 6.0,
     "pdos_100_atoms": 0.5,
     "bands_dos": 0.5,
 }
 RUNS = 3
-# The 6×6 grid is over its budget on the GUI thread (spec 27-8 R1: ~2.4 s): only R2 step 3, drawing in
-# a worker, fixes it (the cheaper steps reach 2.1 s at best). ``strict``: the day it passes this
-# marker must go.
-GRID_OVER_BUDGET = pytest.mark.xfail(
-    strict=True, reason="spec 27-8 R2 step 3 (render in a worker) is pending"
-)
+TICK_MS = 5
 SIDE = 6  # the biggest grid: 6×6 (spec 23)
 MIXED = [BANDS, PDOS, RELAX, SCF, BANDS_DOS]
 
@@ -73,20 +75,44 @@ def bands_dos(tmp_path_factory):
     return session_of(BANDS_DOS, tmp_path_factory.mktemp("perf_bands_dos"))
 
 
-@pytest.mark.perf
-@GRID_OVER_BUDGET
-def test_grid_6x6_of_mixed_plots(grid_mixed):
-    seconds = _median(grid_mixed)
-    report("grid 6x6 mixed", seconds)
-    assert seconds < BUDGET["grid_mixed"]
+def _redraw(qtbot, session) -> tuple[float, float]:
+    """(longest stall of the GUI thread, seconds until the picture is shown) of a shown grid tab
+    drawing again."""
+    view = PlotView(ThemeManager("dark"), session)
+    qtbot.addWidget(view)
+    view.resize(1000, 800)
+    view.show()
+    settled(qtbot, view, timeout=60_000)  # the first drawing, and the resize that follows the show
+    last = time.perf_counter()
+    stalls = []
+
+    def tick() -> None:
+        nonlocal last
+        now = time.perf_counter()
+        stalls.append(now - last)
+        last = now
+
+    timer = QTimer()
+    timer.setInterval(TICK_MS)
+    timer.timeout.connect(tick)
+    timer.start()
+    start = last = time.perf_counter()
+    with qtbot.waitSignal(view.rendered, timeout=60_000):
+        view.render()
+    latency = time.perf_counter() - start
+    timer.stop()
+    view.cancel_load()
+    return max(stalls), latency
 
 
 @pytest.mark.perf
-@GRID_OVER_BUDGET
-def test_grid_6x6_of_pdos(grid_pdos):
-    seconds = _median(grid_pdos)
-    report("grid 6x6 pdos", seconds)
-    assert seconds < BUDGET["grid_pdos"]
+@pytest.mark.parametrize("fixture", ["grid_mixed", "grid_pdos"])
+def test_a_6x6_grid_never_stalls_the_gui(qtbot, request, fixture):
+    stall, latency = _redraw(qtbot, request.getfixturevalue(fixture))
+    report(f"{fixture} gui stall", stall)
+    report(f"{fixture} until shown", latency)
+    assert stall < BUDGET["grid_stall"]
+    assert latency < BUDGET["grid_latency"]
 
 
 @pytest.mark.perf

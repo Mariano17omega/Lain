@@ -32,6 +32,7 @@ class GridModule(CalculationModule[GridDataset, GridParams]):
     selectable: ClassVar[bool] = False  # made from plots, not mapped from files
     plot_file: ClassVar[bool] = False  # its settings live with its definition (grids.json)
     grid_cell: ClassVar[bool] = False  # no grid inside a grid
+    render_in_worker: ClassVar[bool] = True  # 36 cells take seconds: never on the GUI thread
     roles: ClassVar[tuple[FileRole, ...]] = ()
 
     # -- plotting ------------------------------------------------------------------------------

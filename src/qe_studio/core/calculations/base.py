@@ -46,8 +46,7 @@ NEIGHBOUR_PATTERN = "*scf*"
 
 
 def is_neighbour_scf(name: str, pattern: str = NEIGHBOUR_PATTERN) -> bool:
-    """Whether a folder called ``name`` is one the detection of its siblings reads (the one
-    predicate of ``neighbour_scf_folders`` and ``reads_from``: the two ends cannot diverge)."""
+    """Whether its siblings' detection reads a folder called ``name`` (shared by the two functions below)."""
     return fnmatch.fnmatch(name.lower(), pattern)
 
 
@@ -286,6 +285,8 @@ class CalculationModule(Generic[D, P]):
     plot_file: ClassVar[bool] = True
     # Can be a cell of a grid (spec 23); a grid cannot.
     grid_cell: ClassVar[bool] = True
+    # Preview drawn off the GUI thread (``core/plotting/offscreen.py``): a figure too slow to draw there.
+    render_in_worker: ClassVar[bool] = False
 
     def role(self, role_id: str) -> FileRole:
         return next(r for r in self.roles if r.id == role_id)

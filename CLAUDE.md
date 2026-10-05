@@ -93,8 +93,10 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   a 200 MB relax output, an 80 MB `.gnu` and a 20 MB output with a long header, always in tmp dirs.
   `test_perf_detection.py` times them (`-m perf -s` prints the numbers; the baseline and budgets are
   in the spec's notes); its import test (no `ase` after importing `main_window`) is not `perf`.
-  `test_perf_grid.py` (spec 27-8) times a 6×6 grid, a 100-atom PDOS and bands + DOS (`draw` = render + Agg draw);
-  the grids are `xfail(strict=True)` over their 1 s budget until the render moves to a worker (spec's R2 step 3).
+  `test_perf_grid.py` (spec 27-8) times a 100-atom PDOS and bands + DOS (`draw` = render + Agg draw) and, for a 6×6 grid
+  drawn by a worker, the longest stall of the GUI thread and the time until the picture shows.
+  `test_plot_view_worker.py` and `test_offscreen.py` cover the worker path; a test that reads `view.figure` of a grid first
+  waits with `plot_grid_helpers.settled(qtbot, view)`.
   `test_pw_output_regression.py` compares `PwOutput` of every fixture output with
   `pw_output_golden.json`, captured from the parser before it read head and tail separately.
 - Sync integration tests run the **real `rsync` and `ssh` binaries** (skipped if either is absent).
@@ -323,6 +325,20 @@ Plot settings persist in `<simulation>/<kind>.plot` (YAML, `core/plotting/plot_f
 (`PlotSession.defaults` stays the module default), written only after a user edit (params panel or
 pan/zoom), debounced 1 s and flushed on tab close, regenerate and exit. Window layout, grid mode/sort and the last folder are
 QSettings (`layout/*`, `files/*`, `explorer/last_folder`).
+
+### Figures drawn by a worker (spec 27-8 R2)
+
+A module with `render_in_worker = True` (the grid: 36 cells take ~2.4 s of layout and Agg) is never drawn on the GUI
+thread. `core/plotting/offscreen.py:draw_offscreen(session, params, target)` (Qt-free) builds the figure in a `Figure` +
+`FigureCanvasAgg` of its own under `MPL_LOCK`, from `snapshot(session)` (the parameters when it was asked), and draws it at
+`Target(inches, dpi)`; `render_grid` calls `cancel.check()` between cells, so a newer render supersedes it. `PlotView.render()`
+runs it with `run_task` (`drawing`, `drawing_changed(key, on)` → footer "Desenhando…" and the tab spinner in
+`PlotWorkflow._on_drawing`) and `_adopt`s the result when its `Target` still matches the canvas (else it draws again):
+`ScaledFigureCanvas.adopt` makes the worker's figure the canvas's, with its `renderer` and the event registry matplotlib keeps
+on the figure (`_canvas_callbacks`, so the toolbar's pan/zoom and the readout stay connected), and nothing is drawn on the
+GUI. A canvas that `worker_draws` never draws on a resize: it keeps the picture on show (`_stale`), stretched, and the view
+draws again `RESIZE_MS` after the last resize. The picture and figure on show stay until the new one arrives; closing the
+tab or the window cancels the worker (`PlotView.cancel_load`). A new slow module sets the ClassVar; no UI file knows which.
 
 ### Relax and vc-relax (spec 6, spec 27-7)
 

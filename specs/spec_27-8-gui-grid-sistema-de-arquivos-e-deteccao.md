@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-8 |
-| **Status** | Parcial: R1, R3, R4 e R5 implementados; R2 (passo 3, desenhar em worker) pendente |
+| **Status** | Implementada (R2 pelo passo 3: o grid é desenhado em worker) |
 | **Depende de** | spec 14 (desempenho da detecção), spec 15 (workers), spec 23 (Grids), spec 22 (bandas + DOS) |
 | **Usada por** | nenhuma |
 | **Esforço** | M |
@@ -108,7 +108,7 @@ Em ordem de custo/benefício, parando na primeira que cumprir o orçamento (cada
 - A linha de base de R1 entra aqui, na seção "Notas", ao implementar.
 
 ## Critérios de aceite e testes
-- [ ] `-m perf -s` imprime os tempos de grid 6×6 (misto e PDOS), PDOS de 100 átomos e bandas + DOS; todos dentro do orçamento (ou R2 aplicado até cumprir). **Impresso; o grid 6×6 está fora (2,4 s): R2 passo 3 pendente.**
+- [x] `-m perf -s` imprime os tempos de grid 6×6 (misto e PDOS), PDOS de 100 átomos e bandas + DOS; todos dentro do orçamento (ou R2 aplicado até cumprir). **O grid 6×6 passou de 2,4 s na GUI thread para 0,11–0,13 s de parada (R2 passo 3).**
 - [x] `show_scope` faz ≤ 1 `resolve` por troca de pasta; `sync_scope` com `resolved_root` equivale ao anterior.
 - [x] `test_architecture.py` reprova uma chamada nova de `resolve/exists/is_dir/…` em `ui/` e a lista de exceções não cresce.
 - [x] Invalidar uma pasta só limpa ela, as pastas que leem os seus arquivos (as irmãs, se ela é `*scf*`; o pai, se ela tem arquivos PDOS); as demais mantêm o resultado.
@@ -143,4 +143,31 @@ Máquina do desenvolvedor (x86_64, Python 3.11), mediana de 3 execuções, `plot
 Onde vai o tempo do grid misto: render 1,67 s (dos quais `fit_cell` 1,33 s, quase tudo em `get_tightbbox` → `_update_ticks`) + `canvas.draw()` 0,8 s.
 Experimentos fora do repositório (R2): `PASSES = 1` → 2,13 s; sem `fit_cell` nenhum → 1,77 s (o `draw` sobe para 1,3 s sem o layout). Os passos 1 e 2 do R2
 (menos passadas, debounce maior) não chegam a 1 s nem em teoria, e o passo 1 ainda exige uma passada final que bloqueia de novo. **Só o passo 3 (render em worker) cumpre.**
-Os dois testes de grid estão `xfail(strict=True)` até lá (o teste passa a falhar como XPASS quando o R2 chegar: o marcador sai).
+
+### R2 passo 3 — render em worker
+
+`CalculationModule.render_in_worker` (ClassVar, `False`; `True` no grid) diz que a prévia não é desenhada na GUI thread; a UI só lê o gancho.
+
+- **`core/plotting/offscreen.py`** (Qt-free): `Target(inches, dpi)` (a imagem que o canvas mostra), `snapshot(session)` (cópia dos parâmetros: o worker desenha os de
+  quando foi pedido) e `draw_offscreen(session, params, target) -> Drawn`: sob `MPL_LOCK`, uma `Figure` + `FigureCanvasAgg` próprias, `session.render`, `cancel.check()` e `canvas.draw()`
+  com o `rc` do estilo. `render_grid` chama `cancel.check()` entre as células: um render superado pára ali. Os pixels são os do desenho feito na hora (`test_offscreen.py`).
+- **`ui/widgets/plot_view.py`.** `PlotView.render()` de um módulo `render_in_worker` guarda a figura que está na tela e abre um `run_task` (`_render_in_worker`); outro `render()` cancela o
+  anterior. O alvo (`_target`) é o que o `resizeEvent` do canvas faria do dpi (largura do canvas / largura da figura × device pixel ratio). Ao terminar (`_adopt`) o resultado só vale se o alvo
+  ainda é o mesmo (senão desenha de novo); então `ScaledFigureCanvas.adopt` troca a figura do canvas e o seu `renderer` (o mesmo que `FigureCanvasAgg.draw` deixa e `paintEvent` lê): nada é
+  desenhado na GUI. O registro de eventos do matplotlib mora na `Figure`; `adopt` passa o registro da figura antiga para a nova (pan/zoom, o readout e `_on_release` continuam ligados). Pan/zoom
+  depois disso redesenham a figura na GUI como antes. Num `resizeEvent` o canvas não desenha (`worker_draws`): guarda a imagem em uso e a estica (`_stale`) até a nova chegar, e o `PlotView`
+  desenha de novo 150 ms depois do último resize. Falha do worker: log, `drawing_changed(False)` e a exceção vai ao `ExceptionReporter`; a imagem antiga fica.
+- **`ui/plot_workflow.py`.** `PlotView.drawing_changed(key, bool)` liga o spinner do rodapé ("Desenhando…") e o da aba; fechar a aba (`cancel_load`) ou a janela (`Workspace.cancel_loads`) cancela o worker.
+- **Testes.** `test_offscreen.py`, `test_plot_view_worker.py` (figura trocada, imagem que fica, render superado, resize, tamanho da figura, pan/zoom, fechar, falha, `MPL_LOCK` ocupado),
+  três em `test_grid_workflow.py` (spinners, fechar aba, fechar janela) e `test_perf_grid.py`: o orçamento do grid passa a ser a **maior parada da GUI thread** (timer de 5 ms) e o tempo até a imagem aparecer.
+  Os testes que leem `view.figure` de um grid esperam `plot_grid_helpers.settled(qtbot, view)`.
+
+| Medição (grid 6×6) | Antes (na GUI thread) | Depois (worker) | Orçamento |
+|---|---|---|---|
+| Misto: maior parada da GUI | 2 430 ms | 110 ms | 250 ms |
+| Misto: até a imagem aparecer | 2 430 ms | 2 550 ms | 6 000 ms |
+| Só PDOS: maior parada da GUI | 2 730 ms | 130 ms | 250 ms |
+| Só PDOS: até a imagem aparecer | 2 730 ms | 2 650 ms | 6 000 ms |
+
+O tempo até a imagem aparecer não muda (o trabalho é o mesmo): a GUI é que deixa de parar. Limites conhecidos: o worker segura o GIL em boa parte do layout (a GUI fica responsiva, não instantânea), e
+uma exportação ou outro render espera o `MPL_LOCK` até o grid acabar (ou ser cancelado, entre células). Em 0,5 % das larguras o renderer sai 1 px menor que o widget (arredondamento, como no backend Qt do matplotlib).
