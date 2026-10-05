@@ -1,7 +1,6 @@
 {% extends "qsub/_base.qsub.j2" %}
 {% block programs %}
 PPCOMMAND="{{ qe_bin }}/pp.x"
-PWCOMMAND_SINGLE="{{ qe_bin }}/pw.x"
 {% endblock %}
 {% block body %}
 {% if xsf_dir %}
@@ -9,11 +8,10 @@ PWCOMMAND_SINGLE="{{ qe_bin }}/pw.x"
 mkdir -p {{ xsf_dir }}
 
 {% endif %}
+{# The three SCFs share the K_POINTS automatic, so they run alike: MPI and the same pools. #}
 {% for input, output in pw_runs %}
 ${MPICOMMAND} ${PWCOMMAND} -i "{{ input }}" > "{{ output }}"
 {% endfor %}
-{# The isolated fragment (a few atoms) runs without MPI and pools, as in the cluster's cargas.qsub. #}
-${PWCOMMAND_SINGLE} -i "{{ isolated[0] }}" > "{{ isolated[1] }}"
 
 {# pp.x runs without MPI, also as in cargas.qsub. #}
 {% for input, output in pps %}

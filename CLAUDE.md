@@ -622,8 +622,9 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   (without the atoms picked) and `isolated` (only those), `prefix = '<p>_clean'` / `'<p>_isolated'`, the same cell, cutoffs
   and mesh (nothing of that is a field: pp.x subtracts densities on one FFT grid). `pp_charge_diff.in`
   (`qe/charge_diff/pp_charge_diff.in.j2`) is Δρ = ρ(base) − ρ(clean) − ρ(isolated) (weights 1, −1, −1). The script runs the
-  base and clean SCFs with MPI, the isolated one with `${PWCOMMAND_SINGLE}` (pw.x alone, no `-nk`: as the cluster's
-  `cargas.qsub`), then the four pp.x without MPI; `mkdir -p <xsf_dir>` first. `padrao` asks for the atoms alone; `avancado`
+  three SCFs alike, with `${MPICOMMAND} ${PWCOMMAND}` and the same `-nk` (they share the `K_POINTS automatic`; the
+  cluster's `cargas.qsub` runs the isolated one serial, which Lain does not), then the four pp.x without MPI;
+  `mkdir -p <xsf_dir>` first. `padrao` asks for the atoms alone; `avancado`
   adds `iflag`, `output_format` (`charge.iflag_field` / `output_format_field` / `format_problem`, shared with Carga) and
   `xsf_dir` ("Pasta dos .xsf", `cdd_xsf`), the same for the four pp.x (`<dir>/<x>_charge.xsf`, `<dir>/<p>_charge_diff.xsf`).
   **The plan always has all eight files**: an invalid selection puts the error on the `atoms` field (`work.problem`) and

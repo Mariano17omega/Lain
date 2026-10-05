@@ -3,8 +3,8 @@
 From the user's SCF the folder gets the SCF itself, ``scf_<p>_clean.in`` (without the atoms picked in
 the "Átomos" tab) and ``scf_<p>_isolated.in`` (only those atoms), the three on the same cell, cutoffs
 and mesh (``fragments.split_input`` touches only atoms and species), a pp.x input for each SCF's density
-and ``pp_charge_diff.in``, which subtracts them. The script runs the three SCFs (the small isolated one
-without MPI, as the cluster's ``cargas.qsub``), then the four pp.x. ``padrao`` asks for the atoms
+and ``pp_charge_diff.in``, which subtracts them. The script runs the three SCFs alike, with MPI and the
+same pools (they share the ``K_POINTS automatic``), then the four pp.x. ``padrao`` asks for the atoms
 alone; ``avancado`` adds the format of the XSF files and the folder they go to, the same for the four.
 """
 
@@ -114,8 +114,7 @@ class ChargeDiffType(CalcType):
 
     def script_values(self, work: Work) -> dict[str, Any]:
         return {
-            "pw_runs": [work.run(SCF_KEY), work.run(CLEAN_KEY)],
-            "isolated": work.run(ISOLATED_KEY),
+            "pw_runs": [work.run(key) for key in (SCF_KEY, CLEAN_KEY, ISOLATED_KEY)],
             "pps": [work.run(key) for key in (PP_BASE, PP_CLEAN, PP_ISOLATED)],
             "diff": work.run(PP_DIFF),
             "xsf_dir": fileout_dir(_xsf(xsf_dir_of(work.values), "x")),

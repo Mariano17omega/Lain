@@ -244,7 +244,7 @@ def test_the_script_runs_the_inputs_in_order():
         "mkdir -p cdd_xsf",
         '${MPICOMMAND} ${PWCOMMAND} -i "scf_ilita.in" > "scf_ilita.out"',
         '${MPICOMMAND} ${PWCOMMAND} -i "scf_ilita_clean.in" > "scf_ilita_clean.out"',
-        '${PWCOMMAND_SINGLE} -i "scf_ilita_isolated.in" > "scf_ilita_isolated.out"',
+        '${MPICOMMAND} ${PWCOMMAND} -i "scf_ilita_isolated.in" > "scf_ilita_isolated.out"',
         '${PPCOMMAND} -i "pp_ilita_charge.in" > "pp_ilita_charge.out"',
         '${PPCOMMAND} -i "pp_ilita_clean_charge.in" > "pp_ilita_clean_charge.out"',
         '${PPCOMMAND} -i "pp_ilita_isolated_charge.in" > "pp_ilita_isolated_charge.out"',
@@ -254,14 +254,15 @@ def test_the_script_runs_the_inputs_in_order():
     ]
 
 
-def test_the_isolated_run_has_no_mpi_and_no_pools():
-    # As in the cluster's cargas.qsub: the fragment is small, its k-points few.
+def test_the_three_scfs_run_with_mpi_and_the_same_pools():
+    # They share the K_POINTS automatic: no run of its own for the isolated fragment.
     script = plan().files[0].text
     assert 'PWCOMMAND="/opt/espresso-7.1/bin/pw.x -nk 4"' in script
-    assert 'PWCOMMAND_SINGLE="/opt/espresso-7.1/bin/pw.x"' in script
+    assert "PWCOMMAND_SINGLE" not in script
     assert 'PPCOMMAND="/opt/espresso-7.1/bin/pp.x"' in script
     mpi = [line for line in script.splitlines() if line.startswith("${MPICOMMAND}")]
-    assert len(mpi) == 2 and not any("isolated" in line for line in mpi)
+    assert len(mpi) == 3 and all("${PWCOMMAND} -i" in line for line in mpi)
+    assert any("isolated" in line for line in mpi)
     assert not any(line.startswith("${MPICOMMAND}") and "PPCOMMAND" in line for line in mpi)
 
 
