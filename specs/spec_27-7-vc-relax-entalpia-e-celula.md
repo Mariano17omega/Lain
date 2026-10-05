@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-7 |
-| **Status** | Proposta |
+| **Status** | Implementada. Desvios:<br>- **Volume e célula são da geometria do passo, não do bloco onde foram impressos:** o QE imprime `new unit-cell volume` e `CELL_PARAMETERS` depois do SCF do passo k, com a geometria do passo k+1. O parser guarda o par e o aplica ao passo seguinte só quando `bfgs_step` é contíguo (`carry`); o último passo de uma execução convergida recebe os de `Begin final coordinates`. Na fixture aparada (passos 0, 1, 2, 23, 24) só os passos 1, 2 e 4 têm volume e célula; o gráfico pula os `None`.<br>- **O volume do passo 0 nunca é lido:** o `unit-cell volume` do cabeçalho é o da célula do *input*; com `restart_mode = 'restart'` (a fixture) vale 328,7 Å³ e a geometria real do 1º SCF é ≈334,3 Å³ (P₀ = −0,13 kbar).<br>- **A entalpia do passo 0 existe** (`enthalpy new` sem `old`) e o último passo traz `Final enthalpy` em vez de `enthalpy new`: todo passo completo tem H. Não há derivação `E + P·V` no parser (nunca dispararia); o teste confere `H = E` onde `press = 0` e a constante kbar·Å³ → Ry numa saída sintética.<br>- **Contagens da fixture:** `CELL_PARAMETERS` são 4 + 1 (final) = 5, não 5 + 1; `enthalpy new` 4, `new unit-cell volume` 5, `P=` 6.<br>- **R3 sem código:** o resumo já tinha "Pressão" (a do SCF final, com o tensor), "Entalpia final" e "Volume (inicial → final)" (a.u.³, do cabeçalho ao último `new unit-cell volume`); só ganhou asserts. O volume inicial dessa linha é o do cabeçalho (mesma ressalva do restart).<br>- **Nomes:** painel "Energia / entalpia" (valor `energy`) e "Todos" (`all`, stem `relax_todos`, mesmo num relax sem dados, onde a figura é a de `both`); `RelaxData.convergence_deltas()` diz o que o painel de energia desenha; os painéis novos e as leituras do cursor estão em `core/calculations/relax_panels.py`; o limiar de pressão é a faixa `press ± press_conv_thr` (duas tracejadas, um rótulo); pressão e volume são sempre lineares.<br>- **Testes:** os goldens são `tests/relax_golden.json` + `tests/test_relax_figures.py` (inclui as barras, que `figure_structure` não vê), capturados do código anterior para `si_relax`, `kao_slab_relax` e `kao_supercell_relax`; não entraram em `test_figure_regression.py`. `test_perf_detection.py` ganhou `test_parse_relax_huge_output` (200 MB: 1,29 s → 1,12 s; orçamento 2,5 s).<br>- A altura da figura não é recalculada para `all` (o usuário a ajusta); o critério `converged` sem `bfgs converged` segue por |ΔE| (igual a |ΔH| com `press = 0`). |
 | **Depende de** | spec 6 (gráficos de relaxamento), spec 12 (resumo, `parse_relax` em fluxo) |
 | **Usada por** | nenhuma |
 | **Esforço** | M |
@@ -80,8 +80,8 @@
 - `CLAUDE.md`: seção de gráficos (relax/vc-relax: entalpia, `panels = all`) e `specs/Archived/spec_6-…` fica como histórico.
 
 ## Critérios de aceite e testes
-- [ ] Parser: 4 entalpias, 5 volumes, 6 pressões, 5+1 células e `Final enthalpy` na fixture; nada novo em `relax`/SCF; um passe pelo fluxo.
-- [ ] `E + press·V` reproduz a entalpia impressa (< 1e-5 Ry) onde ela existe.
-- [ ] vc-relax: painel "|ΔH| (Ry)" com limiar `etot_conv_thr`; `all` com pressão e volume; `both`/relax como antes (goldens intactos).
-- [ ] Resumo do vc-relax com volume e pressão finais.
-- [ ] `test_perf_detection.py` (relax de 200 MB) dentro do orçamento; `ruff`, `pyright`, `test_architecture.py` verdes.
+- [x] Parser: 4 entalpias, 5 volumes, 6 pressões, 4+1 células e `Final enthalpy` na fixture; nada novo em `relax`/SCF; um passe pelo fluxo.
+- [x] `E + press·V` reproduz a entalpia impressa (< 1e-5 Ry) onde ela existe.
+- [x] vc-relax: painel "|ΔH| (Ry)" com limiar `etot_conv_thr`; `all` com pressão e volume; `both`/relax como antes (goldens intactos).
+- [x] Resumo do vc-relax com volume e pressão finais (linhas que já existiam).
+- [x] `test_perf_detection.py` (relax de 200 MB) dentro do orçamento; `ruff`, `pyright`, `test_architecture.py` verdes.

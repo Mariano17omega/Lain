@@ -22,7 +22,7 @@ and add a `Run` row. `git add` the folder: `test_fixtures_untouched.py` fails on
 | `qe731_ni_spin_pdos/` | same Ni run (QE 7.3.1) | `ni.scf.*`, `ni.nscf.*`, `ni.pdos.*` (projwfc.x, per-k-point projections removed), `ni.pdos_atm#1(Ni)_wfc#1(s)` / `#2(d)` and `ni.pdos_tot` with `up`/`dw` columns |
 | `qe731_ni_spin_fixed/` | same Ni, `tot_magnetization = 0.5` (QE 7.3.1) | SCF only: prints `the spin up/dw Fermi energies are` (two Fermi energies) |
 | `si_relax/` | Si relax tutorial run (QE 7.3.1) | `si.rel.in` / `si.rel.out` |
-| `kao_vc_relax/` | user's kaolinite bulk vc-relax (QE 7.1) | 25 BFGS steps in the run; keeps steps 0–2 and 23–24, `bfgs converged`, `Final scf calculation` and its SCF, `JOB DONE` |
+| `kao_vc_relax/` | user's kaolinite bulk vc-relax (QE 7.1) | 25 BFGS steps in the run; keeps steps 0–2 and 23–24, `bfgs converged`, `Final scf calculation` and its SCF, `JOB DONE`. A `restart_mode='restart'` run: the header `unit-cell volume` is the input cell, not the first SCF's. Its volume / `CELL_PARAMETERS` follow the step that ran on them, so the trim leaves step 3 (BFGS 23) without them (`test_relax.py`) |
 | `kao_slab_relax/` | user's kaolinite (001) slab relax (QE 7.1) | 42 steps in the run; keeps steps 0–2 and 40–41 |
 | `kao_supercell_relax/` | user's kaolinite 2×1×1 slab relax (QE 7.1) | a single step: `bfgs converged in 1 scf cycles and 0 bfgs steps` |
 

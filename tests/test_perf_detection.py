@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from qe_studio.core.detection import detect_folder
+from qe_studio.core.qe.relax import read_relax
 from qe_studio.core.sniff import FileKind, SniffCache
 from qe_studio.ui.services import DetectionService
 from synthetic import make_gnu, make_huge_relax, make_project
@@ -30,6 +31,7 @@ BUDGET = {
     "full_sniff": 0.22,  # 446 → 117 ms
     "gnu_sniff": 1.5,  # 541 → 493 ms: the gain is no size limit and bounded memory, absolute
     "refresh": 0.048,  # 96 → 7 ms
+    "parse_relax": 2.5,  # 1.29 → 1.12 s (spec 27-7 added the vc-relax fields): absolute
     "import": 0.6,  # 827 → 385 ms: PyQt6 and matplotlib remain; ASE is checked by name below
 }
 REFRESH_FOLDERS = 50
@@ -91,6 +93,14 @@ def test_sniff_huge_output(huge_relax):
     assert sniffed.kind is FileKind.PW_OUT and sniffed.calculation == "relax"
     assert sniffed.job_done
     assert seconds < BUDGET["huge_sniff"]
+
+
+@pytest.mark.perf
+def test_parse_relax_huge_output(huge_relax):
+    seconds = min(timed(lambda: read_relax(huge_relax)) for _ in range(2))
+    report(f"parse_relax {huge_relax.stat().st_size // 2**20} MB", seconds)
+    assert len(read_relax(huge_relax).steps) > 1000
+    assert seconds < BUDGET["parse_relax"]
 
 
 @pytest.mark.perf

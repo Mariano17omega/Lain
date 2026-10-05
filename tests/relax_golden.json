@@ -1,0 +1,1267 @@
+{
+ "si_relax_both": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     6.5
+    ],
+    "ylim": [
+     0.0,
+     0.0727
+    ],
+    "xlabel": "",
+    "ylabel": "|ΔE| (Ry)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "etot_conv_thr = 1.0e-04 Ry"
+    ],
+    "bars": [
+     {
+      "x": 0.64,
+      "w": 0.72,
+      "h": 0.03551547,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 1.64,
+      "w": 0.72,
+      "h": 0.01456133,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 2.64,
+      "w": 0.72,
+      "h": 0.00113023,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 3.64,
+      "w": 0.72,
+      "h": 4.57e-05,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 4.64,
+      "w": 0.72,
+      "h": 2.1e-07,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 5.64,
+      "w": 0.72,
+      "h": 2.1e-08,
+      "color": "#38bdf8"
+     }
+    ],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   },
+   {
+    "xlim": [
+     -0.5,
+     6.5
+    ],
+    "ylim": [
+     0.0,
+     0.4197
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 7
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "forc_conv_thr = 1.0e-06 Ry/Bohr"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    6.5
+   ],
+   "ylim": [
+    0.0,
+    0.0727
+   ],
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "notes": []
+  }
+ },
+ "si_relax_both_linear": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     6.5
+    ],
+    "ylim": [
+     0.0,
+     0.0373
+    ],
+    "xlabel": "",
+    "ylabel": "|ΔE| (Ry)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "etot_conv_thr = 1.0e-04 Ry"
+    ],
+    "bars": [
+     {
+      "x": 0.64,
+      "w": 0.72,
+      "h": 0.03551547,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 1.64,
+      "w": 0.72,
+      "h": 0.01456133,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 2.64,
+      "w": 0.72,
+      "h": 0.00113023,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 3.64,
+      "w": 0.72,
+      "h": 4.57e-05,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 4.64,
+      "w": 0.72,
+      "h": 2.1e-07,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 5.64,
+      "w": 0.72,
+      "h": 0.0,
+      "color": "#38bdf8"
+     }
+    ],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   },
+   {
+    "xlim": [
+     -0.5,
+     6.5
+    ],
+    "ylim": [
+     -0.011,
+     0.2302
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 7
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "forc_conv_thr = 1.0e-06 Ry/Bohr"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    6.5
+   ],
+   "ylim": [
+    0.0,
+    0.0373
+   ],
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "notes": []
+  }
+ },
+ "si_relax_energy": {
+  "structure": [
+   {
+    "xlim": [
+     0.5,
+     6.5
+    ],
+    "ylim": [
+     0.0,
+     0.0727
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "|ΔE| (Ry)",
+    "title": "",
+    "xticklabels": [
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "etot_conv_thr = 1.0e-04 Ry"
+    ],
+    "bars": [
+     {
+      "x": 0.64,
+      "w": 0.72,
+      "h": 0.03551547,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 1.64,
+      "w": 0.72,
+      "h": 0.01456133,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 2.64,
+      "w": 0.72,
+      "h": 0.00113023,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 3.64,
+      "w": 0.72,
+      "h": 4.57e-05,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 4.64,
+      "w": 0.72,
+      "h": 2.1e-07,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 5.64,
+      "w": 0.72,
+      "h": 2.1e-08,
+      "color": "#38bdf8"
+     }
+    ],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   }
+  ],
+  "info": {
+   "xlim": [
+    0.5,
+    6.5
+   ],
+   "ylim": [
+    0.0,
+    0.0727
+   ],
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "notes": []
+  }
+ },
+ "si_relax_force": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     6.5
+    ],
+    "ylim": [
+     0.0,
+     0.4197
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 7
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "forc_conv_thr = 1.0e-06 Ry/Bohr"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    6.5
+   ],
+   "ylim": [
+    0.0,
+    0.4197
+   ],
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "notes": []
+  }
+ },
+ "si_relax_force_linear": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     6.5
+    ],
+    "ylim": [
+     -0.011,
+     0.2302
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 7
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "forc_conv_thr = 1.0e-06 Ry/Bohr"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    6.5
+   ],
+   "ylim": [
+    -0.011,
+    0.2302
+   ],
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "notes": []
+  }
+ },
+ "si_relax_no_thresholds": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     6.5
+    ],
+    "ylim": [
+     0.0,
+     0.0727
+    ],
+    "xlabel": "",
+    "ylabel": "|ΔE| (Ry)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [],
+    "fills": 0,
+    "legend": null,
+    "bars": [
+     {
+      "x": 0.64,
+      "w": 0.72,
+      "h": 0.03551547,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 1.64,
+      "w": 0.72,
+      "h": 0.01456133,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 2.64,
+      "w": 0.72,
+      "h": 0.00113023,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 3.64,
+      "w": 0.72,
+      "h": 4.57e-05,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 4.64,
+      "w": 0.72,
+      "h": 2.1e-07,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 5.64,
+      "w": 0.72,
+      "h": 2.1e-08,
+      "color": "#38bdf8"
+     }
+    ],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   },
+   {
+    "xlim": [
+     -0.5,
+     6.5
+    ],
+    "ylim": [
+     0.0,
+     0.4197
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 7
+     }
+    ],
+    "fills": 0,
+    "legend": null,
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    6.5
+   ],
+   "ylim": [
+    0.0,
+    0.0727
+   ],
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "notes": []
+  }
+ },
+ "kao_slab_relax_both": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     0.0,
+     0.0003
+    ],
+    "xlabel": "",
+    "ylabel": "|ΔE| (Ry)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "etot_conv_thr = 1.0e-05 Ry"
+    ],
+    "bars": [
+     {
+      "x": 0.64,
+      "w": 0.72,
+      "h": 5.85e-06,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 1.64,
+      "w": 0.72,
+      "h": 7.95e-06,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 2.64,
+      "w": 0.72,
+      "h": 0.00017849,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 3.64,
+      "w": 0.72,
+      "h": 1.899998e-07,
+      "color": "#38bdf8"
+     }
+    ],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   },
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     0.0001,
+     0.0036
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 5
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "forc_conv_thr = 1.0e-04 Ry/Bohr"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    4.5
+   ],
+   "ylim": [
+    0.0,
+    0.0003
+   ],
+   "summary": "Relaxado ✓ · 41 passos BFGS · |ΔE| final 1.9e-07 Ry · F final 3.0e-04 Ry/Bohr",
+   "notes": []
+  }
+ },
+ "kao_supercell_relax_both": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     0.5
+    ],
+    "ylim": [
+     0.0,
+     1.0
+    ],
+    "xlabel": "",
+    "ylabel": "",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [],
+    "fills": 0,
+    "legend": null,
+    "bars": [],
+    "texts": [
+     "São necessários pelo menos dois passos completos para calcular |ΔE|."
+    ],
+    "axis_on": false,
+    "yscale": "linear"
+   },
+   {
+    "xlim": [
+     -0.5,
+     0.5
+    ],
+    "ylim": [
+     0.0001,
+     0.0011
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [
+     "0"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 1
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "forc_conv_thr = 1.0e-04 Ry/Bohr"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    0.5
+   ],
+   "ylim": [
+    0.0,
+    1.0
+   ],
+   "summary": "Relaxado ✓ · 0 passos BFGS · F final 4.4e-04 Ry/Bohr",
+   "notes": []
+  }
+ },
+ "kao_vc_relax_both": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     0.0,
+     0.0001
+    ],
+    "xlabel": "",
+    "ylabel": "|ΔH| (Ry)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "etot_conv_thr = 1.0e-05 Ry"
+    ],
+    "bars": [
+     {
+      "x": 0.64,
+      "w": 0.72,
+      "h": 6.469e-06,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 1.64,
+      "w": 0.72,
+      "h": 5.8685e-06,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 2.64,
+      "w": 0.72,
+      "h": 5.53173e-05,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 3.64,
+      "w": 0.72,
+      "h": 5.513e-07,
+      "color": "#38bdf8"
+     }
+    ],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   },
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     0.0001,
+     0.0031
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 5
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "forc_conv_thr = 1.0e-04 Ry/Bohr"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    4.5
+   ],
+   "ylim": [
+    0.0,
+    0.0001
+   ],
+   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F final 4.3e-04 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
+   "notes": []
+  }
+ },
+ "kao_vc_relax_all": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     0.0,
+     0.0001
+    ],
+    "xlabel": "",
+    "ylabel": "|ΔH| (Ry)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "etot_conv_thr = 1.0e-05 Ry"
+    ],
+    "bars": [
+     {
+      "x": 0.64,
+      "w": 0.72,
+      "h": 6.469e-06,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 1.64,
+      "w": 0.72,
+      "h": 5.8685e-06,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 2.64,
+      "w": 0.72,
+      "h": 5.53173e-05,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 3.64,
+      "w": 0.72,
+      "h": 5.513e-07,
+      "color": "#38bdf8"
+     }
+    ],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   },
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     0.0001,
+     0.0031
+    ],
+    "xlabel": "",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 5
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "forc_conv_thr = 1.0e-04 Ry/Bohr"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "log"
+   },
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     -0.592,
+     0.552
+    ],
+    "xlabel": "",
+    "ylabel": "Pressão (kbar)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#f59e0b",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 5
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     },
+     {
+      "label": "_",
+      "color": "#f43f5e",
+      "lw": 1.0,
+      "ls": "--",
+      "n": 2
+     }
+    ],
+    "fills": 0,
+    "legend": [
+     "press_conv_thr = 5.0e-01 kbar"
+    ],
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   },
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     333.9842,
+     334.3456
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Volume (Å³)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#8b5cf6",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 3
+     }
+    ],
+    "fills": 0,
+    "legend": null,
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    4.5
+   ],
+   "ylim": [
+    0.0,
+    0.0001
+   ],
+   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F final 4.3e-04 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
+   "notes": []
+  }
+ },
+ "kao_vc_relax_all_linear": {
+  "structure": [
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     0.0,
+     0.0001
+    ],
+    "xlabel": "",
+    "ylabel": "|ΔH| (Ry)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [],
+    "fills": 0,
+    "legend": null,
+    "bars": [
+     {
+      "x": 0.64,
+      "w": 0.72,
+      "h": 6.469e-06,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 1.64,
+      "w": 0.72,
+      "h": 5.8685e-06,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 2.64,
+      "w": 0.72,
+      "h": 5.53173e-05,
+      "color": "#38bdf8"
+     },
+     {
+      "x": 3.64,
+      "w": 0.72,
+      "h": 5.513e-07,
+      "color": "#38bdf8"
+     }
+    ],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   },
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     0.0003,
+     0.0027
+    ],
+    "xlabel": "",
+    "ylabel": "Força total (Ry/Bohr)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#10b981",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 5
+     }
+    ],
+    "fills": 0,
+    "legend": null,
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   },
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     -0.5685,
+     0.0585
+    ],
+    "xlabel": "",
+    "ylabel": "Pressão (kbar)",
+    "title": "",
+    "xticklabels": [],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#f59e0b",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 5
+     }
+    ],
+    "fills": 0,
+    "legend": null,
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   },
+   {
+    "xlim": [
+     -0.5,
+     4.5
+    ],
+    "ylim": [
+     333.9842,
+     334.3456
+    ],
+    "xlabel": "Passo BFGS",
+    "ylabel": "Volume (Å³)",
+    "title": "",
+    "xticklabels": [
+     "0",
+     "1",
+     "2",
+     "3",
+     "4"
+    ],
+    "line_collections": [],
+    "lines": [
+     {
+      "label": "_",
+      "color": "#8b5cf6",
+      "lw": 1.2,
+      "ls": "-",
+      "n": 3
+     }
+    ],
+    "fills": 0,
+    "legend": null,
+    "bars": [],
+    "texts": [],
+    "axis_on": true,
+    "yscale": "linear"
+   }
+  ],
+  "info": {
+   "xlim": [
+    -0.5,
+    4.5
+   ],
+   "ylim": [
+    0.0,
+    0.0001
+   ],
+   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F final 4.3e-04 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
+   "notes": []
+  }
+ }
+}

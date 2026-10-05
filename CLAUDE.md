@@ -319,6 +319,30 @@ Plot settings persist in `<simulation>/<kind>.plot` (YAML, `core/plotting/plot_f
 pan/zoom), debounced 1 s and flushed on tab close, regenerate and exit. Window layout, grid mode/sort and the last folder are
 QSettings (`layout/*`, `files/*`, `explorer/last_folder`).
 
+### Relax and vc-relax (spec 6, spec 27-7)
+
+`core/qe/relax.py:parse_relax` is one pass over the output (also the `summarize` stream) and keeps per
+`RelaxStep` the energy, force and BFGS step, and for a vc-relax `enthalpy_ry`, `pressure_kbar`,
+`volume_ang3` and `cell` (3 rows, Å; `alat` / `bohr` / `angstrom` `CELL_PARAMETERS` all converted).
+pw.x prints a block as `!` energy, `Total force`, `P=`, `number of bfgs steps = k`, `enthalpy new` (the
+geometry just computed), then `new unit-cell volume` and `CELL_PARAMETERS` (the geometry of step k + 1),
+so the pressure and enthalpy go to step k and the volume and cell to the step that ran on them: held as
+`carry` and applied only when its `bfgs_step` follows (a trimmed output leaves `None`); the last step of a
+converged run takes `Begin final coordinates`, and `Final enthalpy` is its enthalpy. The header
+`unit-cell volume` is the *input* cell (wrong after `restart_mode = 'restart'`), so step 0 has no volume.
+These checks run only in the tail of a block (`block`: from the step closing to `ATOMIC_POSITIONS`), not on
+every line: `parse_relax` of 200 MB is `test_parse_relax_huge_output`. `RelaxData` also has
+`pressure_threshold` (header → `criteria: … cell <` → input `press_conv_thr` → 0.5 kbar, never part of
+`defaulted_thresholds`), `target_pressure_kbar` (input `press`) and `convergence_deltas()`: |ΔH| in a
+vc-relax (the BFGS compares the enthalpy to `etot_conv_thr`), |ΔE| otherwise, a pair without H falling back
+to |ΔE| (`RenderInfo.notes`: "entalpia indisponível neste passo").
+
+`RelaxParams.panels` is `both` | `energy` | `force` | `all`; `all` adds the pressure (the `press ±
+press_conv_thr` band) and the volume panels from `core/calculations/relax_panels.py` (always linear, steps
+without a value skipped) and is `both` for a run with neither. `test_relax_figures.py` compares the artists
+(bars included) of every relax fixture with `relax_golden.json`: the non-vc entries were captured before
+spec 27-7, so a change of `both` / `energy` / `force` fails there.
+
 ### Spin (spec 13)
 
 `core/calculations/bands/` and `pdos/` are packages split by responsibility: `module` (roles and thin

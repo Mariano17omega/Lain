@@ -100,6 +100,7 @@ def test_vc_relax_output():
     assert results["Entalpia final"].value == "-1107.4641917963 Ry"
     assert results["E inicial"].value != results["E final"].value
     assert results["Volume (inicial → final)"].value == "2218.2317 → 2253.94778 a.u.^3"
+    assert results["Pressão"].line is not None and results["Entalpia final"].line is not None
     assert general["Paralelização"].value == "MPI, 64 processadores"
     assert general["Divisão de k-pontos (npool)"].value == "8"
     assert general["RAM máx. estimada por processo"].value == "103.84 MB"  # printed twice: last
@@ -112,6 +113,7 @@ def test_relax_final_energy():
     assert results["Energia final (BFGS)"].value == "-15.8682760727 Ry"
     assert results["BFGS"].level == "success"
     assert "Pressão" not in results  # a fixed-cell relax prints no stress
+    assert "Entalpia final" not in results and "Volume (inicial → final)" not in results
 
 
 def test_bands_x_output_has_only_general_and_messages():
