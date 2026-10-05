@@ -249,6 +249,7 @@ class MainWindow(QMainWindow):
         self.navigation.message.connect(self.status.set_message)
         self.help.message.connect(self.status.set_message)
         self.first_run.message.connect(self.status.set_message)
+        self.service.message.connect(self.status.set_message)
         self.focus_areas.message.connect(self.status.set_message)
         sync.cluster_changed.connect(self.top_bar.set_cluster)
         sync.cluster_changed.connect(self.activity.set_cluster)

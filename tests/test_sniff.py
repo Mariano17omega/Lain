@@ -7,7 +7,7 @@ from qe_studio.core import sniff as sniff_module
 from qe_studio.core.sniff import FileKind, SniffCache, looks_like_input
 from synthetic import make_gnu, make_long_header_pw
 
-from conftest import FIXTURES
+from conftest import FIXTURES, copy_fixture
 
 
 @pytest.mark.parametrize(
@@ -190,3 +190,36 @@ def test_looks_like_input_refuses_look_alikes(tmp_path):
     assert not looks_like_input(binary)
     assert not looks_like_input(notes)
     assert not looks_like_input(tmp_path / "missing.in")
+
+
+def test_a_file_that_breaks_a_parser_is_unknown_and_logged_once(tmp_path, monkeypatch, caplog):
+    """One odd file must not zero its folder (spec 27-8 R5): it is UNKNOWN, cached as such."""
+    from qe_studio.core.detection import detect_folder
+
+    def broken(head, tail):
+        raise ValueError("saída estranha")
+
+    folder = copy_fixture("al_bands", tmp_path)
+    monkeypatch.setattr(sniff_module, "parse_pw_output", broken)
+    cache = SniffCache()
+    with caplog.at_level("ERROR", logger=sniff_module.__name__):
+        results = detect_folder(folder, sniff=cache.sniff)
+        assert cache.sniff(folder / "al.scf.out").kind is FileKind.UNKNOWN
+        assert cache.sniff(folder / "al.band.out").kind is FileKind.UNKNOWN
+    assert [r.kind for r in results] == ["bands"]  # the .gnu and the bands.x files still count
+    logged = [r.getMessage() for r in caplog.records]
+    assert sorted(logged) == [f"sniff falhou: {folder / n}" for n in ("al.band.out", "al.scf.out")]
+    assert cache.sniff(folder / "bands.dat.gnu").kind is FileKind.GNU_DATA
+
+
+def test_a_cancelled_sniff_is_not_swallowed(tmp_path, monkeypatch):
+    from qe_studio.core import cancel
+
+    def cancelled(head, tail):
+        raise cancel.Cancelled
+
+    path = tmp_path / "a.out"
+    path.write_text("     Program PWSCF v.7.3.1 starts on  1Jan2025\n")
+    monkeypatch.setattr(sniff_module, "parse_pw_output", cancelled)
+    with pytest.raises(cancel.Cancelled):
+        SniffCache().sniff(path)

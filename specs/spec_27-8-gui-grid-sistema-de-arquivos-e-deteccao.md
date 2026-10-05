@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-8 |
-| **Status** | Proposta |
+| **Status** | Parcial: R1, R3, R4 e R5 implementados; R2 (passo 3, desenhar em worker) pendente |
 | **Depende de** | spec 14 (desempenho da detecção), spec 15 (workers), spec 23 (Grids), spec 22 (bandas + DOS) |
 | **Usada por** | nenhuma |
 | **Esforço** | M |
@@ -75,13 +75,11 @@ Em ordem de custo/benefício, parando na primeira que cumprir o orçamento (cada
    (arquivo sintético) e aprova a lista atual.
 
 ### R4: Invalidação da detecção (T5)
-1. `core/calculations/base.py` exporta `neighbour_scf_folders(folder: Path) -> list[Path]` (as irmãs diretas cujo nome casa `*scf*`) e `reads_neighbours(folder)`; `infer_from_neighbours` passa
-   a usá-las. `DetectionService._affected(folder, key)` usa o **mesmo** predicado: uma chave é afetada se está sob a pasta, ou se é uma irmã `*scf*` dela (ou a própria pasta pai quando
-   `folder` está dentro de `IGNORED_SUBDIRS`, ou o pai de `folder` para arquivos soltos no pai). As duas pontas não podem divergir (um teste as liga).
-2. **Lacuna:** invalidar uma pasta cujo nome está em `IGNORED_SUBDIRS` (`orbitals`, …) invalida também `folder.parent`.
+1. `core/calculations/base.py` exporta `is_neighbour_scf(name)` (o predicado de nome), `neighbour_scf_folders(folder) -> list[Path]` (as irmãs diretas cujo nome casa `*scf*`) e `reads_from(key, folder)` (a detecção de `key` pode ler arquivos de `folder`: `key` está sob `folder`, ou `folder` é uma irmã `*scf*` de `key`); `infer_from_neighbours` passa a usar `neighbour_scf_folders`.
+   `DetectionService._affected` usa `reads_from`. **A dependência é das irmãs que leem a SCF, não o contrário:** `bands_a` e `pdos_a` leem `scf_a`; a SCF não lê ninguém. As duas pontas não podem divergir (um teste as liga).
+2. **Lacuna:** a detecção de `<calc>` lê os arquivos PDOS das subpastas imediatas que não são ignoradas (`FolderListing.scan`; `orbitals` **não** está em `IGNORED_SUBDIRS`). `feeds_parent(folder)` (um `scandir`) diz se `folder` alimenta o pai; então invalidar `folder` invalida também `folder.parent`. Uma subpasta sem arquivos PDOS (ou ignorada) não invalida o pai.
 3. As irmãs que não são afetadas **mantêm** o resultado (não voltam a "detectando…"). F5 sem pasta (`invalidate()`) continua limpando tudo (`SniffCache.prune`, spec 14).
-4. Testes: projeto com 3 irmãs (`bands_a`, `pdos_a`, `scf_a`): invalidar `bands_a` limpa `bands_a` e `scf_a` e deixa `pdos_a`; invalidar `<calc>/orbitals` limpa `<calc>`; o predicado
-   usado por `infer_from_neighbours` e por `_affected` é o mesmo objeto.
+4. Testes: projeto com `scf_a`, `bands_a`, `pdos_a`, `relax_a` e `nested/pdos_b`: invalidar `bands_a` limpa só `bands_a` (a raiz e as irmãs mantêm); invalidar `scf_a` limpa `scf_a` e as irmãs (o serviço não sabe, antes da detecção, quais leem a SCF) e deixa `nested/pdos_b`; invalidar `<calc>/orbitals` (com arquivos PDOS) limpa `<calc>`, mas uma subpasta sem PDOS não; `reads_from` e `neighbour_scf_folders` concordam em todas as irmãs, e `infer_from_neighbours` usa `neighbour_scf_folders`.
 
 ### R5: Detecção que não zera a pasta (B4)
 1. `SniffCache.sniff` captura **qualquer** `Exception` por arquivo: devolve `FileKind.UNKNOWN`, grava `log.exception("sniff falhou: <arquivo>")` (uma vez por (arquivo, mtime, tamanho)) e guarda o
@@ -110,9 +108,39 @@ Em ordem de custo/benefício, parando na primeira que cumprir o orçamento (cada
 - A linha de base de R1 entra aqui, na seção "Notas", ao implementar.
 
 ## Critérios de aceite e testes
-- [ ] `-m perf -s` imprime os tempos de grid 6×6 (misto e PDOS), PDOS de 100 átomos e bandas + DOS; todos dentro do orçamento (ou R2 aplicado até cumprir).
-- [ ] `show_scope` faz ≤ 1 `resolve` por troca de pasta; `sync_scope` com `resolved_root` equivale ao anterior.
-- [ ] `test_architecture.py` reprova uma chamada nova de `resolve/exists/is_dir/…` em `ui/` e a lista de exceções não cresce.
-- [ ] Invalidar uma pasta só limpa ela, as irmãs `*scf*` e, para subpastas ignoradas, o pai; as demais irmãs mantêm o resultado.
-- [ ] Arquivo que quebra o parser vira `UNKNOWN` com log e não zera a pasta; `_detect` com falha termina o busy, mostra a mensagem e o F5 tenta de novo.
-- [ ] `ruff`, `pyright`, suíte `-m "not realdata and not perf"` verdes.
+- [ ] `-m perf -s` imprime os tempos de grid 6×6 (misto e PDOS), PDOS de 100 átomos e bandas + DOS; todos dentro do orçamento (ou R2 aplicado até cumprir). **Impresso; o grid 6×6 está fora (2,4 s): R2 passo 3 pendente.**
+- [x] `show_scope` faz ≤ 1 `resolve` por troca de pasta; `sync_scope` com `resolved_root` equivale ao anterior.
+- [x] `test_architecture.py` reprova uma chamada nova de `resolve/exists/is_dir/…` em `ui/` e a lista de exceções não cresce.
+- [x] Invalidar uma pasta só limpa ela, as pastas que leem os seus arquivos (as irmãs, se ela é `*scf*`; o pai, se ela tem arquivos PDOS); as demais mantêm o resultado.
+- [x] Arquivo que quebra o parser vira `UNKNOWN` com log e não zera a pasta; `_detect` com falha termina o busy, mostra a mensagem e o F5 tenta de novo.
+- [x] `ruff`, `pyright`, suíte `-m "not realdata and not perf"` verdes.
+
+### Implementação (R1, R3, R4, R5)
+
+- Novos: `tests/test_perf_grid.py`, `tests/test_neighbours.py`.
+- **R5.** `SniffCache.sniff` captura qualquer `Exception` (menos `cancel.Cancelled`), loga `sniff falhou: <arquivo>` e guarda o `UNKNOWN` no cache.
+  `DetectionService._detect` não engole mais; `_on_error` loga, guarda `[]` marcado em `_failed`, emite `detected` e depois o sinal novo
+  `message` ("Falha ao detectar <pasta> (veja o log)", uma vez por pasta; `invalidate` limpa a marca). `MainWindow` liga `service.message` ao rodapé.
+- **R4.** Ver R4.1/R4.2 acima. `DetectionService.invalidate` calcula `feeds_parent(folder)` uma vez (um `scandir` na GUI thread) e passa o pai a `_affected`.
+  Desvios do texto original: (a) a direção da dependência (o texto dizia que invalidar `bands_a` limpava `scf_a`, e invalidar `scf_a` deixaria `bands_a` velha);
+  (b) `orbitals` não está em `IGNORED_SUBDIRS`: a lacuna real é o pai ler os PDOS das subpastas, não as pastas ignoradas (que o pai nunca lê).
+- **R3.** `remote_dir_for(..., resolved_root=)` e `remote_dir_of`, `prepare_sync` / `prepare_push` / `push_availability` / `sync_scope` com `resolved_root=`;
+  `SyncCoordinator._set_root` guarda a raiz resolvida e o escopo do projeto inteiro por configuração; `show_scope` faz 1 `resolve` (era até 12).
+  `FS_CALLS` / `FS_ALLOWED` em `test_architecture.py`: 35 chamadas em 17 arquivos (o relatório contava 37; o AST conta as que existem hoje).
+  Os pontos quentes têm comentário "aceito: disco local" (`context_menu`, `setup_page`, `grids_controller`) e `plan_export` avisa na docstring que roda na GUI.
+
+### Medições (R1) — `uv run pytest -m perf -s tests/test_perf_grid.py`
+
+Máquina do desenvolvedor (x86_64, Python 3.11), mediana de 3 execuções, `plot_grid_helpers.draw` (render do módulo + `canvas.draw()` Agg, 72 dpi).
+
+| Medição | Linha de base | Orçamento |
+|---|---|---|
+| Grid 6×6 misto (bandas, PDOS, relax, SCF, bandas + DOS) | 2 430 ms | 1 000 ms — **fora** |
+| Grid 6×6 só de PDOS | 2 730 ms | 1 000 ms — **fora** |
+| PDOS de 100 átomos | 67 ms | 500 ms |
+| Bandas + DOS | 74 ms | 500 ms |
+
+Onde vai o tempo do grid misto: render 1,67 s (dos quais `fit_cell` 1,33 s, quase tudo em `get_tightbbox` → `_update_ticks`) + `canvas.draw()` 0,8 s.
+Experimentos fora do repositório (R2): `PASSES = 1` → 2,13 s; sem `fit_cell` nenhum → 1,77 s (o `draw` sobe para 1,3 s sem o layout). Os passos 1 e 2 do R2
+(menos passadas, debounce maior) não chegam a 1 s nem em teoria, e o passo 1 ainda exige uma passada final que bloqueia de novo. **Só o passo 3 (render em worker) cumpre.**
+Os dois testes de grid estão `xfail(strict=True)` até lá (o teste passa a falhar como XPASS quando o R2 chegar: o marcador sai).

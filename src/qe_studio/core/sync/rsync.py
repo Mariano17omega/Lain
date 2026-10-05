@@ -44,15 +44,24 @@ class Endpoint:
         return f"{login}:{path}"
 
 
-def remote_dir_for(local_folder: Path, config: AppConfig) -> str:
-    """Remote counterpart of ``local_folder`` (which must lie inside ``paths.local_root``)."""
-    root = config.paths.local_root.resolve()
-    folder = Path(local_folder).resolve()
+def remote_dir_for(
+    local_folder: Path, config: AppConfig, *, resolved_root: Path | None = None
+) -> str:
+    """Remote counterpart of ``local_folder`` (which must lie inside ``paths.local_root``).
+
+    ``resolved_root`` is ``paths.local_root.resolve()`` when the caller already has it (resolving
+    touches the disk: the window keeps it, spec 27-8 R3)."""
+    root = resolved_root if resolved_root is not None else config.paths.local_root.resolve()
+    return remote_dir_of(Path(local_folder).resolve(), root, config.paths.remote_root)
+
+
+def remote_dir_of(folder: Path, root: Path, remote_root: str) -> str:
+    """The remote path of ``folder`` under ``remote_root``; both local paths are already resolved."""
     try:
         relative = folder.relative_to(root)
     except ValueError as exc:
         raise ValueError(f"{folder} não está dentro da pasta local configurada ({root})") from exc
-    remote = PurePosixPath(config.paths.remote_root)
+    remote = PurePosixPath(remote_root)
     return str(remote.joinpath(*relative.parts)) if relative.parts else str(remote)
 
 

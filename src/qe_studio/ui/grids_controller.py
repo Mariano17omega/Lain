@@ -101,6 +101,7 @@ class GridsController(QObject):
         """A saved cell's plot that is not open: its kind and path, and whether it is gone."""
         module = next((m for m in REGISTRY if m.kind == ref.kind), None)
         name = module.display_name if module is not None else ref.kind
+        # Accepted, local disk: a stat per path of one reference, at most 6×6 of them (spec 27-8 R3.3).
         missing = not all(path.exists() for path in ref.paths)
         return PlotChoice(f"{name} · {ref.path.name}{self._where(ref.path)}", ref, missing)
 

@@ -4,6 +4,7 @@ final report and the cluster label. Real pulls are in ``test_sync_ui.py``."""
 from pathlib import Path
 
 import pytest
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QInputDialog, QMessageBox, QWidget
 
 from qe_studio.core.config import parse_config
@@ -169,3 +170,35 @@ def test_a_pull_refreshes_what_changed(qtbot, tmp_path, boxes):
 
 def test_shutdown_without_a_run_is_in_time(qtbot, tmp_path, boxes):
     assert make(qtbot, tmp_path).shutdown(100) is True
+
+
+def test_a_folder_change_resolves_one_path(qtbot, tmp_path, monkeypatch):
+    """Spec 27-8 R3.1: the root and the scope of the whole project are kept; only the folder is
+    resolved, for the three actions at once."""
+    (tmp_path / "03_bands").mkdir()
+    coordinator = make(qtbot, tmp_path, auth="key")
+    actions = {
+        key: QAction(key, coordinator) for key in ("sync.start", "sync.project", "sync.push")
+    }
+    coordinator.bind_actions(actions)
+
+    resolves = []
+    original = Path.resolve
+    monkeypatch.setattr(
+        Path, "resolve", lambda self, *a, **k: resolves.append(self) or original(self, *a, **k)
+    )
+    coordinator.show_scope(tmp_path / "03_bands")
+    assert len(resolves) == 1
+    assert actions["sync.start"].text() == "Sincronizar 03_bands"
+    assert actions["sync.push"].text() == "Enviar 03_bands ao cluster…"
+    assert actions["sync.push"].isEnabled()
+    assert "projeto inteiro" in actions["sync.project"].toolTip()
+
+    resolves.clear()
+    coordinator.show_scope(tmp_path)
+    assert len(resolves) == 1
+    assert actions["sync.start"].text() == "Sincronizar projeto inteiro"
+    assert not actions["sync.push"].isEnabled()  # the root is never pushed
+    resolves.clear()
+    assert coordinator.push_state(tmp_path / "03_bands") == ""
+    assert len(resolves) == 2  # prepare_sync's and prepare_push's own; the root is not resolved

@@ -54,8 +54,11 @@ class ExportPlan:
 
 
 def plan_export(session: PlotSession) -> ExportPlan:
-    """Formats, target stem and the files already there. Stats the targets (GUI thread, before
-    the export worker starts, so the overwrite question comes first)."""
+    """Formats, target stem and the files already there.
+
+    **Runs on the GUI thread**: it stats the targets (``existing_targets``, ``next_free_stem``)
+    before the export worker starts, so the overwrite question comes first. A few stats on a local
+    disk: accepted (spec 27-8 R3.3); do not add reads of content here."""
     params = session.params
     formats = list(params.export_formats)
     stem = session.module.export_stem(params)

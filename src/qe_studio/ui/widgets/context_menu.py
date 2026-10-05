@@ -82,7 +82,11 @@ class ItemActions(QObject):
         self._reveals: dict[QObject, list[Path]] = {}  # pending D-Bus calls → items
 
     def show(self, paths: list[Path], pos: QPoint, can_rename: bool = True) -> None:
-        """The menu of the selected ``paths`` at the global position ``pos``."""
+        """The menu of the selected ``paths`` at the global position ``pos``.
+
+        The ``is_dir`` and ``looks_like_input`` (the head of a file) calls below stat or read the
+        few selected items while the menu is built: accepted, local disk (spec 27-8 R3.3).
+        """
         if len(paths) == 1:
             path = paths[0]
             plot_kind, is_output = self.file_actions_of(path)

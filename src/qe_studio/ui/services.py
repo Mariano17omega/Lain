@@ -2,41 +2,40 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 
 from ..core.calculations import DetectionResult, drop_cached
+from ..core.calculations.base import feeds_parent, reads_from
 from ..core.detection import detect_folder
 from ..core.folder_memory import FolderMemory
 from ..core.sniff import FileSniff, SniffCache
 from ..core.tasks import TaskGroup
 
+log = logging.getLogger(__name__)
+
 
 def _detect(folder: Path, sniff: SniffCache, memory: FolderMemory | None) -> list[DetectionResult]:
-    try:
-        return detect_folder(folder, sniff=sniff.sniff, memory=memory)
-    except Exception:  # never let a worker exception take the app down
-        return []
+    # No ``except`` here: a failure reaches ``DetectionService._on_error``, which marks the folder
+    # as failed instead of caching "no calculation here" (spec 27-8 R5).
+    return detect_folder(folder, sniff=sniff.sniff, memory=memory)
 
 
-def _within(key: str, folder: Path | None) -> bool:
-    return folder is None or Path(key).is_relative_to(folder)
-
-
-def _affected(key: str, folder: Path | None) -> bool:
-    """Detection that may change with ``folder``'s files: inside it, or a sibling folder
-    (``infer_from_neighbours`` takes the SCF output from sibling ``*scf*`` folders)."""
-    if folder is None:
-        return True
-    return _within(key, folder) or Path(key).parent == Path(folder).parent
+def _affected(key: str, folder: Path | None, parent: Path | None = None) -> bool:
+    """Detection that may change with ``folder``'s files (``core.calculations.base.reads_from``,
+    the rule ``infer_from_neighbours`` follows): the folders inside it and, when it is an SCF
+    folder, its siblings; plus ``parent``, the folder that reads its PDOS files (``feeds_parent``)."""
+    return folder is None or reads_from(Path(key), folder) or Path(key) == parent
 
 
 class DetectionService(QObject):
     """Caches ``detect_folder`` per folder; computes misses in a small thread pool."""
 
     detected = pyqtSignal(str)
+    message = pyqtSignal(str, str, int)  # status bar: text, level, timeout (ms)
 
     def __init__(self, memory: FolderMemory | None = None, parent: QObject | None = None):
         super().__init__(parent)
@@ -48,6 +47,9 @@ class DetectionService(QObject):
         self._pool.setMaxThreadCount(2)
         self._lock = threading.Lock()
         self._results: dict[str, list[DetectionResult]] = {}
+        self._failed: set[str] = (
+            set()
+        )  # folders whose detection raised (their result is a stand-in)
         self._tasks = TaskGroup(self._pool)  # by folder: the task whose result counts
 
     def results(self, folder: Path) -> list[DetectionResult] | None:
@@ -76,6 +78,7 @@ class DetectionService(QObject):
             self.sniff_cache,
             self.memory,
             on_done=self._on_done,
+            on_error=self._on_error,
             priority=1 if fresh else 0,
         )
 
@@ -102,9 +105,12 @@ class DetectionService(QObject):
         changed make new cache keys anyway, so this is what frees their memory (spec 27-4).
         """
         drop_cached(None if folder is None else Path(folder))
+        # One scandir of ``folder``, on the GUI thread (accepted: local disk, once per refresh).
+        parent = Path(folder).parent if folder is not None and feeds_parent(Path(folder)) else None
         with self._lock:
-            for key in [k for k in self._results if _affected(k, folder)]:
+            for key in [k for k in self._results if _affected(k, folder, parent)]:
                 del self._results[key]
+            self._failed = {k for k in self._failed if not _affected(k, folder, parent)}  # F5
         if folder is None and self.paranoid_refresh:
             self.sniff_cache.clear()
         elif folder is None:
@@ -112,7 +118,7 @@ class DetectionService(QObject):
         else:
             self.sniff_cache.invalidate(Path(folder))
         # Running tasks may have read the old files: start over, their results are dropped.
-        for key in [k for k in self._tasks.active_keys() if _affected(str(k), folder)]:
+        for key in [k for k in self._tasks.active_keys() if _affected(str(k), folder, parent)]:
             self.request(Path(str(key)), fresh=True)
 
     def wait(self, msecs: int = 5000) -> bool:
@@ -130,3 +136,15 @@ class DetectionService(QObject):
         with self._lock:
             self._results[key] = results
         self.detected.emit(key)
+
+    def _on_error(self, key: str, exc: Exception) -> None:
+        """The detection raised: the folder shows no calculation, but the failure is logged and
+        said once (until F5 clears it), so it is not mistaken for an empty folder."""
+        log.error("detecção falhou: %s", key, exc_info=exc)
+        with self._lock:
+            self._results[key] = []  # ends the busy state and the wait of ``results()``
+            first = key not in self._failed
+            self._failed.add(key)
+        self.detected.emit(key)
+        if first:  # after ``detected``: a message of its consumers must not replace this one
+            self.message.emit(f"Falha ao detectar {Path(key).name} (veja o log)", "warning", 6000)

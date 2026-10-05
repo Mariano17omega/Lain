@@ -41,6 +41,48 @@ SniffFn = Callable[[Path], FileSniff]
 
 # Folders never scanned below the simulation folder itself.
 IGNORED_SUBDIRS = re.compile(r"^(tmp|plots|out|.*\.save|\..*)$", re.I)
+# Sibling folders ``infer_from_neighbours`` takes the SCF output from.
+NEIGHBOUR_PATTERN = "*scf*"
+
+
+def is_neighbour_scf(name: str, pattern: str = NEIGHBOUR_PATTERN) -> bool:
+    """Whether a folder called ``name`` is one the detection of its siblings reads (the one
+    predicate of ``neighbour_scf_folders`` and ``reads_from``: the two ends cannot diverge)."""
+    return fnmatch.fnmatch(name.lower(), pattern)
+
+
+def neighbour_scf_folders(folder: Path, pattern: str = NEIGHBOUR_PATTERN) -> list[Path]:
+    """The sibling folders of ``folder`` (never itself) its detection takes an SCF output from."""
+    try:
+        return sorted(
+            p
+            for p in folder.parent.iterdir()
+            if p.is_dir() and p != folder and is_neighbour_scf(p.name, pattern)
+        )
+    except OSError:
+        return []
+
+
+def reads_from(key: Path, folder: Path) -> bool:
+    """Whether the detection of folder ``key`` may read files of ``folder`` (``folder`` has changed):
+    ``key`` lies inside it, or ``folder`` is a sibling SCF folder of ``key``. Pure: no disk, unlike
+    ``neighbour_scf_folders``, which it mirrors. See ``feeds_parent`` for the third reader."""
+    if key.is_relative_to(folder):
+        return True
+    return key != folder and key.parent == folder.parent and is_neighbour_scf(folder.name)
+
+
+def feeds_parent(folder: Path) -> bool:
+    """Whether the detection of ``folder.parent`` reads files of ``folder``: ``FolderListing.scan``
+    takes the PDOS files of the immediate subfolders that are not ignored (``<calc>/orbitals``).
+    Reads ``folder`` (one ``scandir``); one that cannot be read (gone, renamed: its files left
+    the parent) counts as feeding it."""
+    if IGNORED_SUBDIRS.match(folder.name):
+        return False
+    try:
+        return any(_is_pdos_name(e.name) for e in os.scandir(folder) if e.is_file())
+    except OSError:
+        return True
 
 
 @dataclass(frozen=True)
@@ -132,16 +174,16 @@ class FolderListing:
         return {path: path.relative_to(self.folder).as_posix() for path in self.files}
 
 
+def _is_pdos_name(name: str) -> bool:
+    return projwfc.parse_atm_name(name) is not None or projwfc.is_pdos_tot_name(name)
+
+
 def _pdos_files(subdir: Path) -> list[Path]:
     try:
         names = sorted(e.name for e in os.scandir(subdir) if e.is_file())
     except OSError:
         return []
-    return [
-        subdir / n
-        for n in names
-        if projwfc.parse_atm_name(n) is not None or projwfc.is_pdos_tot_name(n)
-    ]
+    return [subdir / n for n in names if _is_pdos_name(n)]
 
 
 @dataclass
@@ -327,22 +369,17 @@ class CalculationModule(Generic[D, P]):
         """Hook for cross-role logic (inferred files, extra requirements, warnings)."""
 
     def infer_from_neighbours(
-        self, result: DetectionResult, role_id: str, sniff: SniffFn, pattern: str = "*scf*"
+        self,
+        result: DetectionResult,
+        role_id: str,
+        sniff: SniffFn,
+        pattern: str = NEIGHBOUR_PATTERN,
     ) -> None:
         """Look for ``role_id`` in the parent folder and sibling folders matching ``pattern``."""
         if role_id in result.files:
             return
         role = self.role(role_id)
-        parent = result.folder.parent
-        places = [parent]
-        try:
-            places += sorted(
-                p
-                for p in parent.iterdir()
-                if p.is_dir() and p != result.folder and fnmatch.fnmatch(p.name.lower(), pattern)
-            )
-        except OSError:
-            return
+        places = [result.folder.parent, *neighbour_scf_folders(result.folder, pattern)]
         candidates = []
         for place in places:
             try:

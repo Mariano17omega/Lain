@@ -41,7 +41,7 @@ class PlotExporter(QObject):
         Existing files are never overwritten without asking (PRD §7 data integrity): the question
         comes first, then the worker writes.
         """
-        plan = plan_export(session)
+        plan = plan_export(session)  # stats the targets on this thread: see its docstring
         if plan.error is not None:
             self.message.emit(plan.error, "warning", 4000)
             return False

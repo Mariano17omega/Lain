@@ -7,6 +7,7 @@ others), so every file is classified by what it contains. Results are cached per
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import threading
@@ -14,9 +15,12 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
+from . import cancel
 from .qe import bands_x, projwfc
 from .qe.pw_input import parse_input
 from .qe.pw_output import PwOutput, parse_pw_output
+
+log = logging.getLogger(__name__)
 
 HEAD_BYTES = 8 * 1024
 TAIL_BYTES = 256 * 1024
@@ -238,6 +242,12 @@ class SniffCache:
         try:
             result = _sniff_uncached(path, stat.st_size)
         except OSError:
+            result = FileSniff(path, FileKind.UNKNOWN)
+        except cancel.Cancelled:
+            raise
+        except Exception:  # one odd file must not take its whole folder down (spec 27-8 R5)
+            # Cached below like any result: logged once per (file, mtime, size), not read again.
+            log.exception("sniff falhou: %s", path)
             result = FileSniff(path, FileKind.UNKNOWN)
         with self._lock:
             self._entries[path] = (*stamp, result)

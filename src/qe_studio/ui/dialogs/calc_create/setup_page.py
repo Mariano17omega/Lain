@@ -191,6 +191,7 @@ class SetupPage(QWidget):
         self._scf, self._scf_path, self._scf_problem = None, path, ""
         self.scf_edit.setText(str(path))
         self._tasks.cancel_all()
+        # Accepted, local disk: one file the user just picked, its head only (spec 27-8 R3.3).
         if not path.is_file() or not looks_like_input(path):
             self._scf_problem = f"{path.name} não parece um input do Quantum ESPRESSO"
             self._end_reading()

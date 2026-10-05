@@ -28,6 +28,41 @@ QT_IN_CORE = {
 # ui modules that read files: the app's own resources (QSS, theme tokens, SVG icons).
 UI_READERS = {"ui/theme/manager.py"}
 READ_CALLS = {"read_text", "read_bytes", "loadtxt"}
+# Calls that touch the disk (spec 27-8 R3.2): a ``Path`` that is slow (a network mount) blocks the GUI
+# thread. ``ui/`` makes the calls below and no more: a new one belongs in ``core/`` or in a worker
+# (``run_task``), not in this list. The counts only shrink; the test also fails when one is *lower*
+# than listed, so the list is lowered with the code. The names are the AST's: ``proxy.is_dir(index)``
+# of the file models counts too, though it asks a model, not the disk.
+FS_CALLS = {
+    "resolve",
+    "exists",
+    "is_dir",
+    "is_file",
+    "stat",
+    "iterdir",
+    "glob",
+    "rglob",
+    "samefile",
+}
+FS_ALLOWED: dict[str, int] = {
+    "ui/app_identity.py": 1,
+    "ui/calc_create_controller.py": 2,
+    "ui/dialogs/calc_create/setup_page.py": 1,
+    "ui/dialogs/mapping.py": 1,
+    "ui/dialogs/rename.py": 1,
+    "ui/first_run.py": 3,
+    "ui/grids_controller.py": 1,
+    "ui/help_controller.py": 1,
+    "ui/main_window.py": 1,
+    "ui/navigation_controller.py": 5,
+    "ui/rename_controller.py": 2,
+    "ui/sync_coordinator.py": 2,
+    "ui/widgets/context_menu.py": 4,
+    "ui/widgets/explorer.py": 5,
+    "ui/widgets/file_card.py": 2,
+    "ui/widgets/file_grid.py": 2,
+    "ui/widgets/fs_model.py": 1,
+}
 # Moved out of ui/ by spec 15 R5: they must load without Qt (and be tested without it).
 QT_FREE = [
     "qe_studio.core.text_preview",
@@ -149,6 +184,71 @@ def test_the_ui_does_not_read_files():
             elif isinstance(func, ast.Attribute) and func.attr in READ_CALLS:
                 offenders.setdefault(name_of(path), []).append(f"{func.attr} line {node.lineno}")
     assert offenders == {}, "reading files is core's job (CLAUDE.md, ui/ holds interface logic)"
+
+
+def fs_calls(source: str) -> int:
+    """How many calls of ``FS_CALLS`` (``x.exists()``, ``x.resolve()``…) ``source`` makes."""
+    return sum(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in FS_CALLS
+        for node in ast.walk(ast.parse(source))
+    )
+
+
+def fs_problems(counts: dict[str, int], allowed: dict[str, int] = FS_ALLOWED) -> list[str]:
+    """What is wrong between the calls found per file and the ones ``allowed``."""
+    problems = []
+    for name in sorted(counts.keys() | allowed.keys()):
+        found, listed = counts.get(name, 0), allowed.get(name, 0)
+        if found > listed:
+            problems.append(
+                f"{name}: {found} filesystem calls, {listed} allowed: "
+                "do it in core/ or a worker, do not raise FS_ALLOWED"
+            )
+        elif found < listed:
+            problems.append(
+                f"{name}: {found} filesystem calls, FS_ALLOWED lists {listed}: lower it"
+            )
+    return problems
+
+
+def ui_fs_counts() -> dict[str, int]:
+    counts = {
+        name_of(path): fs_calls(path.read_text(encoding="utf-8"))
+        for path in sources("ui")
+        if name_of(path) not in UI_READERS
+    }
+    return {name: found for name, found in counts.items() if found}
+
+
+def test_the_ui_makes_no_new_filesystem_calls():
+    assert fs_problems(ui_fs_counts()) == []
+
+
+def test_the_filesystem_check_flags_a_new_call_and_a_stale_list():
+    assert fs_calls("def f(p):\n    return p.exists() and p.parent.resolve()\n") == 2
+    assert fs_calls("def f(p):\n    return open(p), exists(p), p.name\n") == 0
+    now = ui_fs_counts()
+    assert fs_problems(now) == []
+    assert "ui/new_widget.py: 1" in fs_problems({**now, "ui/new_widget.py": 1})[0]
+    more = {**now, "ui/main_window.py": FS_ALLOWED["ui/main_window.py"] + 1}
+    assert "do not raise FS_ALLOWED" in fs_problems(more)[0]
+    fewer = {name: found for name, found in now.items() if name != "ui/first_run.py"}
+    assert "lower it" in fs_problems(fewer)[0]
+
+
+def test_pymatgen_is_not_mentioned():
+    """Spec 27-2: the band path is typed, not suggested; no source, template or dependency names
+    pymatgen."""
+    text_files = [
+        path
+        for path in PACKAGE.rglob("*")
+        if path.is_file() and path.suffix in {".py", ".j2", ".yaml", ".qss", ".md"}
+    ]
+    text_files.append(PACKAGE.parents[1] / "pyproject.toml")
+    named = [str(path) for path in text_files if "pymatgen" in path.read_text("utf-8").lower()]
+    assert named == []
 
 
 def test_the_import_checker_resolves_relative_imports():

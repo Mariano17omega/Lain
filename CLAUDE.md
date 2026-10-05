@@ -83,13 +83,18 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
 - `test_architecture.py` checks the architecture rules by AST: no `.py` over 500 lines (exceptions
   list, empty; `PER_FILE_LIMIT` gives `ui/main_window.py` 450), `core/` never imports `qe_studio.ui`, PyQt6 only in the four `core` modules listed
   below, no `open(` / `read_text` / `read_bytes` / `loadtxt` in `ui/` (but `ui/theme/manager.py`),
-  and the modules moved to `core` by spec 15 import without PyQt6. `test_tasks.py` covers the
+  and the modules moved to `core` by spec 15 import without PyQt6. Spec 27-8: `FS_ALLOWED` lists, per `ui/` file,
+  how many disk-touching calls (`FS_CALLS`: `resolve`, `exists`, `is_dir`, `is_file`, `stat`, `iterdir`, `glob`, `rglob`,
+  `samefile`) it makes today; a new one fails the test (put it in `core/` or a worker) and so does a count *lower*
+  than listed (lower the list: it only shrinks). `test_tasks.py` covers the
   background-task helper; `test_busy_indicator.py` and `test_export_worker.py` the spinner and the
   non-blocking export.
 - Detection performance (spec 14): `tests/synthetic.py` builds a 520-folder project from the fixtures,
   a 200 MB relax output, an 80 MB `.gnu` and a 20 MB output with a long header, always in tmp dirs.
   `test_perf_detection.py` times them (`-m perf -s` prints the numbers; the baseline and budgets are
   in the spec's notes); its import test (no `ase` after importing `main_window`) is not `perf`.
+  `test_perf_grid.py` (spec 27-8) times a 6×6 grid, a 100-atom PDOS and bands + DOS (`draw` = render + Agg draw);
+  the grids are `xfail(strict=True)` over their 1 s budget until the render moves to a worker (spec's R2 step 3).
   `test_pw_output_regression.py` compares `PwOutput` of every fixture output with
   `pw_output_golden.json`, captured from the parser before it read head and tail separately.
 - Sync integration tests run the **real `rsync` and `ssh` binaries** (skipped if either is absent).
@@ -767,6 +772,12 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
   synchronous: scripts and tests only. F5 (`invalidate()` without a folder) keeps the sniffs of files
   that still exist (`SniffCache.prune`: each entry is checked against its file's (mtime, size) when
   used anyway); `ui.paranoid_refresh: true` drops them all.
+  `invalidate(folder)` clears what the detection of other folders may read of it (`core/calculations/base.py:reads_from`,
+  the one rule `infer_from_neighbours` shares through `neighbour_scf_folders`): the folders inside it, its sibling folders when it is
+  an SCF folder (`*scf*`), and its parent when it holds PDOS files (`feeds_parent`, one `scandir`: `FolderListing.scan` reads
+  them). A detection that raises is not an empty folder (spec 27-8 R5): `_on_error` logs, caches `[]` marked in `_failed`, emits
+  `detected` (the busy ends) and then `message` ("Falha ao detectar …", once per folder until F5 clears the mark); `SniffCache.sniff`
+  turns any parser exception into an `UNKNOWN` it caches (logged once), so one odd file does not zero its folder.
 - `PlotWorkflow` loads datasets in the global pool, then renders on the GUI thread. Exports run in a
 - Cancellation is cooperative (spec 27-4): `core/cancel.py` (Qt-free) has a thread-local the task runner sets
   (`_Runnable.run` binds the `TaskHandle` and clears it in `finally`), `check()` (raises `Cancelled` when the task of
@@ -796,7 +807,8 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
 `TZ=UTC`, `--no-h` because rsync output is locale-dependent). `planner.py` is pure: dry-run
 records + local stats → per-file NEW / UPDATE / LOCAL_NEWER; files only present locally (like
 `plots/`) never block a pull; `LARGE_FILE_BYTES` (100 MB) gives `PlanItem.is_large` /
-`SyncPlan.large`. `request.py:prepare_sync` decides whether a pull can start (configured? folder
+`SyncPlan.large`. `request.py:prepare_sync` (and `prepare_push`, `push_availability`, `sync_scope`: `resolved_root=` is the root the
+caller already resolved; `SyncCoordinator` keeps it and the whole-project scope per config, so `show_scope` resolves one path) decides whether a pull can start (configured? folder
 inside the project? password needed?) and `sync_scope` says what it covers (`SyncScope`: tooltip,
 menu text, dialog header, window title, confirm button; `direction`: `Direction.PULL` / `PUSH`).
 `preview.py` is what the plan preview shows: `describe_plan(plan)` → `Preview` (summary, large-file

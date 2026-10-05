@@ -9,7 +9,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from ..config import AppConfig
-from .rsync import Endpoint, remote_dir_for
+from .rsync import Endpoint, remote_dir_for, remote_dir_of
 
 NOT_CONFIGURED = (
     "Configure cluster.host, cluster.user e paths.remote_root no config.yaml para sincronizar."
@@ -42,12 +42,16 @@ class SyncRefusal:
     message: str
 
 
-def prepare_sync(config: AppConfig, folder: Path) -> SyncRequest | SyncRefusal:
-    """The pull of ``folder`` (the whole project when it is the root), or why there is none."""
+def prepare_sync(
+    config: AppConfig, folder: Path, *, resolved_root: Path | None = None
+) -> SyncRequest | SyncRefusal:
+    """The pull of ``folder`` (the whole project when it is the root), or why there is none.
+
+    ``resolved_root``: ``paths.local_root.resolve()`` when the caller keeps it (here and below)."""
     if not config.sync_enabled:
         return SyncRefusal("info", NOT_CONFIGURED)
     try:
-        remote_dir = remote_dir_for(folder, config)
+        remote_dir = remote_dir_for(folder, config, resolved_root=resolved_root)
     except ValueError as exc:
         return SyncRefusal("warning", str(exc))
     cluster = config.cluster
@@ -57,23 +61,26 @@ def prepare_sync(config: AppConfig, folder: Path) -> SyncRequest | SyncRefusal:
     )
 
 
-def prepare_push(config: AppConfig, folder: Path) -> PushRequest | SyncRefusal:
+def prepare_push(
+    config: AppConfig, folder: Path, *, resolved_root: Path | None = None
+) -> PushRequest | SyncRefusal:
     """The push of ``folder`` (spec 27 R4.1): like a pull's, but never of the project root (an
     accidental push of everything) and only of a folder that exists."""
-    request = prepare_sync(config, folder)
+    root = _root(config, resolved_root)
+    request = prepare_sync(config, folder, resolved_root=root)
     if isinstance(request, SyncRefusal):
         return request
     path = Path(folder)
-    if path.resolve() == config.paths.local_root.resolve():
+    if path.resolve() == root:
         return SyncRefusal("warning", PUSH_ROOT)
     if not path.is_dir():
         return SyncRefusal("warning", f"Pasta não encontrada: {path}")
     return PushRequest(request.folder, request.endpoint, request.needs_password)
 
 
-def push_availability(config: AppConfig, folder: Path) -> str:
+def push_availability(config: AppConfig, folder: Path, *, resolved_root: Path | None = None) -> str:
     """ "" when ``folder`` can be pushed, else why not (the tooltip of the disabled menu item)."""
-    request = prepare_push(config, folder)
+    request = prepare_push(config, folder, resolved_root=resolved_root)
     if not isinstance(request, SyncRefusal):
         return ""
     return SYNC_OFF if request.message == NOT_CONFIGURED else request.message
@@ -146,21 +153,29 @@ def sync_scope(
     folder: Path,
     endpoint: Endpoint | None = None,
     direction: Direction = Direction.PULL,
+    *,
+    resolved_root: Path | None = None,
 ) -> SyncScope:
     """The scope of pulling (or pushing) ``folder``; ``endpoint`` (of a run already prepared)
-    wins over the one the config gives."""
-    root = config.paths.local_root.resolve()
+    wins over the one the config gives. It resolves ``folder`` once (``resolved_root``: see
+    ``prepare_sync``)."""
+    root = _root(config, resolved_root)
     resolved = Path(folder).resolve()
     if resolved.is_relative_to(root):
         relative = resolved.relative_to(root).as_posix()
         relative = "" if relative == "." else relative
+        if endpoint is None and config.sync_enabled:
+            cluster = config.cluster
+            remote_dir = remote_dir_of(resolved, root, config.paths.remote_root)
+            endpoint = Endpoint(remote_dir, cluster.host, cluster.user)
     else:
         relative = str(folder)  # prepare_sync refuses it: still say which folder it is
-    if endpoint is None:
-        request = prepare_sync(config, folder)
-        endpoint = request.endpoint if isinstance(request, SyncRequest) else None
     remote = endpoint.spec() if endpoint is not None else ""
     return SyncScope(relative, remote, config.sync_enabled, direction)
+
+
+def _root(config: AppConfig, resolved_root: Path | None) -> Path:
+    return resolved_root if resolved_root is not None else config.paths.local_root.resolve()
 
 
 def _elide_start(text: str, limit: int) -> str:

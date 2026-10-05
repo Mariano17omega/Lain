@@ -13,6 +13,7 @@ box.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
@@ -76,6 +77,7 @@ class SyncCoordinator(QObject):
         self._folder_action: QAction | None = None
         self._project_action: QAction | None = None
         self._push_action: QAction | None = None
+        self._set_root()
         self.monitor = self._new_monitor()
 
     @property
@@ -90,6 +92,14 @@ class SyncCoordinator(QObject):
         root = self.config.paths.local_root
         return root / self.scope.relative if self.scope.relative else root
 
+    def _set_root(self) -> None:
+        """The resolved project root and the scope of the whole project, once per config: they are
+        what every folder change would ``resolve`` again (spec 27-8 R3)."""
+        self._root = self.config.paths.local_root.resolve()
+        self._whole = sync_scope(
+            self.config, self.config.paths.local_root, resolved_root=self._root
+        )
+
     def _new_monitor(self) -> ConnectionMonitor:
         monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
         monitor.state_changed.connect(self._on_state)
@@ -102,6 +112,7 @@ class SyncCoordinator(QObject):
     def set_config(self, config: AppConfig) -> None:
         """Config reload: a new monitor for the new cluster."""
         self.config = config
+        self._set_root()
         old = self.monitor
         old.stop()
         old.state_changed.disconnect(self._on_state)
@@ -127,23 +138,25 @@ class SyncCoordinator(QObject):
     def push_state(self, path: Path) -> str | None:
         """The context menu's item for ``path``: None hides it (files), "" enables it, any other
         text is why it is disabled."""
-        return push_availability(self.config, path) if path.is_dir() else None
+        # is_dir: accepted, local disk (a context menu, one folder)
+        if not path.is_dir():
+            return None
+        return push_availability(self.config, path, resolved_root=self._root)
 
     def show_scope(self, folder: Path) -> None:
         """Say what a pull would cover now that ``folder`` is the current one."""
         self._scope_folder = folder
-        scope = sync_scope(self.config, folder)
+        scope = sync_scope(self.config, folder, resolved_root=self._root)  # the one resolve
         enabled = self.config.sync_enabled
         if self._folder_action is not None:
             self._folder_action.setText(scope.menu_text)
             self._folder_action.setToolTip(scope.tooltip)
             self._folder_action.setEnabled(enabled)
         if self._project_action is not None:
-            whole = sync_scope(self.config, self.config.paths.local_root)
-            self._project_action.setToolTip(whole.tooltip)
+            self._project_action.setToolTip(self._whole.tooltip)
             self._project_action.setEnabled(enabled)
         if self._push_action is not None:
-            push = sync_scope(self.config, folder, direction=Direction.PUSH)
+            push = replace(scope, direction=Direction.PUSH)  # same folder, same cluster side
             self._push_action.setText(push.menu_text)
             self._push_action.setToolTip(push.tooltip)
             self._push_action.setEnabled(push.available)
@@ -185,7 +198,7 @@ class SyncCoordinator(QObject):
         """Pull ``folder`` from the cluster (the whole project when it is the root)."""
         if self.running:
             return
-        request = self._checked(prepare_sync(self.config, folder), TITLE)
+        request = self._checked(prepare_sync(self.config, folder, resolved_root=self._root), TITLE)
         if request is not None:
             self.run(*request)
 
@@ -193,7 +206,9 @@ class SyncCoordinator(QObject):
         """Send the new files of ``folder`` to the cluster (spec 27): never the project root."""
         if self.running:
             return
-        request = self._checked(prepare_push(self.config, folder), PUSH_TITLE)
+        request = self._checked(
+            prepare_push(self.config, folder, resolved_root=self._root), PUSH_TITLE
+        )
         if request is not None:
             self.run_push(*request)
 
@@ -234,14 +249,16 @@ class SyncCoordinator(QObject):
 
     def run(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
         controller = SyncController(self.config, self, password=password)
-        dialog = self._open(controller, sync_scope(self.config, folder, endpoint))
+        scope = sync_scope(self.config, folder, endpoint, resolved_root=self._root)
+        dialog = self._open(controller, scope)
         controller.conflict_needed.connect(dialog.await_decision)
         controller.conflict_needed.connect(self._ask_conflict)
         controller.start(folder, endpoint)
 
     def run_push(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
         controller = PushController(self.config, self, password=password)
-        self._open(controller, sync_scope(self.config, folder, endpoint, Direction.PUSH))
+        scope = sync_scope(self.config, folder, endpoint, Direction.PUSH, resolved_root=self._root)
+        self._open(controller, scope)
         controller.start(folder, endpoint)
 
     def _open(self, controller: RsyncRun, scope: SyncScope) -> SyncDialog:
