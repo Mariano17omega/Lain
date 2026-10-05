@@ -3,46 +3,60 @@
 `spec_0-PRD.md` é o documento de requisitos original. As specs 1–6 organizam a primeira rodada de
 `Ideias.md` (ajustes, correções e funcionalidades novas), as specs 7–19 organizam `report.md` (análise de
 30/09/2026) e as specs 20–27 organizam a **segunda rodada** de `Ideias.md` (04/10/2026: gap de energia na legenda,
-átomos da PDOS, bandas com DOS, Grids, SCF convergido, "Criar cálculo" e envio ao cluster), em grupos de itens
-relacionados e em ordem de prioridade. A internacionalização (`spec_end`) fica por último. Cada spec é
-autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
+átomos da PDOS, bandas com DOS, Grids, SCF convergido, "Criar cálculo" e envio ao cluster) e as specs 28–31
+organizam a **terceira rodada** (05/10/2026: padrões de unidade de simulação, modo Padrão/Avançado, carga, diferença
+de carga e Projetos), em grupos de itens relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
+fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
 ```
-/plan implementar specs/spec_1-paineis-e-navegacao.md
+/plan implementar specs/spec_28-padroes-e-modo-padrao-avancado.md
 ```
 
 ## Roadmap
 
-| # | Spec | Resumo | Depende de | Esforço |
-|---|---|---|---|---|
-| 1 | [spec_1-paineis-e-navegacao.md](spec_1-paineis-e-navegacao.md) | Workspace oculto no início, abre sozinho; divisores mantêm a proporção; sem botão "Ajuste"; "Plot" plota sem salvar; rodapé coerente | nenhuma | M |
-| 2 | [spec_2-fundo-das-figuras.md](spec_2-fundo-das-figuras.md) | Figura sempre com fundo branco, independente do tema; parâmetro "Cor de fundo" | nenhuma | P |
-| 3 | [spec_3-persistencia-de-estado.md](spec_3-persistencia-de-estado.md) | Divisores persistidos; ajustes do gráfico em `<tipo>.plot` na pasta da simulação | 1, 2 | M |
-| 4 | [spec_4-arquivos-de-job-do-cluster.md](spec_4-arquivos-de-job-do-cluster.md) | `job.o<id>` como texto com SEM ERROS/ERRO; `.qsub` somente leitura | nenhuma | P |
-| 5 | [spec_5-grade-e-menu-de-contexto.md](spec_5-grade-e-menu-de-contexto.md) | Grade sem tamanho; atalho `..`; menu de contexto (Abrir local, Abrir com, Copiar, Renomear) | 4 | G |
-| 6 | [spec_6-graficos-de-relaxamento.md](spec_6-graficos-de-relaxamento.md) | \|ΔE\| e Força vs passo BFGS para relax/vc-relax | 2, 3 | G |
-| 7 | [spec_7-qualidade-ci-e-higiene.md](spec_7-qualidade-ci-e-higiene.md) | CI (GitHub Actions), ícone e `.desktop`, link do PRD, fixtures QE 7.2/7.4, Hypothesis, remoção de código morto, servidor SSH local (paramiko) nos testes de sync | nenhuma | G |
-| 8 | [spec_8-contrato-dos-modulos.md](spec_8-contrato-dos-modulos.md) | Hooks no `CalculationModule` (sem `kind ==` na UI), `ParamField.refreshes`, tipagem + pyright, painel de ajustes por sessão | 7 | M |
-| 9 | [spec_9-convergencia-scf.md](spec_9-convergencia-scf.md) | Gráfico de convergência do SCF; "Plotar" no menu de contexto; botão "Plotar SCF" | 5, 8 | M |
-| 10 | [spec_10-visualizador-de-texto-e-abas.md](spec_10-visualizador-de-texto-e-abas.md) | Busca Ctrl+F, realce de saídas, números de linha, arquivos grandes, menu das abas, coordenadas do cursor | 8 | M |
-| 11 | [spec_11-visualizador-de-input.md](spec_11-visualizador-de-input.md) | Realce de inputs, erros de escrita em vermelho, extrato e comparação de dois inputs | 10 | G |
-| 12 | [spec_12-resumo-de-saidas.md](spec_12-resumo-de-saidas.md) | "Resumo" no menu de contexto: aba com tempo, paralelização, sistema, resultados e erros da saída | 5, 9, 10 | M |
-| 13 | [spec_13-spin-em-bandas-e-pdos.md](spec_13-spin-em-bandas-e-pdos.md) | Divide `bands.py` em módulos; bandas com dois canais (bands.x `spin_component`), gaps por canal, modos de spin na PDOS | 8 | G |
-| 14 | [spec_14-desempenho-da-deteccao.md](spec_14-desempenho-da-deteccao.md) | Medir primeiro; ASE tardio, sniff único, F5 sem limpar cache, `.gnu`/pw.x grandes; `FolderMemory` relativo | 7 | M |
-| 15 | [spec_15-workers-e-divisao-da-janela.md](spec_15-workers-e-divisao-da-janela.md) | Helper único de tarefas, sem cursor global, exportação em worker, backend de `ui/` movido para `core/`, `MainWindow` dividido em 3 controladores, teste das regras de arquitetura | 7, 8 | G |
-| 16 | [spec_16-navegacao-e-multi-selecao.md](spec_16-navegacao-e-multi-selecao.md) | Caminho clicável, histórico Alt+←/→, filtros, favoritos/recentes, multi-seleção na grade | 5, 10, 11, 14 | G |
-| 17 | [spec_17-sincronizacao-previa-e-escopo.md](spec_17-sincronizacao-previa-e-escopo.md) | Prévia do plano antes de baixar, escopo explícito, sucesso sem diálogo modal | 15 | M |
-| 18 | [spec_18-ajuda-e-primeira-execucao.md](spec_18-ajuda-e-primeira-execucao.md) | Menu Ajuda, paleta Ctrl+K, legenda dos badges, rodapé elidido, estado vazio da primeira execução | 15, 16 | M |
-| 19 | [spec_19-tema-e-acessibilidade.md](spec_19-tema-e-acessibilidade.md) | Tema "Sistema", `ui.font_scale`, contraste WCAG dos tokens, foco visível e ordem de Tab | nenhuma | M |
-| 20 | [spec_20-legenda-com-gap-de-energia.md](spec_20-legenda-com-gap-de-energia.md) | Checkbox "Gap de energia na legenda" em bandas e PDOS (gap = CBM − VBM, não a energia de Fermi); na PDOS vem do HOMO/LUMO ou da curva de DOS | 13 | M |
-| 21 | [spec_21-selecao-de-atomos-na-pdos.md](spec_21-selecao-de-atomos-na-pdos.md) | Botão "Átomos…" em Projeções; seleção por composto (fórmula + ordem das espécies) lembrada em `compounds.json` | 20 | M |
-| 22 | [spec_22-bandas-com-dos.md](spec_22-bandas-com-dos.md) | "Bandas com DOS" no menu de contexto (1 pasta de bandas + 1 de PDOS): figura com eixo de energia compartilhado | 13, 16, 20, 21 | G |
-| 23 | [spec_23-grids-de-graficos.md](spec_23-grids-de-graficos.md) | Botão "Grids": grade N×M de gráficos já plotados, com posição e título, salva por nome | 15, 22 | G |
-| 24 | [spec_24-editor-de-inputs-e-scf-convergido.md](spec_24-editor-de-inputs-e-scf-convergido.md) | Editor de inputs do pw.x que preserva formatação; "Gerar SCF convergido" (só o `.in`) no menu de saídas de relax/vc-relax convergidos | 5, 11, 17 | M |
-| 25 | [spec_25-criar-calculo-templates-e-geracao.md](spec_25-criar-calculo-templates-e-geracao.md) | Backend de "Criar cálculo": templates Jinja2 (`qsub/`, `qe/`), extração do SCF, k-path (pymatgen), pasta sem sobrescrever | 24 | G |
-| 26 | [spec_26-criar-calculo-janela.md](spec_26-criar-calculo-janela.md) | Botão "Criar cálculo" na barra lateral; janela em duas etapas com abas por arquivo, Arquivos e Descrição (`.md`) | 18, 25 | G |
-| 27 | [spec_27-enviar-ao-cluster.md](spec_27-enviar-ao-cluster.md) | Push seguro: só arquivos novos, nunca sobrescreve o remoto, sempre com prévia | 15, 17 | M |
-| fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G |
+| # | Spec | Resumo | Depende de | Esforço | Modelo |
+|---|---|---|---|---|---|
+| 1 | [spec_1-paineis-e-navegacao.md](Archived/spec_1-paineis-e-navegacao.md) | Workspace oculto no início, abre sozinho; divisores mantêm a proporção; sem botão "Ajuste"; "Plot" plota sem salvar; rodapé coerente | nenhuma | M | — |
+| 2 | [spec_2-fundo-das-figuras.md](Archived/spec_2-fundo-das-figuras.md) | Figura sempre com fundo branco, independente do tema; parâmetro "Cor de fundo" | nenhuma | P | — |
+| 3 | [spec_3-persistencia-de-estado.md](Archived/spec_3-persistencia-de-estado.md) | Divisores persistidos; ajustes do gráfico em `<tipo>.plot` na pasta da simulação | 1, 2 | M | — |
+| 4 | [spec_4-arquivos-de-job-do-cluster.md](Archived/spec_4-arquivos-de-job-do-cluster.md) | `job.o<id>` como texto com SEM ERROS/ERRO; `.qsub` somente leitura | nenhuma | P | — |
+| 5 | [spec_5-grade-e-menu-de-contexto.md](Archived/spec_5-grade-e-menu-de-contexto.md) | Grade sem tamanho; atalho `..`; menu de contexto (Abrir local, Abrir com, Copiar, Renomear) | 4 | G | — |
+| 6 | [spec_6-graficos-de-relaxamento.md](Archived/spec_6-graficos-de-relaxamento.md) | \|ΔE\| e Força vs passo BFGS para relax/vc-relax | 2, 3 | G | — |
+| 7 | [spec_7-qualidade-ci-e-higiene.md](Archived/spec_7-qualidade-ci-e-higiene.md) | CI (GitHub Actions), ícone e `.desktop`, link do PRD, fixtures QE 7.2/7.4, Hypothesis, remoção de código morto, servidor SSH local (paramiko) nos testes de sync | nenhuma | G | — |
+| 8 | [spec_8-contrato-dos-modulos.md](Archived/spec_8-contrato-dos-modulos.md) | Hooks no `CalculationModule` (sem `kind ==` na UI), `ParamField.refreshes`, tipagem + pyright, painel de ajustes por sessão | 7 | M | — |
+| 9 | [spec_9-convergencia-scf.md](Archived/spec_9-convergencia-scf.md) | Gráfico de convergência do SCF; "Plotar" no menu de contexto; botão "Plotar SCF" | 5, 8 | M | — |
+| 10 | [spec_10-visualizador-de-texto-e-abas.md](Archived/spec_10-visualizador-de-texto-e-abas.md) | Busca Ctrl+F, realce de saídas, números de linha, arquivos grandes, menu das abas, coordenadas do cursor | 8 | M | — |
+| 11 | [spec_11-visualizador-de-input.md](Archived/spec_11-visualizador-de-input.md) | Realce de inputs, erros de escrita em vermelho, extrato e comparação de dois inputs | 10 | G | — |
+| 12 | [spec_12-resumo-de-saidas.md](Archived/spec_12-resumo-de-saidas.md) | "Resumo" no menu de contexto: aba com tempo, paralelização, sistema, resultados e erros da saída | 5, 9, 10 | M | — |
+| 13 | [spec_13-spin-em-bandas-e-pdos.md](Archived/spec_13-spin-em-bandas-e-pdos.md) | Divide `bands.py` em módulos; bandas com dois canais (bands.x `spin_component`), gaps por canal, modos de spin na PDOS | 8 | G | — |
+| 14 | [spec_14-desempenho-da-deteccao.md](Archived/spec_14-desempenho-da-deteccao.md) | Medir primeiro; ASE tardio, sniff único, F5 sem limpar cache, `.gnu`/pw.x grandes; `FolderMemory` relativo | 7 | M | — |
+| 15 | [spec_15-workers-e-divisao-da-janela.md](Archived/spec_15-workers-e-divisao-da-janela.md) | Helper único de tarefas, sem cursor global, exportação em worker, backend de `ui/` movido para `core/`, `MainWindow` dividido em 3 controladores, teste das regras de arquitetura | 7, 8 | G | — |
+| 16 | [spec_16-navegacao-e-multi-selecao.md](Archived/spec_16-navegacao-e-multi-selecao.md) | Caminho clicável, histórico Alt+←/→, filtros, favoritos/recentes, multi-seleção na grade | 5, 10, 11, 14 | G | — |
+| 17 | [spec_17-sincronizacao-previa-e-escopo.md](Archived/spec_17-sincronizacao-previa-e-escopo.md) | Prévia do plano antes de baixar, escopo explícito, sucesso sem diálogo modal | 15 | M | — |
+| 18 | [spec_18-ajuda-e-primeira-execucao.md](Archived/spec_18-ajuda-e-primeira-execucao.md) | Menu Ajuda, paleta Ctrl+K, legenda dos badges, rodapé elidido, estado vazio da primeira execução | 15, 16 | M | — |
+| 19 | [spec_19-tema-e-acessibilidade.md](Archived/spec_19-tema-e-acessibilidade.md) | Tema "Sistema", `ui.font_scale`, contraste WCAG dos tokens, foco visível e ordem de Tab | nenhuma | M | — |
+| 20 | [spec_20-legenda-com-gap-de-energia.md](Archived/spec_20-legenda-com-gap-de-energia.md) | Checkbox "Gap de energia na legenda" em bandas e PDOS (gap = CBM − VBM, não a energia de Fermi); na PDOS vem do HOMO/LUMO ou da curva de DOS | 13 | M | — |
+| 21 | [spec_21-selecao-de-atomos-na-pdos.md](Archived/spec_21-selecao-de-atomos-na-pdos.md) | Botão "Átomos…" em Projeções; seleção por composto (fórmula + ordem das espécies) lembrada em `compounds.json` | 20 | M | — |
+| 22 | [spec_22-bandas-com-dos.md](Archived/spec_22-bandas-com-dos.md) | "Bandas com DOS" no menu de contexto (1 pasta de bandas + 1 de PDOS): figura com eixo de energia compartilhado | 13, 16, 20, 21 | G | — |
+| 23 | [spec_23-grids-de-graficos.md](Archived/spec_23-grids-de-graficos.md) | Botão "Grids": grade N×M de gráficos já plotados, com posição e título, salva por nome | 15, 22 | G | — |
+| 24 | [spec_24-editor-de-inputs-e-scf-convergido.md](Archived/spec_24-editor-de-inputs-e-scf-convergido.md) | Editor de inputs do pw.x que preserva formatação; "Gerar SCF convergido" (só o `.in`) no menu de saídas de relax/vc-relax convergidos | 5, 11, 17 | M | — |
+| 25 | [spec_25-criar-calculo-templates-e-geracao.md](Archived/spec_25-criar-calculo-templates-e-geracao.md) | Backend de "Criar cálculo": templates Jinja2 (`qsub/`, `qe/`), extração do SCF, k-path (pymatgen), pasta sem sobrescrever | 24 | G | — |
+| 26 | [spec_26-criar-calculo-janela.md](Archived/spec_26-criar-calculo-janela.md) | Botão "Criar cálculo" na barra lateral; janela em duas etapas com abas por arquivo, Arquivos e Descrição (`.md`) | 18, 25 | G | — |
+| 27 | [spec_27-enviar-ao-cluster.md](Archived/spec_27-enviar-ao-cluster.md) | Push seguro: só arquivos novos, nunca sobrescreve o remoto, sempre com prévia | 15, 17 | M | — |
+| 27-1 | [spec_27-1-pdos-gerado-script-e-ocupacao.md](spec_27-1-pdos-gerado-script-e-ocupacao.md) | PDOS gerado: `mv *pdos_atm#* orbitals/` (o `mv *wfc*` movia `projwfc.in/out`); `projwfc.in` sem `ngauss/degauss` com tetraedros | 25, 26 | P | Sonnet 5.5 |
+| 27-2 | [spec_27-2-caminho-de-bandas-sem-sugestao.md](spec_27-2-caminho-de-bandas-sem-sugestao.md) | Remove "Sugerir caminho" e o `pymatgen`; avisa segmentos que colapsam no eixo x do `bands.x`; botão "Distribuir pelo comprimento"; `nan`/`inf` e quebra no editor | 25, 26 | M | Sonnet 5.5 |
+| 27-3 | [spec_27-3-sync-e-gravacao-seguros.md](spec_27-3-sync-e-gravacao-seguros.md) | `StrictHostKeyChecking=yes` imposto; renomear recusado durante sync/export; corrida do pull; escrita atômica com `fsync` e instância única; `rename` sem sobrescrever | 15, 17, 27 | M | Opus 5.5 |
+| 27-4 | [spec_27-4-memoria-e-cancelamento.md](spec_27-4-memoria-e-cancelamento.md) | Cache de datasets por bytes e esvaziado ao fechar a aba; parsers com pico menor; cancelamento cooperativo (`core/cancel.py`) dos loaders | 14, 15 | M | Opus 5.5 |
+| 27-5 | [spec_27-5-fechamento-dialogos-e-erros.md](spec_27-5-fechamento-dialogos-e-erros.md) | Fechamento com orçamento de tempo e `hide()`; diálogos fechados antes (B8 corrigido); `excepthook` sem enxurrada de modais; `main_window.py` ≤ 450 linhas | 15, 26, 27-3, 27-4 | M | Opus 5.5 |
+| 27-6 | [spec_27-6-avisos-de-fisica.md](spec_27-6-avisos-de-fisica.md) | Gap só com E_F coerente e rotulado "no caminho"; aviso de seleção de átomos salva em outra geometria; avisos do SCF convergido | 13, 20, 21, 24 | P/M | Sonnet 5.5 |
+| 27-7 | [spec_27-7-vc-relax-entalpia-e-celula.md](spec_27-7-vc-relax-entalpia-e-celula.md) | vc-relax: \|ΔH\| no lugar de \|ΔE\|, pressão, volume e célula por passo; painéis `all`; resumo | 6, 12 | M | Opus 5.5 |
+| 27-8 | [spec_27-8-gui-grid-sistema-de-arquivos-e-deteccao.md](spec_27-8-gui-grid-sistema-de-arquivos-e-deteccao.md) | Mede o grid 6×6 (perf); menos `resolve` na GUI e teste de arquitetura; invalidação só das irmãs `*scf*`; detecção que não zera a pasta | 14, 15, 22, 23 | M | Sonnet 5.5 (Opus se precisar de render em worker) |
+| 27-9 | [spec_27-9-pequenos-defeitos-e-dados-pessoais.md](spec_27-9-pequenos-defeitos-e-dados-pessoais.md) | "Abrir com" oculta programas de terminal; pedido repetido de carga substitui o anterior; placeholders no `config.example.yaml` e cabeçalhos anonimizados | 5, 7, 15 | P | Sonnet 5.5 |
+| 28 | [spec_28-padroes-e-modo-padrao-avancado.md](spec_28-padroes-e-modo-padrao-avancado.md) | Padrão de nomes (pastas `Bands_<nome>`, inputs `scf_<prefix>.in`…), pasta autossuficiente (`outdir './tmp/'`, `jobs.pseudo_dir`, `jobs.nk`); botão "Padrão / Avançado" no "Criar cálculo" | 25, 26, 27-1, 27-2 | G | Opus 5.5 |
+| 29 | [spec_29-calculo-de-carga.md](spec_29-calculo-de-carga.md) | Tipo "Carga" (`pp.x`): `pp_<nome>_charge.in`, `charge.qsub` com `mkdir -p cdd_xsf`; lint reconhece inputs do `pp.x` | 28 | M | Sonnet 5.5 |
+| 30 | [spec_30-diferenca-de-carga.md](spec_30-diferenca-de-carga.md) | Tipo "Diferença de carga": aba "Átomos", SCFs `_clean` e `_isolated` gerados do base, `pp_charge_diff.in` (Δρ = base − clean − isolated) | 29, 28, 21 | G | Opus 5.5 |
+| 31 | [spec_31-projetos.md](spec_31-projetos.md) | Pastas de 1º nível de `local_root` = Projetos; dropdown "Projeto" filtra árvore, grade, breadcrumb e paleta; "Criar projeto…"; sync do projeto selecionado | 16, 17, 18, 26, 27 | M/G | Opus 5.5 |
+| fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
 outras specs (1, 2), depois a persistência que depende delas (3), os ganhos pequenos e independentes (4),
@@ -60,9 +74,25 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
    cadeia (gap na legenda → átomos da PDOS → bandas com DOS → Grids), depois a geração de inputs (24 cria o
    editor de inputs e os nomes sem sobrescrever que 25 reaproveita; 26 é só a janela sobre 25) e por último o
    envio ao cluster (27). As specs 20 e 24 são independentes e podem vir antes das demais do seu grupo.
-6. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
+6. **Padrões e Projetos (28–31, decisão de 05/10/2026):** primeiro o padrão de nomes e o modo Padrão/Avançado (28),
+   base dos dois tipos novos, depois a carga (29), cujo template e script a diferença de carga (30) reaproveita. Os
+   Projetos (31) não dependem de 28–30 e podem vir antes deles.
+7. **Correções da revisão de 04/10/2026 (27-1 … 27-9, decisão de 05/10/2026):** o usuário implementa antes da spec 28.
+   27-1 e 27-2 antes de tudo (a 28 parte do `pdos.qsub` e do caminho das bandas que elas deixam); 27-3 e 27-5 extraem
+   código de `main_window.py` (496/500 linhas) e abrem folga para a 31; 27-4 antes da 27-5 (loaders canceláveis tornam o
+   fechamento rápido). As demais (27-6 … 27-9) são independentes entre si.
+8. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
+
+Specs já implementadas (1–27) ficam em [`Archived/`](Archived/); aqui na raiz ficam o PRD (`spec_0`), as
+propostas ainda abertas (28–31, `spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+ajuste o link da tabela abaixo.
+
+Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
+(`claude-opus-5-5`) quando a spec muda contratos usados em vários lugares, mexe em física ou em código perto do limite
+de 500 linhas; **Sonnet 5.5** (`claude-sonnet-5-5`) quando segue um caminho que outra spec já abriu. O motivo está na
+tabela do início de cada spec. "—" = spec já implementada ou anterior a esta convenção.
 
 ## Rastreabilidade: `Ideias.md` → specs
 
@@ -173,6 +203,66 @@ Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 | 6k | Aba "Descrição" salva em `.md` na pasta do cálculo | spec 26, R4.7; spec 25, R7 |
 | 6l | Pasta só criada ao clicar "Criar"; cancelar não cria nada | spec 26, R2 e R5; spec 25, R7 |
 
+## Rastreabilidade: `report-04-10-26.md` → specs
+
+| Achado | Destino |
+|---|---|
+| F1 `mv *wfc*` do `pdos.qsub` (Alto) + Q1(a) | spec 27-1, R1–R2 |
+| F2 `npts` uniforme / eixo x colapsado (Alto) + Q1(b) | spec 27-2, R2–R3 e R5 (sem sugestão automática: decisão do usuário) |
+| F3 gap só pela contagem de elétrons | spec 27-6, R1 |
+| F4 vc-relax: entalpia, pressão, célula | spec 27-7 |
+| F5 PDOS: `Emax` × `nbnd`; `degauss` × tetraedros | spec 27-1, R3–R4 (só texto para `Emax`) |
+| F5 malha do NSCF = malha do SCF | **mantida** (decisão do usuário: sem aviso) |
+| F6 seleção de átomos por sequência de espécies | spec 27-6, R2 |
+| F7 SCF convergido reaproveita `prefix`/`outdir` | spec 27-6, R3 |
+| F8 fixtures reais de ibrav 4 e 5 | adiado (precisa de saídas reais do usuário; spec 27-2, "Fora de escopo") |
+| F9 mapeamento pymatgen → célula | **obsoleto** (spec 27-2 remove "Sugerir") |
+| B1 "Abrir com" e `Terminal=true` | spec 27-9, R1 (ocultar) |
+| B2 renomear com sync em andamento | spec 27-3, R2 |
+| B3 editor de k-path (`nan`/`inf`, quebra) | spec 27-2, R4 |
+| B4 `_detect` engole exceções | spec 27-8, R5 |
+| B5 `excepthook` | spec 27-5, R3 |
+| B6 `_load` ignora o pedido repetido | spec 27-9, R2 |
+| B7 corridas (pull; `flush_now`) | spec 27-3, R3 |
+| B8 diálogos não modais ao fechar | spec 27-5, R2 (o achado foi corrigido na verificação: `GridDialog` não tem pergunta) |
+| T1 fechamento lento | spec 27-5, R1 |
+| T2 grid na GUI thread | spec 27-8, R1–R2 (medir primeiro) |
+| T3 loaders não cancelam | spec 27-4, R1 |
+| T4 sistema de arquivos na GUI | spec 27-8, R3 |
+| T5 `invalidate` apaga as irmãs | spec 27-8, R4 |
+| M1 cache de datasets | spec 27-4, R2–R3 |
+| S1 `StrictHostKeyChecking` | spec 27-3, R1 |
+| S2 escrita atômica e instância única | spec 27-3, R4 |
+| S3 `rename_item` e TOCTOU | spec 27-3, R5 |
+| S4 dados pessoais | spec 27-9, R3 (placeholders; fixtures e histórico fora) |
+| Q1 testes que travam o erro | specs 27-1 (a) e 27-2 (b) |
+| Q2 `main_window.py` com 496/500 linhas | specs 27-3 (`rename_path`) e 27-5 (`closeEvent` etc.), R4 |
+| Q3 `pymatgen` runtime / CI | `pymatgen` removido (spec 27-2); CI (3.13, cobertura, `--locked`, pyright): sem decisão |
+| Q4 `specs/Ideias.md` zerado | sem spec (estado do working tree do usuário) |
+
+## Rastreabilidade: ideias da terceira rodada (05/10/2026) → specs
+
+As ideias vieram no pedido (não em `Ideias.md`); cada spec cita o trecho de origem.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Cada pasta é uma simulação completa e independente, sem caminhos absolutos ou externos | spec 28, R2 (`outdir './tmp/'`, `jobs.pseudo_dir`) |
+| 2 | "Unidade de simulação" = pasta de cálculo, com `.qsub`, `.in` e `.out` | spec 28, R1 (só nome: sem tratamento especial na árvore/grade, decisão do usuário) |
+| 3 | Pastas `<calculo>_<nome>` ou `<calculo>` (Bands, Relax, PDOS, Charge, Diff_Charge, SCF…) | spec 28, R1.1–R1.2; specs 29 e 30, R1 |
+| 4 | Inputs `scf/nscf/relax/vc-relax_<prefix>.in`; `bands_pp.in`, `projwfc.in`; saídas com `.out` | spec 28, R1.3–R1.4 |
+| 5 | `pp_<nome>_charge.in`, `pp_charge.in`, `pp_charge_diff.in` | spec 29, R1; spec 30, R1 |
+| 6 | Pastas `<numero>_Bands_<nome>` existentes continuam válidas, sem ser o padrão | spec 28, "Fora de escopo" (detecção por conteúdo) |
+| 7 | Botão "Avançado/Padrão" na janela de criação | spec 28, R3–R5 |
+| 8 | Bandas Padrão: só `K_POINTS crystal_b`; `bands_pp.in` com `filband './band'`; NP 64, NK 4 | spec 28, R3.3 e R3.5; R2.3 |
+| 9 | PDOS Padrão: `projwfc.in` fixo (DeltaE, ngauss, degauss 0.000735), só Emin/Emax editáveis | spec 28, R3.3–R3.4 (malha do NSCF = a do SCF, oculta) |
+| 10 | Carga: template `pp_<nome>_charge.in`, só nome e SCF no Padrão | spec 29 |
+| 11 | Diferença de carga: SCFs `_clean` e `_isolated`, aba com tabela de átomos e "selecionar todos", `pp_charge_diff.in` | spec 30 |
+| 12 | Pastas de 1º nível de `local_root` = Projetos isolados | spec 31, R1 |
+| 13 | Reconhecer as unidades do projeto em qualquer subpasta | spec 31, R3.1 (a árvore do projeto mostra todas; sem lista nova, decisão do usuário) |
+| 14 | Dropdown "Projeto" acima da árvore, filtrando-a | spec 31, R2–R3 |
+| 15 | "Criar Projeto" no dropdown, com diálogo de nome | spec 31, R4 |
+| — | (`report-04-10-26.md` F1) `mv *wfc*` do `pdos.qsub` move `projwfc.in/out` | spec 27-1, R1 (a spec 28 R6 só aponta para ela) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -209,3 +299,27 @@ Decisões de 04/10/2026 (segunda rodada de `Ideias.md`):
 - Dependências novas (spec 25): `jinja2` e `pymatgen`, ambos com import tardio (como o ASE).
 - Convenção de nomes: esta rodada ocupa as specs 20–27; a de idioma passou a se chamar `spec_end`.
 
+
+Decisões de 05/10/2026 (terceira rodada):
+- **Modo Avançado** = os campos que a janela já tem (specs 25/26) e os nomes dos arquivos; **Padrão** mostra só o que o
+  tipo pede (caminho das bandas, Emin/Emax da PDOS, átomos da diferença de carga).
+- **pseudo_dir** vem de `jobs.pseudo_dir` no `config.yaml`; **NP/NK** de `jobs.cores` e `jobs.nk` (64 e 4), ocultos no
+  Padrão.
+- **PDOS:** o NSCF usa a malha do SCF, oculta no Padrão (o "crystal_b" do item da PDOS era engano).
+- **Prefixos de pasta:** `SCF`, `Relax`, `VC-Relax`, `Bands`, `PDOS`, `Charge`, `Diff_Charge`; scripts `scf.qsub`,
+  `relax.qsub`, `vc-relax.qsub`, `bands.qsub`, `pdos.qsub`, `charge.qsub`, `charge_diff.qsub`.
+- **Unidades de simulação** são pastas normais: nada de lista, aba ou marca nova; árvore e grade como hoje.
+- **Projetos:** "Sincronizar projeto" vale para o projeto selecionado; com "Todos os projetos", para a raiz inteira.
+- **Modelo recomendado** por spec (coluna "Modelo" do roadmap): Opus 5.5 para 28, 30 e 31; Sonnet 5.5 para 29.
+
+Decisões de 05/10/2026 (correções do `report-04-10-26.md`, specs 27-1 … 27-9):
+- **Implementar antes da spec 28**, na ordem do roadmap (27-1 primeiro).
+- **Malha do NSCF da PDOS:** continua igual à do SCF, **sem aviso** (F5 não muda a decisão da spec 28).
+- **"Abrir com":** programas com `Terminal=true` são ocultados (sem emulador de terminal).
+- **"Sugerir caminho" das bandas é removido** (o usuário não quer sugestões); `pymatgen` sai das dependências e o
+  caminho `crystal_b` é digitado. O que sobra do F2 vira aviso de segmento colapsado e o botão "Distribuir pelo
+  comprimento".
+- **Dados pessoais:** placeholders no `config.example.yaml` (duas cópias) e nos cabeçalhos de `Documentation/`;
+  fixtures e histórico do git ficam como estão.
+- **Modelo recomendado:** Opus 5.5 para 27-3, 27-4, 27-5 e 27-7; Sonnet 5.5 para 27-1, 27-2, 27-6, 27-8 e 27-9
+  (a 27-8 passa a Opus 5.5 se a medição exigir desenhar o grid em worker).

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Lain: QE Studio: a PyQt6 desktop app to browse, pull-sync (rsync + ssh) and plot Quantum ESPRESSO
 simulations (band structures, PDOS, relax/vc-relax progress). Requirements live in `specs/spec_0-PRD.md`; code comments
 cite it as "PRD §x.y". Change specs derived from `specs/Ideias.md` are `specs/spec_N-*.md`
-(prioritized index in `specs/README.md`). The UI follows `Documentation/design system (UX)/`.
+(prioritized index in `specs/README.md`); the implemented ones are moved to `specs/Archived/`. The UI follows `Documentation/design system (UX)/`.
 
 Supported Quantum ESPRESSO versions: **7.1 or newer**. No code or fixture handles older formats.
 

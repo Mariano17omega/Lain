@@ -1,7 +1,7 @@
 """Detection latency (spec 14 R1, report O8): a big project, a huge output, F5 and the startup import.
 
 Run with ``uv run pytest -m perf -s tests/test_perf_detection.py`` to see the timings; the baseline
-and the numbers after each optimization are in the notes of ``specs/spec_14-*.md``, and the budgets
+and the numbers after each optimization are in the notes of ``specs/Archived/spec_14-*.md``, and the budgets
 below come from them.
 """
 
