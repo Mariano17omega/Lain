@@ -31,6 +31,7 @@ ACTIONS: tuple[ActionSpec, ...] = (
         "Abrir pasta no gerenciador de arquivos",
         "open_folder_externally",
     ),
+    ActionSpec("project.create", "Arquivo", "Criar projeto…", "project.open_new"),
     ActionSpec("tabs.close", "Arquivo", "Fechar aba", "workspace.close_current", "Ctrl+W"),
     ActionSpec("app.quit", "Arquivo", "Sair", "close", "Ctrl+Q", separator_before=True),
     ActionSpec("nav.back", "Navegar", "Voltar", "navigation.back", "Alt+Left"),
@@ -52,8 +53,9 @@ ACTIONS: tuple[ActionSpec, ...] = (
     ),
     # "sync.start" says what it pulls: SyncCoordinator.show_scope renames it on every folder change.
     ActionSpec("sync.start", "Cluster", "Sincronizar pasta selecionada", "sync.start_selected"),
-    ActionSpec("sync.project", "Cluster", "Sincronizar projeto inteiro", "sync.start_project"),
-    # "sync.push" too: "Enviar <pasta> ao cluster…", disabled at the project root (spec 27).
+    # "sync.project" too: "Sincronizar projeto <nome>" with a project selected (spec 31 R5).
+    ActionSpec("sync.project", "Cluster", "Sincronizar tudo", "sync.start_project"),
+    # "sync.push" too: "Enviar <pasta> ao cluster…", disabled at the root and at a project (spec 27, 31).
     ActionSpec(
         "sync.push",
         "Cluster",

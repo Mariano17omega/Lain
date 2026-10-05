@@ -79,6 +79,7 @@ QT_FREE = [
     "qe_studio.core.nav_store",
     "qe_studio.core.fuzzy",
     "qe_studio.core.folder_index",
+    "qe_studio.core.projects",
     "qe_studio.core.config_template",
     "qe_studio.core.about",
     "qe_studio.core.colors",

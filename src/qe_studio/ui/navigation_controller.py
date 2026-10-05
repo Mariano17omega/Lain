@@ -43,6 +43,7 @@ class NavigationController(QObject):
         super().__init__(parent)
         self.window, self.explorer, self.top_bar = window, explorer, top_bar
         self.store, self.settings, self.root = store, settings, Path(root)
+        self.view_root = self.root  # the top of what the window shows (spec 31: the project)
         self.history = NavigationHistory()
         self.exists: Callable[[Path], bool] = os.path.isdir  # what a visited folder must satisfy
         top_bar.set_root(root)
@@ -86,13 +87,22 @@ class NavigationController(QObject):
 
     def set_root(self, root: Path) -> None:
         """Another project (config reload): its history starts empty, its favorites load."""
-        self.root = Path(root)
+        self.root = self.view_root = Path(root)
         self.history.clear()
         self.top_bar.set_root(root)
         self.store.set_root(root)
         self.store.prune_missing_recents(self.exists)
         self._refresh_sections()
         self._sync_buttons()
+
+    def set_view_root(self, view_root: Path) -> None:
+        """The folder the window shows as its top (spec 31: the selected project, else the root):
+        the breadcrumb starts there and the sections list what is inside it. The history stays."""
+        self.view_root = Path(view_root)
+        self.top_bar.set_root(self.view_root)
+        if self.history.current is not None:
+            self.top_bar.set_path(self.history.current)
+        self._refresh_sections()
 
     # -- visits ----------------------------------------------------------------------------------
     def visited(self, folder: Path) -> None:
@@ -159,20 +169,21 @@ class NavigationController(QObject):
 
     def _refresh_sections(self) -> None:
         def entries(folders: list[Path]) -> list[NavEntry]:
-            return [NavEntry(path, self._label(path), self.exists(path)) for path in folders]
+            return [
+                NavEntry(path, self._label(path), self.exists(path))
+                for path in folders
+                if path.is_relative_to(self.view_root)  # the others stay stored, out of sight
+            ]
 
         self.explorer.favorites.set_entries(entries(self.store.favorites()))
         self.explorer.recents.set_entries(entries(self.store.recents()))
 
     def _label(self, folder: Path) -> str:
-        """The path below the project; the project itself by its name."""
-        if folder == self.root:
-            return self.root.name or str(self.root)
-        return (
-            folder.relative_to(self.root).as_posix()
-            if folder.is_relative_to(self.root)
-            else str(folder)
-        )
+        """The path below the top of the view; that folder itself by its name."""
+        top = self.view_root
+        if folder == top:
+            return top.name or str(top)
+        return folder.relative_to(top).as_posix() if folder.is_relative_to(top) else str(folder)
 
     def _sync_buttons(self) -> None:
         self.top_bar.set_history(self.history.can_back, self.history.can_forward)

@@ -175,7 +175,7 @@ def test_a_missing_project_folder_shows_its_own_state(missing_root_window, tmp_p
     window, _config = missing_root_window
     overlay = window.first_run.overlay
     assert window.first_run.state == "missing_root" and overlay.isVisible()
-    assert f"A pasta do projeto não foi encontrada: {tmp_path / 'gone'}" in overlay.text.text()
+    assert f"A pasta raiz não foi encontrada: {tmp_path / 'gone'}" in overlay.text.text()
     assert list(overlay.buttons) == ["Abrir config", "Escolher pasta…"]
 
 

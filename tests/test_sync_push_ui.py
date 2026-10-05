@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QMenu, QMessageBox, QWidget
 
 from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.sync.report import SyncStatus
-from qe_studio.core.sync.request import PUSH_ROOT, SYNC_OFF
+from qe_studio.core.sync.request import PUSH_PROJECT, PUSH_ROOT, SYNC_OFF
 from qe_studio.core.sync.rsync import Endpoint
 from qe_studio.ui.sync_coordinator import SyncCoordinator
 from qe_studio.ui.theme.manager import ThemeManager
@@ -173,32 +173,42 @@ def test_a_folder_menu_offers_the_push_disabled_without_sync(main_window, demo_p
 
 
 def test_the_folder_menu_pushes_that_folder(window_factory, demo_project, menus):
+    run = demo_project / "03_bands" / "run"
+    run.mkdir()
     window = cluster_window(window_factory, demo_project)
     runs = []
     window.sync.run_push = lambda folder, endpoint, password=None: runs.append((folder, endpoint))
-    window._show_item_menu([demo_project / "03_bands"], QPoint())
+    window._show_item_menu([run], QPoint())
     item = push_item(menus[-1])
     assert item is not None and item.isEnabled()
     item.trigger()
     assert [(folder, endpoint.path) for folder, endpoint in runs] == [
-        (demo_project / "03_bands", "/scratch/me/03_bands")
+        (run, "/scratch/me/03_bands/run")
     ]
     window._show_item_menu([demo_project], QPoint())
     root = push_item(menus[-1])
     assert root is not None and not root.isEnabled() and root.toolTip() == PUSH_ROOT
+    window._show_item_menu([demo_project / "03_bands"], QPoint())  # a project (spec 31 R5.2)
+    project = push_item(menus[-1])
+    assert project is not None and not project.isEnabled() and project.toolTip() == PUSH_PROJECT
 
 
 def test_the_cluster_menu_push_follows_the_folder(window_factory, demo_project):
+    run = demo_project / "03_bands" / "run"
+    run.mkdir()
     window = cluster_window(window_factory, demo_project)
     action = window._actions["sync.push"]
     runs = []
     window.sync.run_push = lambda folder, endpoint, password=None: runs.append(folder)
-    window.explorer.select_path(demo_project / "03_bands")
-    assert action.text() == "Enviar 03_bands ao cluster…" and action.isEnabled()
-    assert action.toolTip() == "Enviar para o cluster: 03_bands (e subpastas)"
+    window.explorer.select_path(run)
+    assert action.text() == "Enviar 03_bands/run ao cluster…" and action.isEnabled()
+    assert action.toolTip() == "Enviar para o cluster: 03_bands/run (e subpastas)"
     assert "action:sync.push" in [r.key for r in window.command_palette.rows_for(">enviar")]
     action.trigger()
-    assert runs == [demo_project / "03_bands"]
+    assert runs == [run]
+    window.explorer.select_path(demo_project / "03_bands")  # a project: refused, with the reason
+    assert action.text() == "Enviar pasta ao cluster…" and not action.isEnabled()
+    assert action.toolTip() == PUSH_PROJECT
     window.explorer.select_path(demo_project)
     assert action.text() == "Enviar pasta ao cluster…" and not action.isEnabled()
     assert action.toolTip() == PUSH_ROOT

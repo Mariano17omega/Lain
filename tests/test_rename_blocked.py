@@ -77,7 +77,7 @@ def test_the_whole_project_blocks_everything(
     sync_running(demo_project)
     main_window.rename_path(demo_project / "04_pdos")
     assert asked == [] and explained == [
-        "Há uma sincronização em andamento em projeto inteiro. Espere terminar ou cancele."
+        "Há uma sincronização em andamento em toda a pasta raiz. Espere terminar ou cancele."
     ]
 
 

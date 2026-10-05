@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 31 (independente das specs 28–30; pode ser feita antes delas) |
-| **Status** | Proposta |
+| **Status** | Implementada. Desvios:<br>- **`main_window.py` já tinha 446 linhas** (não 496) e `_restore_folder` / `start_project_sync` já estavam fora dele (spec 27-5): a restauração é `NavigationController.restore` e `sync.project` é `SyncCoordinator.start_project`; o arquivo ficou com 447 (limite 450).<br>- **Troca automática (R3.6)** por um ponto único: `ExplorerPanel.select_path` emite `outside_scope` para um caminho fora da raiz da árvore e o `ProjectController` troca de projeto antes de selecioná-lo.<br>- **Início:** o projeto guardado é aplicado de imediato, sem ler o disco; a primeira lista o confere (some → "Todos" + mensagem no rodapé).<br>- O texto do escopo é "tudo" / "Sincronizar tudo" e, com projeto, "projeto ilita" (dica explícita `sync_scope(..., project=)`, nunca deduzida da profundidade); a recusa do push de um projeto usa `;` como `PUSH_ROOT`, e a de uma pasta que não existe vem antes.<br>- Testes de push que usavam pastas de 1º nível passaram a usar pastas aninhadas (R5.2). |
 | **Depende de** | spec 16 (histórico, breadcrumb, favoritos/recentes), spec 17 e 27 (escopo do sync e push), spec 18 (paleta, primeira execução), spec 26 (local padrão de "Criar cálculo") |
 | **Usada por** | nenhuma |
 | **Esforço** | M/G |

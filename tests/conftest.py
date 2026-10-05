@@ -66,6 +66,23 @@ def al_pdos_orbitals(tmp_path) -> Path:
 
 
 @pytest.fixture
+def raiz(tmp_path) -> Path:
+    """A root of projects (spec 31): ``ilita`` and ``outro`` with nested analyses, a ``plots``
+    folder (a grid export: never a project), a hidden folder and a loose file."""
+    root = tmp_path / "raiz"
+    for folder in (
+        "ilita/Analise_1/Bandas",
+        "ilita/Analise_2/PDOS",
+        "outro/Analise_1/Relax",
+        "plots",
+        ".oculta",
+    ):
+        (root / folder).mkdir(parents=True)
+    (root / "solto.txt").write_text("a loose file")
+    return root
+
+
+@pytest.fixture
 def demo_project(tmp_path) -> Path:
     """Project tree like the mockup: 01_relax, 02_scf, 03_bands (PRD names), 04_pdos."""
     project = tmp_path / "project"

@@ -55,7 +55,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 28 | [spec_28-padroes-e-modo-padrao-avancado.md](spec_28-padroes-e-modo-padrao-avancado.md) | Padrão de nomes (pastas `Bands_<nome>`, inputs `scf_<prefix>.in`…), pasta autossuficiente (`outdir './tmp/'`, `jobs.pseudo_dir`, `jobs.nk`); botão "Padrão / Avançado" no "Criar cálculo" | 25, 26, 27-1, 27-2 | G | Opus 5.5 |
 | 29 | [spec_29-calculo-de-carga.md](spec_29-calculo-de-carga.md) | Tipo "Carga" (`pp.x`): `pp_<nome>_charge.in`, `charge.qsub` com `mkdir -p cdd_xsf`; lint reconhece inputs do `pp.x` | 28 | M | Sonnet 5.5 |
 | 30 | [spec_30-diferenca-de-carga.md](spec_30-diferenca-de-carga.md) | Tipo "Diferença de carga": aba "Átomos", SCFs `_clean` e `_isolated` gerados do base, `pp_charge_diff.in` (Δρ = base − clean − isolated) | 29, 28, 21 | G | Opus 5.5 |
-| 31 | [spec_31-projetos.md](spec_31-projetos.md) | Pastas de 1º nível de `local_root` = Projetos; dropdown "Projeto" filtra árvore, grade, breadcrumb e paleta; "Criar projeto…"; sync do projeto selecionado | 16, 17, 18, 26, 27 | M/G | Opus 5.5 |
+| 31 | [spec_31-projetos.md](Archived/spec_31-projetos.md) | Pastas de 1º nível de `local_root` = Projetos; dropdown "Projeto" filtra árvore, grade, breadcrumb e paleta; "Criar projeto…"; sync do projeto selecionado | 16, 17, 18, 26, 27 | M/G | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de

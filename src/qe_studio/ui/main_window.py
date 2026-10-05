@@ -26,7 +26,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from .. import APP_NAME, __version__
 from ..core.compounds import CompoundStore
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.file_kinds import viewer_kind
@@ -45,6 +44,7 @@ from .navigation_controller import NavigationController
 from .palette_controller import PaletteController
 from .plot_settings import PlotSettingsStore
 from .plot_workflow import PlotWorkflow
+from .project_controller import ProjectController
 from .rename_controller import RenameController
 from .services import DetectionService
 from .shutdown import ShutdownReport, close_dialogs, run_shutdown
@@ -123,7 +123,6 @@ class MainWindow(QMainWindow):
 
     # -- construction -----------------------------------------------------------------------------
     def _build(self) -> None:
-        self.setWindowTitle(f"{APP_NAME} v{__version__} — [Projeto: {self.root}]")
         self.resize(1440, 900)
         central = QWidget()
         outer = QVBoxLayout(central)
@@ -199,6 +198,7 @@ class MainWindow(QMainWindow):
         self.help = HelpController.for_window(self)
         self.command_palette = PaletteController.for_window(self)
         self.first_run = FirstRunController.for_window(self)
+        self.project = ProjectController.for_window(self)  # "Projeto" dropdown (spec 31)
         self.focus_areas = FocusController.for_window(self)  # tab order and Ctrl+1..4
         self.grids = GridsController.for_window(self)  # "Grids" button and window (spec 23)
         self.derive = DeriveController.for_window(self)  # "Gerar SCF convergido" (spec 24)
@@ -341,6 +341,7 @@ class MainWindow(QMainWindow):
     def refresh(self) -> None:
         self.service.invalidate()
         self.command_palette.invalidate()  # its folder index is rebuilt on the next open
+        self.project.reload()
         self.explorer.refresh()
         self.files.refresh()
         self.status.set_message("Atualizado.", timeout_ms=2500)
@@ -439,7 +440,7 @@ class MainWindow(QMainWindow):
         self.sync.set_config(self.config)
         self.explorer.apply_config(self.root, self.config.ui.hidden_dirs)
         self.files.apply_config(self.root, self.config.ui.hidden_dirs)
-        self.setWindowTitle(f"{APP_NAME} v{__version__} — [Projeto: {self.root}]")
+        self.project.config_applied(old_root)  # the views were reset to the root (spec 31)
         self.refresh()
         if self.root != old_root:  # a new project: start at its top
             self.explorer.select_path(self.root)

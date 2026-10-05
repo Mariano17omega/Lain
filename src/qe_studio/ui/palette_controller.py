@@ -41,11 +41,13 @@ class PaletteController(QObject):
         hidden_dirs: Callable[[], list[str]],
         open_folder: Callable[[Path], None],
         show_workspace: Callable[[], None],
+        view_root: Callable[[], Path] | None = None,
         parent: QObject | None = None,
     ):
         super().__init__(parent)
         self.window, self._actions, self._store = window, actions, store
         self._workspace, self._root, self._hidden = workspace, root, hidden_dirs
+        self._view_root = view_root or root  # spec 31: the folder rows are the selected project's
         self._open_folder, self._show_workspace = open_folder, show_workspace
         self.palette = CommandPalette(theme, window)
         self.palette.activated.connect(self.execute)
@@ -69,6 +71,7 @@ class PaletteController(QObject):
             lambda: window.config.ui.hidden_dirs,
             window.navigation.open_entry,
             lambda: window.set_panel_visible("workspace", True),
+            view_root=lambda: window.project.view_root,
             parent=window,
         )
 
@@ -168,21 +171,31 @@ class PaletteController(QObject):
 
     def _label(self, folder: Path) -> str:
         try:
-            return folder.relative_to(self._root()).as_posix() or folder.name
+            return folder.relative_to(self._view_root()).as_posix() or folder.name
         except ValueError:
             return str(folder)
 
     def _folder_row(self, folder: Path, section: str, icon: str) -> PaletteRow:
         return PaletteRow(f"folder:{folder}", section, self._label(folder), icon)
 
+    def _inside(self, folders: list[Path]) -> list[Path]:
+        top = self._view_root()
+        if top == self._root():
+            return folders  # everything is inside the root: no walk over the whole index
+        return [folder for folder in folders if folder.is_relative_to(top)]
+
     def _favorite_rows(self) -> list[PaletteRow]:
-        return [self._folder_row(f, "Favorito", "star") for f in self._store.favorites()]
+        return [
+            self._folder_row(f, "Favorito", "star") for f in self._inside(self._store.favorites())
+        ]
 
     def _recent_rows(self) -> list[PaletteRow]:
-        return [self._folder_row(f, "Recente", "history") for f in self._store.recents()]
+        return [
+            self._folder_row(f, "Recente", "history") for f in self._inside(self._store.recents())
+        ]
 
     def _folder_rows(self) -> list[PaletteRow]:
-        return [self._folder_row(f, "Pasta", "folder") for f in self._folders or []]
+        return [self._folder_row(f, "Pasta", "folder") for f in self._inside(self._folders or [])]
 
     def _tab_rows(self) -> list[PaletteRow]:
         keys = {widget: key for key, widget in self._workspace.items()}

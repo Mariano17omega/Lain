@@ -11,10 +11,8 @@ from PyQt6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
 
 def choose_folder(parent: QWidget | None) -> Path | None:
-    """The project folder picked in the system dialog, or None when cancelled."""
-    folder = QFileDialog.getExistingDirectory(
-        parent, "Escolher a pasta do projeto", str(Path.home())
-    )
+    """The root folder picked in the system dialog, or None when cancelled."""
+    folder = QFileDialog.getExistingDirectory(parent, "Escolher a pasta raiz", str(Path.home()))
     return Path(folder) if folder else None
 
 
@@ -37,5 +35,5 @@ def ask_create_with_folder(parent: QWidget | None, folder: Path) -> bool:
     return _yes(
         parent,
         "Criar config.yaml",
-        f"Criar config.yaml com esta pasta como projeto?\n\n{folder}",
+        f"Criar config.yaml com esta pasta como raiz?\n\n{folder}",
     )

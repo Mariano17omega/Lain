@@ -32,3 +32,12 @@
     border-image: none;
     image: url(${icon_branch_open});
 }
+
+/* "Projeto" dropdown above the tree (spec 31). The QComboBox look is controls/inputs.qss. */
+#projectRow {
+    background: ${panel};
+    border-bottom: 1px solid ${border};
+}
+#projectCombo {
+    min-width: 0;
+}

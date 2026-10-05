@@ -182,9 +182,11 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   `SyncController` + dialogs → report; owns the `ConnectionMonitor` (replaced on config reload) and
   emits `cluster_changed`, `synced(local_dir)` (its own `on_synced` calls the injected `refresh`, the window's
   `refresh_folder`) and `finished`. Its entry points are `start_selected()` (the Rsync button, `sync.start`:
-  the injected `current_folder`) and `start_project()` (`sync.project`: the root), the slots in `ACTIONS`. It also says
+  the injected `current_folder`) and `start_project()` (`sync.project`: the selected project, else the root; spec 31
+  `set_project`), the slots in `ACTIONS`. It also says
   the scope (spec 17 R1): `show_scope(folder)` (called by `on_folder_selected`) renames the
-  `sync.start` action ("Sincronizar a/b"), sets the tooltips of it and of `sync.project` (bound by
+  `sync.start` action ("Sincronizar a/b"), sets the text and tooltip of `sync.project` ("Sincronizar projeto ilita" /
+  "Sincronizar tudo"), the tooltip of `sync.start` (bound by
   `bind_actions`) and emits `scope_changed(tooltip)` for the Rsync button. A pull that ends DONE /
   UP_TO_DATE emits `notice(text, level, details)` → `MainWindow.toast`; FAILED and LOCAL_NEWER
   open their `QMessageBox` over the `SyncDialog`, which the coordinator closes after it (`finish`).
@@ -744,6 +746,59 @@ the tree's when navigation (`select_path`) would be hidden by it. `nav_sections.
 `grid_view.py:GridView` is the grid's `ExtendedSelection` view: Enter with several selected emits
 `enter_many`, `FilePanel` drops `..` from every selection (`selection_changed(list[Path])`) and opens
 at most `MANY_FILES` files without asking (`ask_open_many`).
+
+### Projetos (spec 31)
+
+A **project** is a first-level folder of `paths.local_root` (the root folder: the texts say "pasta raiz"); the simulation
+units are plain folders inside it at any depth, with no list or mark of their own. The dropdown "Projeto" above the
+explorer tree narrows the window to one project or to "Todos os projetos" (= the root, how it was before). The **data
+stays keyed by `local_root`** (`FolderMemory`, `NavigationStore`, `GridStore`, `CompoundStore`).
+
+- **`core/projects.py`** (Qt-free): `list_projects(root, hidden_dirs, cancelled)` (first level only, the rules of
+  `core/folder_index`: no dotted names, `ui.hidden_dirs`, symlinks, plus `plots`, the grids' exports; sorted without case or
+  accents), `project_of(path, root)` (first component below the root; `None` for the root itself and for a path outside it:
+  pure, nothing resolved), `validate_project_name(name, existing, hidden_dirs)` (charset `[A-Za-z0-9._-]+`, no leading
+  `.`, not `plots` nor a hidden pattern, no duplicate in any case) and `create_project(root, name)` (`mkdir(exist_ok=False)`,
+  never `_N`: an existing folder is `ProjectError`; it validates again, so `../x` cannot leave the root).
+- **`ui/project_controller.py:ProjectController`** (`for_window`, `window.project`): the selected name (`None` = Todos),
+  QSettings `explorer/project`, the list (`TaskGroup`, `reload()`: start, F5 through `MainWindow.refresh`, a config reload,
+  a rename, a new project; the dropdown keeps the last list meanwhile) and "Criar projeto…" (`ask_new_project`, then
+  `create_project` in `run_task`, busy `project:create`, toast / `QMessageBox.warning`; signals `created` / `failed` /
+  `listed` for tests). **`switch(name)`** is the one place that fans the scope out, through small calls that know no
+  "projeto": `ExplorerPanel.set_scope` (= `set_root`: `current_folder()` falls back to the project, which is the default
+  place of "Criar cálculo"), `FilePanel.set_view_root` (the `..` row and `go_up` stop there; the grid's folder is still
+  driven by `on_folder_selected`), `NavigationController.set_view_root` (breadcrumb root; favorites / recents filtered to
+  the view, labels relative to it; the history is kept, so never `set_root`, which clears it),
+  `SyncCoordinator.set_project`, the window title (`[Projeto: ilita]` / `[Raiz: <caminho>]`), then it selects the project's
+  folder like a click (`on_folder_selected`, history). `PaletteController(view_root=)` filters the folder, favorite and
+  recent rows (the index stays one, of the root). At start the stored name is applied at once, with no disk read; the first
+  list checks it: a project that is gone → "Todos" and the footer says "Projeto <nome> não encontrado".
+- **Auto-switch** (R3.6): every navigation ends in `ExplorerPanel.select_path`, which emits `outside_scope(path)` for a path
+  above the tree's root (a pure `is_relative_to`, no `FS_ALLOWED` cost) and returns. `ProjectController.on_outside_scope`
+  switches to `project_of(path)` (or to "Todos" for the root) and selects the path again; a path outside `local_root` is
+  ignored. History back / forward, "Revelar no explorador", a created folder, a renamed project and `explorer/last_folder`
+  in another project all follow it with no change in their callers. `config_applied(old_root)` (in `_apply_loaded`, after
+  `explorer` / `files.apply_config` reset the views to the root) keeps the project of the same root, another root → "Todos".
+- **Widgets:** `ui/widgets/project_combo.py:ProjectCombo` (`explorer.projects`: label "Projeto" + `QComboBox#projectCombo`,
+  `accessibleName` "Projeto"; entries "Todos os projetos", the projects, "Criar projeto…" with a NUL-prefixed key that no
+  folder name can equal; `set_projects` / `set_current` never emit, `project_chosen` / `create_requested` come from the user,
+  `restore()` after a cancelled dialog; disabled in `missing_root` through `first_run.refreshed` → `update_available`) and
+  `ui/dialogs/new_project.py` (modal like `rename.py`, live message under the field, "Criar" only for a clean name).
+  The action `project.create` ("Arquivo ▸ Criar projeto…") is in `ACTIONS`, so the palette lists it.
+- **Sync and push** (`core/sync/request.py`): the root says "tudo" / "Sincronizar tudo"; the selected project's scope has the
+  explicit hint `sync_scope(..., project=name)` ("projeto ilita" / "Sincronizar projeto ilita"; a plain pull of a first-level
+  folder keeps "ilita (e subpastas)", so the words are never derived from depth). `SyncScope.at_project` (a first-level
+  folder) and `prepare_push` (`resolved.parent == root`, after the "Pasta não encontrada" check) refuse a push of a project
+  (`PUSH_PROJECT`; the root keeps `PUSH_ROOT`): a push is of one calculation folder, so a pre-spec-31 layout with
+  calculations directly in the root cannot be pushed from there. `remote_dir_for` is unchanged (`remote_root/<project>/…`).
+  `SyncCoordinator.set_project` rebuilds the `sync.project` scope once (never in `show_scope`: a test counts its `resolve`s).
+- **Criar cálculo:** `core/calc_create/preview.py:location_warnings(parent, root)` = `OUTSIDE_PROJECT` (outside the root) or
+  `AT_ROOT` ("A pasta será criada fora de um projeto…": the place is the root itself, so the folder becomes a new project).
+- **Tests:** `conftest.py` has the `raiz` fixture (projects `ilita` / `outro`, `plots`, a hidden folder, a loose file),
+  `tests/project_helpers.py` the dropdown as the user drives it (`pick`, `current_text`, `config_of`), `test_projects.py`
+  (core), `test_project_combo.py`, `test_new_project_dialog.py`, `test_project_ui.py` (a window on `raiz`: the model reads
+  a folder in its own thread, so wait with `qtbot.waitUntil(lambda: tree_names(window) == …)` after a switch) and
+  `test_project_integration.py` (sync, push and "Criar cálculo" with a project selected).
 
 ### Help, command palette and first run (spec 18)
 

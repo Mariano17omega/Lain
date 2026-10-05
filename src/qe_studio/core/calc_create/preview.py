@@ -16,13 +16,16 @@ from .types.base import CalcType, PlannedFile
 from .writer import Created, folder_name, preview_name
 
 __all__ = [
+    "AT_ROOT",
     "FILE_KINDS",
     "OUTSIDE_PROJECT",
     "FileRow",
+    "at_root",
     "changed_lines",
     "created_notice",
     "field_text",
     "file_rows",
+    "location_warnings",
     "mesh_summary",
     "outside_project",
     "target_text",
@@ -34,9 +37,8 @@ FILE_KINDS = {
     "qe_input": "Input do QE",
     "notes": "Anotações",
 }
-OUTSIDE_PROJECT = (
-    "Fora da pasta do projeto: a detecção e a sincronização só enxergam pastas dentro dela"
-)
+OUTSIDE_PROJECT = "Fora da pasta raiz: a detecção e a sincronização só enxergam pastas dentro dela"
+AT_ROOT = "A pasta será criada fora de um projeto e aparecerá como um projeto novo."  # spec 31 R6.2
 
 
 @dataclass(frozen=True)
@@ -97,6 +99,21 @@ def outside_project(parent: Path, root: Path) -> bool:
         return not parent.resolve().is_relative_to(root.resolve())
     except OSError:
         return True
+
+
+def at_root(parent: Path, root: Path) -> bool:
+    """Whether ``parent`` is the root folder itself: a folder made there is a project (spec 31)."""
+    try:
+        return parent.resolve() == root.resolve()
+    except OSError:
+        return False
+
+
+def location_warnings(parent: Path, root: Path) -> tuple[str, ...]:
+    """The amber notes of a place for the new folder (it may still be created)."""
+    if outside_project(parent, root):
+        return (OUTSIDE_PROJECT,)
+    return (AT_ROOT,) if at_root(parent, root) else ()
 
 
 PUSH_REMINDER = "Use ‘Enviar ao cluster’ para levar a pasta ao cluster"

@@ -74,6 +74,7 @@ class SyncCoordinator(QObject):
         self.conflict_dialog: ConflictDialog | None = None
         self._session_password: str | None = None  # typed once per run, never saved
         self._scope_folder: Path = config.paths.local_root
+        self._project: Path | None = None  # the selected project's folder (spec 31); None: all
         self._folder_action: QAction | None = None
         self._project_action: QAction | None = None
         self._push_action: QAction | None = None
@@ -93,12 +94,22 @@ class SyncCoordinator(QObject):
         return root / self.scope.relative if self.scope.relative else root
 
     def _set_root(self) -> None:
-        """The resolved project root and the scope of the whole project, once per config: they are
-        what every folder change would ``resolve`` again (spec 27-8 R3)."""
+        """The resolved root, once per config: what every folder change would ``resolve`` again
+        (spec 27-8 R3)."""
         self._root = self.config.paths.local_root.resolve()
-        self._whole = sync_scope(
-            self.config, self.config.paths.local_root, resolved_root=self._root
-        )
+        self._set_whole()
+
+    def _set_whole(self) -> None:
+        """The scope of "Sincronizar projeto": the selected project, else everything (spec 31)."""
+        folder = self._project or self.config.paths.local_root
+        name = self._project.name if self._project else ""
+        self._whole = sync_scope(self.config, folder, resolved_root=self._root, project=name)
+
+    def set_project(self, project: Path | None) -> None:
+        """The project selected in the window (spec 31): what "Sincronizar projeto" pulls."""
+        self._project = project
+        self._set_whole()
+        self.show_scope(self._scope_folder)
 
     def _new_monitor(self) -> ConnectionMonitor:
         monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
@@ -112,6 +123,7 @@ class SyncCoordinator(QObject):
     def set_config(self, config: AppConfig) -> None:
         """Config reload: a new monitor for the new cluster."""
         self.config = config
+        self._project = None  # the window says it again, after the views follow the new config
         self._set_root()
         old = self.monitor
         old.stop()
@@ -123,7 +135,7 @@ class SyncCoordinator(QObject):
 
     # -- scope (spec 17 R1) -----------------------------------------------------------------------
     def bind_actions(self, actions: dict[str, QAction]) -> None:
-        """The menu's "Sincronizar <pasta>", "Sincronizar projeto inteiro" and "Enviar <pasta> ao
+        """The menu's "Sincronizar <pasta>", "Sincronizar projeto <nome>" / "Sincronizar tudo" and "Enviar <pasta> ao
         cluster…" (``sync.start``, ``sync.project``, ``sync.push``), kept up to date."""
         self._folder_action = actions.get("sync.start")
         self._project_action = actions.get("sync.project")
@@ -153,6 +165,7 @@ class SyncCoordinator(QObject):
             self._folder_action.setToolTip(scope.tooltip)
             self._folder_action.setEnabled(enabled)
         if self._project_action is not None:
+            self._project_action.setText(self._whole.menu_text)
             self._project_action.setToolTip(self._whole.tooltip)
             self._project_action.setEnabled(enabled)
         if self._push_action is not None:
@@ -186,8 +199,9 @@ class SyncCoordinator(QObject):
         self.start(self._current_folder())
 
     def start_project(self) -> None:
-        """ "Sincronizar projeto inteiro": the root, whatever is selected (spec 17 R1.3)."""
-        self.start(self.config.paths.local_root)
+        """ "Sincronizar projeto <nome>" / "Sincronizar tudo": the selected project or else the
+        root, whatever folder is selected (spec 17 R1.3, spec 31 R5)."""
+        self.start(self._project or self.config.paths.local_root)
 
     def on_synced(self, local_dir: Path) -> None:
         """A pull changed ``local_dir``: refresh what shows it."""
@@ -249,7 +263,8 @@ class SyncCoordinator(QObject):
 
     def run(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
         controller = SyncController(self.config, self, password=password)
-        scope = sync_scope(self.config, folder, endpoint, resolved_root=self._root)
+        project = self._project.name if self._project and folder == self._project else ""
+        scope = sync_scope(self.config, folder, endpoint, resolved_root=self._root, project=project)
         dialog = self._open(controller, scope)
         controller.conflict_needed.connect(dialog.await_decision)
         controller.conflict_needed.connect(self._ask_conflict)

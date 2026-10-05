@@ -122,7 +122,7 @@ def test_name_preview_says_when_the_name_is_taken(qtbot, dialog, place):
 def test_a_place_outside_the_project_warns(qtbot, dialog, tmp_path):
     fill_setup(qtbot, dialog, "scf", location=tmp_path)
     assert dialog.continue_button.isEnabled()  # a warning, not a block
-    assert "Fora da pasta do projeto" in dialog.setup.location_message.text()
+    assert "Fora da pasta raiz" in dialog.setup.location_message.text()
 
 
 # -- step 2 ---------------------------------------------------------------------------------------

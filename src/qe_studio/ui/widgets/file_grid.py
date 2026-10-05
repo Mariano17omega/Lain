@@ -145,6 +145,11 @@ class FilePanel(QWidget):
         self.service.results(self._folder)  # warm the sniff cache for status labels
         self._update_count()
 
+    def set_view_root(self, folder: Path) -> None:
+        """The top the grid may go up to (spec 31: the selected project, else the root): there
+        is no ``..`` row in it and ``go_up`` stops. The folder shown changes with the tree's."""
+        self.proxy.set_root(folder)
+
     def apply_config(self, root: Path, hidden_dirs: list[str]) -> None:
         """A reloaded config: project root and hidden folders; shows the root."""
         self.proxy.set_hidden_dirs(hidden_dirs)

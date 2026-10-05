@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ....core.calc_create.preview import OUTSIDE_PROJECT, outside_project, target_text
+from ....core.calc_create.preview import location_warnings, target_text
 from ....core.calc_create.scf_info import ScfInfo, ScfInputError, read_scf
 from ....core.calc_create.types import REGISTRY, CalcType
 from ....core.calc_create.writer import validate_parent, validate_suffix
@@ -177,7 +177,7 @@ class SetupPage(QWidget):
         return problems + validate_suffix(self.suffix) + validate_parent(self._location)
 
     def location_warnings(self) -> tuple[str, ...]:
-        return (OUTSIDE_PROJECT,) if outside_project(self._location, self.root) else ()
+        return location_warnings(self._location, self.root)
 
     # -- the SCF -------------------------------------------------------------------------------
     def _pick_scf(self) -> None:

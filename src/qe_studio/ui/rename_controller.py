@@ -30,14 +30,14 @@ Blocker = Callable[[Path], str | None]
 
 
 def sync_blocker(sync) -> Blocker:
-    """A pull or a push of a folder that contains the path, lies inside it or is the project."""
+    """A pull or a push of a folder that contains the path, lies inside it or is the root."""
 
     def reason(path: Path) -> str | None:
         folder = sync.folder
         if folder is None or not overlaps(folder, path):
             return None
         scope = sync.scope
-        where = scope.relative if scope is not None and scope.relative else "projeto inteiro"
+        where = scope.relative if scope is not None and scope.relative else "toda a pasta raiz"
         what = "um envio ao cluster" if scope is not None and scope.push else "uma sincronização"
         return f"Há {what} em andamento em {where}. Espere terminar ou cancele."
 
@@ -105,6 +105,7 @@ class RenameController:
             window.navigation.rename(old, new)
             window.memory.rename(old_resolved, new_resolved)
             window.grids.rename(old_resolved, new_resolved)
+            window.project.reload()  # a first-level folder is a project (spec 31)
 
         blockers = [
             sync_blocker(window.sync),

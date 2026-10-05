@@ -91,6 +91,7 @@ def steps_for(window: MainWindow) -> list[Step]:
         window.grids.loader.cancel_all()
         window.derive.cancel()
         window.command_palette.cancel()
+        window.project.cancel()
 
     def save_state(_ms: int) -> None:
         window.navigation.shutdown()

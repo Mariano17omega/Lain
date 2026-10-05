@@ -94,8 +94,18 @@ def test_scope_of_a_subfolder(tmp_path):
 
 def test_scope_of_the_root(tmp_path):
     scope = sync_scope(config(tmp_path), tmp_path)
-    assert scope.whole_project and scope.tooltip == "Baixar do cluster: projeto inteiro"
-    assert scope.menu_text == "Sincronizar projeto inteiro" and scope.local_text == "."
+    assert scope.whole_project and scope.tooltip == "Baixar do cluster: tudo"
+    assert scope.menu_text == "Sincronizar tudo" and scope.local_text == "."
+
+
+def test_scope_of_a_project(tmp_path):
+    cfg = config(tmp_path)
+    scope = sync_scope(cfg, tmp_path / "ilita", project="ilita")  # what "Sincronizar projeto" says
+    assert scope.tooltip == "Baixar do cluster: projeto ilita"
+    assert scope.menu_text == "Sincronizar projeto ilita" and scope.local_text == "ilita"
+    assert scope.remote == "me@hpc.example:/scratch/me/ilita/"
+    plain = sync_scope(cfg, tmp_path / "ilita")  # the same folder as a plain pull: as before
+    assert plain.menu_text == "Sincronizar ilita" and "ilita (e subpastas)" in plain.tooltip
 
 
 def test_scope_with_sync_off(tmp_path):

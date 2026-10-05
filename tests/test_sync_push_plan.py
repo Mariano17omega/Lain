@@ -16,6 +16,7 @@ from qe_studio.core.sync.push_plan import PushAction, PushItem, PushPlan, build_
 from qe_studio.core.sync.report import PushReport, SyncReport, SyncStatus
 from qe_studio.core.sync.request import (
     NOT_CONFIGURED,
+    PUSH_PROJECT,
     PUSH_ROOT,
     SYNC_OFF,
     Direction,
@@ -152,26 +153,33 @@ def config(root, **cluster):
 
 
 def test_prepare_push(tmp_path):
-    (tmp_path / "bandas_1").mkdir()
-    request = prepare_push(config(tmp_path), tmp_path / "bandas_1")
+    (tmp_path / "ilita" / "bandas_1").mkdir(parents=True)
+    run = tmp_path / "ilita" / "bandas_1"
+    request = prepare_push(config(tmp_path), run)
     assert request == PushRequest(
-        tmp_path / "bandas_1", Endpoint("/scratch/me/proj/bandas_1", "hpc", "me"), False
+        run, Endpoint("/scratch/me/proj/ilita/bandas_1", "hpc", "me"), False
     )
     assert prepare_push(config(tmp_path), tmp_path) == SyncRefusal("warning", PUSH_ROOT)
+    # A project (a first-level folder) is not a calculation folder (spec 31 R5.2).
+    assert prepare_push(config(tmp_path), tmp_path / "ilita") == SyncRefusal(
+        "warning", PUSH_PROJECT
+    )
     outside = prepare_push(config(tmp_path / "proj"), tmp_path / "elsewhere")
     assert isinstance(outside, SyncRefusal) and outside.level == "warning"
     missing = prepare_push(config(tmp_path), tmp_path / "nope")
     assert isinstance(missing, SyncRefusal) and "Pasta não encontrada" in missing.message
     bare = parse_config({"paths": {"local_root": str(tmp_path)}})
-    assert prepare_push(bare, tmp_path / "bandas_1") == SyncRefusal("info", NOT_CONFIGURED)
+    assert prepare_push(bare, run) == SyncRefusal("info", NOT_CONFIGURED)
 
 
 def test_push_availability_is_the_disabled_items_reason(tmp_path):
-    (tmp_path / "run").mkdir()
-    assert push_availability(config(tmp_path), tmp_path / "run") == ""
+    (tmp_path / "ilita" / "run").mkdir(parents=True)
+    run = tmp_path / "ilita" / "run"
+    assert push_availability(config(tmp_path), run) == ""
     assert push_availability(config(tmp_path), tmp_path) == PUSH_ROOT
+    assert push_availability(config(tmp_path), tmp_path / "ilita") == PUSH_PROJECT
     bare = parse_config({"paths": {"local_root": str(tmp_path)}})
-    assert push_availability(bare, tmp_path / "run") == SYNC_OFF
+    assert push_availability(bare, run) == SYNC_OFF
 
 
 def test_push_scope_wording(tmp_path):
@@ -184,6 +192,9 @@ def test_push_scope_wording(tmp_path):
     root = sync_scope(cfg, tmp_path, direction=Direction.PUSH)
     assert root.menu_text == "Enviar pasta ao cluster…" and not root.available
     assert root.tooltip == PUSH_ROOT
+    project = sync_scope(cfg, tmp_path / "a", direction=Direction.PUSH)
+    assert project.menu_text == "Enviar pasta ao cluster…" and not project.available
+    assert project.tooltip == PUSH_PROJECT
     pull = sync_scope(cfg, tmp_path / "a")
     assert pull.window_title == "Sincronizando com o cluster" and pull.confirm_text == "Baixar"
     assert pull.title == "Baixar do cluster: a (e subpastas)" and pull.available

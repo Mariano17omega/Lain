@@ -5,10 +5,14 @@ from pathlib import Path
 
 from qe_studio.core.calc_create.kpath import KMesh
 from qe_studio.core.calc_create.preview import (
+    AT_ROOT,
+    OUTSIDE_PROJECT,
+    at_root,
     changed_lines,
     created_notice,
     field_text,
     file_rows,
+    location_warnings,
     mesh_summary,
     outside_project,
     target_text,
@@ -87,6 +91,18 @@ def test_outside_project(tmp_path):
     assert not outside_project(root, root)
     assert not outside_project(root / "a", root)
     assert outside_project(tmp_path, root)
+
+
+def test_at_root_and_the_location_warnings(tmp_path):
+    """Spec 31 R6.2: the root itself is outside any project: a folder made there is a new one."""
+    root = tmp_path / "raiz"
+    (root / "ilita").mkdir(parents=True)
+    assert at_root(root, root) and not at_root(root / "ilita", root)
+    assert not at_root(tmp_path, root) and not at_root(tmp_path / "gone", root)
+    assert location_warnings(root, root) == (AT_ROOT,)
+    assert location_warnings(root / "ilita", root) == ()
+    assert location_warnings(tmp_path, root) == (OUTSIDE_PROJECT,)  # not both
+    assert "fora de um projeto" in AT_ROOT and "pasta raiz" in OUTSIDE_PROJECT
 
 
 def test_created_notice():

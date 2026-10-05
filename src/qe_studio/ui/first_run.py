@@ -94,8 +94,8 @@ class FirstRunController(QObject):
         elif state == "missing_root":
             root = self._loaded().config.paths.local_root
             self.overlay.set_content(
-                "Pasta do projeto não encontrada",
-                f"A pasta do projeto não foi encontrada: {root}",
+                "Pasta raiz não encontrada",
+                f"A pasta raiz não foi encontrada: {root}",
                 [
                     ("Abrir config", "primary", self.open_config),
                     ("Escolher pasta…", "", self.choose_session_folder),

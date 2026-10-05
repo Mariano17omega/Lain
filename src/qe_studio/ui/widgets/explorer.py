@@ -29,6 +29,7 @@ from .filter_bar import FilterBar
 from .fs_model import FileFilterProxy, make_fs_model
 from .item_tooltips import is_tooltip
 from .nav_sections import NavSection
+from .project_combo import ProjectCombo
 
 ROW_HEIGHT = 22
 
@@ -164,6 +165,7 @@ class ExplorerPanel(QWidget):
     file_selected = pyqtSignal(Path)
     file_activated = pyqtSignal(Path)
     item_menu_requested = pyqtSignal(list, QPoint)  # [item], global position
+    outside_scope = pyqtSignal(Path)  # ``select_path`` was asked for a path above the tree's root
 
     def __init__(
         self,
@@ -184,6 +186,8 @@ class ExplorerPanel(QWidget):
         self.collapse_button = header.add_button(IconButton(theme, "unfold_less", "Recolher tudo"))
         self.refresh_button = header.add_button(IconButton(theme, "refresh", "Atualizar (F5)"))
         layout.addWidget(header)
+        self.projects = ProjectCombo()  # spec 31: answered by the window's ProjectController
+        layout.addWidget(self.projects)
         # Favorite and recent folders (spec 16 R4): hidden while empty, filled by the window's
         # NavigationController, which also answers their clicks.
         self.favorites = NavSection(theme, "Favoritos", "star", "accent")
@@ -256,6 +260,11 @@ class ExplorerPanel(QWidget):
         self.model.setRootPath(str(root))
         self.tree.setRootIndex(self.proxy.index_for(root))
 
+    def set_scope(self, folder: Path) -> None:
+        """Show only ``folder`` and what is inside it (spec 31: the selected project, else the
+        root); ``current_folder`` falls back to it."""
+        self.set_root(folder)
+
     def apply_config(self, root: Path, hidden_dirs: list[str]) -> None:
         """A reloaded config: project root and hidden folders."""
         self.proxy.set_hidden_dirs(hidden_dirs)
@@ -286,6 +295,9 @@ class ExplorerPanel(QWidget):
         return [("Filtrar a árvore", "Ctrl+F", "Árvore de pastas")]
 
     def select_path(self, path: Path) -> None:
+        if not Path(path).is_relative_to(self._root):
+            self.outside_scope.emit(Path(path))  # the window decides: another project, or nothing
+            return
         if Path(path) == self._root:
             # The root is the tree's root index, not a row: nothing to highlight.
             self.tree.setCurrentIndex(QModelIndex())

@@ -214,8 +214,9 @@ def test_rsync_tooltip_and_menu_follow_the_folder(qtbot, window_factory, demo_pr
     assert action.text() == "Sincronizar 03_bands/sub" and action.isEnabled()
     assert "03_bands/sub (e subpastas)" in action.toolTip()
     window.explorer.select_path(demo_project)
-    assert window.activity.rsync.toolTip() == "Baixar do cluster: projeto inteiro"
-    assert action.text() == "Sincronizar projeto inteiro" and project.isEnabled()
+    assert window.activity.rsync.toolTip() == "Baixar do cluster: tudo"
+    assert action.text() == "Sincronizar tudo" and project.isEnabled()
+    assert project.text() == "Sincronizar tudo"
 
 
 def test_rsync_tooltip_when_sync_is_off(qtbot, main_window):
