@@ -20,6 +20,7 @@ from ....core.calc_create.preview import field_text
 from ....core.calc_create.types import FormField
 from ....core.qe.lattice import Crystal
 from ...theme.manager import ThemeManager
+from ...widgets.atom_table import AtomRow, AtomTable
 from ...widgets.common import set_variant
 from ...widgets.kpath_editor import KPathEditor
 from ...widgets.param_widgets import Section
@@ -27,6 +28,8 @@ from .kmesh import KMeshEditor
 from .labels import repolish
 
 TITLE = "Parâmetros"
+UNIT_LABELS = {"angstrom": "Å"}  # the card's unit as a column head
+ATOMS_MIN_HEIGHT = 320  # the atoms tab has the room: show a dozen rows
 
 
 def placeholder(form_field: FormField) -> str:
@@ -79,6 +82,9 @@ class FieldForm(QWidget):
             self.widgets[form_field.id] = editor
             self.rows[form_field.id] = (title, editor)
             return
+        if kind == "atoms":
+            self._add_atoms(form_field, label)
+            return
         widget = self._widget(form_field)
         self.section.add_row(label, widget, form_field.tooltip)
         item = self.section.grid.itemAtPosition(self.section.grid.rowCount() - 1, 0)
@@ -87,6 +93,31 @@ class FieldForm(QWidget):
             text.setWordWrap(True)  # long labels such as "forc_conv_thr" keep the 40/60 grid
         self.widgets[form_field.id] = widget
         self.rows[form_field.id] = (widget,) if text is None else (text, widget)
+
+    def _add_atoms(self, form_field: FormField, label: str) -> None:
+        """The table of atoms (``FormField.data``: ``AtomRows``) under the label and the legend."""
+        atoms = form_field.data
+        rows = [AtomRow(a.index, a.label, a.x, a.y, a.z) for a in getattr(atoms, "rows", ())]
+        selected = form_field.default if isinstance(form_field.default, tuple) else ()
+        unit = getattr(atoms, "unit", "") or "angstrom"
+        table = AtomTable(rows, selected, UNIT_LABELS.get(unit, unit))
+        table.table.setMinimumHeight(ATOMS_MIN_HEIGHT)
+        table.setAccessibleName(form_field.label)
+        table.setToolTip(form_field.tooltip)
+        table.changed.connect(self._edited)
+        shown: list[QWidget] = [set_variant(QLabel(label), "fieldLabel")]
+        shown[0].setToolTip(form_field.tooltip)
+        legend = form_field.hint
+        error = getattr(atoms, "error", "")
+        if legend or error:
+            text = set_variant(QLabel(error or legend), "warning" if error else "dialogText")
+            text.setWordWrap(True)
+            shown.append(text)
+        shown.append(table)
+        for widget in shown:
+            self.section.add_full(widget)
+        self.widgets[form_field.id] = table
+        self.rows[form_field.id] = tuple(shown)
 
     def _widget(self, form_field: FormField) -> QWidget:
         kind, default = form_field.kind, form_field.default
@@ -135,7 +166,7 @@ class FieldForm(QWidget):
                 out[field_id] = widget.currentText() or None
             elif isinstance(widget, QCheckBox):
                 out[field_id] = widget.isChecked()
-            elif isinstance(widget, KMeshEditor | KPathEditor):
+            elif isinstance(widget, KMeshEditor | KPathEditor | AtomTable):
                 out[field_id] = widget.value()
         return out
 
@@ -143,7 +174,7 @@ class FieldForm(QWidget):
         """Mark the fields with a problem (border and tooltip); the rest go back to normal."""
         for form_field in self.fields:
             widget = self.widgets[form_field.id]
-            target = widget.table if isinstance(widget, KPathEditor) else widget
+            target = widget.table if isinstance(widget, KPathEditor | AtomTable) else widget
             problem = problems.get(form_field.id)
             if bool(target.property("invalid")) != bool(problem):
                 target.setProperty("invalid", bool(problem))

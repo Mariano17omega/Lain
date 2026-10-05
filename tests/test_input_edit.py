@@ -169,3 +169,87 @@ def test_real_inputs_survive_a_round_of_edits():
         editor.remove_namelist("ions")
         assert editor.issues == []
         assert InputEditor.from_text(editor.text()).get("control", "calculation") == "scf"
+
+
+# -- the raw rows of a card, removing a card, renaming a key (spec 30 R2.5) -------------------------
+SPIN = """\
+&SYSTEM
+   nat = 3, ntyp = 2
+   starting_magnetization(1) = 0.5 ! first
+   Starting_Magnetization (2)= 0.1
+/
+ATOMIC_SPECIES
+ Fe 55.8 Fe.UPF
+ O 16 O.UPF
+
+ATOMIC_POSITIONS angstrom
+ Fe 0 0 0  0 0 0 ! flags and a comment
+ ! a line of its own
+ O 1 1 1
+
+ O 2 2 2
+K_POINTS gamma
+"""
+
+
+def test_card_rows_are_the_rows_as_written():
+    editor = InputEditor.from_text(SPIN)
+    assert editor.card_rows("ATOMIC_POSITIONS") == [
+        " Fe 0 0 0  0 0 0 ! flags and a comment",  # the comment stays: ``Card.lines`` drops it
+        " O 1 1 1",
+        " O 2 2 2",
+    ]
+    card = editor.card("ATOMIC_POSITIONS")
+    assert card is not None and card.lines[0] == "Fe 0 0 0  0 0 0"
+    assert editor.card_rows("K_POINTS") == []
+    assert editor.card_rows("CELL_PARAMETERS") is None
+    assert InputEditor.from_text("").card_rows("K_POINTS") is None
+
+
+def test_replace_card_rows_changes_the_body_and_nothing_else():
+    rows = [" Fe 0 0 0  0 0 0 ! flags and a comment", " O 2 2 2"]
+    text = edited(SPIN, ("replace_card_rows", "ATOMIC_POSITIONS", rows))
+    old = " Fe 0 0 0  0 0 0 ! flags and a comment\n ! a line of its own\n O 1 1 1\n\n O 2 2 2\n"
+    assert text == SPIN.replace(old, " Fe 0 0 0  0 0 0 ! flags and a comment\n O 2 2 2\n")
+    header = edited(
+        "ATOMIC_POSITIONS {Angstrom}  ! unit\n Si 0 0 0\n",
+        (
+            "replace_card_rows",
+            "ATOMIC_POSITIONS",
+            [" Si 1 1 1"],
+        ),
+    )
+    assert header == "ATOMIC_POSITIONS {Angstrom}  ! unit\n Si 1 1 1\n"  # the header: byte for byte
+    emptied = edited(SPIN, ("replace_card_rows", "ATOMIC_SPECIES", []))
+    assert "ATOMIC_SPECIES\n\nATOMIC_POSITIONS" in emptied
+    grown = edited("K_POINTS crystal_b\n", ("replace_card_rows", "K_POINTS", ["2", "0 0 0 1"]))
+    assert grown == "K_POINTS crystal_b\n2\n0 0 0 1\n"
+    editor = InputEditor.from_text(SPIN)
+    assert editor.replace_card_rows("HUBBARD", ["U Fe-3d 5"]) is False  # no card: nothing added
+    assert editor.text() == SPIN and editor.issues == []
+
+
+def test_remove_card_takes_the_header_and_the_body():
+    text = edited(SPIN, ("remove_card", "ATOMIC_POSITIONS"))
+    assert "ATOMIC_POSITIONS" not in text and "O 2 2 2" not in text
+    assert text.endswith("O 16 O.UPF\n\nK_POINTS gamma\n")
+    assert edited("K_POINTS gamma\n", ("remove_card", "K_POINTS")) == ""
+    editor = InputEditor.from_text(SPIN)
+    assert editor.remove_card("HUBBARD") is False and editor.text() == SPIN
+
+
+def test_rename_key_changes_the_name_where_it_stands():
+    text = edited(
+        SPIN,
+        ("rename_key", "system", "starting_magnetization(2)", "starting_magnetization(1)"),
+    )
+    assert "   Starting_Magnetization (1)= 0.1\n" in text  # spacing, value and the case it had
+    assert "starting_magnetization(1) = 0.5 ! first" in text  # the other entry is untouched
+    editor = InputEditor.from_text(SPIN)
+    assert editor.rename_key("system", "angle1(1)", "angle1(2)") is False
+    assert editor.rename_key("ions", "x", "y") is False and editor.text() == SPIN
+    shared = edited(
+        "&system\n  nat = 2, ntyp(1) = 3 /\n", ("rename_key", "system", "ntyp(1)", "ntyp(2)")
+    )
+    assert shared == "&system\n  nat = 2, ntyp(2) = 3 /\n"
+    assert lint(text).issues == []

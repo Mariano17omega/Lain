@@ -7,13 +7,15 @@ is tested at the end.
 import pytest
 from PyQt6 import sip
 from PyQt6.QtCore import QSettings, Qt
-from PyQt6.QtWidgets import QComboBox, QLineEdit
+from PyQt6.QtWidgets import QComboBox, QLabel, QLineEdit
 
+from fragment_helpers import SMALL
 from qe_studio.core.calc_create.types import by_id
 from qe_studio.ui.dialogs.calc_create import CalcCreateDialog
 from qe_studio.ui.dialogs.calc_create import dialog as dialog_module
 from qe_studio.ui.dialogs.calc_create.kmesh import KMeshEditor
 from qe_studio.ui.theme.manager import ThemeManager
+from qe_studio.ui.widgets.atom_table import AtomTable
 from qe_studio.ui.widgets.kpath_editor import KPathEditor
 
 from calc_dialog_helpers import fill_setup, pick_scf, to_files, tree
@@ -485,3 +487,127 @@ def test_a_file_renamed_in_the_advanced_mode(qtbot, dialog, place):
     with qtbot.waitSignal(dialog.create_requested) as blocker:
         dialog.create_button.click()
     assert blocker.args[0].suffix == ""
+
+
+# -- "Diferença de carga": the "Átomos" tab (spec 30 R3) ------------------------------------------------
+@pytest.fixture
+def small_scf(tmp_path):
+    path = tmp_path / "scf.in"
+    path.write_text(SMALL)  # atoms 1-2 Fe, 3-4 O, 5-6 H; prefix ilita
+    return path
+
+
+def diff_tabs(qtbot, dialog, small_scf):
+    return to_files(qtbot, dialog, "charge_diff", scf=small_scf, suffix="ilita")
+
+
+def test_the_atoms_tab_is_the_first_one(qtbot, dialog, small_scf):
+    tabs = diff_tabs(qtbot, dialog, small_scf)
+    assert tabs.tab_labels() == [
+        "Átomos",
+        "Script (charge_diff.qsub)",
+        "SCF (scf_ilita.in)",
+        "SCF clean (scf_ilita_clean.in)",
+        "SCF isolated (scf_ilita_isolated.in)",
+        "pp.x base (pp_ilita_charge.in)",
+        "pp.x clean (pp_ilita_clean_charge.in)",
+        "pp.x isolated (pp_ilita_isolated_charge.in)",
+        "pp.x diferença (pp_charge_diff.in)",
+        "Arquivos",
+        "Descrição",
+    ]
+    assert tabs.tabs.currentIndex() == 0
+    table = tabs.widget_of("atoms")
+    assert isinstance(table, AtomTable)
+    assert table.value() == () and table.count.text() == "0 de 6 átomos"  # starts with none picked
+    heads = [table.table.horizontalHeaderItem(c).text() for c in range(6)]
+    assert heads == ["", "#", "Elemento", "x (Å)", "y (Å)", "z (Å)"]
+    assert [table.table.item(r, 2).text() for r in range(6)] == ["Fe", "Fe", "O", "O", "H", "H"]
+    legend = [label.text() for label in tabs.tabs.widget(0).findChildren(QLabel)]
+    assert any("Δρ = ρ(base) − ρ(clean) − ρ(isolated)" in text for text in legend)
+    assert tabs.previews.keys() == {
+        "script", "scf", "scf_clean", "scf_isolated", "pp_base", "pp_clean", "pp_isolated", "pp_diff",
+    }  # the atoms tab has no preview: it is not a file  # fmt: skip
+
+
+def test_picking_atoms_changes_the_clean_and_isolated_previews(qtbot, dialog, small_scf):
+    tabs = diff_tabs(qtbot, dialog, small_scf)
+    table = tabs.widget_of("atoms")
+    clean, isolated = tabs.previews["scf_clean"], tabs.previews["scf_isolated"]
+    assert "Fe 0 0 0" in clean.toPlainText()  # nothing picked: the base twice
+    table.checks[5].click()
+    table.checks[6].click()
+    assert table.count.text() == "2 de 6 átomos"
+    assert "H 1.5 1.5 1.5" in isolated.toPlainText() and "Fe 0 0 0" not in isolated.toPlainText()
+    assert "H 1.5 1.5 1.5" not in clean.toPlainText() and "Fe 0 0 0" in clean.toPlainText()
+    painted = [isolated.toPlainText().splitlines()[row] for row in isolated.changed_rows()]
+    assert any("nat = 2" in line for line in painted)  # the lines that are not the base's
+    assert tabs.previews["pp_diff"].toPlainText().count("weight") == 3
+    assert tabs.dirty
+
+
+def test_the_buttons_of_the_atoms_tab(qtbot, dialog, small_scf):
+    tabs = diff_tabs(qtbot, dialog, small_scf)
+    table = tabs.widget_of("atoms")
+    for button in (table.mark_all, table.unmark_all, table.invert, table.species_button):
+        assert button.isVisible()
+    actions = {a.text(): a for a in table.species_menu.actions()}
+    assert list(actions) == ["Fe", "O", "H"]
+    actions["H"].trigger()
+    assert table.value() == (5, 6) and dialog.create_button.isEnabled()
+    table.invert.click()
+    assert table.value() == (1, 2, 3, 4)
+    assert (
+        "H 1.5 1.5 1.5" not in tabs.previews["scf_isolated"].toPlainText()
+    )  # now in the clean one
+    assert "H 1.5 1.5 1.5" in tabs.previews["scf_clean"].toPlainText()
+    table.mark_all.click()  # every atom: nothing would stay in the clean SCF
+    assert table.value() == (1, 2, 3, 4, 5, 6)
+    table.unmark_all.click()
+    assert table.value() == () and table.count.text() == "0 de 6 átomos"
+
+
+def test_create_waits_for_a_selection_that_can_be_split(qtbot, dialog, small_scf):
+    tabs = diff_tabs(qtbot, dialog, small_scf)
+    table = tabs.widget_of("atoms")
+    empty = "Selecione os átomos do fragmento isolado"
+    assert not dialog.create_button.isEnabled()
+    assert dialog.create_button.toolTip() == empty
+    assert table.table.property("invalid") is True and table.table.toolTip() == empty
+    table.mark_all.click()
+    everything = "Deixe ao menos um átomo fora da seleção: o SCF clean ficaria vazio"
+    assert not dialog.create_button.isEnabled() and dialog.create_button.toolTip() == everything
+    assert table.table.property("invalid") is True
+    table.checks[1].click()
+    assert dialog.create_button.isEnabled() and dialog.create_button.toolTip() == ""
+    assert table.table.property("invalid") is False
+    assert [f.name for f in tabs.plan.files] == [
+        f.name for f in dialog.tabs.plan.files
+    ]  # the 8 stay
+
+
+def test_the_standard_mode_shows_the_atoms_and_nothing_else(qtbot, make_dialog, small_scf):
+    dialog = make_dialog(mode="padrao")
+    tabs = diff_tabs(qtbot, dialog, small_scf)
+    assert tabs.form_shown("Átomos")
+    assert not any(tabs.form_shown(key) for key in tabs._keys)  # no field of a file: previews only
+    tabs.widget_of("atoms").species_menu.actions()[2].trigger()  # H
+    dialog.set_mode("avancado")
+    assert tabs.widget_of("atoms").value() == (5, 6)  # the pick survives the switch
+    assert tabs.form_shown("Átomos") and tabs.form_shown("pp_diff")
+    assert tabs.widget_of("xsf_dir").text() == "cdd_xsf"
+    dialog.set_mode("padrao")
+    assert tabs.form_shown("Átomos") and not tabs.form_shown("pp_diff")
+    with qtbot.waitSignal(dialog.create_requested) as blocker:
+        dialog.create_button.click()
+    assert [f.name for f in blocker.args[0].plan.files][-1] == "pp_charge_diff.in"
+
+
+def test_an_scf_the_split_cannot_read_still_lists_the_error(qtbot, dialog, tmp_path):
+    path = tmp_path / "sg.in"
+    path.write_text(SMALL.replace("angstrom\nFe 0", "crystal_sg\nFe 0"))
+    tabs = to_files(qtbot, dialog, "charge_diff", scf=path, suffix="x")
+    table = tabs.widget_of("atoms")
+    assert table.table.rowCount() == 0
+    assert not dialog.create_button.isEnabled()
+    assert dialog.create_button.toolTip() == "Posições em crystal_sg não são suportadas"

@@ -12,7 +12,7 @@ shows them all, plus the name of each input file.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
@@ -44,7 +44,7 @@ __all__ = [
     "visible_fields",
 ]
 
-FieldKind = Literal["int", "float", "text", "choice", "bool", "kpath", "kmesh"]
+FieldKind = Literal["int", "float", "text", "choice", "bool", "kpath", "kmesh", "atoms"]
 FileKind = Literal["pw_input", "qe_input", "qsub", "notes"]
 Mode = Literal["padrao", "avancado"]
 MODES: tuple[Mode, ...] = ("padrao", "avancado")
@@ -62,6 +62,8 @@ class FormField:
     tooltip: str = ""
     choices: tuple[str, ...] = ()
     standard: bool = False  # shown in the ``padrao`` mode too (spec 28 R3.1)
+    hint: str = ""  # a short legend the window shows with the field (``atoms``)
+    data: Any = None  # what a kind needs to be drawn (``atoms``: the ``AtomRows`` to pick from)
 
 
 def is_visible(form_field: FormField, mode: Mode) -> bool:
@@ -146,6 +148,13 @@ def _coerce(form_field: FormField, value: Any) -> Any:
         if not isinstance(value, KPath):
             raise ValueError
         return value
+    if kind == "atoms":
+        # The picked atoms (1-based): empty is a value, whose problem the type says (``split_input``).
+        if isinstance(value, str | bytes) or not isinstance(value, Iterable):
+            raise ValueError
+        if any(isinstance(n, bool) or not isinstance(n, int) for n in value):
+            raise ValueError
+        return tuple(sorted(set(value)))
     return str(value).strip()
 
 

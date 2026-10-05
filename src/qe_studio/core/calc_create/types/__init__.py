@@ -19,6 +19,7 @@ from .base import (
     visible_fields,
 )
 from .charge import ChargeType
+from .charge_diff import ChargeDiffType
 from .files import InputFile
 from .pdos import PdosType
 from .relax import RelaxType
@@ -48,6 +49,7 @@ REGISTRY: tuple[CalcType, ...] = (
     BandasType(),
     PdosType(),
     ChargeType(),
+    ChargeDiffType(),
 )
 
 

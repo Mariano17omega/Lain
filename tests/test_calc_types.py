@@ -65,8 +65,24 @@ def changed(before: str, after: str) -> tuple[list[str], list[str]]:
 
 
 def test_registry():
-    assert [t.id for t in REGISTRY] == ["scf", "relax", "vc-relax", "bandas", "pdos", "charge"]
-    assert [t.label for t in REGISTRY] == ["SCF", "Relax", "VC-Relax", "Bandas", "PDOS", "Carga"]
+    assert [t.id for t in REGISTRY] == [
+        "scf",
+        "relax",
+        "vc-relax",
+        "bandas",
+        "pdos",
+        "charge",
+        "charge_diff",
+    ]
+    assert [t.label for t in REGISTRY] == [
+        "SCF",
+        "Relax",
+        "VC-Relax",
+        "Bandas",
+        "PDOS",
+        "Carga",
+        "Diferença de carga",
+    ]
     assert [t.folder_prefix for t in REGISTRY] == [
         "SCF",
         "Relax",
@@ -74,6 +90,7 @@ def test_registry():
         "Bands",
         "PDOS",
         "Charge",
+        "Diff_Charge",
     ]
     assert [t.script_name for t in REGISTRY] == [
         "scf.qsub",
@@ -82,6 +99,7 @@ def test_registry():
         "bands.qsub",
         "pdos.qsub",
         "charge.qsub",
+        "charge_diff.qsub",
     ]
     with pytest.raises(KeyError):
         by_id("dos")

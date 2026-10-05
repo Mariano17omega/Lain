@@ -6,13 +6,14 @@ The outputs are copies of the fixtures' runs, under the names the generated scri
 
 import shutil
 
+from fragment_helpers import SMALL
 from qe_studio.core.calc_create.types import by_id
 from qe_studio.core.calc_create.writer import create_folder
 from qe_studio.core.calculations.bands import BandsModule
 from qe_studio.core.detection import detect_folder
 from qe_studio.core.sniff import SniffCache
 
-from calc_helpers import AL_PATH, JOBS, al, ni
+from calc_helpers import AL_PATH, JOBS, al, from_text, ni
 from conftest import FIXTURES
 
 
@@ -117,3 +118,27 @@ def test_charge_folder_gets_the_scf_badge(tmp_path):
     assert set(found) == {"scf"}  # no module takes the pp.x input
     assert found["scf"].badge == "SCF"
     assert found["scf"].file("scf_out") == folder / "scf_al.out"
+
+
+def test_charge_diff_folder_is_written_whole_and_gets_the_scf_badge(tmp_path):
+    """Spec 30: the eight files are written, none is taken for an output, and the SCF of the unit
+    (``scf_<prefix>.out`` next to ``scf_<prefix>.in``) is what shows."""
+    calc = by_id("charge_diff")
+    scf = from_text(SMALL)
+    created = create_folder(tmp_path, calc, "ilita", calc.plan(scf, {"atoms": (5, 6)}, JOBS))
+    folder = created.folder
+    assert folder.name == "Diff_Charge_ilita"
+    assert [p.name for p in created.files] == [
+        "charge_diff.qsub",
+        "scf_ilita.in",
+        "scf_ilita_clean.in",
+        "scf_ilita_isolated.in",
+        "pp_ilita_charge.in",
+        "pp_ilita_clean_charge.in",
+        "pp_ilita_isolated_charge.in",
+        "pp_charge_diff.in",
+    ]
+    fill(folder, "al_bands", [("al.scf.out", "scf_ilita.out")])
+    found, _ = results(folder)
+    assert set(found) == {"scf"} and found["scf"].badge == "SCF"
+    assert found["scf"].file("scf_out") == folder / "scf_ilita.out"

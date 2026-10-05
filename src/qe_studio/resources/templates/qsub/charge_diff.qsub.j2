@@ -1,0 +1,24 @@
+{% extends "qsub/_base.qsub.j2" %}
+{% block programs %}
+PPCOMMAND="{{ qe_bin }}/pp.x"
+PWCOMMAND_SINGLE="{{ qe_bin }}/pw.x"
+{% endblock %}
+{% block body %}
+{% if xsf_dir %}
+{# pp.x does not make the folder of fileout: without it the write of the .xsf fails. #}
+mkdir -p {{ xsf_dir }}
+
+{% endif %}
+{% for input, output in pw_runs %}
+${MPICOMMAND} ${PWCOMMAND} -i "{{ input }}" > "{{ output }}"
+{% endfor %}
+{# The isolated fragment (a few atoms) runs without MPI and pools, as in the cluster's cargas.qsub. #}
+${PWCOMMAND_SINGLE} -i "{{ isolated[0] }}" > "{{ isolated[1] }}"
+
+{# pp.x runs without MPI, also as in cargas.qsub. #}
+{% for input, output in pps %}
+${PPCOMMAND} -i "{{ input }}" > "{{ output }}"
+{% endfor %}
+
+${PPCOMMAND} -i "{{ diff[0] }}" > "{{ diff[1] }}"
+{% endblock %}

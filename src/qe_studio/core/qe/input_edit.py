@@ -46,7 +46,8 @@ class _CardSpan:
     header: CardHeader
     line: int
     last: int  # last body line (the header's own when the card has no body)
-    body: list[str] = field(default_factory=list)
+    body: list[str] = field(default_factory=list)  # rows without their comments
+    rows: list[str] = field(default_factory=list)  # the same rows as written
 
 
 def normalize_key(key: str) -> str:
@@ -128,6 +129,12 @@ class InputEditor:
             return None
         return Card(span.header.name, span.header.option.lower(), span.line + 1, tuple(span.body))
 
+    def card_rows(self, name: str) -> list[str] | None:
+        """The rows of the card exactly as written (end-of-line comments and flags kept; blank and
+        comment-only lines are not rows); None when the card is missing."""
+        span = self._card(name)
+        return None if span is None else list(span.rows)
+
     # -- editing ------------------------------------------------------------------------------
     def set(self, namelist: str, key: str, value_text: str) -> None:
         """Write ``value_text`` (as it goes in the file: quotes included) as the value of ``key``.
@@ -149,6 +156,21 @@ class InputEditor:
         """Swap the header option and the body of the card (up to its last body line: the blank
         lines and comments after it stay); a missing card is added at the end."""
         self._guarded(name, lambda: self._replace_card(name, option, body), None)
+
+    def replace_card_rows(self, name: str, rows: list[str]) -> bool:
+        """Swap the body of the card for ``rows`` (as they go in the file) and leave its header line
+        as written; comments between the old rows are lost, blank lines after the body stay. False
+        when the card is missing."""
+        return self._guarded(name, lambda: self._replace_rows(name, rows), False)
+
+    def remove_card(self, name: str) -> bool:
+        """Remove the card, its header and body (the blank lines after it stay)."""
+        return self._guarded(name, lambda: self._remove_card(name), False)
+
+    def rename_key(self, namelist: str, old: str, new: str) -> bool:
+        """Write ``new`` as the name of every ``old`` entry of the namelist, where it stands: its
+        value, spacing and comments stay (``starting_magnetization(3)`` → ``(2)``)."""
+        return self._guarded(f"{namelist}.{old}", lambda: self._rename(namelist, old, new), False)
 
     # -- internals ----------------------------------------------------------------------------
     def _guarded(self, what: str, action: Callable[[], T], default: T) -> T:
@@ -193,6 +215,7 @@ class InputEditor:
             elif scan.body is not None and card is not None:
                 card.last = i
                 card.body.append(scan.body)
+                card.rows.append(line)
             state = scan.state
 
     def _first(self, name: str) -> _Namelist | None:
@@ -323,6 +346,36 @@ class InputEditor:
         else:
             self._replace(span.line, span.last + 1, [self._header(span, option), *body])
         self._index()
+
+    def _replace_rows(self, name: str, rows: list[str]) -> bool:
+        span = self._card(name)
+        if span is None:
+            return False
+        self._replace(span.line + 1, span.last + 1, list(rows))
+        self._index()
+        return True
+
+    def _remove_card(self, name: str) -> bool:
+        span = self._card(name)
+        if span is None:
+            return False
+        self._replace(span.line, span.last + 1, [])
+        self._index()
+        return True
+
+    def _rename(self, namelist: str, old: str, new: str) -> bool:
+        entries = self._entries(namelist, old)
+        for entry in sorted(entries, key=lambda e: (e.line, e.col), reverse=True):
+            line = self._lines[entry.line]
+            written = line[entry.col : line.index("=", entry.col)].rstrip()
+            name, _, index = new.partition("(")
+            text = new
+            if "(" in written and written.split("(", 1)[0].strip().lower() == name.lower():
+                text = written.split("(", 1)[0] + "(" + index  # the case it was written in
+            self._lines[entry.line] = line[: entry.col] + text + line[entry.col + len(written) :]
+        if entries:
+            self._index()
+        return bool(entries)
 
     def _header(self, span: _CardSpan, option: str) -> str:
         """The header line with ``option`` in place of the old one (brackets kept)."""

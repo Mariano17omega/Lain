@@ -1,0 +1,18 @@
+&INPUTPP
+prefix = {{ prefix | fstr }},
+outdir = {{ outdir | fstr }},
+filplot = {{ filplot | fstr }},
+plot_num = {{ plot_num }}
+/
+&PLOT
+nfile = 3,
+filepp(1) = {{ files[0] | fstr }},
+filepp(2) = {{ files[1] | fstr }},
+filepp(3) = {{ files[2] | fstr }},
+weight(1) = 1.0,
+weight(2) = -1.0,
+weight(3) = -1.0,
+iflag = {{ iflag }},
+output_format = {{ output_format }},
+fileout = {{ fileout | fstr }}
+/

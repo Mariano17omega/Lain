@@ -1,7 +1,9 @@
 """Step 2 of "Criar cálculo" (spec 26 R4, spec 28 R5): a tab per generated file, then "Arquivos"
 and "Descrição".
 
-Each file tab is its fields on the left and the file as it will be written on the right. Every
+Each file tab is its fields on the left and the file as it will be written on the right. A field whose
+group is no file's key (spec 30: the atoms of a charge difference) has a tab of its own, named by the
+group, before the file tabs: its form and no preview. Every
 edit plans again (``CalcType.plan``: templates and input edits, no file read), debounced, and the
 previews, the marks on the fields, the tab labels (a file name can be edited) and the "Arquivos" tab
 follow. The mode only shows or hides rows (``visible_fields``, from the core) and plans again; a tab
@@ -73,12 +75,21 @@ class TabsPage(QWidget):
         self.tabs.setObjectName("calcTabs")
         self.tabs.setDocumentMode(True)
         self.forms: list[FieldForm] = []
-        self._form_of: dict[str, FieldForm] = {}  # file key → its fields
-        self._panes: dict[str, QWidget] = {}  # file key → the form's side of the splitter
+        self._form_of: dict[str, FieldForm] = {}  # file key (or group) → its fields
+        self._panes: dict[
+            str, QWidget
+        ] = {}  # file key → the form's side of the splitter; group → its tab
+        self._group_tabs: set[str] = set()  # the groups that are tabs of their own
         self.previews: dict[str, FilePreview] = {}  # by file key
         self._keys: list[str] = []  # the file tabs, in order
-        for planned, fields in self._groups():
-            self.tabs.addTab(self._file_tab(theme, planned, fields), planned.tab_label)
+        self._tab_of: dict[str, QWidget] = {}  # file key → its tab
+        files, groups = self._groups()
+        for group, fields in groups:
+            self.tabs.addTab(self._group_tab(theme, group, fields), group)
+        for planned, fields in files:
+            tab = self._file_tab(theme, planned, fields)
+            self.tabs.addTab(tab, planned.tab_label)
+            self._tab_of[planned.key] = tab
             self._keys.append(planned.key)
         self.files_view = FilesView()
         self.tabs.addTab(self.files_view, FILES_TAB)
@@ -93,14 +104,34 @@ class TabsPage(QWidget):
         self.set_mode(mode)
 
     # -- building --------------------------------------------------------------------------------
-    def _groups(self) -> list[tuple[PlannedFile, list[FormField]]]:
-        """Each planned file and its fields; a field of no file goes to the first tab."""
+    def _groups(
+        self,
+    ) -> tuple[list[tuple[PlannedFile, list[FormField]]], list[tuple[str, list[FormField]]]]:
+        """Each planned file and its fields, and the tabs of their own (group → fields, in the order
+        the type declares them). A field with no group goes to the first file's tab."""
         keys = [planned.key for planned in self.plan.files]
         by_group: dict[str, list[FormField]] = defaultdict(list)
+        own: dict[str, list[FormField]] = {}
         for form_field in self.fields:
-            group = form_field.group if form_field.group in keys else keys[0] if keys else ""
-            by_group[group].append(form_field)
-        return [(planned, by_group.get(planned.key, [])) for planned in self.plan.files]
+            if form_field.group and form_field.group not in keys:
+                own.setdefault(form_field.group, []).append(form_field)
+            else:
+                group = form_field.group or (keys[0] if keys else "")
+                by_group[group].append(form_field)
+        files = [(planned, by_group.get(planned.key, [])) for planned in self.plan.files]
+        return files, list(own.items())
+
+    def _group_tab(self, theme: ThemeManager, group: str, fields: list[FormField]) -> QWidget:
+        form = FieldForm(theme, fields, self.scf.crystal)
+        form.changed.connect(self._on_changed)
+        self.forms.append(form)
+        self._form_of[group] = form
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(form)
+        self._panes[group] = scroll
+        self._group_tabs.add(group)
+        return scroll
 
     def _file_tab(
         self, theme: ThemeManager, planned: PlannedFile, fields: list[FormField]
@@ -132,12 +163,20 @@ class TabsPage(QWidget):
         shown = {form_field.id for form_field in visible_fields(self.fields, mode)}
         for key, pane in self._panes.items():
             form = self._form_of.get(key)
-            pane.setVisible(form is not None and form.set_visible(shown))
+            visible = form is not None and form.set_visible(shown)
+            if key in self._group_tabs:  # the whole tab, not a side of it
+                self.tabs.setTabVisible(self.tabs.indexOf(pane), visible)
+            else:
+                pane.setVisible(visible)
         self.flush()
 
     def form_shown(self, key: str) -> bool:
-        """Whether the tab of file ``key`` shows its fields (not only the preview)."""
-        return not self._panes[key].isHidden()
+        """Whether the tab of file ``key`` shows its fields (not only the preview); for a group
+        tab, whether the tab shows."""
+        pane = self._panes[key]
+        if key in self._group_tabs:
+            return self.tabs.isTabVisible(self.tabs.indexOf(pane))
+        return not pane.isHidden()
 
     # -- edits -----------------------------------------------------------------------------------
     def _on_changed(self, user: bool) -> None:
@@ -162,7 +201,8 @@ class TabsPage(QWidget):
         for form in self.forms:
             form.mark(dict(self.plan.problems))
         original = self.scf.text
-        for index, key in enumerate(self._keys):
+        for key in self._keys:
+            index = self.tabs.indexOf(self._tab_of[key])
             planned = self.plan.by_key(key)
             text = planned.text if planned is not None else ""
             derived = planned is not None and planned.kind == "pw_input" and text != original

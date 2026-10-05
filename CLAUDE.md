@@ -535,7 +535,10 @@ each drawn by its own module (vector export, pan/zoom per cell).
   `NAMELIST_ORDER`, in the case of the first namelist), `remove` (the line, or only `key = value,` on a shared line),
   `remove_namelist` (the first; returns whether it removed), `keys`, `card` (`input_lint.Card`), `replace_card`
   (header option swapped inside its brackets; blank lines after the body stay; a missing card goes at the end).
-  Repeated namelists: the first one, as pw.x. A failing operation restores the text and adds to `issues`. The lexer's
+  Spec 30 added `card_rows` (the rows as written, end-of-line comments and flags kept; `Card.lines` drops them),
+  `replace_card_rows` (the body only, the header line untouched; comments between the old rows are lost), `remove_card`
+  and `rename_key` (the key's text in place, the case and spacing it was written with: `Starting_Magnetization (3)` →
+  `Starting_Magnetization (1)`). Repeated namelists: the first one, as pw.x. A failing operation restores the text and adds to `issues`. The lexer's
   `Entry` has `value_start` / `value_end` (`compare=False`) for it. Spec 25 builds on it.
 - **`core/unique_names.py`**: `next_free(path, first=1)` (`_1`, `_2`…; folders get the number at the end) and
   `write_new(path, text)` (`O_EXCL` in a loop, newline as in `text`, a failed write removes its file). The figure export
@@ -611,6 +614,36 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   decided by `&INPUTPP` only (`DECIDING_NAMELISTS`: a bare `&PLOT` is a bands.x `filband` header), and
   `input_lint._ALL_NAMELISTS` leaves it out (else ph.x's `&INPUTPH` would be "corrected" to `&INPUTPP`). Nothing detects
   pp.x: the folder shows the SCF badge.
+- **Diferença de carga** (`types/charge_diff.py`, spec 30): `charge_diff.qsub` and eight inputs (keys `scf`, `scf_clean`,
+  `scf_isolated`, `pp_base`, `pp_clean`, `pp_isolated`, `pp_diff`; names from `unit_stem(prefix)`, the pp.x ones by the SCF's
+  prefix, never the folder's: `uses_name` stays False). The user's SCF becomes three: the base copy (the unit's), `clean`
+  (without the atoms picked) and `isolated` (only those), `prefix = '<p>_clean'` / `'<p>_isolated'`, the same cell, cutoffs
+  and mesh (nothing of that is a field: pp.x subtracts densities on one FFT grid). `pp_charge_diff.in`
+  (`qe/charge_diff/pp_charge_diff.in.j2`) is Δρ = ρ(base) − ρ(clean) − ρ(isolated) (weights 1, −1, −1). The script runs the
+  base and clean SCFs with MPI, the isolated one with `${PWCOMMAND_SINGLE}` (pw.x alone, no `-nk`: as the cluster's
+  `cargas.qsub`), then the four pp.x without MPI; `mkdir -p <xsf_dir>` first. `padrao` asks for the atoms alone; `avancado`
+  adds `iflag`, `output_format` (`charge.iflag_field` / `output_format_field` / `format_problem`, shared with Carga) and
+  `xsf_dir` ("Pasta dos .xsf", `cdd_xsf`), the same for the four pp.x (`<dir>/<x>_charge.xsf`, `<dir>/<p>_charge_diff.xsf`).
+  **The plan always has all eight files**: an invalid selection puts the error on the `atoms` field (`work.problem`) and
+  both fragments are the base text, so the tabs never come and go.
+  - `fragments.py` (Qt-free): `atom_rows(text)` (`AtomRows(unit, rows, error)`: the atoms of `ATOMIC_POSITIONS` as written,
+    first `nat`; no `ScfInfo.crystal` needed; cached) and `split_input(text, selected) -> Fragments(clean, isolated,
+    notes, errors)`. Each fragment keeps the *text* of its position rows (`if_pos`, comments), updates `nat`, drops the
+    species no atom uses (`ATOMIC_SPECIES`, `ntyp`), filters `ATOMIC_FORCES` / `ATOMIC_VELOCITIES` by atom and removes
+    `nbnd` (note). Errors: none selected, all selected, `CONSTRAINTS`, an unreadable structure (`crystal_sg` included).
+    Notes (`(fragment, text)`, the type prefixes the file's name): `nbnd`, `nspin = 2` with no `starting_magnetization`
+    left, `tot_charge` / `tot_magnetization`, dropped `V` lines.
+  - `species_keys.py`: `remap_species_keys` follows the species through the old → new map (`SPECIES_KEYS`, the species
+    being the *last* index): the keys of a dropped species are removed first, then `rename_key` lowers the others
+    (the map only lowers an index, so no rename lands on a key not yet moved); `Hubbard_V(i,j,k)` is only noted.
+    `remap_hubbard` (QE ≥ 7.1 card): lines of a dropped species label (`Fe-3d` → `Fe`) go, a `V` line citing a removed
+    atom goes (note), the others renumber their atoms; an index past `nat` is an image of the 3×3×3 supercell and becomes
+    `new atom + nat_new · k` for `index = atom + nat · k` (**unverified assumption**: `INPUT_PW` only says "index of the atom
+    I / J"; the supercell numbering is `Hubbard_input.pdf`'s, not read, and no run was made; the plan notes it); an empty
+    card is removed.
+  - Tests: `tests/fragment_helpers.py` (`SMALL`: Fe / O / H with spin, `HUBBARD`, `if_pos`, comments; `slab_scf()`),
+    `test_fragments.py`, `test_calc_charge_diff.py`, `test_input_edit.py` / `test_properties.py` (the new editor operations
+    and `split_input` on random selections and texts), a row in `test_calc_roundtrip.py`.
 - **Self-contained folder** (`unit.py`, spec 28 R2): `Work.editor()` is the SCF's text after `apply_unit`
   (`outdir = './tmp/'` always, `jobs.pseudo_dir` when set; `edits.put_text` compares with case), so every pw.x input,
   the SCF copy included, gets it (the copy differs from the SCF only there); bands.x and projwfc.x templates get
@@ -659,12 +692,19 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
   `choose_scf` / `choose_folder` module functions, "Nome da pasta" optional, `problems()` gate "Continuar"),
   `tabs_page.TabsPage` (a tab per `CalcPlan.files` entry, keyed by `PlannedFile.key` (`previews[key]`, labels
   refreshed by every plan: a renamed file renames its tab): `FieldForm` | `FilePreview` in a `QSplitter`, then
-  "Arquivos" and "Descrição"; edits replan after `debounce_ms` (tests: 0 or `flush()`); `set_mode` shows the rows of
-  `visible_fields` and hides the form side of a tab with none (`form_shown(key)`), never rebuilding;
+  "Arquivos" and "Descrição"; a `FormField` whose `group` is no file's key (spec 30: "Átomos") has a form-only tab named
+  by the group *before* the file tabs, in declaration order (empty group: the first file's tab); edits replan after
+  `debounce_ms` (tests: 0 or `flush()`); `set_mode` shows the rows of
+  `visible_fields` and hides the form side of a tab with none (`form_shown(key)`; a group tab is hidden whole), never rebuilding;
   `blocking()` = first plan error, the "Criar" tooltip), `form.FieldForm` (widget per `FormField.kind`, `rows` per
-  field for `set_visible(ids)` / `shown(id)`, `mark(plan.problems)` sets the `invalid` property),
+  field for `set_visible(ids)` / `shown(id)`, `mark(plan.problems)` sets the `invalid` property; kind `atoms`: an
+  `AtomTable` fed by `FormField.data` (`AtomRows`) under the label and `FormField.hint`, value = the marked atom numbers),
   `kmesh.KMeshEditor`, `preview.FilePreview` (read-only `CodeView`, `InputHighlighter` / `ShellHighlighter`, changed
   lines in `diff_change_bg`) and `FilesView`.
+- `ui/widgets/atom_table.py:AtomTable(rows, selected, unit, count_format)` (spec 30, extracted from the PDOS atom window):
+  checkbox, #, element and three coordinates as text (`AtomRow`), "Marcar todos" / "Desmarcar todos" / "Inverter" /
+  "Só espécie ▸" and the count; `changed` fires once per click or button, `value()` / `checked()` the marked numbers.
+  `ui/dialogs/atoms.py:AtomsDialog` builds one and keeps its old attributes (`checks`, `table`, `mark_all`, …) pointing at it.
 - `ui/widgets/kpath_editor.py:KPathEditor(theme, cell)`: the `crystal_b` table, empty on open (`FieldForm` passes
   `scf.crystal.cell`, None without a readable structure); `set_path` shows a path without `changed(True)`. Cells take
   finite numbers only (no `nan`/`inf`/`1_0`), points 1 to `MAX_NPTS`. A point added after a break inherits it, removing

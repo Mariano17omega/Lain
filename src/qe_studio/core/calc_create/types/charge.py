@@ -70,9 +70,53 @@ def default_fileout(scf: ScfInfo) -> str:
 
 
 def _field(
-    key: str, label: str, kind, default, tooltip: str, choices: tuple[str, ...] = ()
+    key: str,
+    label: str,
+    kind,
+    default,
+    tooltip: str,
+    choices: tuple[str, ...] = (),
+    group: str = PP_KEY,
 ) -> FormField:
-    return FormField(key, label, kind, default, group=PP_KEY, tooltip=tooltip, choices=choices)
+    return FormField(key, label, kind, default, group=group, tooltip=tooltip, choices=choices)
+
+
+def iflag_field(group: str = PP_KEY, note: str = "") -> FormField:
+    """``iflag`` of ``&PLOT`` (``note``: a sentence the type adds to the tooltip)."""
+    return _field(
+        "iflag",
+        "Tipo de gráfico (iflag)",
+        "choice",
+        choice(DEFAULT_IFLAG, IFLAGS),
+        f"&PLOT iflag: dimensão do gráfico; 3 = grade 3D{note}",
+        tuple(choice(code, IFLAGS) for code in IFLAGS),
+        group,
+    )
+
+
+def output_format_field(group: str = PP_KEY, note: str = "") -> FormField:
+    """``output_format`` of ``&PLOT``."""
+    return _field(
+        "output_format",
+        "Formato de saída (output_format)",
+        "choice",
+        choice(DEFAULT_OUTPUT_FORMAT, OUTPUT_FORMATS),
+        "&PLOT output_format: 5 = XSF 3D para o XCrySDen (exige iflag = 3); "
+        f"o pp.x ignora o formato nos gráficos 1D e polar{note}",
+        tuple(choice(code, OUTPUT_FORMATS) for code in OUTPUT_FORMATS),
+        group,
+    )
+
+
+def format_problem(iflag: int, output_format: int) -> str | None:
+    """Why ``output_format`` does not fit ``iflag`` (pp.x checks it), or None."""
+    allowed = FORMATS_OF_IFLAG.get(iflag)
+    if allowed is None or output_format in allowed:
+        return None
+    return (
+        f"output_format = {output_format} não vale para iflag = {iflag} "
+        f"({IFLAGS[iflag]}): use {', '.join(str(code) for code in allowed)}"
+    )
 
 
 class ChargeType(CalcType):
@@ -100,23 +144,8 @@ class ChargeType(CalcType):
                 DEFAULT_PLOT_NUM,
                 "&INPUTPP plot_num: 0 = densidade de carga eletrônica (pseudo)",
             ),
-            _field(
-                "iflag",
-                "Tipo de gráfico (iflag)",
-                "choice",
-                choice(DEFAULT_IFLAG, IFLAGS),
-                "&PLOT iflag: dimensão do gráfico; 3 = grade 3D",
-                tuple(choice(code, IFLAGS) for code in IFLAGS),
-            ),
-            _field(
-                "output_format",
-                "Formato de saída (output_format)",
-                "choice",
-                choice(DEFAULT_OUTPUT_FORMAT, OUTPUT_FORMATS),
-                "&PLOT output_format: 5 = XSF 3D para o XCrySDen (exige iflag = 3); "
-                "o pp.x ignora o formato nos gráficos 1D e polar",
-                tuple(choice(code, OUTPUT_FORMATS) for code in OUTPUT_FORMATS),
-            ),
+            iflag_field(),
+            output_format_field(),
             _field(
                 "fileout",
                 "Arquivo de saída (fileout)",
@@ -147,13 +176,8 @@ class ChargeType(CalcType):
                 "fileout",
                 f"fileout deve ser relativo e ficar dentro da pasta (sem .. nem / inicial): {fileout}",
             )
-        allowed = FORMATS_OF_IFLAG.get(iflag)
-        if allowed is not None and output_format not in allowed:
-            work.problem(
-                "output_format",
-                f"output_format = {output_format} não vale para iflag = {iflag} "
-                f"({IFLAGS[iflag]}): use {', '.join(str(code) for code in allowed)}",
-            )
+        if (problem := format_problem(iflag, output_format)) is not None:
+            work.problem("output_format", problem)
         text = render(
             PP_TEMPLATE,
             {

@@ -18,6 +18,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from fragment_helpers import SMALL
+from qe_studio.core.calc_create.fragments import atom_rows, split_input
 from qe_studio.core.calc_create.kpath import KMesh, KPath, KPoint, to_card
 from qe_studio.core.filtering import name_matcher
 from qe_studio.core.grid_store import GridStore
@@ -339,6 +341,21 @@ def test_editor_operations_never_fail_on_any_text(text, key, value, namelist):
 
 
 @given(
+    INPUT_TEXT,
+    st.lists(st.sampled_from([" Fe 0 0 0", " O 1 1 1 ! c", "", "  "]), max_size=4),
+    KEYS,
+)
+def test_editor_card_row_and_rename_operations_never_fail_on_any_text(text, rows, key):
+    editor = InputEditor.from_text(text)
+    editor.card_rows("ATOMIC_POSITIONS")
+    editor.replace_card_rows("ATOMIC_POSITIONS", rows)
+    editor.remove_card("K_POINTS")
+    editor.rename_key("system", key, "starting_magnetization(1)")
+    assert editor.issues == []
+    assert isinstance(editor.text(), str)
+
+
+@given(
     st.lists(st.tuples(KEYS, VALUES), min_size=1, max_size=8, unique_by=lambda pair: pair[0]),
     st.sampled_from([",\n", "\n", ", "]),
     st.sampled_from(["\n", "\r\n"]),
@@ -578,3 +595,42 @@ def test_automatic_card_round_trip(n, shift):
     card = parse_kpoints([f"K_POINTS {option}", *body])
     assert card.points.tolist() == [list(n)] and card.weights.tolist() == list(shift)
     assert KMesh.parse(body[0]) == mesh
+
+
+# -- fragments of a charge difference (spec 30) ---------------------------------------------------
+def cards_agree_with_the_counts(text: str) -> set[str]:
+    """nat and ntyp as the cards hold them; the labels the atoms use (they must all be species)."""
+    editor = InputEditor.from_text(text)
+    positions, species = editor.card("ATOMIC_POSITIONS"), editor.card("ATOMIC_SPECIES")
+    assert positions is not None and species is not None
+    assert editor.get("system", "nat") == str(len(positions.lines))
+    assert editor.get("system", "ntyp") == str(len(species.lines))
+    labels = {line.split()[0] for line in positions.lines}
+    assert labels <= {line.split()[0] for line in species.lines}
+    return labels
+
+
+@given(st.sets(st.integers(-2, 9), max_size=8))
+def test_split_input_keeps_nat_and_ntyp_coherent_with_the_cards(selected):
+    result = split_input(SMALL, selected)
+    if result.errors:
+        assert result.clean == result.isolated == SMALL
+        return
+    clean, isolated = (
+        cards_agree_with_the_counts(result.clean),
+        cards_agree_with_the_counts(result.isolated),
+    )
+    chosen = {index for index in selected if 1 <= index <= 6}
+    assert len(chosen) == len(InputEditor.from_text(result.isolated).card("ATOMIC_POSITIONS").lines)  # type: ignore[union-attr]
+    assert clean | isolated == {"Fe", "O", "H"}
+    for text in (result.clean, result.isolated):
+        assert InputEditor.from_text(text).issues == []
+
+
+@given(INPUT_TEXT, st.sets(st.integers(-1, 5), max_size=4))
+def test_split_input_never_raises_on_any_text(text, selected):
+    result = split_input(text, selected)
+    assert isinstance(result.clean, str) and isinstance(result.isolated, str)
+    if result.errors:
+        assert result.clean == result.isolated == text
+    assert atom_rows(text).error == "" or result.errors
