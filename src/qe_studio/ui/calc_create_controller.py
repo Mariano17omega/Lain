@@ -65,6 +65,7 @@ class CalcCreateController(QObject):
         self.busy, self.toast, self._select_path, self._refresh = busy, toast, select_path, refresh
         self._targets, self.dialog_parent = targets, dialog_parent
         self.dialog: CalcCreateDialog | None = None
+        self._creating: Path | None = None  # the folder the worker is making a calculation in
 
     @classmethod
     def for_window(cls, window) -> CalcCreateController:
@@ -135,8 +136,15 @@ class CalcCreateController(QObject):
         self.dialog = None
 
     # -- creating ------------------------------------------------------------------------------
+    def creating_under(self, path: Path) -> Path | None:
+        """The folder a calculation is being made in, if it lies inside ``path`` (renaming it or
+        a folder above it would take the new folder's place from under the worker)."""
+        creating = self._creating
+        return creating if creating is not None and creating.is_relative_to(path) else None
+
     def create(self, request: CreateRequest) -> None:
         name = preview_name(request.parent, request.calc_type, request.suffix)
+        self._creating = request.parent
         self.busy.begin(BUSY_KEY, f"Criando {name}…")
         if self.dialog is not None:
             self.dialog.set_busy(True)
@@ -152,6 +160,7 @@ class CalcCreateController(QObject):
         )
 
     def _on_created(self, created: Created) -> None:
+        self._creating = None
         self.busy.end(BUSY_KEY)
         if self.dialog is not None:
             self.dialog.close_created()
@@ -162,6 +171,7 @@ class CalcCreateController(QObject):
         self.created.emit(created)
 
     def _on_failed(self, exc: BaseException) -> None:
+        self._creating = None
         self.busy.end(BUSY_KEY)
         if isinstance(exc, CreateError):
             reason = str(exc)

@@ -32,6 +32,8 @@ class SyncReport:
     local_newer_folders: list[str] = field(default_factory=list)
     error: str | None = None
     connection_failed: bool = False
+    # Edited, created or removed locally between the preview and the transfer: left alone (R3.1).
+    changed_locally: tuple[str, ...] = ()
 
     @property
     def changes_local(self) -> bool:
@@ -59,7 +61,23 @@ class SyncReport:
             lines.append(
                 f"{len(self.local_newer)} arquivo(s) local(is) mais recente(s) mantido(s)."
             )
+        if self.changed_locally:
+            lines.append(self.changed_note)
         return "\n".join(lines)
+
+    @property
+    def changed_note(self) -> str:
+        return (
+            f"{len(self.changed_locally)} arquivo(s) mudaram localmente durante a prévia "
+            "e não foram baixados."
+        )
+
+    @property
+    def headline(self) -> str:
+        """What the footer and the toast say: the first line, plus the files left alone (they
+        show only this; "Detalhes" has the rest)."""
+        first = self.message.splitlines()[0]
+        return f"{first} {self.changed_note}" if self.changed_locally else first
 
     @property
     def details(self) -> str:
@@ -74,6 +92,7 @@ class SyncReport:
             ("Baixados", self.transferred),
             ("Mantidos na versão local", self.skipped),
             ("Mais recentes no computador", self.local_newer),
+            ("Mudaram localmente (não baixados)", list(self.changed_locally)),
         ):
             if paths:
                 lines += ["", f"{title} ({len(paths)}):", *_listed(paths)]

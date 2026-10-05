@@ -176,7 +176,7 @@ def test_renaming_a_folder_updates_the_history(deep, main_window, demo_project, 
     runs = demo_project / "runs"
     go(window, runs)
     go(window, runs / "a")
-    monkeypatch.setattr("qe_studio.ui.main_window.ask_rename", lambda parent, path: "runs2")
+    monkeypatch.setattr("qe_studio.ui.rename_controller.ask_rename", lambda parent, path: "runs2")
     window.rename_path(runs)
     new = demo_project / "runs2"
     history = window.navigation.history

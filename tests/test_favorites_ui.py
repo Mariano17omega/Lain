@@ -168,7 +168,7 @@ def test_renaming_a_favorite_folder_moves_it(main_window, demo_project, menus, m
     window = main_window
     favorite(window, demo_project / "04_pdos", menus)
     go(window, demo_project / "04_pdos")
-    monkeypatch.setattr("qe_studio.ui.main_window.ask_rename", lambda parent, path: "04_dos")
+    monkeypatch.setattr("qe_studio.ui.rename_controller.ask_rename", lambda parent, path: "04_dos")
     window.rename_path(demo_project / "04_pdos")
     assert window.explorer.favorites.labels() == ["04_dos"]
     assert window.explorer.recents.labels() == ["04_dos"]

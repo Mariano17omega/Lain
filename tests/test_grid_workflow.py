@@ -106,7 +106,7 @@ def test_renaming_a_folder_follows_it_and_closes_the_grid(
 ):
     plot(qtbot, main_window, demo_project / "03_bands")
     view = generate(qtbot, main_window)
-    monkeypatch.setattr("qe_studio.ui.main_window.ask_rename", lambda *_a: "03_bandas")
+    monkeypatch.setattr("qe_studio.ui.rename_controller.ask_rename", lambda *_a: "03_bandas")
     main_window.rename_path(demo_project / "03_bands")
     assert main_window.workspace.widget_for(view.session.key) is None
     spec = main_window.plot_workflow.stores.grids.get("Al")

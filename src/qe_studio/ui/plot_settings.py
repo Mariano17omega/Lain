@@ -16,6 +16,7 @@ from pathlib import Path
 from PyQt6.QtCore import QObject, QThreadPool, QTimer, pyqtSignal
 
 from ..core.plotting.plot_file import (
+    WriteOrder,
     delete_plot_file,
     plot_file_path,
     read_plot_file,
@@ -29,10 +30,13 @@ SAVE_DEBOUNCE_MS = 1000
 DRAIN_MS = 5000  # flush_now: how long the queued writes may take before writing anyway
 
 
-def _write(folder: Path, kind: str, params: object) -> str | None:
-    """Worker: write the file; the warning for the user if it cannot be written."""
+def _write(order: WriteOrder, ticket: int, folder: Path, kind: str, params: object) -> str | None:
+    """Worker (or the GUI thread, from ``flush_now``): write the file unless a newer write of it
+    already happened; the warning for the user if it cannot be written."""
     try:
-        write_plot_file(folder, kind, params)
+        order.run(
+            plot_file_path(folder, kind), ticket, lambda: write_plot_file(folder, kind, params)
+        )
     except OSError as exc:
         log.warning("cannot save %s.plot in %s: %s", kind, folder, exc)
         return f"Não foi possível salvar {kind}.plot em {folder.name}: {exc.strerror or exc}"
@@ -58,6 +62,7 @@ class PlotSettingsStore(QObject):
         self._pool.setMaxThreadCount(1)  # one at a time: the queue keeps the order
         self._writes = TaskGroup(self._pool)  # by plot key: a newer write or a removal wins
         self._reads = TaskGroup(self._pool)
+        self._order = WriteOrder()  # a write queued before a newer one never lands after it
         self._dirty: dict[str, PlotSession] = {}  # edited since their last write, by plot key
         self._warned: set[str] = set()
         self._timer = QTimer(self)
@@ -81,18 +86,31 @@ class PlotSettingsStore(QObject):
         for session in self._take(key):
             params = copy.deepcopy(session.params)  # edits go on while the worker writes
             self._writes.submit(
-                session.key, _write, session.folder, session.kind, params, on_done=self._report
+                session.key,
+                _write,
+                self._order,
+                self._order.ticket(),
+                session.folder,
+                session.kind,
+                params,
+                on_done=self._report,
             )
 
     def flush_now(self, key: str | None = None, inside: Path | None = None) -> None:
         """Write the pending settings here and now: all, the plot ``key`` or the plots that show
         something ``inside`` a path (a rename is about to move it). Writes already queued land
-        first."""
+        first, unless the disk is too slow (``DRAIN_MS``): then what is still queued is older than
+        what is written here and, by its ticket, does not overwrite it."""
         if key is None and inside is None:
             self._timer.stop()
-        self._pool.waitForDone(DRAIN_MS)
+        if not self._pool.waitForDone(DRAIN_MS):
+            log.warning("plot settings: writes still queued after %d ms; writing now", DRAIN_MS)
         for session in self._take(key, inside):
-            self._report(session.key, _write(session.folder, session.kind, session.params))
+            ticket = self._order.ticket()
+            self._report(
+                session.key,
+                _write(self._order, ticket, session.folder, session.kind, session.params),
+            )
 
     def read(
         self, key: str, folder: Path, kind: str, on_done: Callable, on_error: Callable

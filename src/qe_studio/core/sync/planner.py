@@ -34,6 +34,7 @@ class PlanItem:
     size: int
     remote_mtime: float
     local_mtime: float | None = None
+    local_size: int | None = None  # with ``local_mtime``: what the local file was when planned
 
     @property
     def folder(self) -> str:
@@ -117,8 +118,37 @@ def build_plan(
             action = Action.UPDATE
         else:
             continue  # same file within tolerance
-        plan.items.append(PlanItem(record.path, action, record.size, record.mtime, local.st_mtime))
+        plan.items.append(
+            PlanItem(record.path, action, record.size, record.mtime, local.st_mtime, local.st_size)
+        )
     return plan
+
+
+@dataclass(frozen=True)
+class Recheck:
+    keep: list[PlanItem]  # still as the plan saw them: safe to transfer
+    changed: list[PlanItem]  # created, edited or removed locally since the plan
+
+
+def recheck_local(items: Iterable[PlanItem], local_dir: Path) -> Recheck:
+    """The files a pull is about to write, against what the plan saw (spec 27-3 R3): between the
+    preview and the transfer the user may have edited one, or created a ``NEW`` one. Those are left
+    out, never overwritten. A file that vanished counts too: it is not brought back on its own.
+    Runs in a worker (one ``stat`` per file, maybe on a network home)."""
+    keep: list[PlanItem] = []
+    changed: list[PlanItem] = []
+    for item in items:
+        planned = None if item.local_mtime is None else (item.local_mtime, item.local_size)
+        try:
+            stat = (Path(local_dir) / item.path).stat()
+            now: tuple[float, int | None] | None = (stat.st_mtime, stat.st_size)
+        except FileNotFoundError:
+            now = None
+        except OSError:  # cannot tell what is there: not a file to overwrite blindly
+            changed.append(item)
+            continue
+        (keep if now == planned else changed).append(item)
+    return Recheck(keep, changed)
 
 
 class Decision(StrEnum):

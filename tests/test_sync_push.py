@@ -206,3 +206,26 @@ def test_password_push_through_askpass(qtbot, tmp_path, ssh_server):
     assert report.status is SyncStatus.DONE, report.error
     assert (remote / "bands.in").read_text() == "bands"
     assert {r.method for r in server.log} == {"password"}
+
+
+@pytest.mark.parametrize("auth", ["key", "password"])
+@pytest.mark.parametrize("strict", ["no", "accept-new"])
+def test_a_permissive_ssh_config_cannot_accept_an_unknown_host_on_push(
+    qtbot, tmp_path, ssh_server, auth, strict
+):
+    server, root = ssh_server
+    report, remote, plans = ssh_push(
+        qtbot,
+        tmp_path,
+        ssh_server,
+        password=PASSWORD,
+        auth=auth,
+        strict=strict,
+        known_hosts="empty",
+    )
+    assert report.status is SyncStatus.FAILED
+    assert "Chave do host" in report.error
+    assert plans == []  # refused before the dry run listed anything
+    assert server.attempts == [] and server.log == []
+    assert (server.workdir / "known_hosts").read_text() == ""
+    assert not (root / "proj").exists()

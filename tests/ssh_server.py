@@ -36,7 +36,7 @@ PROBE_COMMANDS = ("true", "echo")
 CHUNK = 32768
 
 KnownHosts = Literal["server", "empty", "other"]
-Strict = Literal["yes", "ask"]
+Strict = Literal["yes", "ask", "no", "accept-new"]  # the test ssh_config may be permissive
 
 
 @dataclass

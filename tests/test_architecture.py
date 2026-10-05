@@ -148,7 +148,7 @@ def test_the_import_checker_resolves_relative_imports():
     tasks = imported_modules(PACKAGE / "core" / "sync" / "_process.py")
     assert {"qe_studio.core.config", "qe_studio.core.tasks", "PyQt6.QtCore"} <= tasks
     window = imported_modules(PACKAGE / "ui" / "main_window.py")
-    assert "qe_studio.core.file_ops" in window and "qe_studio.ui.plot_workflow" in window
+    assert "qe_studio.core.folder_memory" in window and "qe_studio.ui.plot_workflow" in window
 
 
 @pytest.mark.parametrize("module", QT_FREE)

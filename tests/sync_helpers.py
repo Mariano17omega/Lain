@@ -32,10 +32,12 @@ def run_sync(
     timeout: int = 30_000,
     confirm: bool | None = True,
     plans: list[SyncPlan] | None = None,
+    before_confirm=None,
 ):
     """Run one sync to its end. The plan preview is answered with ``confirm`` (None: the test
-    answers it) and collected in ``plans``; conflicts are answered from ``decisions`` (default:
-    skip)."""
+    answers it) after ``before_confirm(plan)``, if given (the files the user changes while the
+    preview is open), and collected in ``plans``; conflicts are answered from ``decisions``
+    (default: skip)."""
     prompts = []
 
     def answer(item):
@@ -46,6 +48,8 @@ def run_sync(
     def preview(plan):
         if plans is not None:
             plans.append(plan)
+        if before_confirm is not None:
+            before_confirm(plan)
         if confirm is not None:
             QTimer.singleShot(0, lambda: controller.confirm_plan(confirm))
 

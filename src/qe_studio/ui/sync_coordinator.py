@@ -76,6 +76,14 @@ class SyncCoordinator(QObject):
     def running(self) -> bool:
         return self.controller is not None and self.controller.running
 
+    @property
+    def folder(self) -> Path | None:
+        """The local folder of the run in progress (the root for the whole project), None when idle."""
+        if not self.running or self.scope is None:
+            return None
+        root = self.config.paths.local_root
+        return root / self.scope.relative if self.scope.relative else root
+
     def _new_monitor(self) -> ConnectionMonitor:
         monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
         monitor.state_changed.connect(self._on_state)
@@ -260,8 +268,10 @@ class SyncCoordinator(QObject):
         if report.status is SyncStatus.CANCELLED:
             self.message.emit(report.message, "warning", 5000)
         elif report.status in (SyncStatus.DONE, SyncStatus.UP_TO_DATE):
-            first = report.message.splitlines()[0]
-            self.message.emit(first, "info", 6000)
+            headline = report.headline
+            self.message.emit(headline, "warning" if report.changed_locally else "info", 6000)
             level = "success" if report.status is SyncStatus.DONE else "info"
-            self.notice.emit(first, level, report.details)
+            if report.changed_locally:
+                level = "warning"  # files were left out: the toast says so
+            self.notice.emit(headline, level, report.details)
         self.finished.emit(report)

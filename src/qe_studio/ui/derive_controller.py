@@ -23,6 +23,7 @@ from .widgets.toast import Toast
 log = logging.getLogger(__name__)
 
 TITLE = "Gerar SCF convergido"
+KEY_PREFIX = "scf:"  # of the busy label and of the task: one generation per output
 
 
 class DeriveController(QObject):
@@ -57,8 +58,14 @@ class DeriveController(QObject):
         window.item_actions.scf_from_relax_requested.connect(controller.generate_scf)
         return controller
 
+    def active_under(self, path: Path) -> Path | None:
+        """The output whose SCF is being written and lies inside ``path`` (a rename of it or of a
+        folder above it would move what the worker writes into), None when there is none."""
+        outputs = (Path(str(key).removeprefix(KEY_PREFIX)) for key in self._tasks.active_keys())
+        return next((output for output in outputs if output.is_relative_to(path)), None)
+
     def generate_scf(self, output: Path) -> None:
-        key = f"scf:{output}"
+        key = f"{KEY_PREFIX}{output}"
         if self._tasks.active(key) is not None:  # a second click while the first one writes
             return
         self.busy.begin(key, "Gerando SCF convergido…")

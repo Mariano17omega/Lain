@@ -582,13 +582,13 @@ def test_the_diff_follows_the_theme(qtbot, main_window, tmp_path):
 
 
 def test_renaming_either_file_closes_the_comparison(qtbot, main_window, tmp_path, monkeypatch):
-    from qe_studio.ui import main_window as main_window_module
-
     a = write(tmp_path, "&control\n/\n", "a.in")
     b = write(tmp_path, "&control\n prefix='x'\n/\n", "b.in")
     open_diff(qtbot, main_window, a, b)
     key = diff_key(a, b)
     assert main_window.workspace.widget_for(key) is not None
-    monkeypatch.setattr(main_window_module, "ask_rename", lambda parent, path: "renamed.in")
+    monkeypatch.setattr(
+        "qe_studio.ui.rename_controller.ask_rename", lambda parent, path: "renamed.in"
+    )
     main_window.rename_path(b)
     assert main_window.workspace.widget_for(key) is None

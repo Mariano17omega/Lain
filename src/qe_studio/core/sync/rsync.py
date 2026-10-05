@@ -57,10 +57,15 @@ def remote_dir_for(local_folder: Path, config: AppConfig) -> str:
 
 
 def ssh_command(cluster: ClusterConfig, ssh_binary: str) -> list[str]:
+    """``ssh`` with the options Lain needs. ``StrictHostKeyChecking=yes`` is ours, not the user's
+    ssh config: a ``-o`` on the command line wins over ``~/.ssh/config``, so an unknown or changed
+    host key is always refused, whatever the config says for that host (spec 27-3 R1)."""
     argv = [
         *shlex.split(ssh_binary),
         "-p",
         str(cluster.port),
+        "-o",
+        "StrictHostKeyChecking=yes",
         "-o",
         f"ConnectTimeout={cluster.connect_timeout}",
         "-o",

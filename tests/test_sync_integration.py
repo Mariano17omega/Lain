@@ -7,13 +7,14 @@ connection-failure cases are in ``test_sync_ssh.py``.
 
 import os
 import shutil
+import threading
 
 import pytest
 from PyQt6.QtCore import QTimer
 
 from qe_studio.core.config import parse_config
 from qe_studio.core.sync.controller import SyncController, SyncStatus
-from qe_studio.core.sync.planner import Decision
+from qe_studio.core.sync.planner import Decision, recheck_local
 from qe_studio.core.sync.rsync import Endpoint
 
 from ssh_server import HOST_ALIAS, USER
@@ -265,3 +266,114 @@ def test_temp_cleanup_lists_each_folder_once(tmp_path, monkeypatch):
     assert sorted(p.name for p in (tmp_path / "run").iterdir()) == [".keep.out.Ab12Cd", "f1.out"]
     assert list((tmp_path / "other").iterdir()) == []
     assert len(scanned) == 2
+
+
+# -- files that change while the preview is open (spec 27-3 R3.1) ---------------------------------
+def test_a_file_edited_during_the_preview_is_not_overwritten(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "remote a", T0 + 100)
+    write(local, "a.out", "local a", T0)
+
+    def edit(_plan):
+        write(local, "a.out", "edited while the preview was open", T0 + 50)
+
+    report, _ = run_sync(
+        qtbot,
+        SyncController(make_config()),
+        local,
+        Endpoint(str(remote)),
+        {"a.out": Decision.OVERWRITE},
+        before_confirm=edit,
+    )
+    assert report.status is SyncStatus.DONE
+    assert report.transferred == [] and report.changed_locally == ("a.out",)
+    assert (local / "a.out").read_text() == "edited while the preview was open"
+    assert (
+        "1 arquivo(s) mudaram localmente durante a prévia e não foram baixados." in report.message
+    )
+    assert "Mudaram localmente (não baixados) (1):\n  a.out" in report.details
+    assert report.headline.endswith("não foram baixados.")
+
+
+def test_a_file_created_during_the_preview_is_not_overwritten(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "new.out", "remote")
+    write(remote, "other.out", "other")
+
+    report, _ = run_sync(
+        qtbot,
+        SyncController(make_config()),
+        local,
+        Endpoint(str(remote)),
+        before_confirm=lambda _plan: write(local, "new.out", "mine", T0 + 7),
+    )
+    assert report.status is SyncStatus.DONE
+    assert report.transferred == ["other.out"]  # the file nobody touched still comes
+    assert report.changed_locally == ("new.out",)
+    assert (local / "new.out").read_text() == "mine"
+    assert (local / "other.out").read_text() == "other"
+
+
+def test_a_file_removed_during_the_preview_is_not_brought_back(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "remote a", T0 + 100)
+    write(local, "a.out", "local a", T0)
+    report, _ = run_sync(
+        qtbot,
+        SyncController(make_config()),
+        local,
+        Endpoint(str(remote)),
+        {"a.out": Decision.OVERWRITE},
+        before_confirm=lambda _plan: (local / "a.out").unlink(),
+    )
+    assert report.transferred == [] and report.changed_locally == ("a.out",)
+    assert not (local / "a.out").exists()
+
+
+def test_nothing_changed_nothing_is_reported(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "remote a", T0 + 100)
+    write(local, "a.out", "local a", T0)
+    report, _ = run_sync(
+        qtbot,
+        SyncController(make_config()),
+        local,
+        Endpoint(str(remote)),
+        {"a.out": Decision.OVERWRITE},
+    )
+    assert report.transferred == ["a.out"] and report.changed_locally == ()
+    assert "mudaram" not in report.message and "Mudaram" not in report.details
+    assert report.headline == report.message.splitlines()[0]
+
+
+def test_cancel_while_the_local_files_are_rechecked(qtbot, dirs, monkeypatch):
+    remote, local = dirs
+    write(remote, "a.out", "a")
+    gate = threading.Event()
+
+    def slow(items, local_dir):
+        gate.wait(10)
+        return recheck_local(items, local_dir)
+
+    monkeypatch.setattr("qe_studio.core.sync.controller.recheck_local", slow)
+    controller = SyncController(make_config())
+
+    def on_stage(text):
+        if text == SyncController.CHECKING:
+            QTimer.singleShot(0, controller.cancel)
+            QTimer.singleShot(50, gate.set)
+
+    report, _ = run_sync(qtbot, controller, local, Endpoint(str(remote)), on_stage=on_stage)
+    assert report.status is SyncStatus.CANCELLED and not local.exists()
+
+
+def test_a_failing_recheck_ends_the_sync_as_failed(qtbot, dirs, monkeypatch):
+    remote, local = dirs
+    write(remote, "a.out", "a")
+
+    def broken(items, local_dir):
+        raise RuntimeError("stat exploded")
+
+    monkeypatch.setattr("qe_studio.core.sync.controller.recheck_local", broken)
+    report, _ = run_sync(qtbot, SyncController(make_config()), local, Endpoint(str(remote)))
+    assert report.status is SyncStatus.FAILED and "stat exploded" in report.error

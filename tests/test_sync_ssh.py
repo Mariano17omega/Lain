@@ -100,7 +100,7 @@ def test_wrong_password_fails_and_creates_nothing(qtbot, tmp_path, ssh_server):
     [
         ("key", "yes"),
         ("key", "ask"),  # BatchMode=yes: ssh cannot ask, so it refuses
-        ("password", "ask"),  # ssh asks through SSH_ASKPASS, which answers "no"
+        ("password", "ask"),  # ssh never asks: StrictHostKeyChecking=yes (askpass would say "no")
     ],
 )
 def test_unknown_host_key_is_refused(qtbot, tmp_path, ssh_server, auth, strict):
@@ -119,6 +119,31 @@ def test_unknown_host_key_is_refused(qtbot, tmp_path, ssh_server, auth, strict):
     assert "Chave do host" in report.error
     assert not local.exists()
     assert server.attempts == [] and server.log == []  # refused before authenticating
+
+
+@pytest.mark.parametrize("auth", ["key", "password"])
+@pytest.mark.parametrize("strict", ["no", "accept-new"])
+def test_a_permissive_ssh_config_cannot_accept_an_unknown_host(
+    qtbot, tmp_path, ssh_server, auth, strict
+):
+    """ssh_config says ``StrictHostKeyChecking no`` / ``accept-new`` for the host: Lain's ``-o``
+    still wins (spec 27-3 R1), nothing is learned and nobody authenticates."""
+    server, remote = ssh_server
+    write(remote, "scf.out", "scf")
+    report, local = pull(
+        qtbot,
+        tmp_path,
+        ssh_server,
+        password=PASSWORD,
+        auth=auth,
+        strict=strict,
+        known_hosts="empty",
+    )
+    assert report.status is SyncStatus.FAILED
+    assert "Chave do host" in report.error
+    assert not local.exists()
+    assert server.attempts == [] and server.log == []
+    assert (server.workdir / "known_hosts").read_text() == ""
 
 
 @pytest.mark.parametrize("strict", ["yes", "ask"])

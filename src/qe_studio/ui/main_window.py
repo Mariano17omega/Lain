@@ -30,14 +30,12 @@ from .. import APP_NAME, __version__
 from ..core.compounds import CompoundStore
 from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.file_kinds import viewer_kind
-from ..core.file_ops import rename_item
 from ..core.folder_memory import FolderMemory
 from ..core.nav_store import NavigationStore
 from .actions import build_menus
 from .calc_create_controller import CalcCreateController
 from .derive_controller import DeriveController
 from .dialogs.open_many import MANY_FILES, ask_open_many
-from .dialogs.rename import ask_rename
 from .first_run import FirstRunController
 from .focus_controller import FocusController
 from .grids_controller import GridsController
@@ -47,6 +45,7 @@ from .navigation_controller import NavigationController
 from .palette_controller import PaletteController
 from .plot_settings import PlotSettingsStore
 from .plot_workflow import PlotWorkflow
+from .rename_controller import RenameController
 from .services import DetectionService
 from .sync_coordinator import SyncCoordinator
 from .theme.manager import ThemeManager
@@ -195,6 +194,7 @@ class MainWindow(QMainWindow):
         self.grids = GridsController.for_window(self)  # "Grids" button and window (spec 23)
         self.derive = DeriveController.for_window(self)  # "Gerar SCF convergido" (spec 24)
         self.calc_create = CalcCreateController.for_window(self)  # "Criar cálculo" (spec 26)
+        self.renamer = RenameController.for_window(self)  # "Renomear", after what it asks (27-3)
 
     def _build_menus(self) -> None:
         self._actions = build_menus(self)
@@ -369,41 +369,8 @@ class MainWindow(QMainWindow):
         self.set_panel_visible("workspace", True)
 
     def rename_path(self, path: Path) -> None:
-        """Rename a file or folder; tabs showing anything inside it are closed (spec 5 R3.4)."""
-        name = ask_rename(self, path)
-        if name is None:
-            return
-
-        def inside(other: Path) -> bool:
-            return other.is_relative_to(path)
-
-        # Pending plot settings go into the folder before it moves, so they travel with it, and
-        # an export still writing there must not recreate the old folder afterwards.
-        self.plot_settings.flush_now(inside=path)
-        self.plot_workflow.wait_for_exports()
-        current = self.current_folder()
-        tree_had_it = self.explorer.current_path() == path
-        old_resolved = path.resolve()
-        try:
-            new = rename_item(path, name)
-        except OSError as exc:
-            log.warning("rename %s → %s failed: %s", path, name, exc)
-            QMessageBox.warning(
-                self, "Renomear", f"Não foi possível renomear {path.name}: {exc.strerror or exc}"
-            )
-            return
-        self.workspace.close_tabs_under(path)
-        self.navigation.rename(path, new)
-        self.memory.rename(old_resolved, new.resolve())
-        self.grids.rename(old_resolved, new.resolve())
-        self.service.invalidate(path.parent)
-        if inside(current):
-            self.explorer.select_path(new / current.relative_to(path))
-        elif tree_had_it:
-            self.explorer.select_path(new)
-        if new.parent == self.files.folder:
-            self.files.select_file(new)
-        self.status.set_message(f"Renomeado: {path.name} → {new.name}", timeout_ms=4000)
+        """Rename a file or folder (``RenameController``: spec 5 R3.4, spec 27-3 R2)."""
+        self.renamer.rename(path)
 
     # -- plots (PlotWorkflow) -----------------------------------------------------------------------
     def toggle_plot(self) -> None:

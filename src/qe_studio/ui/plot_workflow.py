@@ -205,6 +205,10 @@ class PlotWorkflow(QObject):
             return False
         return self.exporter.export(view.session)
 
+    @property
+    def exporting(self) -> bool:
+        return self.exporter.running
+
     def wait_for_exports(self) -> bool:
         """Before a rename moves a folder: an export must not recreate the old one."""
         return self.exporter.wait()

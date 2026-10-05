@@ -1,9 +1,11 @@
 """Pull synchronization state machine driving rsync through QProcess (PRD §5).
 
-Stages: rsync version → dry run → plan → plan preview → conflict prompts → transfer. The
-controller never blocks the GUI thread (processes run in ``QProcess``, the plan's local stats in a
-worker) and never opens dialogs: it emits ``plan_ready`` and waits for ``confirm_plan()`` (spec 17
-R2), then ``conflict_needed`` and waits for ``resolve()``, so the UI (or a test) decides how to ask.
+Stages: rsync version → dry run → plan → plan preview → conflict prompts → recheck of the local
+files → transfer. The controller never blocks the GUI thread (processes run in ``QProcess``, the
+plan's local stats and the recheck in a worker) and never opens dialogs: it emits ``plan_ready`` and
+waits for ``confirm_plan()`` (spec 17 R2), then ``conflict_needed`` and waits for ``resolve()``, so
+the UI (or a test) decides how to ask. The recheck (spec 27-3 R3) drops the files that changed
+locally while the user was deciding.
 The process handling it shares with the push is ``_process.RsyncRun``.
 """
 
@@ -15,8 +17,18 @@ from pathlib import Path
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 
+from ..tasks import run_task
 from ._process import RsyncRun
-from .planner import ConflictResolver, Decision, PlanItem, PlanStatus, SyncPlan, build_plan
+from .planner import (
+    ConflictResolver,
+    Decision,
+    PlanItem,
+    PlanStatus,
+    Recheck,
+    SyncPlan,
+    build_plan,
+    recheck_local,
+)
 from .report import SyncReport, SyncStatus
 from .rsync import dry_run_command, parse_dry_run, transfer_command
 
@@ -31,8 +43,11 @@ def _pull_plan(stdout: str, local_dir: Path) -> SyncPlan:
 class SyncController(RsyncRun):
     conflict_needed = pyqtSignal(object)  # PlanItem
 
+    CHECKING = "Conferindo arquivos locais…"
+
     _plan: SyncPlan
     _resolver: ConflictResolver | None
+    _changed: list[str]  # left out of the transfer: edited locally since the preview
 
     @property
     def plan(self) -> SyncPlan:
@@ -52,6 +67,7 @@ class SyncController(RsyncRun):
     def _reset(self) -> None:
         self._plan = SyncPlan()
         self._resolver = None
+        self._changed = []
 
     def _dry_run_command(self) -> list[str]:
         return dry_run_command(
@@ -86,11 +102,31 @@ class SyncController(RsyncRun):
             self.stage_changed.emit("Aguardando sua decisão…")
             self.conflict_needed.emit(item)
             return
-        self._step(self._start_transfer)
+        self._step(self._recheck)
 
-    def _start_transfer(self) -> None:
+    def _recheck(self) -> None:
+        """What the transfer would write, against the local files now: the preview and the
+        conflict prompts can take minutes. In a worker, like the plan's stats."""
         approved = self._resolver.approved if self._resolver else []
-        files = [item.path for item in self._plan.new + approved]
+        items = self._plan.new + approved
+        if not items:
+            self._finish(SyncStatus.DONE)
+            return
+        self._plan_task = run_task(
+            recheck_local,
+            items,
+            self._local_dir,
+            on_done=self._on_rechecked,
+            on_error=self._on_plan_failed,
+        )
+        self.stage_changed.emit(self.CHECKING)  # after the task: a cancel from here stops it
+
+    def _on_rechecked(self, result: Recheck) -> None:
+        if self._running:  # cancel() dropped the check of a cancelled run
+            self._changed = [item.path for item in result.changed]
+            self._step(self._start_transfer, [item.path for item in result.keep])
+
+    def _start_transfer(self, files: list[str]) -> None:
         if not files:
             self._finish(SyncStatus.DONE)
             return
@@ -132,6 +168,7 @@ class SyncController(RsyncRun):
             skipped=[item.path for item in resolver.skipped] if resolver else [],
             local_newer=[item.path for item in self._plan.local_newer],
             local_newer_folders=self._plan.local_newer_folders,
+            changed_locally=tuple(self._changed),
             error=error,
             connection_failed=connection_failed,
         )

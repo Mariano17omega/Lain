@@ -72,6 +72,11 @@ class PlotExporter(QObject):
         )
         return True
 
+    @property
+    def running(self) -> bool:
+        """Is a figure being written? (A rename waits for none: it is refused meanwhile.)"""
+        return len(self._tasks) > 0
+
     def wait(self) -> bool:
         """Block until the running exports are written (before a rename moves their folder)."""
         return self._tasks.wait(EXPORT_WAIT_MS)

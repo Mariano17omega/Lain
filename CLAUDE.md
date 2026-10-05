@@ -93,6 +93,10 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   `test_pw_output_regression.py` compares `PwOutput` of every fixture output with
   `pw_output_golden.json`, captured from the parser before it read head and tail separately.
 - Sync integration tests run the **real `rsync` and `ssh` binaries** (skipped if either is absent).
+  `sync_helpers.run_sync(..., before_confirm=plan -> None)` is where a test edits local files while the
+  preview is open (spec 27-3); `test_instance_lock.py` and `test_appdirs.py` cover the lock and the write;
+  `test_rename_blocked.py` fakes a running sync with `window.sync.controller` + `window.sync.scope`
+  (reset it afterwards: closing the window shuts the controller down).
   Cluster sync is tested against `tests/ssh_server.py`, a **local SSH server built with paramiko**
   (dev dependency): the `ssh_server` fixture yields `(server, remote_root)`, a server on a free
   `127.0.0.1` port serving the temp folder `remote_root` as the "cluster". Key and password
@@ -174,7 +178,18 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   `dialogs/details.py`. Reusable: `show_message(text, level, details)`.
 - `ui/plot_settings.py:PlotSettingsStore`: every `.plot` read, write and removal in one private
   single-thread pool, so they happen in order (a regenerate reads what closing the tab wrote);
-  edits are debounced 1 s; `flush_now` writes on the spot (window close, before a rename).
+  edits are debounced 1 s; `flush_now` writes on the spot (window close, before a rename). Every write
+  takes a ticket from `core/plotting/plot_file.py:WriteOrder` when it is asked for and `WriteOrder.run`
+  (one lock) drops one older than what that `.plot` already got (spec 27-3): after `DRAIN_MS` the GUI
+  thread writes anyway, and the older write still queued in the worker cannot land over it.
+- `ui/rename_controller.py:RenameController` (spec 27-3): the body of `MainWindow.rename_path` (now a
+  one-line facade over `window.renamer`). `blocked(path)` asks the *blockers* `for_window` builds and
+  refuses (`QMessageBox.information`, before the name dialog) while a pull / push (`SyncCoordinator.folder`
+  overlaps the path: `file_ops.overlaps`; the project root blocks all), an export (`PlotExporter.running`),
+  a derived SCF (`DeriveController.active_under`) or a new calculation (`CalcCreateController.creating_under`)
+  works there; `wait_for_exports()` returning False after the dialog refuses too. A new blocker is a
+  function path → reason in that list. `ask_rename` and `rename_item` are imported there: patch
+  `qe_studio.ui.rename_controller.*`.
 - `ui/navigation_controller.py:NavigationController` (spec 16): the history, the breadcrumb and the
   favorite / recent folders. `MainWindow.on_folder_selected` is where every folder change arrives
   and calls `visited`; going back, forward, to a breadcrumb level or to a favorite is
@@ -684,6 +699,12 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
 - Connect long-lived signals (e.g. `ThemeManager.theme_changed`) to bound methods, not lambdas,
   so they disconnect when the widget is deleted. Dialogs use delete-on-close.
 - `app.main()` waits on the global pool before exit so no worker outlives the interpreter.
+- Data files are written whole by `core/appdirs.py:atomic_write_text` (unique temp `.<name>.<pid>.<token>.tmp`
+  made with `O_EXCL` and mode `0o666` so the umask applies, `fsync`, `os.replace`, folder `fsync`; any error
+  removes the temp). Two instances would still lose each other's stores (last writer wins, no merge), so
+  `ui/app.py:claim_instance` takes a `QLockFile` (`appdirs.lock_path()`, `lain.lock` in the data dir,
+  `setStaleLockTime(0)`: only a dead owner makes it stale, not its age) and a second instance asks "Abrir mesmo
+  assim?" (yes goes on without a lock, no exits 0); an unwritable data dir never asks.
 
 ### Sync (PRD §5, pull; push of new files only, spec 27)
 
@@ -713,7 +734,14 @@ runs through `_step()`, so an exception ends the sync as FAILED instead of hangi
 probes in daemon threads, not a `QThreadPool` (DNS ignores the connect timeout and a pool's
 destructor waits without limit). Passwords reach ssh only via `SSH_ASKPASS` (`askpass.py`,
 installed as `qe-studio-askpass`) through the child env, never argv or logs; unknown host keys are
-always refused.
+always refused, and Lain enforces it itself: `ssh_command` passes `-o StrictHostKeyChecking=yes`, which
+wins over any `StrictHostKeyChecking no` / `accept-new` in the user's `~/.ssh/config` (spec 27-3 R1;
+the test `ssh_config` may be permissive, `test_sync_ssh.py` checks it makes no difference).
+**The recheck (spec 27-3 R3):** after the preview and the conflict prompts the pull calls
+`planner.recheck_local` (worker; `PlanItem` keeps `local_mtime` and `local_size`) on what it is about to
+write: a file edited, created or removed locally meanwhile is left out of `--files-from` and listed in
+`SyncReport.changed_locally` ("Detalhes"; `headline` is what the toast and the footer say). The window
+between that check and rsync's write stays (no `-u`: the planner is not reopened).
 
 **Push (spec 27)** only adds files the cluster does not have, for one calculation folder:
 `request.prepare_push` refuses the project root (`PUSH_ROOT`) and a missing folder,
@@ -746,10 +774,12 @@ shell. A folder also gets "Adicionar/Remover dos favoritos" (`favorite_toggled`,
 count title, "Abrir local de origem" (`ShowItems` with every URI), "Copiar" (one URI / path per line),
 "Comparar" for exactly two `looks_like_input` files (path order; `compare_requested` →
 `MainWindow.compare_inputs`) and the favorites item when all are folders; per-item actions are hidden.
-Renaming goes through `MainWindow.rename_path` because it touches global state: write the
+Renaming goes through `MainWindow.rename_path` (a facade over `ui/rename_controller.py:RenameController`)
+because it touches global state: refuse while something works in the folder (`blocked`), write the
 pending `.plot` settings of what it moves (`flush_now(inside=)`), wait for running exports,
-`core/file_ops.rename_item` (refuses existing targets), `Workspace.close_tabs_under`,
-`FolderMemory.rename`, invalidate detection. Tests must patch `QMenu.exec` (the
+`core/file_ops.rename_item` (never replaces: `renameat2(RENAME_NOREPLACE)` on Linux, `link` + `unlink` for a
+file or a checked `rename` where that is missing; a directory without it keeps a documented window),
+`Workspace.close_tabs_under`, `FolderMemory.rename`, invalidate detection. Tests must patch `QMenu.exec` (the
 `main_window` fixture makes an unpatched one fail) and never reach the real session D-Bus
 (`ItemActions._show_items_dbus`).
 

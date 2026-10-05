@@ -50,6 +50,23 @@ def test_ssh_command_password_auth():
     assert "NumberOfPasswordPrompts=1" in argv
 
 
+def has_option(argv, option):
+    return any(a == "-o" and b == option for a, b in zip(argv, argv[1:], strict=False))
+
+
+@pytest.mark.parametrize("cluster", [{"key_path": "/k/id"}, {"auth": "password"}])
+def test_the_host_key_is_always_checked_strictly(cluster):
+    """Lain forces it on the command line, so the user's ssh_config cannot loosen it (spec 27-3 R1)."""
+    cfg = config(**cluster)
+    remote = Endpoint("/scratch/me/sims/run", "10.0.0.1", "me")
+    local = Path("/data/sims/run")
+    assert has_option(ssh_command(cfg.cluster, "ssh"), "StrictHostKeyChecking=yes")
+    for build in (dry_run_command, transfer_command, push_dry_run_command, push_transfer_command):
+        argv = build(cfg, remote, local)
+        shell = shlex.split(argv[argv.index("-e") + 1])
+        assert has_option(shell, "StrictHostKeyChecking=yes"), build.__name__
+
+
 def test_dry_run_command():
     cfg = config()
     remote = Endpoint("/scratch/me/sims/run 1", "10.0.0.1", "me")

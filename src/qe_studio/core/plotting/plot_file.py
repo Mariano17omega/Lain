@@ -9,9 +9,12 @@ the file, never applied back.
 
 from __future__ import annotations
 
+import itertools
 import logging
+import threading
 import types
 import typing
+from collections.abc import Callable
 from dataclasses import asdict, fields
 from pathlib import Path
 from typing import Any
@@ -27,6 +30,35 @@ log = logging.getLogger(__name__)
 FORMAT_VERSION = 1
 SUFFIX = ".plot"
 HEADER = "# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.\n"
+
+
+class WriteOrder:
+    """Writes of the same file in the order they were asked for, whichever thread runs them.
+
+    A ticket is taken when a write is asked for (``ticket``); ``run`` skips a write whose ticket is
+    older than one already written for that path, and holds one lock from the check to the end of
+    the write, so a newer write waits for a running older one and the older never lands after it
+    (spec 27-3 R3.2: ``flush_now`` writes on the GUI thread while an older write may still be
+    queued in the worker's pool).
+    """
+
+    def __init__(self) -> None:
+        self._tickets = itertools.count(1)
+        self._written: dict[Path, int] = {}
+        self._lock = threading.Lock()
+
+    def ticket(self) -> int:
+        return next(self._tickets)  # atomic in CPython: no lock needed to hand them out
+
+    def run(self, path: Path, ticket: int, write: Callable[[], object]) -> bool:
+        """``write()`` unless a newer write of ``path`` already happened; whether it ran. An error
+        from ``write`` leaves the ticket unrecorded: the next write is not held back by it."""
+        with self._lock:
+            if ticket < self._written.get(path, 0):
+                return False
+            write()
+            self._written[path] = ticket
+            return True
 
 
 def plot_file_path(folder: Path, kind: str) -> Path:

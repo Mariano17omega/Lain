@@ -11,6 +11,7 @@ from qe_studio.core.sync.planner import (
     PlanStatus,
     SyncPlan,
     build_plan,
+    recheck_local,
     total_size,
 )
 from qe_studio.core.sync.rsync import DryRunItem
@@ -121,3 +122,63 @@ def test_plan_large_lists_big_items_of_any_action():
     plan = SyncPlan(items)
     assert [item.path for item in plan.large] == ["new.wfc", "charge.dat", "mine.dat"]
     assert total_size(plan.new) == big + 1024 and total_size([]) == 0
+
+
+# -- recheck_local (spec 27-3 R3.1) ----------------------------------------------------------------
+def planned(tmp_path, rel, mtime, content="local"):
+    """The plan item of a file that is there, as ``build_plan`` records it."""
+    local_file(tmp_path, rel, mtime, content)
+    (item,) = build_plan([record(rel, mtime + 100, size=1)], tmp_path).items
+    assert item.action is Action.UPDATE and item.local_size == len(content)
+    return item
+
+
+def test_build_plan_records_the_size_of_the_local_file(tmp_path):
+    local_file(tmp_path, "a.out", T0, "12345")
+    plan = build_plan([record("a.out", T0 + 100), record("new.out", T0)], tmp_path)
+    old, new = plan.items
+    assert (old.local_mtime, old.local_size) == (T0, 5)
+    assert (new.local_mtime, new.local_size) == (None, None)
+
+
+def test_recheck_keeps_what_is_as_planned(tmp_path):
+    item = planned(tmp_path, "a.out", T0)
+    new = PlanItem("new.out", Action.NEW, 3, T0)
+    result = recheck_local([item, new], tmp_path)
+    assert result.keep == [item, new] and result.changed == []
+
+
+def test_recheck_finds_an_edit_by_date_or_by_size(tmp_path):
+    by_date = planned(tmp_path, "a.out", T0)
+    by_size = planned(tmp_path, "b.out", T0)
+    os.utime(tmp_path / "a.out", (T0 + 5, T0 + 5))
+    local_file(tmp_path, "b.out", T0, "longer content")  # same mtime, other size
+    result = recheck_local([by_date, by_size], tmp_path)
+    assert result.keep == [] and result.changed == [by_date, by_size]
+
+
+def test_recheck_finds_a_new_file_that_appeared_and_one_that_vanished(tmp_path):
+    gone = planned(tmp_path, "gone.out", T0)
+    (tmp_path / "gone.out").unlink()
+    appeared = PlanItem("late.out", Action.NEW, 3, T0)
+    local_file(tmp_path, "late.out", T0)
+    result = recheck_local([gone, appeared], tmp_path)
+    assert result.changed == [gone, appeared] and result.keep == []
+
+
+@pytest.mark.skipif(
+    os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+    reason="needs a folder the user cannot search (not on Windows, not as root)",
+)
+def test_recheck_does_not_trust_a_file_it_cannot_stat(tmp_path):
+    item = planned(tmp_path, "a.out", T0)
+    (tmp_path / "a.out").unlink()
+    (tmp_path / "a.out").mkdir()
+    (tmp_path / "a.out" / "x").write_text("x")
+    os.chmod(
+        tmp_path / "a.out", 0
+    )  # not searchable: stat of a.out itself works, of its content not
+    try:
+        assert recheck_local([PlanItem("a.out/x", Action.NEW, 1, T0), item], tmp_path).keep == []
+    finally:
+        os.chmod(tmp_path / "a.out", 0o755)

@@ -130,7 +130,7 @@ def test_export_goes_to_the_bands_folder(qtbot, main_window, project, menus):
 
 def test_renaming_the_dos_folder_closes_the_figure(qtbot, main_window, project, menus, monkeypatch):
     session = open_pair(qtbot, main_window, menus, "03_bands", "04_pdos")
-    monkeypatch.setattr("qe_studio.ui.main_window.ask_rename", lambda parent, path: "04_dos")
+    monkeypatch.setattr("qe_studio.ui.rename_controller.ask_rename", lambda parent, path: "04_dos")
     main_window.rename_path(project / "04_pdos")
     assert main_window.workspace.widget_for(session.key) is None
 

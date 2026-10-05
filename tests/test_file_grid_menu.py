@@ -321,7 +321,9 @@ def test_reveal_in_file_manager(main_window, demo_project, monkeypatch):
 def new_names(monkeypatch):
     """Answers of the rename dialog, in order."""
     answers = []
-    monkeypatch.setattr("qe_studio.ui.main_window.ask_rename", lambda parent, path: answers.pop(0))
+    monkeypatch.setattr(
+        "qe_studio.ui.rename_controller.ask_rename", lambda parent, path: answers.pop(0)
+    )
     return answers
 
 
@@ -380,7 +382,7 @@ def test_rename_failure_is_reported(main_window, demo_project, new_names, monkey
     def refuse(path, name):
         raise PermissionError(13, "Permission denied", str(path))
 
-    monkeypatch.setattr("qe_studio.ui.main_window.rename_item", refuse)
+    monkeypatch.setattr("qe_studio.ui.rename_controller.rename_item", refuse)
     window = main_window
     path = demo_project / "03_bands" / "bands.in"
     window.open_file(path)

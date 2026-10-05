@@ -197,11 +197,11 @@ def test_text_viewer_go_to_line_when_loaded(qtbot, main_window, demo_project):
 
 
 def test_renaming_the_output_closes_its_summary(qtbot, main_window, demo_project, monkeypatch):
-    from qe_studio.ui import main_window as main_window_module
-
     path = demo_project / "02_scf" / "scf.out"
     open_summary(qtbot, main_window, path)
-    monkeypatch.setattr(main_window_module, "ask_rename", lambda parent, p: "renamed.out")
+    monkeypatch.setattr(
+        "qe_studio.ui.rename_controller.ask_rename", lambda parent, p: "renamed.out"
+    )
     main_window.rename_path(path)
     assert main_window.workspace.widget_for(summary_key(path)) is None
 

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-3 |
-| **Status** | Proposta |
+| **Status** | Implementada |
 | **Depende de** | spec 15 (controladores), spec 17 e 27 (sync e push), spec 5 (renomear) |
 | **Usada por** | spec 31 (a folga de linhas em `main_window.py` que esta spec abre) |
 | **Esforço** | M |
