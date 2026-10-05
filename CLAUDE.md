@@ -81,7 +81,7 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   before looking into `plots/`, and call `window.plot_settings.flush_now()` (drains the settings
   queue, then writes what is pending) before reading a `.plot`.
 - `test_architecture.py` checks the architecture rules by AST: no `.py` over 500 lines (exceptions
-  list, empty), `core/` never imports `qe_studio.ui`, PyQt6 only in the four `core` modules listed
+  list, empty; `PER_FILE_LIMIT` gives `ui/main_window.py` 450), `core/` never imports `qe_studio.ui`, PyQt6 only in the four `core` modules listed
   below, no `open(` / `read_text` / `read_bytes` / `loadtxt` in `ui/` (but `ui/theme/manager.py`),
   and the modules moved to `core` by spec 15 import without PyQt6. `test_tasks.py` covers the
   background-task helper; `test_busy_indicator.py` and `test_export_worker.py` the spinner and the
@@ -139,7 +139,8 @@ and the thread pool);
 ### Architecture rules
 
 - **No files over ~500 lines that centralize everything.** Split by responsibility before a module
-  grows past that. `tests/test_architecture.py` keeps every file of `src/qe_studio` under 500.
+  grows past that. `tests/test_architecture.py` keeps every file of `src/qe_studio` under 500, and
+  `ui/main_window.py` under 450 (`PER_FILE_LIMIT`: the room spec 27-5 made is not spent again by accident).
 - **`ui/` holds interface logic only.** Widgets, layout, dialogs, and wiring signals to `core/`.
   Parsing, detection, physics, file operations, sync decisions and any other backend logic belong in
   `core/`, where they are testable without Qt. If a UI method computes something that doesn't depend
@@ -153,7 +154,7 @@ and the thread pool);
 
 `ui/main_window.py:MainWindow` is the composition root: it builds the widgets, three controllers and
 the `.plot` store, registers the actions and wires signals. It keeps only what spans controllers:
-`rename_path`, `reload_config`, `closeEvent`, plus a thin facade the tests and
+`rename_path`, `reload_config`, `refresh_folder`, `closeEvent` (a few lines over `ui/shutdown.py`), plus a thin facade the tests and
 `scripts/screenshot.py` use (`plot_ready`, `plot_failed`, `export_finished`, `sync_finished`,
 `generate_plot_for`, `export_plot`, `monitor`…).
 
@@ -170,7 +171,9 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   snapshot of the params; close waits up to 10 s for exports).
 - `ui/sync_coordinator.py:SyncCoordinator`: `core/sync/request.prepare_sync` → session password →
   `SyncController` + dialogs → report; owns the `ConnectionMonitor` (replaced on config reload) and
-  emits `cluster_changed`, `synced(local_dir)` (the window refreshes) and `finished`. It also says
+  emits `cluster_changed`, `synced(local_dir)` (its own `on_synced` calls the injected `refresh`, the window's
+  `refresh_folder`) and `finished`. Its entry points are `start_selected()` (the Rsync button, `sync.start`:
+  the injected `current_folder`) and `start_project()` (`sync.project`: the root), the slots in `ACTIONS`. It also says
   the scope (spec 17 R1): `show_scope(folder)` (called by `on_folder_selected`) renames the
   `sync.start` action ("Sincronizar a/b"), sets the tooltips of it and of `sync.project` (bound by
   `bind_actions`) and emits `scope_changed(tooltip)` for the Rsync button. A pull that ends DONE /
@@ -200,7 +203,25 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   and calls `visited`; going back, forward, to a breadcrumb level or to a favorite is
   `ExplorerPanel.select_path` like a tree click (the history already holds the target, so `visited`
   pushes nothing). Also owns the side mouse buttons (an application event filter limited to this
-  window) and answers the explorer's two `NavSection`s. `rename_path` tells it before reselecting.
+  window) and answers the explorer's two `NavSection`s. `rename_path` tells it before reselecting. `restore()`
+  (start-up) selects the last folder of QSettings `explorer/last_folder` if it is still inside the project, else the root.
+- `ui/shutdown.py` (spec 27-5): what `MainWindow.closeEvent` does. `close_dialogs(window)` first: each non-modal
+  dialog's controller has `close_dialog() -> bool` (`CalcCreateController` closes its window, whose `closeEvent` asks
+  `ask_discard` only when `TabsPage.dirty` and refuses while `_busy`: False keeps the main window, with the dialog in
+  front; `Grids` and `Help` always close; the one that can refuse is asked first). Then `run_shutdown`: layout saved,
+  `window.hide()`, and the `Step`s of `steps_for(window)` in a `ShutdownSequence` with one budget (`TOTAL_MS` = 8 s):
+  `cancelar` (loads, tab reads through `Workspace.cancel_loads` → `cancel_load()`, grids, derive, palette), `sync`
+  (≤ 2 s, then killed), `exportações` (`own_budget`: waits `EXPORT_WAIT_MS` whatever is left, never cut short, and not
+  charged to the budget), `.plot` (`PlotSettingsStore.close`: one drain), `estado` (navigation flush, last folder, theme,
+  `QSettings.sync()`), `detecção`, `grade`, `árvore`. A step gets the ms it may take (0 when the budget is gone: it does
+  its non-blocking part; no step is skipped, so the state is always saved) and returns False if it overran: the logged
+  warning and `ShutdownReport.late` (`MainWindow.shutdown_report`). A new `shutdown` must take the time it may use and say
+  whether it finished. `ui/app.py:finish` then gives the global pool `POOL_WAIT_MS`; with a task still running it logs
+  the late steps and `os._exit`s (the state is written already) instead of finalizing Python under live Qt threads.
+- `ui/excepthook.py:ExceptionReporter` (spec 27-5 R3) is `sys.excepthook` (`install_excepthook`; `app.main` calls
+  `set_excepthook_window(window)`): every error to the log; to the user, once, as a `Toast` of level `error` (traceback
+  in "Detalhes") — before the window exists, as one `QMessageBox`. The same (type, text, file:line) within 10 s only counts
+  (" (xN)" in the log), an error raised while one is reported goes to the log alone, a hidden window gets the log only.
 - `ui/actions.py:ACTIONS`: the window's actions by stable id (`plot.generate`, `plot.export`,
   `view.theme`, `files.refresh`…) with menu, text, shortcut and slot path; `MainWindow._actions`
   holds the `QAction`s (spec 18 reads it).
@@ -720,7 +741,7 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
   the GUI never waits for an export.
 - Connect long-lived signals (e.g. `ThemeManager.theme_changed`) to bound methods, not lambdas,
   so they disconnect when the widget is deleted. Dialogs use delete-on-close.
-- `app.main()` waits on the global pool before exit so no worker outlives the interpreter.
+- `app.main()` waits on the global pool before exit (`finish`: `POOL_WAIT_MS`, then `os._exit`; see `ui/shutdown.py`).
 - Data files are written whole by `core/appdirs.py:atomic_write_text` (unique temp `.<name>.<pid>.<token>.tmp`
   made with `O_EXCL` and mode `0o666` so the umask applies, `fsync`, `os.replace`, folder `fsync`; any error
   removes the temp). Two instances would still lose each other's stores (last writer wins, no merge), so

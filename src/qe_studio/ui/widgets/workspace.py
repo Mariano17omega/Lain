@@ -131,6 +131,13 @@ class Workspace(QStackedWidget):
     def items(self) -> list[tuple[str, QWidget]]:
         return list(self._keys.items())
 
+    def cancel_loads(self) -> None:
+        """Window close: the tabs that are still reading a file stop (``cancel_load``)."""
+        for _key, widget in self.items():
+            cancel = getattr(widget, "cancel_load", None)
+            if cancel is not None:
+                cancel()
+
     def add(self, key: str, widget: QWidget, title: str, icon: tuple[str, str], tooltip: str = ""):
         existing = self._keys.get(key)
         if existing is not None:

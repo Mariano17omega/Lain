@@ -107,6 +107,12 @@ class GridLoader(QObject):
             self.busy.begin(self._busy_name(spec.name), "Carregando grid…")
         self._finish_if_done(state)
 
+    def cancel_all(self) -> None:
+        """Window close: no grid goes on loading."""
+        for name in list(self._loads):
+            self.cancel(name)
+        self._tasks.cancel_all()
+
     def cancel(self, name: str) -> None:
         state = self._loads.pop(name, None)
         if state is not None:

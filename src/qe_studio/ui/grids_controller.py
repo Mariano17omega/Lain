@@ -83,6 +83,12 @@ class GridsController(QObject):
     def _on_dialog_closed(self, *_args) -> None:
         self.dialog = None
 
+    def close_dialog(self) -> bool:
+        """The main window is closing. Nothing to protect here ("Gerar" saves, "Cancelar" drops
+        the draft by design), so it always closes (spec 27-5 R2.3)."""
+        dialog = self.dialog
+        return dialog is None or dialog.close()
+
     def choices(self) -> list[PlotChoice]:
         """The open plot tabs a cell can show (a grid cannot be a cell), in tab order."""
         return [

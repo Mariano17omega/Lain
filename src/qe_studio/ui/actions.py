@@ -51,8 +51,8 @@ ACTIONS: tuple[ActionSpec, ...] = (
         "focus.params", "Navegar", "Ir para os ajustes", "focus_areas.focus_params", "Ctrl+4"
     ),
     # "sync.start" says what it pulls: SyncCoordinator.show_scope renames it on every folder change.
-    ActionSpec("sync.start", "Cluster", "Sincronizar pasta selecionada", "start_sync"),
-    ActionSpec("sync.project", "Cluster", "Sincronizar projeto inteiro", "start_project_sync"),
+    ActionSpec("sync.start", "Cluster", "Sincronizar pasta selecionada", "sync.start_selected"),
+    ActionSpec("sync.project", "Cluster", "Sincronizar projeto inteiro", "sync.start_project"),
     # "sync.push" too: "Enviar <pasta> ao cluster…", disabled at the project root (spec 27).
     ActionSpec(
         "sync.push",

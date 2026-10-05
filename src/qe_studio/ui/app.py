@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
+from collections.abc import Callable
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -16,7 +18,12 @@ from ..core.appdirs import lock_path, log_path
 from ..core.config import ConfigError, load_config
 from ..core.plotting.style import register_fonts
 from .app_identity import configure_application
+from .excepthook import install_excepthook, set_excepthook_window
+from .shutdown import ShutdownReport
 from .theme.manager import MODES, ThemeManager
+
+# Workers still running after the window closed get this long; then ``finish`` leaves.
+POOL_WAIT_MS = 2000
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -34,22 +41,6 @@ def setup_logging(verbose: bool = False) -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         handlers=handlers,
     )
-
-
-def install_excepthook() -> None:
-    """Report unexpected errors instead of letting PyQt6 abort the whole app."""
-    log = logging.getLogger("qe_studio")
-
-    def hook(kind, value, tb) -> None:
-        log.error("erro inesperado", exc_info=(kind, value, tb))
-        if QApplication.instance() is not None:
-            QMessageBox.critical(
-                None,
-                "Erro inesperado",
-                f"{kind.__name__}: {value}\n\nDetalhes no log ({log_path()}).",
-            )
-
-    sys.excepthook = hook
 
 
 def acquire_instance_lock(path: Path) -> QLockFile | None:
@@ -106,6 +97,36 @@ def claim_instance(path: Path) -> tuple[bool, QLockFile | None]:
     return True, None
 
 
+def finish(
+    code: int,
+    pool: QThreadPool | None,
+    lock: QLockFile | None,
+    report: ShutdownReport | None,
+    exit_now: Callable[[int], object] = os._exit,
+) -> int:
+    """After ``app.exec()``: no worker may outlive the interpreter (spec 27-5 R1.3).
+
+    The global pool gets ``POOL_WAIT_MS`` more. If a task is still running then, the interpreter
+    must not finalize with Qt threads inside Python (a crash, or a wait without end): the state was
+    written by ``closeEvent`` already, so say what was late and leave at once (``exit_now``).
+    """
+    drained = pool is None or pool.waitForDone(POOL_WAIT_MS)
+    if lock is not None:
+        lock.unlock()
+    if drained:
+        return code
+    late = report.late if report is not None else []
+    logging.getLogger("qe_studio").error(
+        "encerramento: %d tarefa(s) ainda rodando após %d ms (passos atrasados: %s); saindo",
+        pool.activeThreadCount() if pool is not None else 0,
+        POOL_WAIT_MS,
+        late or "nenhum",
+    )
+    logging.shutdown()
+    exit_now(code)
+    return code  # only reached when ``exit_now`` is replaced (tests)
+
+
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="lain", description=APP_NAME)
     parser.add_argument("--config", help="caminho do config.yaml")
@@ -145,11 +166,7 @@ def main(argv: list[str] | None = None) -> int:
     from .main_window import MainWindow
 
     window = MainWindow(loaded, theme, settings)
+    set_excepthook_window(window)  # from here on an unexpected error is a toast, not a box
     window.show()
     code = app.exec()
-    pool = QThreadPool.globalInstance()
-    if pool is not None:
-        pool.waitForDone(5000)  # no worker may outlive the interpreter
-    if lock is not None:
-        lock.unlock()
-    return code
+    return finish(code, QThreadPool.globalInstance(), lock, window.shutdown_report)

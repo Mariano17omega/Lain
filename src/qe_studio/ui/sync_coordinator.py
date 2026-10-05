@@ -5,13 +5,14 @@ the reachability monitor.
 
 ``core/sync`` decides (``prepare_sync``, ``prepare_push``, ``sync_scope``) and runs
 (``SyncController``, ``PushController``); this only asks, shows and reports. One run at a time,
-either way. The window refreshes what changed when ``synced`` arrives (a push changes nothing
+either way. ``on_synced`` refreshes what changed when ``synced`` is emitted (a push changes nothing
 local, so it never emits it); a run that went well ends with a toast (``notice``), not a message
 box.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
@@ -57,10 +58,15 @@ class SyncCoordinator(QObject):
         theme: ThemeManager,
         dialog_parent: QWidget,
         parent: QObject | None = None,
+        current_folder: Callable[[], Path] | None = None,
+        refresh: Callable[[Path], None] | None = None,
     ):
         super().__init__(parent)
         self.config, self.theme = config, theme
         self._dialog_parent = dialog_parent
+        self._current_folder = current_folder or (lambda: self.config.paths.local_root)
+        self._refresh = refresh  # what changed on disk: detection, tree and grid (``on_synced``)
+        self.synced.connect(self.on_synced)
         self.controller: RsyncRun | None = None
         self.dialog: SyncDialog | None = None
         self.scope: SyncScope | None = None  # of the run in progress
@@ -146,10 +152,12 @@ class SyncCoordinator(QObject):
     def check_connection(self) -> None:
         self.monitor.check()
 
-    def shutdown(self) -> None:
-        if self.controller is not None and self.controller.running:
-            self.controller.shutdown()
+    def shutdown(self, timeout_ms: int = 5000) -> bool:
+        """Window close: a running pull or push is cancelled (killed after ``timeout_ms``)."""
         self.monitor.stop()
+        if self.controller is not None and self.controller.running:
+            return self.controller.shutdown(timeout_ms)
+        return True
 
     def _on_state(self, state: str) -> None:
         cluster = self.config.cluster
@@ -159,6 +167,20 @@ class SyncCoordinator(QObject):
         self.cluster_changed.emit(label, state)
 
     # -- a pull or a push -------------------------------------------------------------------------
+    def start_selected(self) -> None:
+        """Pull the selected folder (the whole project when nothing is selected): the Rsync button
+        and ``sync.start``."""
+        self.start(self._current_folder())
+
+    def start_project(self) -> None:
+        """ "Sincronizar projeto inteiro": the root, whatever is selected (spec 17 R1.3)."""
+        self.start(self.config.paths.local_root)
+
+    def on_synced(self, local_dir: Path) -> None:
+        """A pull changed ``local_dir``: refresh what shows it."""
+        if self._refresh is not None:
+            self._refresh(local_dir)
+
     def start(self, folder: Path) -> None:
         """Pull ``folder`` from the cluster (the whole project when it is the root)."""
         if self.running:

@@ -195,3 +195,10 @@ def test_the_main_window_toast_follows_resize_and_close(qtbot, main_window, capl
     qtbot.wait(200)
     assert events == [("shown", "oi")] and not toast.isVisible()
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+def test_an_error_notice_has_its_own_level(qtbot, window):
+    toast = make(window)
+    toast.show_message("falhou", "error", "detalhes")
+    assert toast.property("level") == "error"  # not the "info" an unknown level falls back to
+    toast.shutdown()

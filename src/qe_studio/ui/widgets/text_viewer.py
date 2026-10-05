@@ -162,6 +162,11 @@ class TextViewer(QWidget):
             read_preview, self.path, full, on_done=self._on_loaded, on_error=self._on_failed
         )
 
+    def cancel_load(self) -> None:
+        """Window close: the read in progress is not wanted any more."""
+        if self._task is not None:
+            self._task.cancel()
+
     def load_all(self) -> None:
         """Read the whole file ("Carregar tudo"): up to ``LOAD_ALL_LIMIT``."""
         size = self._size

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -96,21 +97,27 @@ class PlotSettingsStore(QObject):
                 on_done=self._report,
             )
 
-    def flush_now(self, key: str | None = None, inside: Path | None = None) -> None:
+    def flush_now(
+        self, key: str | None = None, inside: Path | None = None, timeout_ms: int | None = None
+    ) -> bool:
         """Write the pending settings here and now: all, the plot ``key`` or the plots that show
         something ``inside`` a path (a rename is about to move it). Writes already queued land
-        first, unless the disk is too slow (``DRAIN_MS``): then what is still queued is older than
-        what is written here and, by its ticket, does not overwrite it."""
+        first, unless the disk is too slow (``timeout_ms``): then what is still queued is older
+        than what is written here and, by its ticket, does not overwrite it. ``timeout_ms`` is
+        ``DRAIN_MS`` unless given. False: it did not drain in time (all pending was written anyway)."""
+        timeout_ms = DRAIN_MS if timeout_ms is None else timeout_ms
         if key is None and inside is None:
             self._timer.stop()
-        if not self._pool.waitForDone(DRAIN_MS):
-            log.warning("plot settings: writes still queued after %d ms; writing now", DRAIN_MS)
+        drained = self._pool.waitForDone(timeout_ms)
+        if not drained:
+            log.warning("plot settings: writes still queued after %d ms; writing now", timeout_ms)
         for session in self._take(key, inside):
             ticket = self._order.ticket()
             self._report(
                 session.key,
                 _write(self._order, ticket, session.folder, session.kind, session.params),
             )
+        return drained
 
     def read(
         self, key: str, folder: Path, kind: str, on_done: Callable, on_error: Callable
@@ -129,11 +136,24 @@ class PlotSettingsStore(QObject):
             session.key, _delete, session.folder, session.kind, on_done=self._report
         )
 
-    def shutdown(self, timeout_ms: int = DRAIN_MS) -> bool:
-        """Window close, after ``flush_now``: nothing may stay queued behind a slow disk."""
+    def shutdown(self, timeout_ms: int | None = None) -> bool:
+        """Window close, after ``flush_now``: nothing may stay queued behind a slow disk. The
+        two queues share ``timeout_ms`` (``DRAIN_MS`` unless given)."""
+        timeout_ms = DRAIN_MS if timeout_ms is None else timeout_ms
+        deadline = time.monotonic() + timeout_ms / 1000
         self._timer.stop()
         reads = self._reads.shutdown(timeout_ms)
-        return self._writes.shutdown(timeout_ms) and reads
+        left = max(0, int((deadline - time.monotonic()) * 1000))
+        return self._writes.shutdown(left) and reads
+
+    def close(self, timeout_ms: int | None = None) -> bool:
+        """Window close: write what is pending and stop both queues, all within ``timeout_ms``
+        (``DRAIN_MS`` unless given): one drain, not one wait per step."""
+        timeout_ms = DRAIN_MS if timeout_ms is None else timeout_ms
+        deadline = time.monotonic() + timeout_ms / 1000
+        drained = self.flush_now(timeout_ms=timeout_ms)
+        left = max(0, int((deadline - time.monotonic()) * 1000))
+        return self.shutdown(left) and drained
 
     def _take(self, key: str | None = None, inside: Path | None = None) -> list[PlotSession]:
         if inside is not None:  # plots of a folder inside it, or of a file inside it (SCF)

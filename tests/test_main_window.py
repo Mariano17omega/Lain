@@ -400,7 +400,7 @@ def test_unusable_last_folder_falls_back_to_the_root(qtbot, main_window, demo_pr
     window = main_window
     folder = demo_project / "gone" if last == "missing" else demo_project.parent
     window.settings.setValue("explorer/last_folder", str(folder))
-    window._restore_folder()
+    window.navigation.restore()
     assert window.files.folder == demo_project
 
 

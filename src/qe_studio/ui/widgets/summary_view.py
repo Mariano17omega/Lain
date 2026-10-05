@@ -108,6 +108,11 @@ class SummaryView(QWidget):
             self._task.cancel()
         self._task = run_task(summarize, self.path, on_done=self._on_done, on_error=self._on_failed)
 
+    def cancel_load(self) -> None:
+        """Window close: the read in progress is not wanted any more."""
+        if self._task is not None:
+            self._task.cancel()
+
     def _on_done(self, summary: OutputSummary) -> None:
         self.summary = summary
         body = QWidget()

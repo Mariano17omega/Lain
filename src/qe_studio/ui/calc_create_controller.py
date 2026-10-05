@@ -135,6 +135,16 @@ class CalcCreateController(QObject):
     def _on_dialog_closed(self, *_args) -> None:
         self.dialog = None
 
+    def close_dialog(self) -> bool:
+        """The main window is closing: close the window, which asks before it drops what was
+        typed and refuses while the folder is being made. False: it stays, in front."""
+        dialog = self.dialog
+        if dialog is None or dialog.close():
+            return True
+        dialog.raise_()
+        dialog.activateWindow()
+        return False
+
     # -- creating ------------------------------------------------------------------------------
     def creating_under(self, path: Path) -> Path | None:
         """The folder a calculation is being made in, if it lies inside ``path`` (renaming it or

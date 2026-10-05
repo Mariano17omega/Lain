@@ -119,3 +119,26 @@ def test_without_a_delay_the_queue_is_drained_first(qtbot, tmp_path):
     store.flush_now()
     assert stored_emin(tmp_path) == -3.0 and not store.is_dirty(edited.key)
     assert store.shutdown()
+
+
+def test_close_writes_what_is_pending_and_stops_the_queues(qtbot, tmp_path):
+    store = PlotSettingsStore()
+    edited = session(tmp_path, emin=-1.0)
+    store.mark(edited)
+    store.flush()
+    edited.params.emin = -4.0
+    store.mark(edited)
+    assert store.close(5000)
+    assert stored_emin(tmp_path) == -4.0 and not store.is_dirty(edited.key)
+
+
+def test_close_gives_up_on_a_slow_disk_but_still_writes(qtbot, tmp_path):
+    store = PlotSettingsStore()
+    gate = threading.Event()
+    run_task(gate.wait, 10, pool=store._pool)  # the one worker is busy
+    edited = session(tmp_path, emin=-1.0)
+    store.mark(edited)
+    assert not store.close(50)  # the drain timed out: say so
+    assert stored_emin(tmp_path) == -1.0  # and it was written anyway, here
+    gate.set()
+    assert store._pool.waitForDone(10_000)

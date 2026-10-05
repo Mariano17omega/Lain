@@ -6,7 +6,7 @@ The window is the composition root (spec 15 R4): it builds the widgets and three
 ``LayoutController`` (panels and window state), ``PlotWorkflow`` (detect → plot → export) and
 ``SyncCoordinator`` (cluster pull and push), plus the help, command palette and first-run
 controllers (spec 18), registers the actions and wires the signals. It keeps only what touches
-several of them: renaming, reloading the config and closing.
+several of them: reloading the config and closing (``ui/shutdown.py``).
 """
 
 from __future__ import annotations
@@ -47,6 +47,7 @@ from .plot_settings import PlotSettingsStore
 from .plot_workflow import PlotWorkflow
 from .rename_controller import RenameController
 from .services import DetectionService
+from .shutdown import ShutdownReport, close_dialogs, run_shutdown
 from .sync_coordinator import SyncCoordinator
 from .theme.manager import ThemeManager
 from .widgets.bars import ActivityBar, StatusBar, TopBar
@@ -90,6 +91,7 @@ class MainWindow(QMainWindow):
         self.service = DetectionService(self.memory, self)
         self.service.paranoid_refresh = self.config.ui.paranoid_refresh
         self._actions: dict[str, QAction] = {}  # by stable id (spec 18 reads it)
+        self.shutdown_report: ShutdownReport | None = None  # closeEvent's; ``app.main`` logs it
 
         self._build()
         self._build_controllers()
@@ -97,7 +99,7 @@ class MainWindow(QMainWindow):
         self._connect()
         self.panel_layout.restore()
         self.sync.start_monitor()
-        self._restore_folder()
+        self.navigation.restore()
         self.first_run.refresh()
         for warning in loaded.warnings:
             log.warning(warning)
@@ -186,7 +188,14 @@ class MainWindow(QMainWindow):
             compounds=self.compounds,
             parent=self,
         )
-        self.sync = SyncCoordinator(self.config, self.theme, self, self)
+        self.sync = SyncCoordinator(
+            self.config,
+            self.theme,
+            self,
+            self,
+            current_folder=self.current_folder,
+            refresh=self.refresh_folder,
+        )
         self.help = HelpController.for_window(self)
         self.command_palette = PaletteController.for_window(self)
         self.first_run = FirstRunController.for_window(self)
@@ -220,7 +229,7 @@ class MainWindow(QMainWindow):
         self.item_actions.bands_dos_requested.connect(self.plot_workflow.plot_pair)
         self.item_actions.favorite_toggled.connect(self.navigation.set_favorite)
         self.activity.plot_requested.connect(self.toggle_plot)
-        self.activity.sync_requested.connect(self.start_sync)
+        self.activity.sync_requested.connect(self.sync.start_selected)
         self.activity.theme_requested.connect(self.toggle_theme)
         self.top_bar.generate_requested.connect(self.generate_plot)
         self.top_bar.plot_file_requested.connect(self.plot_workflow.plot_open_file)
@@ -246,39 +255,20 @@ class MainWindow(QMainWindow):
         sync.message.connect(self.status.set_message)
         sync.notice.connect(self.toast.show_message)
         sync.scope_changed.connect(self.activity.set_sync_tooltip)
-        sync.synced.connect(self._on_synced)
         sync.finished.connect(self.sync_finished)
 
     # -- state ----------------------------------------------------------------------------------
-    def _restore_folder(self) -> None:
-        """Select the folder used last, if it still exists inside the project."""
-        last = self.settings.value("explorer/last_folder", "", type=str)
-        folder = Path(last) if last else None
-        root = self.root.resolve()
-        if folder is not None and folder.is_dir() and folder.resolve().is_relative_to(root):
-            self.explorer.select_path(folder)
-            if self.files.folder == folder:
-                return
-        self.on_folder_selected(self.root)
-
     def focusNextPrevChild(self, next: bool) -> bool:
         """Tab and Shift+Tab: the order of the window's regions, rebuilt first (spec 19 R4.3)."""
         self.focus_areas.apply_tab_order()
         return super().focusNextPrevChild(next)
 
     def closeEvent(self, event: QCloseEvent | None) -> None:
-        self.sync.shutdown()
-        self.plot_workflow.shutdown()  # waits for exports: no half-written plots
-        self.plot_settings.flush_now()  # on the spot: the app is leaving
-        self.plot_settings.shutdown()
-        self.panel_layout.save()
-        self.navigation.shutdown()
-        self.settings.setValue("explorer/last_folder", str(self.current_folder()))
-        self.settings.setValue("ui/theme", self.theme.mode)
-        self.settings.sync()
-        self.service.shutdown(2000)
-        self.files.shutdown()  # last: the panels' filters stop (current_folder needs them above)
-        self.explorer.shutdown()
+        if not close_dialogs(self):  # one keeps what the user typed: the window stays
+            if event is not None:
+                event.ignore()
+            return
+        self.shutdown_report = run_shutdown(self)
         super().closeEvent(event)
 
     # -- navigation -----------------------------------------------------------------------------
@@ -353,6 +343,12 @@ class MainWindow(QMainWindow):
         self.explorer.refresh()
         self.files.refresh()
         self.status.set_message("Atualizado.", timeout_ms=2500)
+
+    def refresh_folder(self, folder: Path) -> None:
+        """What changed on disk under ``folder`` (a pull): detection, tree and grid read it again."""
+        self.service.invalidate(folder)
+        self.explorer.refresh()
+        self.files.refresh()
 
     # -- context menu (spec 5 R3) -------------------------------------------------------------------
     def _show_item_menu(self, paths: list[Path], pos: QPoint) -> None:
@@ -447,17 +443,3 @@ class MainWindow(QMainWindow):
         if self.root != old_root:  # a new project: start at its top
             self.explorer.select_path(self.root)
         self.first_run.refresh()
-
-    # -- cluster sync (SyncCoordinator) -------------------------------------------------------------
-    def start_sync(self) -> None:
-        """Pull the selected folder from the cluster (whole project when nothing is selected)."""
-        self.sync.start(self.current_folder())
-
-    def start_project_sync(self) -> None:
-        """ "Sincronizar projeto inteiro": the root, whatever is selected (spec 17 R1.3)."""
-        self.sync.start(self.root)
-
-    def _on_synced(self, local_dir: Path) -> None:
-        self.service.invalidate(local_dir)
-        self.explorer.refresh()
-        self.files.refresh()

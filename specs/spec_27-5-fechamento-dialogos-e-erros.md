@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-5 |
-| **Status** | Proposta |
+| **Status** | Implementada |
 | **Depende de** | spec 15 (controladores, `main_window.py`), spec 26 e 23 (diálogos não modais); 27-4 (cancelamento cooperativo, dependência fraca); 27-3 (tira `rename_path` de `main_window.py`) |
 | **Usada por** | spec 31 (precisa de linhas livres em `main_window.py`) |
 | **Esforço** | M |
@@ -96,6 +96,14 @@
 3. `GridDialog` não pergunta nada ao fechar com a janela principal (não há edição não salva a proteger); o relatório se enganou aqui.
 4. O toast substitui o modal do `excepthook` quando há janela; o modal só existe antes da janela (erro de inicialização).
 5. O limite de 450 linhas só vale para `main_window.py`; é uma regra de manutenção para as specs 31+ (ajustável).
+
+## Como foi implementado (desvios do texto acima)
+- O passo das exportações espera o `EXPORT_WAIT_MS` inteiro e esse tempo **não** conta no `TOTAL_MS` (a decisão 2 vale mais que o `min(…, restante)` do R1.1.4); `ShutdownSequence` nunca pula um passo: sem orçamento ele recebe 0 ms e faz só a parte que não espera, então os stores são sempre gravados.
+- `panel_layout.save()` roda antes do `hide()` (a geometria é lida com a janela ainda na tela); o resto dos stores fica depois, como no R1.
+- `close_dialogs` pergunta primeiro ao diálogo que pode recusar (Criar cálculo); só se ele concordar os de grids e atalhos fecham (um "Não" não deixa o diálogo de grids já perdido).
+- O `Toast` não tinha o nível `error` (um nível desconhecido virava `info`): ganhou `LEVELS["error"]` e a regra no `toast.qss`.
+- `main_window.py` já tinha 463 linhas (a 27-3 tirou `rename_path`): ficou com 445. `refresh_folder` na janela é o que o `SyncCoordinator` recebe como `refresh`; `NavigationController.restore()` usa só o explorador (`current_folder()`), não `files.folder`.
+- `app.finish(code, pool, lock, report, exit_now=os._exit)` é o fim de `main` (testável); `POOL_WAIT_MS` = 2 s. O `excepthook` vive em `ui/excepthook.py` (`ExceptionReporter`); `ui/app.py` o reexporta.
 
 ## Notas de implementação
 - Novos: `ui/shutdown.py`, `tests/test_shutdown.py`, `tests/test_excepthook.py`.

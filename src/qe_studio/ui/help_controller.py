@@ -89,6 +89,11 @@ class HelpController(QObject):
     def _on_dialog_closed(self) -> None:
         self.dialog = None
 
+    def close_dialog(self) -> bool:
+        """The main window is closing: the shortcuts window has no state."""
+        dialog = self.dialog
+        return dialog is None or dialog.close()
+
     # -- log and data -------------------------------------------------------------------------
     def open_log(self) -> None:
         path = log_path()

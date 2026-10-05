@@ -14,6 +14,9 @@ PACKAGE = Path(qe_studio.__file__).parent
 LIMIT = 500
 # Files allowed past LIMIT, each with its reason. Starts (and should stay) empty.
 SIZE_EXCEPTIONS: dict[str, str] = {}
+# Files with a limit of their own, below LIMIT, so the room made in them is not spent again by
+# accident (spec 27-5 R4): the composition root.
+PER_FILE_LIMIT: dict[str, int] = {"ui/main_window.py": 450}
 # The only core modules with Qt: QProcess/signals of the sync (the rsync run both directions share,
 # the pull's conflicts), the reachability monitor and the background-task helper.
 QT_IN_CORE = {
@@ -108,7 +111,8 @@ def test_no_file_is_over_the_size_limit():
     long = {
         name_of(path): lines
         for path in sources()
-        if (lines := len(path.read_text(encoding="utf-8").splitlines())) > LIMIT
+        if (lines := len(path.read_text(encoding="utf-8").splitlines()))
+        > PER_FILE_LIMIT.get(name_of(path), LIMIT)
         and name_of(path) not in SIZE_EXCEPTIONS
     }
     assert not long, f"split these by responsibility (> {LIMIT} lines): {long}"

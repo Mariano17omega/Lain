@@ -112,15 +112,17 @@ class RsyncRun(QObject):
         else:
             self._finish(SyncStatus.CANCELLED)
 
-    def shutdown(self, timeout_ms: int = 5000) -> None:
-        """Cancel and wait for rsync to exit (window close)."""
+    def shutdown(self, timeout_ms: int = 5000) -> bool:
+        """Cancel and wait for rsync to exit (window close); False when it had to be killed."""
         process = self._process
         self.cancel()
         if process is None or process.state() == QProcess.ProcessState.NotRunning:
-            return
-        if not process.waitForFinished(timeout_ms):
-            process.kill()
-            process.waitForFinished(1000)
+            return True
+        if process.waitForFinished(timeout_ms):
+            return True
+        process.kill()
+        process.waitForFinished(1000)
+        return False
 
     # -- what a subclass says ---------------------------------------------------------------------
     def _reset(self) -> None:

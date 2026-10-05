@@ -44,7 +44,7 @@ from ..core.plotting.session import PlotSession, build_session, load_plot, targe
 from ..core.tasks import TaskGroup
 from .busy import BusyTracker
 from .dialogs.mapping import ask_mapping
-from .plot_export import PlotExporter
+from .plot_export import EXPORT_WAIT_MS, PlotExporter
 from .plot_settings import PlotSettingsStore
 from .services import DetectionService
 from .theme.manager import ThemeManager
@@ -220,10 +220,14 @@ class PlotWorkflow(QObject):
         """Before a rename moves a folder: an export must not recreate the old one."""
         return self.exporter.wait()
 
-    def shutdown(self) -> bool:
-        """Window close: loads are dropped, exports finish (no half-written files)."""
+    def cancel_loads(self) -> None:
+        """Window close: the datasets being loaded are not wanted any more."""
         self._loads.cancel_all()
-        return self.exporter.shutdown()
+
+    def shutdown(self, timeout_ms: int = EXPORT_WAIT_MS) -> bool:
+        """Window close: loads are dropped, exports finish (no half-written files)."""
+        self.cancel_loads()
+        return self.exporter.shutdown(timeout_ms)
 
     # -- detection → choice -----------------------------------------------------------------------
     def _on_detected(self, key: str) -> None:

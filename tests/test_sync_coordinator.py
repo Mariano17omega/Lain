@@ -133,3 +133,39 @@ def test_a_new_config_replaces_the_monitor(qtbot, tmp_path, boxes):
     coordinator.set_config(parse_config(data))
     assert coordinator.monitor is not old and labels[0] == "u@127.0.0.1"
     coordinator.shutdown()
+
+
+def test_the_entry_points_pull_the_selection_or_the_whole_project(qtbot, tmp_path, boxes):
+    selected, started = tmp_path / "03_bands", []
+    data = {"paths": {"local_root": str(tmp_path)}}
+    parent = QWidget()
+    qtbot.addWidget(parent)
+    coordinator = SyncCoordinator(
+        parse_config(data), ThemeManager("dark"), parent, parent, current_folder=lambda: selected
+    )
+    coordinator.start = started.append  # type: ignore[method-assign]
+    coordinator.start_selected()
+    coordinator.start_project()
+    assert started == [selected, tmp_path]  # the root, whatever is selected
+
+
+def test_a_pull_refreshes_what_changed(qtbot, tmp_path, boxes):
+    refreshed = []
+    parent = QWidget()
+    qtbot.addWidget(parent)
+    coordinator = SyncCoordinator(
+        parse_config({"paths": {"local_root": str(tmp_path)}}),
+        ThemeManager("dark"),
+        parent,
+        parent,
+        refresh=refreshed.append,
+    )
+    coordinator.synced.emit(tmp_path / "03_bands")
+    assert refreshed == [tmp_path / "03_bands"]
+    SyncCoordinator(
+        parse_config({"paths": {"local_root": str(tmp_path)}}), ThemeManager("dark"), parent
+    ).synced.emit(tmp_path)  # no refresh given: nothing to do, nothing raised
+
+
+def test_shutdown_without_a_run_is_in_time(qtbot, tmp_path, boxes):
+    assert make(qtbot, tmp_path).shutdown(100) is True

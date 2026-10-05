@@ -64,6 +64,10 @@ class DeriveController(QObject):
         outputs = (Path(str(key).removeprefix(KEY_PREFIX)) for key in self._tasks.active_keys())
         return next((output for output in outputs if output.is_relative_to(path)), None)
 
+    def cancel(self) -> None:
+        """Window close: a generation that has not started yet is dropped."""
+        self._tasks.cancel_all()
+
     def generate_scf(self, output: Path) -> None:
         key = f"{KEY_PREFIX}{output}"
         if self._tasks.active(key) is not None:  # a second click while the first one writes

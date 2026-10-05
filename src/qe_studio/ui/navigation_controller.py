@@ -74,6 +74,16 @@ class NavigationController(QObject):
         self._save_timer.stop()
         self.store.flush()
 
+    def restore(self) -> None:
+        """Start on the folder used last, if it still exists inside the project, else the root."""
+        last = self.settings.value("explorer/last_folder", "", type=str)
+        folder = Path(last) if last else self.root
+        if folder.is_dir() and folder.resolve().is_relative_to(self.root.resolve()):
+            self.explorer.select_path(folder)
+            if self.explorer.current_folder() == folder:
+                return
+        self.explorer.select_path(self.root)  # the tree's root: ``folder_selected`` says so
+
     def set_root(self, root: Path) -> None:
         """Another project (config reload): its history starts empty, its favorites load."""
         self.root = Path(root)

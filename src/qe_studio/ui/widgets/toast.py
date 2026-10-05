@@ -48,6 +48,7 @@ LEVELS = {
     "info": ("info", "accent"),
     "success": ("check_circle", "success"),
     "warning": ("warning", "warning"),
+    "error": ("error", "error"),
 }
 
 

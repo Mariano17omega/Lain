@@ -77,6 +77,14 @@ class PaletteController(QObject):
     def indexing(self) -> bool:
         return self._task is not None
 
+    def cancel(self) -> None:
+        """Window close: the folder walk stops."""
+        if self._task is not None:
+            self._task.cancel()
+            self._task = None
+        if self._stop is not None:
+            self._stop.set()
+
     def invalidate(self) -> None:
         """Forget the index (F5, a new root); the next open builds it again."""
         if self._task is not None:

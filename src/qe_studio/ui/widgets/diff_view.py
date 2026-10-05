@@ -185,6 +185,11 @@ class DiffView(QWidget):
             compare_files, self.a, self.b, on_done=self._on_done, on_error=self._on_failed
         )
 
+    def cancel_load(self) -> None:
+        """Window close: the read in progress is not wanted any more."""
+        if self._task is not None:
+            self._task.cancel()
+
     def _on_done(self, result: Comparison) -> None:
         self.comparison = result
         self._fill_tree(result.params)

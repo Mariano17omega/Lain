@@ -81,10 +81,10 @@ class PlotExporter(QObject):
         """Block until the running exports are written (before a rename moves their folder)."""
         return self._tasks.wait(EXPORT_WAIT_MS)
 
-    def shutdown(self) -> bool:
-        """Window close: every export asked for is written first (up to ``EXPORT_WAIT_MS``), so
+    def shutdown(self, timeout_ms: int = EXPORT_WAIT_MS) -> bool:
+        """Window close: every export asked for is written first (up to ``timeout_ms``), so
         no file is left half written; whatever is left after that is dropped."""
-        written = self._tasks.wait(EXPORT_WAIT_MS)
+        written = self._tasks.wait(timeout_ms)
         self._tasks.shutdown(0)
         return written
 

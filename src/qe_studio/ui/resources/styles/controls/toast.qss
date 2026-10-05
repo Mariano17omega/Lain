@@ -10,6 +10,9 @@
 #toast[level="warning"] {
     border-color: ${warning};
 }
+#toast[level="error"] {
+    border-color: ${error};
+}
 #toast QLabel#toastText {
     color: ${text};
     background: transparent;

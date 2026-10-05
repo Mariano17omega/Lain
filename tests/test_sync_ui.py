@@ -64,7 +64,7 @@ def test_sync_with_conflict_prompt(qtbot, tmp_path, demo_project, ssh_server, me
     window.explorer.select_path(local)
 
     with qtbot.waitSignal(window.sync_finished, timeout=30_000) as blocker:
-        window.start_sync()
+        window.sync.start_selected()
         assert window.monitor.state.value == "syncing"
         dialog = window.sync.dialog
         assert dialog.scope_label.text() == "Baixar do cluster: 03_bands (e subpastas)"
@@ -98,13 +98,13 @@ def test_sync_local_newer_warns(qtbot, tmp_path, demo_project, ssh_server, messa
     touch(remote / "02_scf" / "scf.out", "older on cluster", T0)
     window.explorer.select_path(local)
     with qtbot.waitSignal(window.sync_finished, timeout=30_000) as blocker:
-        window.start_sync()
+        window.sync.start_selected()
     assert blocker.args[0].status is SyncStatus.LOCAL_NEWER
     assert messages[-1][0] == "warning" and "mais recente" in messages[-1][1]
 
 
 def test_sync_disabled_explains(qtbot, main_window, messages):
-    main_window.start_sync()
+    main_window.sync.start_selected()
     assert messages and "config.yaml" in messages[0][1]
     assert main_window.sync.controller is None
 
@@ -122,8 +122,8 @@ def test_password_prompt_is_used_once(
     monkeypatch.setattr(
         window.sync, "run", lambda folder, endpoint, password=None: runs.append(password)
     )
-    window.start_sync()
-    window.start_sync()
+    window.sync.start_selected()
+    window.sync.start_selected()
     assert runs == ["s3cret", "s3cret"] and len(asked) == 1
 
 
