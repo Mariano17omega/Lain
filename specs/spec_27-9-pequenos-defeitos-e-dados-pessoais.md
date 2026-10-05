@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-9 (última das correções da revisão de 04/10/2026) |
-| **Status** | Proposta |
+| **Status** | Implementada. Desvios:<br>- **Sem contador de geração (R2.1):** `_load` cancela os **dois** estágios do pedido anterior (`_loads.submit` cancela a carga; `PlotSettingsStore.cancel_read(key)`, novo, cancela a leitura do `.plot`), então nenhum callback velho chega. Os callbacks recebem só `(key, resultado)`: levar a geração até eles pede `partial`, que perde o cancelamento por receptor destruído do `TaskGroup`. O buraco real era o estágio 2: a leitura do `.plot` do primeiro pedido, ainda em voo, terminava e apagava o `_Loading` do segundo antes de a carga dele acabar, e a aba nunca abria (`test_a_request_while_the_plot_file_is_read_still_shows_the_newest` falha sem o `cancel_read`).<br>- **O `grep` de R3.6 acha também esta spec** (cita o próprio padrão e o endereço do repositório); os valores antigos que ela e o `report-04-10-26.md` citavam foram trocados por texto neutro. |
 | **Depende de** | spec 5 (menu de contexto, "Abrir com"), spec 15 (`PlotWorkflow`), spec 7 (`config.example.yaml`) |
 | **Usada por** | nenhuma |
 | **Esforço** | P |
@@ -93,8 +93,8 @@
 - `tests/test_config.py:199-203` (cópia idêntica) continua verde se as duas cópias forem editadas juntas.
 
 ## Critérios de aceite e testes
-- [ ] Programas `Terminal=true` não aparecem em "Abrir com" nem são o padrão; `DesktopApp` posicional de 6 argumentos continua válido.
-- [ ] `Remapear` durante uma carga em andamento: vale o segundo mapeamento; `auto_export` preservado; `busy` termina.
-- [ ] `config.example.yaml` (as duas cópias) com placeholders e idênticas; `test_config.py`, `scripts/screenshot.py`, `spec_0-PRD.md`, `PDOS.qsub` e `code.html` sem os dados pessoais.
-- [ ] O `grep` de R3.6 só acha o endereço do repositório; `test_calc_templates.py` continua verde.
-- [ ] `ruff`, `pyright`, `test_architecture.py`, suíte `-m "not realdata and not perf"` verdes.
+- [x] Programas `Terminal=true` não aparecem em "Abrir com" nem são o padrão; `DesktopApp` posicional de 6 argumentos continua válido.
+- [x] `Remapear` durante uma carga em andamento: vale o segundo mapeamento; `auto_export` preservado; `busy` termina.
+- [x] `config.example.yaml` (as duas cópias) com placeholders e idênticas; `test_config.py`, `scripts/screenshot.py`, `spec_0-PRD.md`, `PDOS.qsub` e `code.html` sem os dados pessoais.
+- [x] O `grep` de R3.6 só acha o endereço do repositório; `test_calc_templates.py` continua verde.
+- [x] `ruff`, `pyright`, `test_architecture.py`, suíte `-m "not realdata and not perf"` verdes.

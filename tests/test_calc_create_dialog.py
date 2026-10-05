@@ -5,22 +5,15 @@ from PyQt6 import sip
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QComboBox, QLineEdit
 
-from qe_studio.core.calc_create.kpath import KPath
 from qe_studio.core.calc_create.types import by_id
-from qe_studio.ui.dialogs.calc_create import CalcCreateDialog, tabs_page
+from qe_studio.ui.dialogs.calc_create import CalcCreateDialog
 from qe_studio.ui.dialogs.calc_create import dialog as dialog_module
 from qe_studio.ui.dialogs.calc_create.kmesh import KMeshEditor
 from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.kpath_editor import KPathEditor
 
 from calc_dialog_helpers import fill_setup, pick_scf, to_files, tree
-from calc_helpers import AL_PATH, AL_SCF, JOBS, al
-
-
-@pytest.fixture(autouse=True)
-def no_pymatgen(monkeypatch):
-    """The band path tab asks for a suggestion on its first visit: a fixed one, fast."""
-    monkeypatch.setattr(tabs_page, "suggest_path", lambda crystal: AL_PATH)
+from calc_helpers import AL_PATH, AL_SCF, JOBS, al, hex_path, hex_scf_text
 
 
 @pytest.fixture
@@ -215,13 +208,14 @@ def test_band_path_tab(qtbot, dialog):
     tabs = to_files(qtbot, dialog, "bandas")
     editor = tabs.widget_of("kpath")
     assert isinstance(editor, KPathEditor)
+    tabs.tabs.setCurrentIndex(tabs.tab_labels().index("Bandas (bands.in)"))  # nothing is suggested
+    assert editor.table.rowCount() == 0
     assert not dialog.create_button.isEnabled()
     assert dialog.create_button.toolTip() == "Defina ao menos 2 pontos do caminho"
-    tabs.tabs.setCurrentIndex(tabs.tab_labels().index("Bandas (bands.in)"))  # suggestion
-    qtbot.waitUntil(lambda: editor.value() == AL_PATH, timeout=5000)
+    editor.set_path(AL_PATH)
     assert dialog.create_button.isEnabled()
     assert "K_POINTS crystal_b" in tabs.previews["bands.in"].toPlainText()
-    assert not tabs.dirty  # a suggestion is not an edit
+    assert not tabs.dirty  # a path shown by the program is not an edit
     for _ in range(4):
         editor.table.setCurrentCell(0, 0)
         editor.remove_point()
@@ -230,19 +224,39 @@ def test_band_path_tab(qtbot, dialog):
     assert tabs.dirty
 
 
-def test_band_path_without_a_suggestion(qtbot, dialog, monkeypatch):
-    from qe_studio.core.calc_create.kpath import KPathUnavailable
-
-    def unavailable(crystal) -> KPath:
-        raise KPathUnavailable("o pymatgen não achou o caminho desta rede")
-
-    monkeypatch.setattr(tabs_page, "suggest_path", unavailable)
-    tabs = to_files(qtbot, dialog, "bandas")
+def test_band_path_that_collapses_is_noted_and_marked_but_never_blocks(qtbot, dialog, tmp_path):
+    scf = tmp_path / "hex.scf.in"
+    scf.write_text(hex_scf_text())
+    tabs = to_files(qtbot, dialog, "bandas", scf=scf)
     editor = tabs.widget_of("kpath")
-    tabs.tabs.setCurrentIndex(tabs.tab_labels().index("Bandas (bands.in)"))
-    qtbot.waitUntil(lambda: bool(editor.notes), timeout=5000)
-    assert editor.table.rowCount() == 0
-    assert "Sem sugestão de caminho" in tabs.files_view.warnings.text()
+    tabs.widget_of("nbnd").setText("8")  # no output next to this SCF to read it from
+    editor.set_path(hex_path())
+    tabs.flush()
+    assert dialog.create_button.isEnabled()
+    warnings = tabs.files_view.warnings.text()
+    assert "Segmento A→L colapsa no eixo x do bands.x" in warnings
+    assert editor.table.item(4, 0).toolTip().startswith("Segmento A→L colapsa")
+    editor.distribute_button.click()
+    tabs.flush()
+    assert "colapsa" not in tabs.files_view.warnings.text()
+    assert editor.table.item(4, 0).toolTip() == ""
+    assert tabs.dirty  # a click on "Distribuir pelo comprimento" is the user's edit
+    assert dialog.create_button.isEnabled()
+
+
+def test_band_path_without_a_readable_structure(qtbot, dialog, tmp_path):
+    scf = tmp_path / "scf.in"
+    scf.write_text(AL_SCF.read_text().replace("    celldm(1)=  7.630781648,\n", ""))
+    tabs = to_files(qtbot, dialog, "bandas", scf=scf)
+    editor = tabs.widget_of("kpath")
+    editor.set_path(hex_path())
+    tabs.flush()
+    assert not editor.distribute_button.isEnabled()
+    assert editor.distribute_button.toolTip() == "Estrutura do SCF não legível"
+    warnings = tabs.files_view.warnings.text()
+    assert "checagem do eixo x das bandas não feita" in warnings
+    assert "colapsa" not in warnings
+    assert all(editor.table.item(row, 0).toolTip() == "" for row in range(editor.table.rowCount()))
 
 
 def test_files_tab_lists_what_will_be_written(qtbot, dialog, place):

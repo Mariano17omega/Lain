@@ -1,41 +1,38 @@
 """K-points of the generated inputs (spec 25 R5): a band path as ``K_POINTS crystal_b`` and a manual
 mesh as ``K_POINTS automatic``.
 
-``suggest_path`` asks pymatgen for the high-symmetry path (Setyawan–Curtarolo) of the SCF's crystal
-and writes it in fractions of the *input's* reciprocal vectors, the ones pw.x reads ``crystal_b`` in.
-pymatgen standardizes the cell first, so its points are converted through the integer matrix that
-takes its primitive cell to the input's (``Lattice.find_all_mappings``). pymatgen takes seconds to
-import: ``suggest_path`` runs in workers only, and imports it inside.
+The band path is typed by the user (spec 27-2). Two checks use the SCF's cell: ``collapsed_segments``
+finds the segments bands.x would draw with no extent on its x axis (it takes a step more than 5× the
+previous one for a jump between disconnected segments) and ``distribute`` sets the points of each
+segment from its length, which keeps the steps even.
 """
 
 from __future__ import annotations
 
-import re
-import warnings
-from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
-from ..qe.lattice import Crystal
+from ..qe.bands_x import path_coordinates
 
 __all__ = [
     "DEFAULT_NPTS",
+    "MAX_NPTS",
+    "CollapsedSegment",
     "KMesh",
     "KPath",
-    "KPathUnavailable",
     "KPoint",
-    "suggest_path",
+    "SegmentProgress",
+    "collapse_note",
+    "collapsed_segments",
+    "distribute",
+    "segment_progress",
     "to_card",
 ]
 
 DEFAULT_NPTS = 20
-_LENGTH_TOLERANCE = 0.01  # fractional: pymatgen's standard cell is symmetrized (symprec 0.01 Å)
-_ANGLE_TOLERANCE = 1.0  # degrees
-
-
-class KPathUnavailable(Exception):
-    """No suggested path (no pymatgen, no structure, odd cell): the user types the points."""
+MAX_NPTS = 1000  # per point: a stray zero would make a huge card
+COLLAPSE_LIMIT = 0.5  # a segment that advances less than this share of its length is collapsed
 
 
 @dataclass(frozen=True)
@@ -115,89 +112,115 @@ def to_card(path: KPath) -> tuple[str, list[str]]:
     return "crystal_b", rows
 
 
-def label_of(name: str) -> str:
-    """pymatgen's label as written in the card: ``\\Gamma`` → ``Gamma``, ``\\Sigma_1`` →
-    ``Sigma_1`` (the plot reads ``Gamma`` as Γ)."""
-    return re.sub(r"\\", "", name).strip()
+# -- the x axis of bands.x ----------------------------------------------------------------------------
+@dataclass(frozen=True)
+class SegmentProgress:
+    """What bands.x does with the segment from vertex ``a`` to ``b``: its real length and how far
+    the x axis advances over it (both in Å⁻¹)."""
+
+    a: int
+    b: int
+    real: float
+    advance: float
 
 
-# -- the suggestion -----------------------------------------------------------------------------------
-def _elements(labels: Sequence[str], is_valid) -> tuple[list[str], list[str]]:
-    """The element of each species label (``Fe1`` → Fe, ``O2`` → O) and a warning when labels
-    that differ (magnetic sites) become one element."""
-    elements, by_element = [], {}
-    for label in labels:
-        letters = re.sub(r"[^A-Za-z]", "", label)
-        element = next(
-            (cand for cand in (letters[:2].capitalize(), letters[:1].upper()) if is_valid(cand)),
-            None,
-        )
-        if element is None:
-            raise KPathUnavailable(f"o rótulo {label} não é um elemento químico")
-        elements.append(element)
-        by_element.setdefault(element, set()).add(label)
-    notes = [
-        f"{', '.join(sorted(names))} tratados como {element}: o caminho segue a simetria "
-        "cristalina, não a magnética"
-        for element, names in by_element.items()
-        if len(names) > 1
-    ]
-    return elements, notes
+@dataclass(frozen=True)
+class CollapsedSegment:
+    a: int  # vertex the segment starts at (the editor marks its row)
+    b: int
+    lost: float  # share of its length that does not reach the x axis (0–1)
 
 
-def _to_input_cell(prim_lattice, lattice) -> tuple[np.ndarray, list[str]]:
-    """The integer matrix S with input = S · primitive (rows), the closest to the identity."""
-    mappings = prim_lattice.find_all_mappings(
-        lattice, ltol=_LENGTH_TOLERANCE, atol=_ANGLE_TOLERANCE, skip_rotation_matrix=True
-    )
-    scales = [np.rint(m[2]).astype(int) for m in mappings]
-    if not scales:
-        raise KPathUnavailable(
-            "a célula do input não corresponde à célula padrão do pymatgen: digite o caminho"
-        )
-    scale = min(scales, key=lambda s: (np.abs(s - np.eye(3)).sum(), int((s < 0).sum())))
-    notes = []
-    folds = round(abs(np.linalg.det(scale)))
-    if folds > 1:
-        notes.append(
-            f"a célula do input tem {folds}× o volume da primitiva: as bandas aparecem dobradas"
-        )
-    elif not np.array_equal(scale, np.eye(3, dtype=int)):
-        notes.append("pontos convertidos da célula padrão do pymatgen para a célula do input")
-    return scale, notes
-
-
-def suggest_path(crystal: Crystal | None, npts: int = DEFAULT_NPTS) -> KPath:
-    """The Setyawan–Curtarolo path of ``crystal`` in the input's reciprocal coordinates. Raises
-    ``KPathUnavailable``. Workers only (imports pymatgen)."""
-    if crystal is None:
-        raise KPathUnavailable("a estrutura do SCF não pôde ser lida: digite os pontos do caminho")
+def _reciprocal(cell) -> np.ndarray | None:
+    """Rows b1 b2 b3 in Å⁻¹ (with 2π) of ``cell`` (rows a1 a2 a3 in Å); None for a singular cell."""
     try:
-        from pymatgen.core import Element, Lattice, Structure
-        from pymatgen.symmetry.bandstructure import HighSymmKpath
-    except ImportError as exc:
-        raise KPathUnavailable("pymatgen não está instalado: digite os pontos do caminho") from exc
+        rec = 2 * np.pi * np.linalg.inv(np.asarray(cell, dtype=float)).T
+    except (np.linalg.LinAlgError, ValueError, TypeError):
+        return None
+    return rec if rec.shape == (3, 3) and np.all(np.isfinite(rec)) else None
 
-    species, notes = _elements(crystal.labels, Element.is_valid_symbol)
-    structure = Structure(Lattice(crystal.cell), species, crystal.frac)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  # "input structure does not match the standard": handled
-        try:
-            kpath = HighSymmKpath(structure, path_type="setyawan_curtarolo")
-        except Exception as exc:  # noqa: BLE001 - spglib and pymatgen raise assorted errors
-            raise KPathUnavailable(f"o pymatgen não achou o caminho: {exc}") from exc
-    if not kpath.kpath or not kpath.kpath.get("path"):
-        raise KPathUnavailable("o pymatgen não achou o caminho desta rede")
-    scale, mapping_notes = _to_input_cell(kpath.prim.lattice, structure.lattice)
-    coordinates = kpath.kpath["kpoints"]
-    points: list[KPoint] = []
-    breaks: set[int] = set()
-    for segment in kpath.kpath["path"]:
-        if points:
-            breaks.add(len(points) - 1)
-        for name in segment:
-            frac = scale @ np.asarray(coordinates[name], dtype=float)
-            points.append(
-                KPoint(label_of(name), (float(frac[0]), float(frac[1]), float(frac[2])), npts)
-            )
-    return KPath(tuple(points), frozenset(breaks), tuple(notes + mapping_notes))
+
+def _expand(path: KPath, rec: np.ndarray) -> tuple[np.ndarray, list[int]]:
+    """The k points pw.x makes of the card (Cartesian, Å⁻¹) and where each vertex lands in them:
+    ``weight`` steps from a vertex to the next, none after a break, the last vertex once."""
+    frac = np.array([point.frac for point in path.points], dtype=float)
+    weights = path.weights()
+    pieces, index, count = [], [], 0
+    for i, weight in enumerate(weights):
+        index.append(count)
+        if i == len(weights) - 1:
+            pieces.append(frac[i : i + 1])
+            count += 1
+        else:
+            t = (np.arange(weight) / weight)[:, None]
+            pieces.append(frac[i] + t * (frac[i + 1] - frac[i]))
+            count += weight
+    return np.concatenate(pieces) @ rec, index
+
+
+def segment_progress(path: KPath, cell) -> list[SegmentProgress]:
+    """Real length and x advance of every segment bands.x sees (``bands_x.path_coordinates`` over the
+    points pw.x makes). Never raises: fewer than 2 points, a singular cell or no steps give ``[]``."""
+    rec = _reciprocal(cell)
+    if rec is None or len(path.points) < 2:
+        return []
+    kcart, index = _expand(path, rec)
+    if not np.all(np.isfinite(kcart)):
+        return []
+    steps = np.linalg.norm(np.diff(kcart, axis=0), axis=1)
+    x = path_coordinates(kcart)
+    weights = path.weights()
+    out = []
+    for a in range(len(path.points) - 1):
+        if a in path.breaks or weights[a] < 2:  # a jump: not a segment
+            continue
+        real = float(steps[index[a] : index[a + 1]].sum())
+        if real > 0:
+            out.append(SegmentProgress(a, a + 1, real, float(x[index[a + 1]] - x[index[a]])))
+    return out
+
+
+def collapsed_segments(path: KPath, cell) -> list[CollapsedSegment]:
+    """The segments that bands.x draws with less than half of their length on the x axis: a step
+    more than 5× the previous one is taken for a jump and does not advance it."""
+    return [
+        CollapsedSegment(seg.a, seg.b, 1 - seg.advance / seg.real)
+        for seg in segment_progress(path, cell)
+        if seg.advance < COLLAPSE_LIMIT * seg.real
+    ]
+
+
+def _name(path: KPath, index: int) -> str:
+    label = path.points[index].label.strip()
+    if not label:
+        return f"ponto {index + 1}"
+    return "Γ" if label.lower() == "gamma" else label
+
+
+def collapse_note(path: KPath, segment: CollapsedSegment) -> str:
+    """The warning of a collapsed segment (plan note and row tooltip)."""
+    return (
+        f"Segmento {_name(path, segment.a)}→{_name(path, segment.b)} colapsa no eixo x do bands.x "
+        "(passo maior que 5× o anterior): aumente os pontos do segmento anterior, reduza os "
+        "deste ou use ‘Distribuir pelo comprimento’"
+    )
+
+
+def distribute(path: KPath, cell, density: float, min_pts: int = 2) -> KPath:
+    """``path`` with the points of each segment set from its length: ``round(Å⁻¹ · density)``, at
+    least ``min_pts``, at most ``MAX_NPTS``. The last point and the ones before a break do not count
+    (weight 1 in the card) and keep their value; the rest of the path is untouched. A singular cell or
+    a density that is not positive gives ``path`` back."""
+    rec = _reciprocal(cell)
+    if rec is None or not density > 0 or not np.isfinite(density):
+        return path
+    points = list(path.points)
+    for i in range(len(points) - 1):
+        if i in path.breaks:
+            continue
+        delta = (np.asarray(points[i + 1].frac) - np.asarray(points[i].frac)) @ rec
+        length = float(np.linalg.norm(delta))
+        if np.isfinite(length):
+            npts = min(max(min_pts, 1, round(length * density)), MAX_NPTS)
+            points[i] = replace(points[i], npts=npts)
+    return replace(path, points=tuple(points))

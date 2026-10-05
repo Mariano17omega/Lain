@@ -151,7 +151,7 @@ def test_no_file_is_over_the_size_limit():
         > PER_FILE_LIMIT.get(name_of(path), LIMIT)
         and name_of(path) not in SIZE_EXCEPTIONS
     }
-    assert not long, f"split these by responsibility (> {LIMIT} lines): {long}"
+    assert not long, f"split these by responsibility (> {LIMIT} lines, or their own limit): {long}"
 
 
 def test_core_never_imports_the_ui():

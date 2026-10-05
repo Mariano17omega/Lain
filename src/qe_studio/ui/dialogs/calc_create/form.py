@@ -8,16 +8,16 @@ the only cases here.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QCheckBox, QComboBox, QLabel, QLineEdit, QVBoxLayout, QWidget
 
-from ....core.calc_create.kpath import KMesh, KPath
+from ....core.calc_create.kpath import KMesh
 from ....core.calc_create.preview import field_text
 from ....core.calc_create.types import FormField
-from ...busy import BusyTracker
+from ....core.qe.lattice import Crystal
 from ...theme.manager import ThemeManager
 from ...widgets.common import set_variant
 from ...widgets.kpath_editor import KPathEditor
@@ -42,11 +42,13 @@ class FieldForm(QWidget):
         self,
         theme: ThemeManager,
         fields: Sequence[FormField],
-        suggest: Callable[[], KPath] | None = None,
-        busy: BusyTracker | None = None,
+        crystal: Crystal | None = None,
         parent: QWidget | None = None,
     ):
+        """``crystal``: the SCF's structure, for the band path checks (None: they are off)."""
         super().__init__(parent)
+        self.theme = theme
+        self.crystal = crystal
         self.fields = list(fields)
         self.widgets: dict[str, QWidget] = {}
         self.kpath_editor: KPathEditor | None = None
@@ -56,16 +58,14 @@ class FieldForm(QWidget):
         layout.addWidget(self.section)
         layout.addStretch(1)
         for form_field in self.fields:
-            self._add(form_field, suggest, busy)
+            self._add(form_field)
 
     # -- building --------------------------------------------------------------------------------
-    def _add(
-        self, form_field: FormField, suggest: Callable[[], KPath] | None, busy: BusyTracker | None
-    ) -> None:
+    def _add(self, form_field: FormField) -> None:
         label = form_field.label + (" *" if form_field.required else "")
         kind = form_field.kind
         if kind == "kpath":
-            editor = KPathEditor(suggest, busy)
+            editor = KPathEditor(self.theme, self.crystal.cell if self.crystal else None)
             editor.setAccessibleName(form_field.label)
             editor.setToolTip(form_field.tooltip)
             editor.changed.connect(self.changed)

@@ -4,13 +4,24 @@ import difflib
 
 import pytest
 
-from qe_studio.core.calc_create.kpath import KMesh, KPath, KPoint
+from qe_studio.core.calc_create.kpath import KMesh, KPath, KPoint, distribute
 from qe_studio.core.calc_create.types import REGISTRY, by_id
 from qe_studio.core.calc_create.types.pdos import NO_BROADENING_NOTE
 from qe_studio.core.qe.input_edit import InputEditor
 from qe_studio.core.qe.input_lint import lint
 
-from calc_helpers import AL_PATH, AL_SCF, JOBS, SI_SCF, al, from_text, ni, runs
+from calc_helpers import (
+    AL_PATH,
+    AL_SCF,
+    JOBS,
+    SI_SCF,
+    al,
+    from_text,
+    hex_path,
+    hex_scf,
+    ni,
+    runs,
+)
 
 FILES = {
     "scf": ["scf.qsub", "scf.in"],
@@ -305,6 +316,28 @@ def test_unreadable_structure_is_a_note_of_bands():
     result = plan("bandas", from_text(text), nbnd=8)
     assert not result.errors
     assert any("Estrutura do SCF não lida" in note for note in result.notes)
+    assert any("checagem do eixo x das bandas não feita" in note for note in result.notes)
+    # Nothing to check against: no collapse note, even for a path that would collapse.
+    assert not any(
+        "colapsa" in note for note in plan("bandas", from_text(text), kpath=hex_path()).notes
+    )
+
+
+def collapse_notes(result) -> list[str]:
+    return [note for note in result.notes if "colapsa no eixo x" in note]
+
+
+def test_bands_notes_the_segment_that_collapses_on_the_x_axis():
+    scf = hex_scf()
+    result = plan("bandas", scf, nbnd=8, kpath=hex_path())
+    assert not result.errors  # a note, never an error
+    assert len(collapse_notes(result)) == 1
+    assert collapse_notes(result)[0].startswith("Segmento A→L colapsa no eixo x do bands.x")
+    spread = distribute(hex_path(), scf.crystal.cell, 25)
+    assert collapse_notes(plan("bandas", scf, nbnd=8, kpath=spread)) == []
+    assert collapse_notes(plan("bandas")) == []  # Al
+    assert collapse_notes(plan("bandas", nbnd=8, kpath=KPath(()))) == []  # nothing typed yet
+    assert collapse_notes(plan("scf")) == [] and collapse_notes(plan("pdos")) == []
 
 
 def test_scf_warnings_reach_the_notes():

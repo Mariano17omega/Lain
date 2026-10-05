@@ -161,20 +161,20 @@ def import_main_window() -> tuple[float, set[str]]:
 
 
 def test_main_window_import_skips_ase():
-    """R2: ASE (and the scipy it pulls) loads on first use, not before the window shows; so do
-    pymatgen and jinja2 (spec 25 R1.2)."""
+    """R2: ASE (and the scipy it pulls) loads on first use, not before the window shows; so does
+    jinja2 (spec 25 R1.2)."""
     _seconds, packages = import_main_window()
     assert "qe_studio" in packages
-    assert not packages & {"ase", "pymatgen", "spglib", "jinja2"}
+    assert not packages & {"ase", "jinja2"}
 
 
-def test_calc_create_import_skips_pymatgen_and_jinja2():
+def test_calc_create_import_skips_ase_and_jinja2():
     """The window of spec 26 imports the registry and the writer: neither loads them."""
     code = (
         "import sys, qe_studio.core.calc_create.types, qe_studio.core.calc_create.writer, "
         "qe_studio.core.calc_create.kpath, qe_studio.core.calc_create.scf_info, "
         "qe_studio.core.calc_create.preview; "
-        "print(sorted(m for m in ('ase', 'pymatgen', 'spglib', 'jinja2') if m in sys.modules))"
+        "print(sorted(m for m in ('ase', 'jinja2') if m in sys.modules))"
     )
     run = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, timeout=60, check=True

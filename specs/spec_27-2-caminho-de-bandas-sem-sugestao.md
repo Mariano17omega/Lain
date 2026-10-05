@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-2 (antes da spec 28, cujo modo Padrão das bandas só pede o caminho) |
-| **Status** | Proposta |
+| **Status** | Implementada |
 | **Depende de** | spec 25 (`kpath.py`), spec 26 (`KPathEditor`) |
 | **Usada por** | spec 28 (Bandas no modo Padrão: o usuário digita o caminho `crystal_b`) |
 | **Esforço** | M |

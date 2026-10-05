@@ -1,45 +1,56 @@
-"""The band path of "Criar cálculo" (spec 26 R4.3): a table of high-symmetry points the user edits.
+"""The band path of "Criar cálculo" (spec 26 R4.3): a table of high-symmetry points the user types.
 
 Rows are the points of ``K_POINTS crystal_b``: label, the three fractional coordinates and the
 points to the next one. "Marcar quebra de segmento" makes the path jump from a point to the next
-(``X|U``: weight 1). The suggestion (pymatgen, seconds to import) runs in a worker; on the tab's
-first visit it fills only an empty table, while "Sugerir" replaces what is there.
+(``X|U``: weight 1). With the SCF's cell (spec 27-2) the table marks the point a collapsing segment
+starts at (bands.x gives a step more than 5× the previous one no x extent) and "Distribuir pelo
+comprimento" sets the points of each segment from its length. Nothing here suggests a path.
 """
 
 from __future__ import annotations
 
-import logging
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from functools import partial
 
+import numpy as np
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QBrush
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QPushButton,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from ...core.calc_create.kpath import DEFAULT_NPTS, KPath, KPathUnavailable, KPoint
-from ...core.tasks import run_task
-from ..busy import BusyTracker
+from ...core.calc_create.kpath import (
+    DEFAULT_NPTS,
+    MAX_NPTS,
+    KPath,
+    KPoint,
+    collapse_note,
+    collapsed_segments,
+    distribute,
+)
+from ..theme.manager import ThemeManager
 from .common import set_variant
-
-log = logging.getLogger(__name__)
 
 COLUMNS = ("Rótulo", "k1", "k2", "k3", "Pontos")
 LABEL, K1, K2, K3, NPTS = range(5)
 VALUE = Qt.ItemDataRole.UserRole  # the number a cell holds (its text is how it is shown)
-SUGGESTING = "Calculando caminho de alta simetria…"
 BREAK_TEXT = "quebra"
 BREAK_TIP = "O caminho salta deste ponto para o próximo (peso 1)"
 END_TEXT = "—"
+DEFAULT_DENSITY = 25  # points per Å⁻¹ of "Distribuir pelo comprimento"
+DISTRIBUTE_TIP = "Ajusta a coluna Pontos ao comprimento de cada segmento (pontos por Å⁻¹)"
+NO_CELL_TIP = "Estrutura do SCF não legível"
 
 
 @dataclass(frozen=True)
@@ -54,24 +65,25 @@ def _number_text(value: float) -> str:
     return f"{value + 0.0:.8g}"  # + 0.0: no "-0"
 
 
+def _path_of(rows: list[_Row]) -> KPath:
+    points = tuple(KPoint(row.label, row.frac, row.npts) for row in rows)
+    return KPath(points, frozenset(i for i, row in enumerate(rows) if row.jump))
+
+
 class KPathEditor(QWidget):
-    changed = pyqtSignal(bool)  # the path changed; True when the user did it (not a suggestion)
+    changed = pyqtSignal(bool)  # the path changed; True when the user did it (not ``set_path``)
 
     def __init__(
         self,
-        suggest: Callable[[], KPath] | None = None,
-        busy: BusyTracker | None = None,
+        theme: ThemeManager,
+        cell: np.ndarray | None = None,
         parent: QWidget | None = None,
     ):
+        """``cell``: rows a1 a2 a3 in Å of the SCF's structure; None when it could not be read."""
         super().__init__(parent)
-        self._suggest, self._busy = suggest, busy
-        self._busy_key = f"kpath:{id(self)}"
+        self._theme, self._cell = theme, cell
         self._filling = False
-        self._asked = False  # the first visit asked for a suggestion already
-        self._running = False
-        self._notes: tuple[str, ...] = ()
-        if busy is not None:
-            self.destroyed.connect(partial(busy.end, self._busy_key))
+        theme.theme_changed.connect(self.refresh_marks)
 
         self.table = QTableWidget(0, len(COLUMNS))
         self.table.setObjectName("kpathTable")
@@ -99,17 +111,18 @@ class KPathEditor(QWidget):
         self.down_button = QPushButton("Descer")
         self.break_button = QPushButton("Marcar quebra de segmento")
         self.break_button.setToolTip(BREAK_TIP)
-        self.suggest_button = QPushButton("Sugerir (pymatgen)")
-        self.suggest_button.setToolTip(
-            "Caminho de alta simetria da estrutura do SCF (Setyawan–Curtarolo); substitui a tabela"
-        )
+        self.density = QSpinBox()
+        self.density.setRange(1, 500)
+        self.density.setValue(DEFAULT_DENSITY)
+        self.density.setAccessibleName("Pontos por Å⁻¹")
+        self.density.setToolTip("Pontos por Å⁻¹ de comprimento do segmento")
+        self.distribute_button = QPushButton("Distribuir pelo comprimento")
         self.add_button.clicked.connect(self.add_point)
         self.remove_button.clicked.connect(self.remove_point)
         self.up_button.clicked.connect(partial(self.move_point, -1))
         self.down_button.clicked.connect(partial(self.move_point, 1))
         self.break_button.clicked.connect(self.toggle_break)
-        self.suggest_button.clicked.connect(self.request_suggestion)
-        self.suggest_button.setVisible(suggest is not None)
+        self.distribute_button.clicked.connect(self.distribute_by_length)
         self.message = set_variant(QLabel(), "dialogWarning")
         self.message.setWordWrap(True)
         self.message.hide()
@@ -125,11 +138,18 @@ class KPathEditor(QWidget):
         layout.addLayout(buttons)
         more = QHBoxLayout()
         more.setContentsMargins(0, 0, 0, 0)
-        for button in (self.break_button, self.suggest_button):
-            button.setAutoDefault(False)
-            more.addWidget(button)
+        self.break_button.setAutoDefault(False)
+        more.addWidget(self.break_button)
         more.addStretch(1)
         layout.addLayout(more)
+        spread = QHBoxLayout()
+        spread.setContentsMargins(0, 0, 0, 0)
+        self.distribute_button.setAutoDefault(False)
+        spread.addWidget(QLabel("Pontos por Å⁻¹"))
+        spread.addWidget(self.density)
+        spread.addWidget(self.distribute_button)
+        spread.addStretch(1)
+        layout.addLayout(spread)
         layout.addWidget(self.table, 1)
         layout.addWidget(self.message)
         self._update_buttons()
@@ -137,24 +157,16 @@ class KPathEditor(QWidget):
     # -- value --------------------------------------------------------------------------------
     def value(self) -> KPath:
         """The path as typed (no points: an empty path, which the type reports as too short)."""
-        rows = self._rows()
-        points = tuple(KPoint(row.label, row.frac, row.npts) for row in rows)
-        breaks = frozenset(i for i, row in enumerate(rows) if row.jump)
-        return KPath(points, breaks)
+        return _path_of(self._rows())
 
     def set_path(self, path: KPath) -> None:
-        """Show ``path`` (a suggestion): not a user edit."""
+        """Show ``path``: not a user edit."""
         rows = [
-            _Row(point.label, point.frac, max(int(point.npts), 1), i in path.breaks)
+            _Row(point.label, point.frac, min(max(int(point.npts), 1), MAX_NPTS), i in path.breaks)
             for i, point in enumerate(path.points)
         ]
         self._set_rows(rows, 0 if rows else -1)
         self.changed.emit(False)
-
-    @property
-    def notes(self) -> tuple[str, ...]:
-        """Why there is no suggestion, or what the suggestion warns about (the "Arquivos" tab)."""
-        return self._notes
 
     # -- rows -----------------------------------------------------------------------------------
     def _rows(self) -> list[_Row]:
@@ -168,10 +180,14 @@ class KPathEditor(QWidget):
                     label.text().strip() if label is not None else "",
                     (values[0], values[1], values[2]),
                     max(int(npts), 1),
-                    bool(label is not None and label.data(Qt.ItemDataRole.UserRole + 1)),
+                    self._jump(row),
                 )
             )
         return rows
+
+    def _jump(self, row: int) -> bool:
+        label = self.table.item(row, LABEL)
+        return bool(label is not None and label.data(Qt.ItemDataRole.UserRole + 1))
 
     def _number(self, row: int, column: int) -> float:
         item = self.table.item(row, column)
@@ -196,6 +212,7 @@ class KPathEditor(QWidget):
             self._show_npts()
         finally:
             self._filling = False
+        self.refresh_marks()
         if 0 <= current < len(rows):
             self.table.setCurrentCell(current, LABEL)
         self._update_buttons()
@@ -205,19 +222,21 @@ class KPathEditor(QWidget):
         last = self.table.rowCount() - 1
         for row in range(self.table.rowCount()):
             item = self.table.item(row, NPTS)
-            label = self.table.item(row, LABEL)
-            if item is None or label is None:
+            if item is None or self.table.item(row, LABEL) is None:
                 continue
-            jump = bool(label.data(Qt.ItemDataRole.UserRole + 1))
+            jump = self._jump(row)
             flags = item.flags()
             if row == last or jump:
                 item.setText(END_TEXT if row == last else BREAK_TEXT)
-                item.setToolTip("" if row == last else BREAK_TIP)
+                item.setToolTip(self._npts_tip(row))
                 item.setFlags(flags & ~Qt.ItemFlag.ItemIsEditable)
             else:
                 item.setText(str(int(item.data(VALUE))))
                 item.setToolTip("")
                 item.setFlags(flags | Qt.ItemFlag.ItemIsEditable)
+
+    def _npts_tip(self, row: int) -> str:
+        return BREAK_TIP if row != self.table.rowCount() - 1 and self._jump(row) else ""
 
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         if self._filling:
@@ -232,12 +251,15 @@ class KPathEditor(QWidget):
         self._edited()
 
     def _take_number(self, item: QTableWidgetItem, column: int) -> None:
-        """Keep a valid number (comma or dot); put the previous one back otherwise."""
+        """Keep a valid number (comma or dot, finite; points: an integer of 1 to ``MAX_NPTS``);
+        put the previous one back otherwise."""
         text = item.text().strip().replace(",", ".")
         previous = item.data(VALUE)
         try:
+            if "_" in text:  # Python reads 1_0 as 10
+                raise ValueError
             number: float = float(text) if column != NPTS else int(text)
-            if column == NPTS and number < 1:
+            if not math.isfinite(number) or (column == NPTS and not 1 <= number <= MAX_NPTS):
                 raise ValueError
         except ValueError:
             self._show_message(f"Valor inválido: {item.text().strip() or 'vazio'}")
@@ -248,6 +270,7 @@ class KPathEditor(QWidget):
         item.setText(_number_text(number) if column != NPTS else str(int(number)))
 
     def _edited(self) -> None:
+        self.refresh_marks()
         self._update_buttons()
         self.changed.emit(True)
 
@@ -262,7 +285,13 @@ class KPathEditor(QWidget):
     def add_point(self) -> None:
         def add(rows: list[_Row], current: int) -> int:
             at = current + 1 if 0 <= current < len(rows) else len(rows)
-            rows.insert(at, _Row("", (0.0, 0.0, 0.0), DEFAULT_NPTS))
+            new = _Row("", (0.0, 0.0, 0.0), DEFAULT_NPTS)
+            if 0 <= current < len(rows) and rows[current].jump:
+                # The new point continues the segment of the selected one and the break stays
+                # where the user put it: before the point that came next.
+                new = replace(new, jump=True)
+                rows[current] = replace(rows[current], jump=False)
+            rows.insert(at, new)
             return at
 
         self._mutate(add)
@@ -271,7 +300,11 @@ class KPathEditor(QWidget):
         def remove(rows: list[_Row], current: int) -> int:
             if not 0 <= current < len(rows):
                 return current
+            if rows[current].jump and current > 0:
+                rows[current - 1] = replace(rows[current - 1], jump=True)  # the break survives
             del rows[current]
+            if rows:  # nothing follows the last point: no break there
+                rows[-1] = replace(rows[-1], jump=False)
             return min(current, len(rows) - 1)
 
         self._mutate(remove)
@@ -294,6 +327,19 @@ class KPathEditor(QWidget):
 
         self._mutate(toggle)
 
+    def distribute_by_length(self) -> None:
+        """ "Distribuir pelo comprimento": only the points column changes."""
+        cell, density = self._cell, float(self.density.value())
+        if cell is None or self.table.rowCount() < 2:
+            return
+
+        def spread(rows: list[_Row], current: int) -> int:
+            for i, point in enumerate(distribute(_path_of(rows), cell, density).points):
+                rows[i] = replace(rows[i], npts=point.npts)
+            return current
+
+        self._mutate(spread)
+
     def _update_buttons(self, *_args) -> None:
         count, current = self.table.rowCount(), self.table.currentRow()
         selected = 0 <= current < count
@@ -301,72 +347,30 @@ class KPathEditor(QWidget):
         self.up_button.setEnabled(selected and current > 0)
         self.down_button.setEnabled(selected and current < count - 1)
         self.break_button.setEnabled(selected and current < count - 1)
-        self.suggest_button.setEnabled(not self._running)
+        self.distribute_button.setEnabled(self._cell is not None and count >= 2)
+        self.distribute_button.setToolTip(DISTRIBUTE_TIP if self._cell is not None else NO_CELL_TIP)
 
-    # -- suggestion -------------------------------------------------------------------------------
-    def ensure_suggested(self) -> None:
-        """The tab's first visit: a suggestion for an empty table."""
-        if self._asked or self._suggest is None:
+    # -- marks ------------------------------------------------------------------------------------
+    def refresh_marks(self, *_args) -> None:
+        """Mark the row each collapsed segment starts at: warning color and the note as tooltip."""
+        if self._cell is None:
             return
-        self._asked = True
-        if self.table.rowCount() == 0:
-            self._start(replace=False)
+        path = self.value()
+        notes = {seg.a: collapse_note(path, seg) for seg in collapsed_segments(path, self._cell)}
+        brush = QBrush(self._theme.color("warning"))
+        was, self._filling = self._filling, True  # setting a role emits itemChanged
+        try:
+            for row in range(self.table.rowCount()):
+                note = notes.get(row)
+                for column in range(len(COLUMNS)):
+                    item = self.table.item(row, column)
+                    if item is None:
+                        continue
+                    item.setForeground(brush if note else QBrush())
+                    item.setToolTip(note or (self._npts_tip(row) if column == NPTS else ""))
+        finally:
+            self._filling = was
 
-    def request_suggestion(self) -> None:
-        """ "Sugerir (pymatgen)": the suggestion replaces the table."""
-        self._asked = True
-        self._start(replace=True)
-
-    def _start(self, replace: bool) -> None:
-        if self._suggest is None or self._running:
-            return
-        self._running = True
-        self._update_buttons()
-        self._show_message(SUGGESTING, warning=False)
-        if self._busy is not None:
-            self._busy.begin(self._busy_key, SUGGESTING)
-        on_done = self._on_replace if replace else self._on_suggested
-        run_task(self._suggest, on_done=on_done, on_error=self._on_failed)
-
-    def _finish(self) -> None:
-        self._running = False
-        if self._busy is not None:
-            self._busy.end(self._busy_key)
-        self._update_buttons()
-
-    def _on_suggested(self, path: KPath) -> None:
-        self._finish()
-        if self.table.rowCount():  # typed while pymatgen worked: keep it
-            self._show_message("Sugestão pronta: use “Sugerir (pymatgen)” para substituir a tabela")
-            return
-        self._show_suggestion(path)
-
-    def _on_replace(self, path: KPath) -> None:
-        self._finish()
-        self._show_suggestion(path)
-        self.changed.emit(True)  # asked for: the user's own edit
-
-    def _show_suggestion(self, path: KPath) -> None:
-        self._notes = path.warnings
-        self._show_message("\n".join(path.warnings))
-        self.set_path(path)
-
-    def _on_failed(self, exc: BaseException) -> None:
-        self._finish()
-        if isinstance(exc, KPathUnavailable):
-            reason = str(exc)
-        else:
-            log.error("suggesting the band path failed", exc_info=exc)
-            reason = f"erro inesperado: {exc}"
-        self._notes = (f"Sem sugestão de caminho: {reason}",)
-        self._show_message(self._notes[0])
-        self.changed.emit(False)
-
-    def _show_message(self, text: str, warning: bool = True) -> None:
-        set_variant(self.message, "dialogWarning" if warning else "dialogText")
-        style = self.message.style()
-        if style is not None:
-            style.unpolish(self.message)
-            style.polish(self.message)
+    def _show_message(self, text: str) -> None:
         self.message.setText(text)
         self.message.setVisible(bool(text))

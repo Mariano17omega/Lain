@@ -10,8 +10,6 @@ in order; the page knows no type.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
-from functools import partial
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
@@ -24,13 +22,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ....core.calc_create.kpath import KPath, suggest_path
 from ....core.calc_create.preview import changed_lines
 from ....core.calc_create.scf_info import ScfInfo
 from ....core.calc_create.types import CalcPlan, CalcType, FormField, PlannedFile, field_problems
 from ....core.calc_create.writer import files_to_write, folder_name, preview_name
 from ....core.config import JobsConfig
-from ...busy import BusyTracker
 from ...theme.manager import ThemeManager
 from .form import FieldForm
 from .labels import message_label, show_message
@@ -52,7 +48,6 @@ class TabsPage(QWidget):
         calc_type: CalcType,
         scf: ScfInfo,
         jobs: JobsConfig,
-        busy: BusyTracker | None = None,
         debounce_ms: int = DEBOUNCE_MS,
         parent: QWidget | None = None,
     ):
@@ -74,11 +69,9 @@ class TabsPage(QWidget):
         self.tabs.setDocumentMode(True)
         self.forms: list[FieldForm] = []
         self.previews: dict[str, FilePreview] = {}
-        suggest = partial(suggest_path, scf.crystal)
         for planned, fields in self._groups():
             self.tabs.addTab(
-                self._file_tab(theme, planned.name, planned.kind, fields, suggest, busy),
-                planned.tab_label,
+                self._file_tab(theme, planned.name, planned.kind, fields), planned.tab_label
             )
         self.files_view = FilesView()
         self.tabs.addTab(self.files_view, FILES_TAB)
@@ -87,7 +80,6 @@ class TabsPage(QWidget):
         self.notes.setPlaceholderText(NOTES_PLACEHOLDER)
         self.notes.textChanged.connect(self._show_files)
         self.tabs.addTab(self.notes, NOTES_TAB)
-        self.tabs.currentChanged.connect(self._on_tab)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.tabs)
@@ -109,13 +101,11 @@ class TabsPage(QWidget):
         name: str,
         kind: str,
         fields: list[FormField],
-        suggest: Callable[[], KPath],
-        busy: BusyTracker | None,
     ) -> QWidget:
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
         if fields:
-            form = FieldForm(theme, fields, suggest, busy)
+            form = FieldForm(theme, fields, self.scf.crystal)
             form.changed.connect(self._on_changed)
             self.forms.append(form)
             left: QWidget = form
@@ -146,13 +136,6 @@ class TabsPage(QWidget):
             self.flush()
         else:
             self._timer.start(self.debounce_ms)
-
-    def _on_tab(self, index: int) -> None:
-        """The band path tab's first visit asks pymatgen for a suggestion."""
-        page = self.tabs.widget(index)
-        for form in self.forms:
-            if form.kpath_editor is not None and page is not None and page.isAncestorOf(form):
-                form.kpath_editor.ensure_suggested()
 
     def values(self) -> dict:
         out: dict = {}
@@ -191,10 +174,7 @@ class TabsPage(QWidget):
         return self.plan.errors[0] if self.plan.errors else ""
 
     def warnings(self) -> list[str]:
-        kpath_notes = [
-            n for form in self.forms if form.kpath_editor for n in form.kpath_editor.notes
-        ]
-        return list(dict.fromkeys([*self.plan.notes, *kpath_notes, *self._extra_warnings]))
+        return list(dict.fromkeys([*self.plan.notes, *self._extra_warnings]))
 
     def set_target(self, parent: Path, suffix: str, warnings: tuple[str, ...] = ()) -> None:
         """Where the folder goes (step 1): the "Arquivos" tab shows it."""

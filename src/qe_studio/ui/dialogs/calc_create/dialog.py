@@ -129,9 +129,7 @@ class CalcCreateDialog(QDialog):
         if self.tabs is not None:
             self.pages.removeWidget(self.tabs)
             self.tabs.deleteLater()
-        self.tabs = TabsPage(
-            self.theme, calc_type, scf, self.jobs, self.busy, debounce_ms=self.debounce_ms
-        )
+        self.tabs = TabsPage(self.theme, calc_type, scf, self.jobs, debounce_ms=self.debounce_ms)
         self.tabs.planned.connect(self._update)
         self.pages.addWidget(self.tabs)
         self._built = (calc_type, scf)

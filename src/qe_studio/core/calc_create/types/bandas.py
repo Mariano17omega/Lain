@@ -6,7 +6,7 @@ from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
 from ..edits import ensure_smearing, put_number, put_path, put_string
-from ..kpath import KPath
+from ..kpath import KPath, collapse_note, collapsed_segments
 from ..render import render
 from ..scf_info import ScfInfo
 from .base import CalcType, FormField, PlannedFile, Work
@@ -66,15 +66,21 @@ class BandasType(CalcType):
 
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values
+        path: KPath = values["kpath"] or KPath(())
         if scf.crystal is None:
             work.notes.append(
-                f"Estrutura do SCF não lida ({scf.structure_problem}): digite o caminho à mão"
+                f"Estrutura do SCF não lida ({scf.structure_problem}): digite o caminho à mão; "
+                "checagem do eixo x das bandas não feita"
+            )
+        else:
+            work.notes.extend(
+                collapse_note(path, segment)
+                for segment in collapsed_segments(path, scf.crystal.cell)
             )
         editor = work.editor()
         put_string(editor, "control", "calculation", "bands")
         if values["nbnd"] is not None:
             put_number(editor, "system", "nbnd", values["nbnd"])
-        path: KPath = values["kpath"] or KPath(())
         if values["kpath"] is not None:
             work.errors.extend(path.problems())
         put_path(editor, path)

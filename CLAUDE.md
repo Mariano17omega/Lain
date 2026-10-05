@@ -565,8 +565,8 @@ each drawn by its own module (vector export, pan/zoom per cell).
 ### "Criar cálculo" backend (spec 25)
 
 `core/calc_create/` (Qt-free; the window is spec 26) turns the user's SCF input into a new folder with the inputs and the
-SGE `.qsub` of a calculation. `jinja2` and `pymatgen` are runtime dependencies imported inside functions only
-(`test_perf_detection.py` checks neither loads with `main_window` nor with the package's modules).
+SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside functions only
+(`test_perf_detection.py` checks neither it nor `ase` loads with `main_window` nor with the package's modules).
 
 - **Structure without ASE.** ASE's `read_espresso_in` refuses `ibrav != 0`, so `core/qe/lattice.py` ports QE 7.1's
   `latgen` (every ibrav, QE's own vectors and its 13-digit `sqrt(2)`/`sqrt(3)`) and `abc2celldm`; `crystal_from_editor`
@@ -591,10 +591,13 @@ SGE `.qsub` of a calculation. `jinja2` and `pymatgen` are runtime dependencies i
   bands_pp.in.j2`, `qe/pdos/projwfc.in.j2`. The cluster side comes from `config.yaml` `jobs:` (`JobsConfig`:
   `qe_bin`, `mpi_command`, `parallel_env`, `omp_threads`, `env_lines`, `cores`), never from the form.
 - **K-points** (`kpath.py`): `KMesh` (`K_POINTS automatic`), `KPoint(label, frac, npts)`, `KPath(points, breaks,
-  warnings)`, `to_card` (`crystal_b`; weight `npts`, 1 at a break and at the end, `! Gamma` labels). `suggest_path`
-  (worker) runs `HighSymmKpath(setyawan_curtarolo)` and converts pymatgen's standard-cell fractions to the input's
-  with the integer matrix of `Lattice.find_all_mappings` closest to the identity (a supercell input warns that the
-  bands fold); no pymatgen, no structure or an unknown element → `KPathUnavailable`.
+  warnings)`, `to_card` (`crystal_b`; weight `npts`, 1 at a break and at the end, `! Gamma` labels). The band path is
+  typed by the user (spec 27-2: nothing suggests it). Two checks use `Crystal.cell` (Å) and never raise:
+  `segment_progress(path, cell)` expands the card as pw.x does (`_expand`), runs `bands_x.path_coordinates` and gives
+  each segment's real length and x advance (Å⁻¹, with 2π; a break or a weight-1 point is not a segment);
+  `collapsed_segments` keeps those under 50 % (`CollapsedSegment(a, b, lost)`, `a` the vertex the segment starts at,
+  `collapse_note` its Portuguese text); `distribute(path, cell, density, min_pts=2)` sets each `npts` to
+  `round(length · density)` (≤ `MAX_NPTS` = 1000); the last point and the ones before a break keep theirs.
 - **`writer.py`**: `validate_target`, `preview_name` (`unique_names.next_free_dir`), `files_to_write` (+
   `descricao.md` when the notes have text), `create_folder` (worker): `unique_names.make_new_dir` (`mkdir` loop,
   `_N` always at the end), every file `open(…, "x")`, a failure removes only the files it wrote and `rmdir`s its
@@ -619,8 +622,13 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
   `flush()`); `blocking()` = first plan error, the "Criar" tooltip), `form.FieldForm` (widget per `FormField.kind`,
   `mark(field_problems)` sets the `invalid` property), `kmesh.KMeshEditor`, `preview.FilePreview` (read-only
   `CodeView`, `InputHighlighter` / `ShellHighlighter`, changed lines in `diff_change_bg`) and `FilesView`.
-- `ui/widgets/kpath_editor.py:KPathEditor`: the `crystal_b` table; `suggest` is injected (`tabs_page` passes
-  `partial(suggest_path, crystal)`: tests patch `tabs_page.suggest_path`), runs in `run_task`; `changed(user)`.
+- `ui/widgets/kpath_editor.py:KPathEditor(theme, cell)`: the `crystal_b` table, empty on open (`FieldForm` passes
+  `scf.crystal.cell`, None without a readable structure); `set_path` shows a path without `changed(True)`. Cells take
+  finite numbers only (no `nan`/`inf`/`1_0`), points 1 to `MAX_NPTS`. A point added after a break inherits it, removing
+  a break point hands it to the previous one, the last point holds none. `refresh_marks` paints the row each collapsed
+  segment starts at (`warning` color, the note as tooltip) after every edit and theme change; "Distribuir pelo
+  comprimento" (density field, 25 points/Å⁻¹) rewrites only the points column and is disabled without a `cell`. The
+  bands plan carries the same notes (`types/bandas.py`), never as errors.
 - Tests: `test_calc_create_preview.py` (core), `test_kpath_editor.py`, `test_calc_create_dialog.py` (window alone,
   `calc_dialog_helpers.py`: `pick_scf`, `fill_setup`, `to_files`), `test_calc_create_ui.py` (main window),
   `test_shell_highlighter.py`. Patch `dialog.ask_discard` in every test that leaves a dirty window: a real
@@ -783,6 +791,14 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
   to be kept alive until its slot returns (no `QTimer.singleShot(0)` for workers). A callback that
   is a bound method of a `QObject` holds it weakly, and its destruction cancels the task (a closed
   tab neither stays alive nor gets its read). Without `on_error`, exceptions are logged.
+- Cancellation is cooperative (spec 27-4): `core/cancel.py` (Qt-free) has a thread-local the task runner sets
+  (`_Runnable.run` binds the `TaskHandle` and clears it in `finally`), `check()` (raises `Cancelled` when the task of
+  this thread was cancelled; does nothing outside a task, so parsers stay plain functions), `is_cancelled()` and
+  `checked(lines)` (a check per batch of `CHECK_EVERY_LINES`, never per line). A `Cancelled` ending a task is neither a
+  result nor an error: no callback, no log. Called by `summarize_lines`, `parse_relax`, `load_pdos` (between files),
+  `read_gnu` / `read_filband` (between phases), `textfile.read_slice` (between chunks) / `read_preview` and `LoadCache`;
+  `TaskGroup.shutdown` therefore ends a running loader at its next check. Closing a plot tab cancels its pending load
+  (`_on_tab_closing`); `SummaryView` and `TextViewer` cancel theirs when they die. A new long loop in `core/` calls `check()`.
 - Private pools (a thread limit or an order) have **no Qt parent**: a child pool is destroyed
   inside its parent's C++ destructor, maybe with the GIL held, and waits for tasks that need the GIL.
 - `ui/services.py:DetectionService` caches detection per folder and runs misses in its 2-thread pool
@@ -797,14 +813,6 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
   `detected` (the busy ends) and then `message` ("Falha ao detectar …", once per folder until F5 clears the mark); `SniffCache.sniff`
   turns any parser exception into an `UNKNOWN` it caches (logged once), so one odd file does not zero its folder.
 - `PlotWorkflow` loads datasets in the global pool, then renders on the GUI thread. Exports run in a
-- Cancellation is cooperative (spec 27-4): `core/cancel.py` (Qt-free) has a thread-local the task runner sets
-  (`_Runnable.run` binds the `TaskHandle` and clears it in `finally`), `check()` (raises `Cancelled` when the task of
-  this thread was cancelled; does nothing outside a task, so parsers stay plain functions), `is_cancelled()` and
-  `checked(lines)` (a check per batch of `CHECK_EVERY_LINES`, never per line). A `Cancelled` ending a task is neither a
-  result nor an error: no callback, no log. Called by `summarize_lines`, `parse_relax`, `load_pdos` (between files),
-  `read_gnu` / `read_filband` (between phases), `textfile.read_slice` (between chunks) / `read_preview` and `LoadCache`;
-  `TaskGroup.shutdown` therefore ends a running loader at its next check. Closing a plot tab cancels its pending load
-  (`_on_tab_closing`); `SummaryView` and `TextViewer` cancel theirs when they die. A new long loop in `core/` calls `check()`.
   worker with their own `Figure` + `FigureCanvasAgg`. matplotlib's global state is serialized by
   `MPL_LOCK` (`threading.RLock`): `PlotSession.render`, `render_figure` and `export_figure` hold it;
   on screen `PlotView.render` and `ScaledFigureCanvas.draw` only *try* it and retry after 50 ms, so
