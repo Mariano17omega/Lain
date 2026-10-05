@@ -117,7 +117,7 @@ There is no in-app settings screen in the MVP. All operational parameters are lo
    - Local simulation root directory.
    - Remote HPC cluster root directory.
 2. **Remote Connection:**
-   - Cluster Host/IP (e.g., `10.220.200.1`).
+   - Cluster Host/IP (e.g., `cluster.example.org`).
    - SSH user and authentication credentials (password or SSH key path).
    - SSH port.
 3. **Sync Exclusion Rules:**

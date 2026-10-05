@@ -6,12 +6,12 @@ paths:
   # Local folder holding the simulation tree shown in the explorer.
   local_root: ~/qe_simulations
   # Matching folder on the cluster (POSIX path). Sync mirrors local_root/<sub> <- remote_root/<sub>.
-  remote_root: /home/mariano/qe_simulations
+  remote_root: /home/seu_usuario/qe_simulations
 
 cluster:
-  host: 10.220.200.1
+  host: cluster.example.org
   port: 22
-  user: mariano
+  user: seu_usuario
   # auth: key       -> uses key_path (non-interactive; passphrase keys need ssh-agent)
   # auth: password  -> reads the password from the environment variable named in password_env.
   #                    An inline `password:` is accepted but discouraged (stored in plain text).

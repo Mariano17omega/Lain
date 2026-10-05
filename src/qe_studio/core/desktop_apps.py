@@ -29,6 +29,7 @@ class DesktopApp:
     icon: str
     mime_types: frozenset[str]
     path: Path
+    terminal: bool = False  # ``Terminal=true``: needs a terminal emulator, never offered (B1)
 
 
 def _env_dirs(var: str, default: str) -> list[Path]:
@@ -110,6 +111,7 @@ def parse_desktop_file(path: Path, app_id: str) -> DesktopApp | None:
         icon=_unescape(entry.get("Icon", "")),
         mime_types=frozenset(_split_list(entry.get("MimeType", ""))),
         path=path,
+        terminal=_truthy(entry.get("Terminal")),
     )
 
 
@@ -160,25 +162,32 @@ class AppCatalog:
                     self.removed.setdefault(mime, set()).update(_split_list(value))
 
     def apps_for(self, mime_types: Iterable[str]) -> list[DesktopApp]:
-        """Programs registered for any of ``mime_types``, by name."""
+        """Programs registered for any of ``mime_types``, by name; terminal programs are left
+        out (they stay in ``apps`` for whoever names them by id)."""
         found: dict[str, DesktopApp] = {}
         for mime in mime_types:
             removed = self.removed.get(mime, set())
             added = [self.apps[i] for i in self.added.get(mime, []) if i in self.apps]
             listed = [app for app in self.apps.values() if mime in app.mime_types]
             for app in added + listed:
-                if app.id not in removed:
+                if app.id not in removed and not app.terminal:
                     found.setdefault(app.id, app)
         return sorted(found.values(), key=lambda app: (app.name.casefold(), app.id))
 
     def default_app(self, mime_types: Iterable[str]) -> DesktopApp | None:
-        """``mimeapps.list`` default (most specific type first), else the preferred program."""
+        """``mimeapps.list`` default (most specific type first), else the preferred program.
+        A terminal program is skipped: the next candidate counts."""
         mime_types = list(mime_types)
         for table in (self.defaults, self.added):
             for mime in mime_types:
                 for app_id in table.get(mime, []):
-                    if app_id in self.apps and app_id not in self.removed.get(mime, set()):
-                        return self.apps[app_id]
+                    app = self.apps.get(app_id)
+                    if (
+                        app is not None
+                        and not app.terminal
+                        and app_id not in self.removed.get(mime, set())
+                    ):
+                        return app
         apps = self.apps_for(mime_types)
         return apps[0] if apps else None
 

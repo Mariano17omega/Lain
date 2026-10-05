@@ -272,13 +272,19 @@ class PlotWorkflow(QObject):
 
     # -- loading ------------------------------------------------------------------------------------
     def _load(self, target: DetectionResult | ManualTarget | PairTarget, auto_export: bool) -> None:
+        """Load the plot of ``target``. A request for a plot already loading replaces the running
+        one (a "Remapear" meanwhile must win): both of its stages are cancelled, so only the newest
+        reaches the tab, and an export asked by the first request is kept."""
         key = target_key(target)
-        if key in self._loading:
-            return
+        previous = self._loading.get(key)
+        if previous is not None:
+            auto_export = auto_export or previous.auto_export
+            self.settings.cancel_read(key)  # the load task itself is cancelled by ``submit``
         self.settings.flush(key)  # queued before the read of this plot's .plot
         self._loading[key] = _Loading(auto_export)
-        self.busy.begin(f"load:{key}", f"Carregando {target.module.display_name.lower()}…")
-        self.workspace.set_busy(key, True)  # an open tab of this plot, until it is replaced
+        if previous is None:  # busy once per plot, until the newest request ends
+            self.busy.begin(f"load:{key}", f"Carregando {target.module.display_name.lower()}…")
+            self.workspace.set_busy(key, True)  # an open tab of this plot, until it is replaced
         sniff = self.service.sniff_cache.sniff
         self._loads.submit(
             key, load_plot, target, sniff, on_done=self._on_data, on_error=self._on_load_failed

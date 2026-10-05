@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Executa o programa pw.x, v. 7.1 
-# Cicero Mota, mota@ufam.edu.br: Sep 1, 2018; Jun 29, 2022; Jul 18, 2022.
-# Mariano S. onairam17@gmail.com: Apr 17, 2025.
+# Script de referência do grupo de pesquisa (autoria omitida).
 ####################################################
 ########       Configuração do pw.x         ########
 ####################################################

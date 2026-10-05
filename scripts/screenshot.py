@@ -157,8 +157,8 @@ def main() -> int:
     register_fonts()
     config = parse_config(
         {
-            "paths": {"local_root": str(project), "remote_root": "/scratch/mariano/MoS2"},
-            "cluster": {"host": "10.220.200.1", "user": "mariano"},
+            "paths": {"local_root": str(project), "remote_root": "/scratch/usuario/MoS2"},
+            "cluster": {"host": "cluster.example.org", "user": "usuario"},
             "ui": {"font_scale": args.scale},
         }
     )

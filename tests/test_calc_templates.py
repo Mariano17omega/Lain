@@ -67,7 +67,7 @@ def _ours(type_id, scf, values):
 
 # Reference lines that are not the scripts' business: authorship, an unused plotband.x and the
 # heredoc that became projwfc.in.
-_IGNORED = ("# Executa o programa", "# Cicero", "# Mariano", "PLOTCOMMAND=")
+_IGNORED = ("# Executa o programa", "# Script de referência", "PLOTCOMMAND=")
 
 
 def _reference(name: str, rename: dict[str, str] | None = None) -> list[str]:

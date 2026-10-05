@@ -106,8 +106,57 @@ def test_added_and_removed_associations(dirs):
     assert apps.default_app(["text/plain"]).name == "IDE"
 
 
+def test_terminal_programs_are_not_offered(dirs):
+    _, system, _ = dirs
+    write_app(system, "vim.desktop", "Name=Vim\nExec=vim %F\nTerminal=true\nMimeType=text/plain;\n")
+    write_app(
+        system, "gui.desktop", "Name=Gui\nExec=gui %F\nTerminal=false\nMimeType=text/plain;\n"
+    )
+    write_app(system, "plain.desktop", "Name=Plain\nExec=plain %F\nMimeType=text/plain;\n")
+    apps = catalog(dirs)
+    assert names(apps.apps_for(["text/plain"])) == ["Gui", "Plain"]
+    assert apps.apps["vim.desktop"].terminal  # still known by id
+    assert not apps.apps["gui.desktop"].terminal and not apps.apps["plain.desktop"].terminal
+
+
+@pytest.mark.parametrize("value", ["true", "True", "TRUE", " true "])
+def test_terminal_key_is_read_without_regard_to_case(dirs, value):
+    _, system, _ = dirs
+    write_app(system, "t.desktop", f"Name=T\nExec=t\nTerminal={value}\nMimeType=text/plain;\n")
+    assert catalog(dirs).apps["t.desktop"].terminal
+    assert catalog(dirs).apps_for(["text/plain"]) == []
+
+
+def test_a_terminal_default_is_skipped(dirs):
+    _, system, config = dirs
+    write_app(
+        system, "nano.desktop", "Name=Nano\nExec=nano %f\nTerminal=true\nMimeType=text/plain;\n"
+    )
+    write_app(system, "gedit.desktop", "Name=Gedit\nExec=gedit %f\nMimeType=text/plain;\n")
+    write_list(config, "[Default Applications]\ntext/plain=nano.desktop;gedit.desktop;\n")
+    assert catalog(dirs).default_app(["text/plain"]).name == "Gedit"  # the next candidate
+    # An added association that is a terminal program is not the default either.
+    write_list(config, "[Added Associations]\ntext/plain=nano.desktop;\n")
+    assert catalog(dirs).default_app(["text/plain"]).name == "Gedit"
+
+
+def test_only_terminal_programs_leave_no_default(dirs):
+    _, system, config = dirs
+    write_app(
+        system, "nano.desktop", "Name=Nano\nExec=nano %f\nTerminal=true\nMimeType=text/plain;\n"
+    )
+    write_list(config, "[Default Applications]\ntext/plain=nano.desktop\n")
+    apps = catalog(dirs)
+    assert apps.default_app(["text/plain"]) is None  # open_default falls to the desktop's opener
+    assert apps.apps_for(["text/plain"]) == []
+
+
 def app(exec_line: str, icon: str = "") -> DesktopApp:
     return DesktopApp("x.desktop", "Prog", exec_line, icon, frozenset(), Path("/apps/x.desktop"))
+
+
+def test_positional_desktop_app_is_not_a_terminal_one():
+    assert app("prog").terminal is False
 
 
 @pytest.mark.parametrize(

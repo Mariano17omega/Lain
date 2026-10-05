@@ -126,6 +126,10 @@ class PlotSettingsStore(QObject):
         ``on_done(key, (params or None, warnings))``."""
         self._reads.submit(key, read_plot_file, folder, kind, on_done=on_done, on_error=on_error)
 
+    def cancel_read(self, key: str) -> None:
+        """The read of plot ``key`` is not wanted any more: its callback never runs."""
+        self._reads.cancel(key)
+
     def delete(self, session: PlotSession) -> None:
         """ "Restaurar padrões": drop the pending edits and remove the file, after the queued
         writes (a write still queued for it is dropped)."""

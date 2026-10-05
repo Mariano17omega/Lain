@@ -33,7 +33,7 @@ def test_defaults_are_valid():
 def test_example_config_validates(tmp_path):
     loaded = load_config(ROOT / "config.example.yaml", environ={}, cwd=tmp_path)
     config = loaded.config
-    assert config.cluster.host == "10.220.200.1"
+    assert config.cluster.host == "cluster.example.org"
     assert config.sync_enabled
     assert config.plot.orbital_colors["d"] == "#a855f7"
     assert config.paths.local_root == Path("~/qe_simulations").expanduser()

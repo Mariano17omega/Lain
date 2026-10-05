@@ -28,14 +28,13 @@
   invalidação) é descartado sem aviso. `_loads.submit` (`:267-270`) já cancela a tarefa anterior da mesma chave, mas o guarda impede de chegar lá. A chave só sai de `_loading` em `_finish_load` (`:299`,
   chamado por `_on_stored` e `_on_load_failed`). O carregador do grid usa chaves próprias (`name#gen:r,c`), sem colisão.
 - **S4.** Ocorrências verificadas em 05/10/2026:
-  - `config.example.yaml` e `src/qe_studio/resources/config.example.yaml` (idênticos, `tests/test_config.py:199-203`): `remote_root: /home/mariano/qe_simulations` (l.9), `host: 10.220.200.1` (l.12),
-    `user: mariano` (l.14). `test_example_config_validates` (`test_config.py:34-41`) carrega a cópia da raiz e exige `config.cluster.host == "10.220.200.1"` (l.36) e `config.sync_enabled`.
-  - `scripts/screenshot.py:160-161`: `"remote_root": "/scratch/mariano/MoS2"`, `"host": "10.220.200.1"`, `"user": "mariano"`.
-  - `specs/spec_0-PRD.md:120`: "Cluster Host/IP (e.g., `10.220.200.1`)".
-  - `Documentation/Referencia_de_scripts_QSUB/PDOS.qsub:3-4`: `# Cicero Mota, mota@ufam.edu.br: Sep 1, 2018; Jun 29, 2022; Jul 18, 2022.` e `# Mariano S. onairam17@gmail.com: Apr 17, 2025.`
-    (os outros `.qsub` de referência não têm nomes). `tests/test_calc_templates.py:68`: `_IGNORED = ("# Executa o programa", "# Cicero", "# Mariano", "PLOTCOMMAND=")` ignora essas linhas ao comparar
+  - `config.example.yaml` e `src/qe_studio/resources/config.example.yaml` (idênticos, `tests/test_config.py:199-203`): o `remote_root` (l.9), o `host` (l.12) e o `user` (l.14) reais do cluster. `test_example_config_validates` (`test_config.py:34-41`) carrega a cópia da raiz e exige o `config.cluster.host` real (l.36) e `config.sync_enabled`.
+  - `scripts/screenshot.py:160-161`: `remote_root`, `host` e `user` reais do cluster.
+  - `specs/spec_0-PRD.md:120`: o IP real do cluster como exemplo de "Cluster Host/IP".
+  - `Documentation/Referencia_de_scripts_QSUB/PDOS.qsub:3-4`: duas linhas de crédito com nome, e-mail e datas de dois autores
+    (os outros `.qsub` de referência não têm nomes). `tests/test_calc_templates.py:68`: `_IGNORED = ("# Executa o programa", <os dois prefixos de crédito>, "PLOTCOMMAND=")` ignora essas linhas ao comparar
     o corpo do script gerado com a referência.
-  - `Documentation/design system (UX)/qe_studio_interface_clean_integrada/code.html` e `…_tema_claro/code.html`: maquetes com o usuário e o IP.
+  - `Documentation/design system (UX)/qe_studio_interface_clean_integrada/code.html` e `…_tema_claro/code.html`: maquetes com o usuário e o IP reais do cluster.
   - `tests/fixtures/**`: saídas reais do QE com caminhos do usuário e do cluster (fora de escopo, ver abaixo).
   - `src/qe_studio/ui/dialogs/about.py:22` (`REPOSITORY = "https://github.com/Mariano17omega/Lain"`) e o selo de CI do `README.md:3` apontam para o repositório; isso é o endereço do projeto, **não** dado a
     esconder.
@@ -67,7 +66,7 @@
 2. `tests/test_config.py:36` passa a comparar com `"cluster.example.org"`; `scripts/screenshot.py:160-161` usa `"/scratch/usuario/MoS2"`, `"cluster.example.org"`, `"usuario"`.
 3. `specs/spec_0-PRD.md:120`: o IP de exemplo vira `cluster.example.org`.
 4. **`Documentation/Referencia_de_scripts_QSUB/PDOS.qsub:3-4`**: as duas linhas de crédito viram uma neutra, `# Script de referência do grupo de pesquisa (autoria omitida).`, sem nomes nem e-mails. Os demais
-   `.qsub` não mudam. `tests/test_calc_templates.py:68` troca `"# Cicero", "# Mariano"` por `"# Script de referência"` em `_IGNORED`; o teste `test_scripts_reproduce_the_reference` continua comparando só o corpo.
+   `.qsub` não mudam. `tests/test_calc_templates.py:68` troca os dois prefixos de crédito de `_IGNORED` por `"# Script de referência"` em `_IGNORED`; o teste `test_scripts_reproduce_the_reference` continua comparando só o corpo.
 5. As duas maquetes `code.html` do design system: o nome de usuário e o IP viram placeholders (`usuario`, `cluster.example.org`); nada mais muda (são mocks de tela).
 6. Verificação: `grep -rniE "mariano|10\.220\.200|ufam|onairam" . --exclude-dir=.git --exclude-dir=.venv --exclude-dir=fixtures` não encontra nada **exceto** o endereço do repositório
    (`REPOSITORY` em `about.py`, selo de CI do `README.md`, `CLAUDE.md` se citar) e o histórico do git, que esta spec não reescreve.
@@ -81,7 +80,7 @@
 - `specs/Ideias.md` zerado (Q4): é estado do working tree do usuário, nada a corrigir no código.
 
 ## Decisões assumidas (confirmar na revisão)
-1. O crédito do `PDOS.qsub` vira uma linha neutra; isso **remove a atribuição** de um colega citado no cabeçalho (Cicero Mota). Se a atribuição precisa ficar, manter só o nome (sem e-mail) é a alternativa
+1. O crédito do `PDOS.qsub` vira uma linha neutra; isso **remove a atribuição** de um colega citado no cabeçalho (o primeiro autor citado). Se a atribuição precisa ficar, manter só o nome (sem e-mail) é a alternativa
    mais leve; o usuário escolheu "anonimizados".
 2. Programas de terminal são **pulados** como padrão do MIME (em vez de abrir um terminal), seguindo a escolha de ocultar.
 3. O pedido repetido de carga **substitui** o anterior (o relatório pede "cancelar e reiniciar"); o `auto_export` do primeiro pedido é preservado.

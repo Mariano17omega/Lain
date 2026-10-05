@@ -169,7 +169,9 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   mode and the QSettings `window/geometry`, `layout/*`, `files/*`. Knows no plot or sync.
 - `ui/plot_workflow.py:PlotWorkflow`: detect → `core/detection.plot_choice` (`Chosen` / `Ambiguous`
   → `choose_result` / `NeedsMapping` → `ask_mapping`, `ManualTarget`) → `load_plot` (load pool) →
-  `.plot` read (settings queue) → `build_session` → tab; readout, "Plotar SCF" source, busy
+  `.plot` read (settings queue; a second request for a plot that is loading replaces the first, spec 27-9: `_load`
+  cancels both stages, `PlotSettingsStore.cancel_read`, and keeps the first one's `auto_export`) →
+  `build_session` → tab; readout, "Plotar SCF" source, busy
   indicator (`ui/busy.py:BusyTracker`, counted by name: the footer spinner and "Detectando cálculo…"
   / "Carregando …" / "Exportando…", plus a spinner in the tab of a plot being regenerated; no
   `setOverrideCursor`). It asks the window for panels and messages through signals
@@ -880,7 +882,7 @@ and never emits `synced`. "Criar cálculo"'s toast reminds of it when sync is on
 `MainWindow._show_item_menu` → `ItemActions.show`, which reads the cached sniff once, in
 `file_actions_of`: "Plotar" for a
 single-file module, "Resumo" for any QE output, both above the four spec-5 actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
-cached `catalog()` per session) and starts them with `QProcess.startDetached(argv)`, never a
+cached `catalog()` per session; `Terminal=true` programs stay in `apps` but are never listed nor the default) and starts them with `QProcess.startDetached(argv)`, never a
 shell. A folder also gets "Adicionar/Remover dos favoritos" (`favorite_toggled`, answered by the
 `NavigationController`). With several items selected in the grid (`multi_menu`) the menu is the
 count title, "Abrir local de origem" (`ShowItems` with every URI), "Copiar" (one URI / path per line),
