@@ -200,6 +200,15 @@ class JobsConfig(_Section):
     omp_threads: int = Field(default=1, ge=1)
     env_lines: list[str] = Field(default_factory=lambda: list(DEFAULT_ENV_LINES))
     cores: int = Field(default=64, ge=1)  # default of the NP field
+    nk: int = Field(default=4, ge=1)  # default of the pools field (pw.x -nk), spec 28 R2.3
+    # The pseudopotentials on the cluster (POSIX), written into every generated pw.x input; None keeps
+    # the SCF's (spec 28 R2.2).
+    pseudo_dir: str | None = None
+
+    @field_validator("pseudo_dir")
+    @classmethod
+    def _blank_is_none(cls, value: str | None) -> str | None:
+        return value.strip() or None if value is not None else None
 
     @field_validator("qe_bin")
     @classmethod

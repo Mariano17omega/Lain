@@ -11,6 +11,7 @@ from qe_studio.ui.calc_create_controller import AVAILABLE_TIP, MISSING_ROOT_TIP
 from qe_studio.ui.dialogs.calc_create import dialog as dialog_module
 
 from calc_dialog_helpers import to_files, tree
+from calc_helpers import AL_PATH
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +88,7 @@ def test_create_writes_the_plan_and_selects_the_folder(qtbot, main_window, demo_
     with qtbot.waitSignal(window.calc_create.created, timeout=10_000) as blocker:
         dialog.create_button.click()
     created = blocker.args[0]
-    folder = demo_project / "pdos_Al"
+    folder = demo_project / "PDOS_Al"
     assert created.folder == folder
     assert sorted(p.name for p in folder.iterdir()) == sorted(f.name for f in expected)
     for planned in expected:
@@ -97,7 +98,7 @@ def test_create_writes_the_plan_and_selects_the_folder(qtbot, main_window, demo_
     assert window.current_folder() == folder
     notice = window.toast.current
     assert notice is not None and notice.level == "success"
-    assert notice.text == "Pasta pdos_Al criada com 5 arquivos"
+    assert notice.text == "Pasta PDOS_Al criada com 5 arquivos"
     assert "Enviar ao cluster" not in notice.text  # spec 27 adds it with its action
 
 
@@ -106,10 +107,35 @@ def test_the_same_name_twice_gets_a_number(qtbot, main_window, demo_project):
     _tabs, first = create(qtbot, window, type_id="scf", location=demo_project)
     qtbot.waitUntil(lambda: window.calc_create.dialog is None, timeout=2000)
     tabs, second = create(qtbot, window, type_id="scf", location=demo_project)
-    assert (first.folder.name, second.folder.name) == ("scf_Al", "scf_Al_1")
-    assert second.renamed_from == "scf_Al"
+    assert (first.folder.name, second.folder.name) == ("SCF_Al", "SCF_Al_1")
+    assert second.renamed_from == "SCF_Al"
     assert "descricao.md" not in [p.name for p in second.files]  # no notes, no file
     assert [p.name for p in second.files] == [f.name for f in tabs.plan.files]
+
+
+def test_the_mode_lives_in_the_window_settings(qtbot, main_window, window_factory, demo_project):
+    """Spec 28 R5.2: QSettings ``calc_create/mode`` (the fixture's own file), "padrao" at first;
+    an unnamed folder is the type's prefix alone."""
+    window = main_window
+    dialog = open_dialog(window)
+    assert dialog.mode == "padrao"
+    tabs = to_files(qtbot, dialog, "bandas", suffix="", location=demo_project)
+    assert not tabs.form_shown("script")
+    dialog.mode_switch.buttons["avancado"].click()
+    assert window.settings.value("calc_create/mode") == "avancado"
+    close(dialog)
+    qtbot.waitUntil(lambda: window.calc_create.dialog is None, timeout=2000)
+    assert open_dialog(window).mode == "avancado"
+    close(window.calc_create.dialog)
+    window.close()
+    restarted = window_factory()
+    again = open_dialog(restarted)
+    assert again.mode == "avancado"
+    tabs = to_files(qtbot, again, "bandas", suffix="", location=demo_project)
+    again.tabs.widget_of("kpath").set_path(AL_PATH)
+    with qtbot.waitSignal(restarted.calc_create.created, timeout=10_000) as blocker:
+        again.create_button.click()
+    assert blocker.args[0].folder == demo_project / "Bands"
 
 
 def test_a_failure_keeps_the_window_and_writes_nothing(
@@ -122,7 +148,7 @@ def test_a_failure_keeps_the_window_and_writes_nothing(
     )
 
     def refuse(*_args):
-        raise CreateError("Não foi possível criar a pasta pdos_Al: disco cheio")
+        raise CreateError("Não foi possível criar a pasta PDOS_Al: disco cheio")
 
     monkeypatch.setattr(calc_create_controller, "create_folder", refuse)
     before = tree(demo_project)
@@ -130,7 +156,7 @@ def test_a_failure_keeps_the_window_and_writes_nothing(
     to_files(qtbot, dialog, "pdos", location=demo_project)
     with qtbot.waitSignal(window.calc_create.failed, timeout=10_000):
         dialog.create_button.click()
-    assert errors == [("Criar cálculo", "Não foi possível criar a pasta pdos_Al: disco cheio")]
+    assert errors == [("Criar cálculo", "Não foi possível criar a pasta PDOS_Al: disco cheio")]
     assert window.calc_create.dialog is dialog and dialog.isVisible()
     assert dialog.create_button.isEnabled() and dialog.pages.isEnabled()
     assert window.plot_workflow.busy.labels == []

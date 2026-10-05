@@ -1,4 +1,8 @@
-"""Spec 25 R3, R4: the calculation types, their fields and the inputs derived from the SCF."""
+"""Spec 25 R3, R4: the calculation types, their fields and the inputs derived from the SCF.
+
+The plans here are of the ``avancado`` mode, where every field counts; spec 28 (names, modes, the
+self-contained folder) has its own tests in ``test_calc_standard.py``.
+"""
 
 import difflib
 
@@ -7,6 +11,7 @@ import pytest
 from qe_studio.core.calc_create.kpath import KMesh, KPath, KPoint, distribute
 from qe_studio.core.calc_create.types import REGISTRY, by_id
 from qe_studio.core.calc_create.types.pdos import NO_BROADENING_NOTE
+from qe_studio.core.config import JobsConfig
 from qe_studio.core.qe.input_edit import InputEditor
 from qe_studio.core.qe.input_lint import lint
 
@@ -23,17 +28,28 @@ from calc_helpers import (
     runs,
 )
 
-FILES = {
-    "scf": ["scf.qsub", "scf.in"],
-    "relax": ["relax.qsub", "relax.in"],
-    "vc-relax": ["vc-relax.qsub", "vc-relax.in"],
-    "bandas": ["bandas.qsub", "scf.in", "bands.in", "bands_pp.in"],
-    "pdos": ["pdos.qsub", "scf.in", "nscf.in", "projwfc.in"],
+FILES = {  # spec 28 R1.3, for the prefix 'al'
+    "scf": ["scf.qsub", "scf_al.in"],
+    "relax": ["relax.qsub", "relax_al.in"],
+    "vc-relax": ["vc-relax.qsub", "vc-relax_al.in"],
+    "bandas": ["bands.qsub", "scf_al.in", "bands.in", "bands_pp.in"],
+    "pdos": ["pdos.qsub", "scf_al.in", "nscf_al.in", "projwfc.in"],
 }
 
 
-def plan(type_id, scf=None, **values):
-    return by_id(type_id).plan(scf or al(), {"kpath": AL_PATH, **values}, JOBS)
+def plan(type_id, scf=None, mode="avancado", **values):
+    return by_id(type_id).plan(scf or al(), {"kpath": AL_PATH, **values}, JOBS, mode)
+
+
+def unit(text: str) -> str:
+    """The SCF as every generated pw.x input starts: ``outdir = './tmp/'`` (spec 28 R2.1)."""
+    return text.replace("outdir='./tmp'", "outdir='./tmp/'")
+
+
+def text_of(result, key: str) -> str:
+    planned = result.by_key(key)
+    assert planned is not None, key
+    return planned.text
 
 
 def changed(before: str, after: str) -> tuple[list[str], list[str]]:
@@ -50,7 +66,14 @@ def changed(before: str, after: str) -> tuple[list[str], list[str]]:
 def test_registry():
     assert [t.id for t in REGISTRY] == ["scf", "relax", "vc-relax", "bandas", "pdos"]
     assert [t.label for t in REGISTRY] == ["SCF", "Relax", "VC-Relax", "Bandas", "PDOS"]
-    assert [t.folder_prefix for t in REGISTRY] == ["scf", "relax", "vc-relax", "bandas", "pdos"]
+    assert [t.folder_prefix for t in REGISTRY] == ["SCF", "Relax", "VC-Relax", "Bands", "PDOS"]
+    assert [t.script_name for t in REGISTRY] == [
+        "scf.qsub",
+        "relax.qsub",
+        "vc-relax.qsub",
+        "bands.qsub",
+        "pdos.qsub",
+    ]
     with pytest.raises(KeyError):
         by_id("dos")
 
@@ -61,21 +84,21 @@ def test_files_in_tab_order_and_fields_in_their_tabs(type_id):
     assert not result.errors, result.errors
     assert [f.name for f in result.files] == FILES[type_id]
     assert result.files[0].kind == "qsub" and result.files[0].tab_label.startswith("Script (")
-    names = {f.name for f in result.files}
+    keys = {f.key for f in result.files}
     for field in by_id(type_id).fields(al(), JOBS):
-        assert field.group in names, field
+        assert field.group in keys, field
 
 
 def test_tab_labels():
     assert [f.tab_label for f in plan("pdos").files] == [
         "Script (pdos.qsub)",
-        "SCF (scf.in)",
-        "NSCF (nscf.in)",
+        "SCF (scf_al.in)",
+        "NSCF (nscf_al.in)",
         "projwfc.in",
     ]
     assert [f.tab_label for f in plan("bandas").files] == [
-        "Script (bandas.qsub)",
-        "SCF (scf.in)",
+        "Script (bands.qsub)",
+        "SCF (scf_al.in)",
         "Bandas (bands.in)",
         "bands_pp.in",
     ]
@@ -84,23 +107,26 @@ def test_tab_labels():
 @pytest.mark.parametrize("type_id", FILES)
 def test_inputs_lint_clean_with_the_scf_prefix_and_outdir(type_id):
     for scf in (al(), ni(), from_text(SI_SCF.read_text())):
-        for planned in plan(type_id, scf).files:
+        for planned in plan(type_id, scf, nbnd=16).files:
             if not planned.name.endswith(".in"):
                 continue
             errors = [i for i in lint(planned.text).issues if i.severity == "error"]
             assert not errors, (planned.name, errors)
             editor = InputEditor.from_text(planned.text)
             namelist = {"pw_input": "control"}.get(planned.kind) or (
-                "bands" if planned.name.startswith("bands_pp") else "projwfc"
+                "bands" if planned.key.startswith("bands_pp") else "projwfc"
             )
             assert editor.get(namelist, "prefix") == scf.prefix
-            assert editor.get(namelist, "outdir") == scf.outdir
+            assert editor.get(namelist, "outdir") == "./tmp/"  # spec 28 R2.1, both modes
 
 
-def test_scf_copies_are_the_scf_byte_for_byte():
+def test_scf_copies_change_only_the_outdir():
     text = AL_SCF.read_text()
     for type_id in ("scf", "bandas", "pdos"):
-        assert plan(type_id).file("scf.in").text == text
+        for mode in ("padrao", "avancado"):
+            copy = text_of(plan(type_id, mode=mode), "scf")
+            assert changed(text, copy) == (["    outdir='./tmp' "], ["    outdir='./tmp/' "])
+            assert copy == unit(text)
 
 
 def test_scf_mesh_field():
@@ -108,13 +134,13 @@ def test_scf_mesh_field():
     scf = from_text(gamma)
     field = next(f for f in by_id("scf").fields(scf, JOBS) if f.id == "kmesh")
     assert field.default is None and not field.required  # empty keeps the SCF's card
-    assert plan("scf", scf).file("scf.in").text == gamma
-    denser = plan("scf", kmesh="12 12 12 1 1 1").file("scf.in").text
-    assert changed(AL_SCF.read_text(), denser) == (["10 10 10 0 0 0"], ["12 12 12 1 1 1"])
+    assert text_of(plan("scf", scf), "scf") == unit(gamma)
+    denser = text_of(plan("scf", kmesh="12 12 12 1 1 1"), "scf")
+    assert changed(unit(AL_SCF.read_text()), denser) == (["10 10 10 0 0 0"], ["12 12 12 1 1 1"])
 
 
 def test_relax_changes_only_its_keys():
-    removed, added = changed(AL_SCF.read_text(), plan("relax").file("relax.in").text)
+    removed, added = changed(unit(AL_SCF.read_text()), text_of(plan("relax"), "relax"))
     assert removed == ["    calculation = 'scf',"]
     assert added == [
         "    calculation = 'relax',",
@@ -127,12 +153,12 @@ def test_relax_changes_only_its_keys():
 
 
 def test_vc_relax_adds_cell():
-    text = plan("vc-relax", press=10, cell_dynamics="damp-w").file("vc-relax.in").text
+    text = text_of(plan("vc-relax", press=10, cell_dynamics="damp-w"), "vc-relax")
     editor = InputEditor.from_text(text)
     assert editor.get("control", "calculation") == "vc-relax"
     assert (editor.get("cell", "cell_dynamics"), editor.get("cell", "press")) == ("damp-w", "10.0")
     assert editor.get("ions", "ion_dynamics") == "bfgs"
-    assert not InputEditor.from_text(plan("relax").file("relax.in").text).has_namelist("cell")
+    assert not InputEditor.from_text(text_of(plan("relax"), "relax")).has_namelist("cell")
 
 
 def test_relax_keeps_what_the_scf_already_has():
@@ -147,14 +173,14 @@ def test_relax_keeps_what_the_scf_already_has():
     scf = from_text(text)
     fields = {f.id: f.default for f in by_id("relax").fields(scf, JOBS)}
     assert (fields["nstep"], fields["ion_dynamics"]) == (200, "damp")
-    removed, added = changed(text, plan("relax", scf).file("relax.in").text)
+    removed, added = changed(unit(text), text_of(plan("relax", scf), "relax"))
     assert removed == ["    calculation = 'scf',"]
     assert added == ["    calculation = 'relax',", "    forc_conv_thr = 0.001"]
 
 
 def test_bands_input():
     text = plan("bandas", nbnd=12).file("bands.in").text
-    removed, added = changed(AL_SCF.read_text(), text)
+    removed, added = changed(unit(AL_SCF.read_text()), text)
     assert removed == ["    calculation = 'scf',", "K_POINTS automatic", "10 10 10 0 0 0"]
     assert added[:2] == ["    calculation = 'bands',", "    nbnd = 12"]
     assert added[2:4] == ["K_POINTS crystal_b", "5"]
@@ -174,22 +200,22 @@ def test_bands_swaps_tetrahedra_for_smearing():
         "0.01",
     )
     assert any("tetrahedra_opt" in note for note in result.notes)
-    pdos = InputEditor.from_text(plan("pdos", from_text(text)).file("nscf.in").text)
+    pdos = InputEditor.from_text(text_of(plan("pdos", from_text(text), nbnd=8), "nscf"))
     assert pdos.get("system", "occupations") == "tetrahedra_opt"  # the NSCF keeps tetrahedra
 
 
 def test_spin_bands_run_bands_x_per_channel():
     result = plan("bandas", ni())
     assert [f.name for f in result.files] == [
-        "bandas.qsub",
-        "scf.in",
+        "bands.qsub",
+        "scf_ni.in",
         "bands.in",
         "bands_pp_up.in",
         "bands_pp_dw.in",
     ]
     for name, filband, component in (
-        ("bands_pp_up.in", "bands_up.dat", "1"),
-        ("bands_pp_dw.in", "bands_dw.dat", "2"),
+        ("bands_pp_up.in", "./band_up", "1"),
+        ("bands_pp_dw.in", "./band_dw", "2"),
     ):
         editor = InputEditor.from_text(result.file(name).text)
         assert editor.get("bands", "filband") == filband
@@ -200,7 +226,7 @@ def test_spin_bands_run_bands_x_per_channel():
 
 def test_pdos_inputs():
     result = plan("pdos", nbnd=20, kmesh=KMesh((20, 20, 20)), occupations="tetrahedra")
-    removed, added = changed(AL_SCF.read_text(), result.file("nscf.in").text)
+    removed, added = changed(unit(AL_SCF.read_text()), result.file("nscf_al.in").text)
     assert removed == [
         "    calculation = 'scf',",
         "    occupations= 'smearing',",
@@ -265,14 +291,16 @@ def test_pdos_defaults():
     assert fields["nbnd"].default == 8 and fields["nbnd"].required  # 1.2 × 6 states of al.scf.out
     si = {f.id: f.default for f in by_id("pdos").fields(from_text(SI_SCF.read_text()), JOBS)}
     assert si["nbnd"] == 16 and si["occupations"] == "fixed"
-    nscf = InputEditor.from_text(plan("pdos", from_text(SI_SCF.read_text())).file("nscf.in").text)
+    nscf = InputEditor.from_text(
+        text_of(plan("pdos", from_text(SI_SCF.read_text()), nbnd=16), "nscf")
+    )
     assert nscf.get("system", "occupations") is None  # "fixed" is pw.x's default: no line added
 
 
 def test_pdos_smearing_gets_its_width():
     text = SI_SCF.read_text()
-    result = plan("pdos", from_text(text), occupations="smearing")
-    editor = InputEditor.from_text(result.file("nscf.in").text)
+    result = plan("pdos", from_text(text), occupations="smearing", nbnd=16)
+    editor = InputEditor.from_text(text_of(result, "nscf"))
     assert (editor.get("system", "smearing"), editor.get("system", "degauss")) == (
         "gaussian",
         "0.01",
@@ -282,7 +310,11 @@ def test_pdos_smearing_gets_its_width():
 def test_script_fields_and_pool_warnings():
     fields = {f.id: f.default for f in by_id("bandas").fields(al(), JOBS)}
     assert fields["job_name"] == "al" and fields["np"] == 64 and fields["nk"] == 4
-    assert {f.id: f.default for f in by_id("relax").fields(al(), JOBS)}["nk"] == 8
+    for calc_type in REGISTRY:  # jobs.nk, the same for every type (spec 28 R2.3)
+        assert {f.id: f.default for f in calc_type.fields(al(), JOBS)}["nk"] == 4
+        eight = JobsConfig(nk=8, cores=32)
+        defaults = {f.id: f.default for f in calc_type.fields(al(), eight)}
+        assert (defaults["nk"], defaults["np"]) == (8, 32)
     result = plan("pdos", np=10, nk=4)
     assert not result.errors
     assert any("NP = 10 não é múltiplo de nk = 4" in note for note in result.notes)
@@ -293,7 +325,7 @@ def test_script_fields_and_pool_warnings():
 
 
 def test_missing_and_invalid_values_are_errors():
-    no_path = by_id("bandas").plan(al(), {}, JOBS)
+    no_path = by_id("bandas").plan(al(), {}, JOBS)  # the "padrao" mode asks for the path too
     assert "Preencha Caminho de alta simetria" in no_path.errors
     assert "K_POINTS crystal_b\n0\n" in no_path.file("bands.in").text  # the preview still renders
     one_point = plan("bandas", kpath=KPath((KPoint("Gamma", (0, 0, 0)),)))
@@ -306,9 +338,7 @@ def test_missing_and_invalid_values_are_errors():
 
 
 def test_an_empty_value_falls_back_to_the_default():
-    assert (
-        plan("pdos", nbnd="", kmesh=" ").file("nscf.in").text == plan("pdos").file("nscf.in").text
-    )
+    assert text_of(plan("pdos", nbnd="", kmesh=" "), "nscf") == text_of(plan("pdos"), "nscf")
 
 
 def test_unreadable_structure_is_a_note_of_bands():
@@ -338,8 +368,3 @@ def test_bands_notes_the_segment_that_collapses_on_the_x_axis():
     assert collapse_notes(plan("bandas")) == []  # Al
     assert collapse_notes(plan("bandas", nbnd=8, kpath=KPath(()))) == []  # nothing typed yet
     assert collapse_notes(plan("scf")) == [] and collapse_notes(plan("pdos")) == []
-
-
-def test_scf_warnings_reach_the_notes():
-    text = AL_SCF.read_text().replace("outdir='./tmp'", "outdir='/scratch/m'")
-    assert any("outdir é absoluto" in note for note in plan("scf", from_text(text)).notes)

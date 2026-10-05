@@ -84,7 +84,7 @@ def file_rows(files: Sequence[PlannedFile]) -> list[FileRow]:
 
 
 def target_text(parent: Path, type_: CalcType, suffix: str) -> str:
-    """ "Será criada: bandas_Al", or the ``_N`` name and why. Only ``stat``s."""
+    """ "Será criada: Bands_Al", or the ``_N`` name and why. Only ``stat``s."""
     asked = folder_name(type_, suffix)
     name = preview_name(parent, type_, suffix)
     if name == asked:

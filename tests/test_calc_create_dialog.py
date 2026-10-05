@@ -1,8 +1,12 @@
-"""Spec 26 R2–R4: the "Criar cálculo" window on its own (the controller writes; this never does)."""
+"""Spec 26 R2–R4: the "Criar cálculo" window on its own (the controller writes; this never does).
+
+Most run in the "avancado" mode (every field shown); the "Padrão / Avançado" switch of spec 28 R5
+is tested at the end.
+"""
 
 import pytest
 from PyQt6 import sip
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtWidgets import QComboBox, QLineEdit
 
 from qe_studio.core.calc_create.types import by_id
@@ -25,12 +29,15 @@ def place(tmp_path):
 
 @pytest.fixture
 def make_dialog(qtbot, place):
-    """New windows on ``place``; closed at teardown unless a test closed (deleted) them. Not
-    ``qtbot.addWidget``: it would close a window its delete-on-close already deleted."""
+    """New windows on ``place`` (``mode`` set before step 2 is built; None: the remembered one);
+    closed at teardown unless a test closed (deleted) them. Not ``qtbot.addWidget``: it would
+    close a window its delete-on-close already deleted."""
     made = []
 
-    def make() -> CalcCreateDialog:
-        window = CalcCreateDialog(ThemeManager("dark"), place, place, JOBS)
+    def make(mode="avancado", settings=None) -> CalcCreateDialog:
+        window = CalcCreateDialog(ThemeManager("dark"), place, place, JOBS, settings=settings)
+        if mode is not None:
+            window.set_mode(mode)
         window.show()
         made.append(window)
         return window
@@ -77,14 +84,15 @@ def test_continue_waits_for_everything(qtbot, dialog, place):
     setup.set_type("bandas")
     assert dialog.continue_button.toolTip() == "Escolha o input de SCF"
     pick_scf(qtbot, dialog, AL_SCF)
-    assert dialog.continue_button.toolTip() == "Informe o nome da pasta"
-    assert setup.suffix_message.isHidden()  # no red before anything was typed
+    assert dialog.continue_button.isEnabled()  # the folder's name is optional (spec 28 R5.3)
+    assert setup.name_preview.text() == "Será criada: Bands"
+    assert setup.suffix_message.isHidden()
     setup.suffix_edit.setText("Al é")
     assert not dialog.continue_button.isEnabled()
     assert "letras sem acento" in setup.suffix_message.text()
     setup.suffix_edit.setText("Al")
     assert dialog.continue_button.isEnabled()
-    assert setup.name_preview.text() == "Será criada: bandas_Al"
+    assert setup.name_preview.text() == "Será criada: Bands_Al"
     setup.set_location(place / "nada")
     assert not dialog.continue_button.isEnabled()
     assert "não existe" in setup.location_message.text()
@@ -104,9 +112,9 @@ def test_an_input_that_is_not_an_scf_is_refused(qtbot, dialog, tmp_path):
 
 
 def test_name_preview_says_when_the_name_is_taken(qtbot, dialog, place):
-    (place / "bandas_Al").mkdir()
+    (place / "Bands_Al").mkdir()
     fill_setup(qtbot, dialog, "bandas")
-    assert dialog.setup.name_preview.text() == "Será criada: bandas_Al_1 — já existe bandas_Al"
+    assert dialog.setup.name_preview.text() == "Será criada: Bands_Al_1 — já existe Bands_Al"
 
 
 def test_a_place_outside_the_project_warns(qtbot, dialog, tmp_path):
@@ -119,11 +127,11 @@ def test_a_place_outside_the_project_warns(qtbot, dialog, tmp_path):
 @pytest.mark.parametrize(
     "type_id, labels",
     [
-        ("pdos", ["Script (pdos.qsub)", "SCF (scf.in)", "NSCF (nscf.in)", "projwfc.in"]),
-        ("bandas", ["Script (bandas.qsub)", "SCF (scf.in)", "Bandas (bands.in)", "bands_pp.in"]),
-        ("scf", ["Script (scf.qsub)", "SCF (scf.in)"]),
-        ("relax", ["Script (relax.qsub)", "Relax (relax.in)"]),
-        ("vc-relax", ["Script (vc-relax.qsub)", "VC-Relax (vc-relax.in)"]),
+        ("pdos", ["Script (pdos.qsub)", "SCF (scf_al.in)", "NSCF (nscf_al.in)", "projwfc.in"]),
+        ("bandas", ["Script (bands.qsub)", "SCF (scf_al.in)", "Bandas (bands.in)", "bands_pp.in"]),
+        ("scf", ["Script (scf.qsub)", "SCF (scf_al.in)"]),
+        ("relax", ["Script (relax.qsub)", "Relax (relax_al.in)"]),
+        ("vc-relax", ["Script (vc-relax.qsub)", "VC-Relax (vc-relax_al.in)"]),
     ],
 )
 def test_a_tab_per_file(qtbot, dialog, type_id, labels):
@@ -151,7 +159,7 @@ def test_fields_open_with_the_scf_values(qtbot, dialog):
 
 def test_editing_a_field_plans_again(qtbot, dialog):
     tabs = to_files(qtbot, dialog, "pdos")
-    nscf = tabs.previews["nscf.in"]
+    nscf = tabs.previews["nscf"]
     assert nscf.isReadOnly()
     tabs.widget_of("nbnd").setText("")
     qtbot.keyClicks(tabs.widget_of("nbnd"), "42")
@@ -169,7 +177,7 @@ def test_the_preview_is_debounced(qtbot, make_dialog):
     window.debounce_ms = 50
     window.continue_button.click()
     tabs = window.tabs
-    nscf = tabs.previews["nscf.in"]
+    nscf = tabs.previews["nscf"]
     nbnd = tabs.widget_of("nbnd")
     qtbot.keyClicks(nbnd, "7")
     typed = f"nbnd = {nbnd.text()}"
@@ -179,13 +187,16 @@ def test_the_preview_is_debounced(qtbot, make_dialog):
 
 def test_lines_changed_from_the_scf_are_painted(qtbot, dialog):
     tabs = to_files(qtbot, dialog, "pdos")
-    nscf = tabs.previews["nscf.in"]
+    nscf = tabs.previews["nscf"]
     lines = nscf.toPlainText().splitlines()
     painted = [lines[row] for row in nscf.changed_rows()]
     assert any("'nscf'" in line for line in painted)
     assert not any("ecutwfc" in line for line in painted)
-    assert tabs.previews["scf.in"].changed_rows() == []  # the SCF itself, byte for byte
-    assert tabs.previews["projwfc.in"].changed_rows() == []  # a template, not an edit
+    scf = tabs.previews["scf"]  # the SCF itself, but in the folder's ./tmp/ (spec 28 R2.1)
+    assert [scf.toPlainText().splitlines()[row] for row in scf.changed_rows()] == [
+        "    outdir='./tmp/' "
+    ]
+    assert tabs.previews["projwfc"].changed_rows() == []  # a template, not an edit
 
 
 def test_invalid_and_missing_values_block_create(qtbot, dialog):
@@ -214,7 +225,7 @@ def test_band_path_tab(qtbot, dialog):
     assert dialog.create_button.toolTip() == "Defina ao menos 2 pontos do caminho"
     editor.set_path(AL_PATH)
     assert dialog.create_button.isEnabled()
-    assert "K_POINTS crystal_b" in tabs.previews["bands.in"].toPlainText()
+    assert "K_POINTS crystal_b" in tabs.previews["bands"].toPlainText()
     assert not tabs.dirty  # a path shown by the program is not an edit
     for _ in range(4):
         editor.table.setCurrentCell(0, 0)
@@ -262,9 +273,9 @@ def test_band_path_without_a_readable_structure(qtbot, dialog, tmp_path):
 def test_files_tab_lists_what_will_be_written(qtbot, dialog, place):
     tabs = to_files(qtbot, dialog, "pdos")
     view = tabs.files_view
-    assert view.names() == ["pdos.qsub", "scf.in", "nscf.in", "projwfc.in"]
-    assert view.target.text() == f"Pasta: {place / 'pdos_Al'}"
-    assert "pdos_Al_1" in view.note.text()
+    assert view.names() == ["pdos.qsub", "scf_al.in", "nscf_al.in", "projwfc.in"]
+    assert view.target.text() == f"Pasta: {place / 'PDOS_Al'}"
+    assert "PDOS_Al_1" in view.note.text()
     tabs.notes.setPlainText("Teste de convergência")
     assert view.names()[-1] == "descricao.md"
     assert tabs.dirty
@@ -281,7 +292,7 @@ def test_back_keeps_both_steps(qtbot, dialog):
     dialog.setup.suffix_edit.setText("Al2")
     dialog.continue_button.click()
     assert dialog.tabs is tabs and tabs.widget_of("nbnd").text() == "33"
-    assert tabs.files_view.target.text().endswith("pdos_Al2")
+    assert tabs.files_view.target.text().endswith("PDOS_Al2")
 
 
 def test_changing_the_type_rebuilds_step_2(qtbot, dialog):
@@ -346,3 +357,86 @@ def test_create_asks_the_controller(qtbot, dialog, place):
     assert not dialog.create_button.isEnabled() and not dialog.pages.isEnabled()
     dialog.close()
     assert dialog.isVisible()  # not while the folder is written
+
+
+# -- modes (spec 28 R5) ---------------------------------------------------------------------------
+def test_the_standard_mode_shows_only_its_fields(qtbot, make_dialog):
+    dialog = make_dialog(mode="padrao")
+    assert dialog.mode_switch.isHidden()  # a switch of step 2
+    tabs = to_files(qtbot, dialog, "pdos")
+    assert not dialog.mode_switch.isHidden() and dialog.mode == "padrao"
+    form = tabs.form_of("e_min")
+    assert form.shown("e_min") and form.shown("e_max")
+    assert not form.shown("delta_e") and not form.shown("name:projwfc")
+    assert not tabs.form_of("nbnd").shown("nbnd")
+    # Tabs with nothing to fill are their preview alone.
+    assert [tabs.form_shown(key) for key in ("script", "scf", "nscf", "projwfc")] == [
+        False,
+        False,
+        False,
+        True,
+    ]
+    assert dialog.create_button.isEnabled()
+    assert "degauss = 0.000735" in tabs.previews["projwfc"].toPlainText()
+
+
+def test_switching_modes_keeps_the_tabs_and_the_edits(qtbot, make_dialog):
+    dialog = make_dialog(mode="padrao")
+    tabs = to_files(qtbot, dialog, "pdos")
+    nscf = tabs.previews["nscf"]
+    standard = nscf.toPlainText()
+    dialog.mode_switch.buttons["avancado"].click()
+    assert dialog.tabs is tabs and dialog.mode == "avancado"
+    assert tabs.form_of("nbnd").shown("nbnd") and tabs.form_shown("script")
+    nbnd = tabs.widget_of("nbnd")
+    nbnd.setText("")
+    qtbot.keyClicks(nbnd, "42")
+    assert "nbnd = 42" in nscf.toPlainText()
+    dialog.mode_switch.buttons["padrao"].click()
+    assert nscf.toPlainText() == standard  # hidden: its default counts
+    assert nbnd.text() == "42" and tabs.dirty  # kept, and still asked about on close
+    dialog.mode_switch.buttons["avancado"].click()
+    assert "nbnd = 42" in nscf.toPlainText()
+
+
+def test_the_mode_is_remembered(qtbot, make_dialog, tmp_path):
+    settings = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+    first = make_dialog(mode=None, settings=settings)
+    assert first.mode == "padrao"  # the first time
+    to_files(qtbot, first, "scf")
+    first.mode_switch.buttons["avancado"].click()
+    assert settings.value("calc_create/mode") == "avancado"
+    first.close()
+    again = make_dialog(mode=None, settings=settings)
+    assert again.mode == "avancado"
+    tabs = to_files(qtbot, again, "scf")
+    assert tabs.mode == "avancado" and tabs.form_shown("script")
+    settings.setValue("calc_create/mode", "outro")
+    assert make_dialog(mode=None, settings=settings).mode == "padrao"
+
+
+def test_a_file_renamed_in_the_advanced_mode(qtbot, dialog, place):
+    tabs = to_files(qtbot, dialog, "pdos", suffix="")
+    name = tabs.widget_of("name:scf")
+    assert isinstance(name, QLineEdit) and name.text() == "scf_al.in"
+    name.setText("")
+    qtbot.keyClicks(name, "scf_teste.in")
+    assert "SCF (scf_teste.in)" in tabs.tab_labels()
+    assert tabs.files_view.names()[1] == "scf_teste.in"
+    assert '-i "scf_teste.in" > "scf_teste.out"' in tabs.previews["script"].toPlainText()
+    assert tabs.files_view.target.text() == f"Pasta: {place / 'PDOS'}"  # no name: the prefix
+    name.setText("")
+    qtbot.keyClicks(name, "nscf_al.in")
+    assert not dialog.create_button.isEnabled()
+    assert dialog.create_button.toolTip() == "Nome de arquivo repetido: nscf_al.in"
+    assert name.property("invalid") is True
+    assert tabs.widget_of("name:nscf").property("invalid") is True
+    name.setText("")
+    qtbot.keyClicks(name, "a/b.in")
+    assert "só letras sem acento" in dialog.create_button.toolTip()
+    name.setText("")
+    tabs.flush()
+    assert dialog.create_button.isEnabled() and name.property("invalid") is False
+    with qtbot.waitSignal(dialog.create_requested) as blocker:
+        dialog.create_button.click()
+    assert blocker.args[0].suffix == ""

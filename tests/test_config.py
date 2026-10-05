@@ -234,6 +234,7 @@ def test_jobs_defaults_are_the_reference_scripts():
     assert jobs.qe_bin == "/opt/espresso-7.1/bin"
     assert jobs.mpi_command == "/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
     assert (jobs.parallel_env, jobs.omp_threads, jobs.cores) == ("physica", 1, 64)
+    assert (jobs.nk, jobs.pseudo_dir) == (4, None)  # spec 28 R2
     assert jobs.env_lines == [
         "export I_MPI_SHM=bdw_avx2",
         ". /opt/intel/oneapi/mkl/latest/env/vars.sh",
@@ -243,12 +244,18 @@ def test_jobs_defaults_are_the_reference_scripts():
 
 def test_jobs_validation(tmp_path):
     path = tmp_path / "config.yaml"
-    path.write_text("jobs:\n  qe_bin: /sw/qe/bin/\n  cores: 32\n")
+    path.write_text(
+        "jobs:\n  qe_bin: /sw/qe/bin/\n  cores: 32\n  nk: 8\n  pseudo_dir: ' /home/me/pseudo '\n"
+    )
     jobs = load_config(path, environ={}, cwd=tmp_path).config.jobs
-    assert (jobs.qe_bin, jobs.cores) == ("/sw/qe/bin", 32)
+    assert (jobs.qe_bin, jobs.cores, jobs.nk) == ("/sw/qe/bin", 32, 8)
+    assert jobs.pseudo_dir == "/home/me/pseudo"
+    path.write_text("jobs:\n  pseudo_dir: ''\n")
+    assert load_config(path, environ={}, cwd=tmp_path).config.jobs.pseudo_dir is None
     for bad in (
         "jobs:\n  calculos: 1\n",
         "jobs:\n  omp_threads: 0\n",
+        "jobs:\n  nk: 0\n",
         "jobs:\n  parallel_env: ' '\n",
     ):
         path.write_text(bad)

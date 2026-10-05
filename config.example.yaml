@@ -105,3 +105,8 @@ jobs:
     - . /opt/intel/oneapi/mpi/latest/env/vars.sh
   # Default of the NP field (cores of the job).
   cores: 64
+  # Default of the pools field (pw.x -nk). NP must be a multiple of it.
+  nk: 4
+  # Folder of the pseudopotentials on the cluster, written as pseudo_dir into every pw.x input
+  # "Criar cálculo" generates (each folder is then self-contained). Unset: the SCF's pseudo_dir stays.
+  # pseudo_dir: /home/me/pseudo

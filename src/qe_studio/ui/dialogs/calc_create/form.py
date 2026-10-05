@@ -2,13 +2,14 @@
 ``ParamsBody`` does for ``ParamField``.
 
 Each field opens with its default (from the SCF when it has the value); an emptied field goes back
-to it, which the placeholder says ("vazio = 8"). The window knows no type: the kinds of field are
-the only cases here.
+to it, which the placeholder says ("vazio = 8"). The mode (spec 28) only shows or hides rows: a
+hidden field keeps what was typed. The window knows no type: the kinds of field are the only cases
+here.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from typing import Any
 
 from PyQt6.QtCore import pyqtSignal
@@ -51,6 +52,7 @@ class FieldForm(QWidget):
         self.crystal = crystal
         self.fields = list(fields)
         self.widgets: dict[str, QWidget] = {}
+        self.rows: dict[str, tuple[QWidget, ...]] = {}  # what shows a field: label and widget
         self.kpath_editor: KPathEditor | None = None
         self.section = Section(theme, TITLE)
         layout = QVBoxLayout(self)
@@ -75,6 +77,7 @@ class FieldForm(QWidget):
             self.section.add_full(title)
             self.section.add_full(editor)
             self.widgets[form_field.id] = editor
+            self.rows[form_field.id] = (title, editor)
             return
         widget = self._widget(form_field)
         self.section.add_row(label, widget, form_field.tooltip)
@@ -83,6 +86,7 @@ class FieldForm(QWidget):
         if isinstance(text, QLabel):
             text.setWordWrap(True)  # long labels such as "forc_conv_thr" keep the 40/60 grid
         self.widgets[form_field.id] = widget
+        self.rows[form_field.id] = (widget,) if text is None else (text, widget)
 
     def _widget(self, form_field: FormField) -> QWidget:
         kind, default = form_field.kind, form_field.default
@@ -109,6 +113,16 @@ class FieldForm(QWidget):
 
     def _edited(self, *_args) -> None:
         self.changed.emit(True)
+
+    def set_visible(self, ids: Collection[str]) -> bool:
+        """Show the rows of the fields ``ids`` and hide the rest; whether any row is shown."""
+        for field_id, row in self.rows.items():
+            for widget in row:
+                widget.setVisible(field_id in ids)
+        return any(field_id in ids for field_id in self.rows)
+
+    def shown(self, field_id: str) -> bool:
+        return not self.widgets[field_id].isHidden()
 
     # -- values ----------------------------------------------------------------------------------
     def values(self) -> dict[str, Any]:

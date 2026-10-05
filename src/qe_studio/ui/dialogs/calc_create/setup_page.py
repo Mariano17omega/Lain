@@ -1,5 +1,5 @@
-"""Step 1 of "Criar cálculo" (spec 26 R3): the type, the SCF input, the folder name and where it
-goes.
+"""Step 1 of "Criar cálculo" (spec 26 R3, spec 28 R5.3): the type, the SCF input, the folder name
+(optional: the folder is then the type's prefix alone) and where it goes.
 
 The SCF is checked on the GUI thread only by its head (``looks_like_input``) and read in a worker
 (``read_scf``); the file is never written. The name and the place are checked with ``stat`` only.
@@ -94,7 +94,7 @@ class SetupPage(QWidget):
         self.scf_message = message_label("error")
         self.suffix_edit = QLineEdit()
         self.suffix_edit.setAccessibleName("Nome da pasta")
-        self.suffix_edit.setPlaceholderText("ex.: Al, Fe_teste, v2")
+        self.suffix_edit.setPlaceholderText("opcional, ex.: Al, Fe_teste")
         self.suffix_edit.textChanged.connect(self._update)
         self.suffix_message = message_label("error")
         self.location_edit = set_variant(QLineEdit(str(start)), "mono")
@@ -114,7 +114,7 @@ class SetupPage(QWidget):
         rows = [
             ("Tipo de cálculo", self.type_combo, None),
             ("Input de SCF *", self._with_button(self.scf_edit, self.scf_button), self.scf_message),
-            ("Nome da pasta *", self.suffix_edit, self.suffix_message),
+            ("Nome da pasta", self.suffix_edit, self.suffix_message),
             (
                 "Local",
                 self._with_button(self.location_edit, self.location_button),
@@ -242,7 +242,7 @@ class SetupPage(QWidget):
     def _update(self, *_args) -> None:
         suffix = self.suffix
         named = validate_suffix(suffix)
-        show_message(self.suffix_message, named[0] if suffix and named else "")  # empty: no red yet
+        show_message(self.suffix_message, named[0] if named else "")
         place = validate_parent(self._location)
         show_message(
             self.location_message,

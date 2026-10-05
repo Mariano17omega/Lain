@@ -1,4 +1,5 @@
-"""Spec 25 R2, R6: the packaged Jinja2 templates and the .qsub scripts they make."""
+"""Spec 25 R2, R6: the packaged Jinja2 templates and the .qsub scripts they make (with the names of
+spec 28 R1, which the scripts receive as variables)."""
 
 import fnmatch
 import re
@@ -60,7 +61,7 @@ def test_fortran_literals():
 
 
 def _ours(type_id, scf, values):
-    plan = by_id(type_id).plan(scf, values, JOBS)
+    plan = by_id(type_id).plan(scf, values, JOBS, "avancado")
     assert not plan.errors
     return plan.files[0].text
 
@@ -96,16 +97,33 @@ def _split(lines: list[str]) -> tuple[list[str], list[str]]:
 @pytest.mark.parametrize(
     "type_id, reference, scf, values, rename",
     [
-        ("relax", "relax.qsub", al, {"job_name": "test", "nk": 8}, None),
-        ("vc-relax", "vc-relax.qsub", al, {"job_name": "test", "nk": 8}, None),
-        ("scf", "relax.qsub", al, {"job_name": "test", "nk": 8}, {"relax": "scf"}),
-        ("bandas", "bands.qsub", al, {"job_name": "BD010o1", "kpath": AL_PATH}, None),
+        ("relax", "relax.qsub", al, {"job_name": "test", "nk": 8}, {"relax.": "relax_al."}),
+        (
+            "vc-relax",
+            "vc-relax.qsub",
+            al,
+            {"job_name": "test", "nk": 8},
+            {"vc-relax.": "vc-relax_al."},
+        ),
+        ("scf", "relax.qsub", al, {"job_name": "test", "nk": 8}, {"relax.": "scf_al."}),
+        (
+            "bandas",
+            "bands.qsub",
+            al,
+            {"job_name": "BD010o1", "kpath": AL_PATH},
+            {'"scf.': '"scf_al.'},
+        ),
         (
             "pdos",
             "PDOS.qsub",
             al,
-            {"job_name": "pdo2"},
-            {"proj.": "projwfc.", "mv *wfc* orbitals/": "mv *pdos_atm#* orbitals/"},
+            {"job_name": "pdo2", "nk": 8},  # the reference's; jobs.nk is 4 (spec 28 R2.3)
+            {
+                '"scf.': '"scf_al.',
+                '"nscf.': '"nscf_al.',
+                "proj.": "projwfc.",
+                "mv *wfc* orbitals/": "mv *pdos_atm#* orbitals/",
+            },
         ),
     ],
 )
@@ -119,14 +137,15 @@ def test_scripts_reproduce_the_reference(type_id, reference, scf, values, rename
 
 
 def test_steps_of_each_type_in_order():
-    assert runs(_ours("scf", al(), {})) == ["scf.in"]
-    assert runs(_ours("relax", al(), {})) == ["relax.in"]
-    assert runs(_ours("vc-relax", al(), {})) == ["vc-relax.in"]
-    assert runs(_ours("bandas", al(), {"kpath": AL_PATH})) == ["scf.in", "bands.in", "bands_pp.in"]
+    assert runs(_ours("scf", al(), {})) == ["scf_al.in"]
+    assert runs(_ours("relax", al(), {})) == ["relax_al.in"]
+    assert runs(_ours("vc-relax", al(), {})) == ["vc-relax_al.in"]
+    bands = _ours("bandas", al(), {"kpath": AL_PATH})
+    assert runs(bands) == ["scf_al.in", "bands.in", "bands_pp.in"]
     spin = _ours("bandas", ni(), {"kpath": AL_PATH})
-    assert runs(spin) == ["scf.in", "bands.in", "bands_pp_up.in", "bands_pp_dw.in"]
+    assert runs(spin) == ["scf_ni.in", "bands.in", "bands_pp_up.in", "bands_pp_dw.in"]
     pdos = _ours("pdos", al(), {})
-    assert runs(pdos) == ["scf.in", "nscf.in", "projwfc.in"]
+    assert runs(pdos) == ["scf_al.in", "nscf_al.in", "projwfc.in"]
     assert pdos.index("projwfc.out") < pdos.index(
         "mkdir -p orbitals\nmv *pdos_atm#* orbitals/ 2>/dev/null"
     )
@@ -140,10 +159,10 @@ def test_pdos_mv_takes_only_the_projections(filpdos):
     assert pattern is not None
     projections = [f"{filpdos}.pdos_atm#1(Al)_wfc#1(s)", f"{filpdos}.pdos_atm#1(Al)_wfc#2(p)"]
     others = [
-        "scf.in",
-        "scf.out",
-        "nscf.in",
-        "nscf.out",
+        "scf_al.in",
+        "scf_al.out",
+        "nscf_al.in",
+        "nscf_al.out",
         "projwfc.in",
         "projwfc.out",
         f"{filpdos}.pdos_tot",
@@ -160,6 +179,15 @@ def test_scripts_run_exactly_the_planned_inputs():
             assert runs(plan.files[0].text) == inputs
 
 
+def test_no_script_template_names_an_input():
+    """Spec 28 R1.4: the names reach the scripts as variables, so a renamed input is run."""
+    scripts = [name for name in template_names() if name.startswith("qsub/")]
+    assert "qsub/bands.qsub.j2" in scripts and "qsub/bandas.qsub.j2" not in scripts
+    for name in scripts:
+        text = ROOT.joinpath("qsub").joinpath(name.removeprefix("qsub/")).read_text()
+        assert not re.search(r"[\w.-]+\.(in|out)\b", text), name
+
+
 def test_cluster_settings_come_from_the_config():
     jobs = JOBS.model_copy(
         update={
@@ -170,7 +198,7 @@ def test_cluster_settings_come_from_the_config():
             "env_lines": ["module load qe"],
         }
     )
-    text = by_id("scf").plan(al(), {"np": 32, "nk": 2}, jobs).files[0].text
+    text = by_id("scf").plan(al(), {"np": 32, "nk": 2}, jobs, "avancado").files[0].text
     for line in (
         'PWCOMMAND="/sw/qe-7.3/bin/pw.x -nk 2"',
         "#$ -pe mpi 32",

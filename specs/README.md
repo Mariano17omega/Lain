@@ -9,7 +9,7 @@ de carga e Projetos), em grupos de itens relacionados e em ordem de prioridade. 
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
 ```
-/plan implementar specs/spec_28-padroes-e-modo-padrao-avancado.md
+/plan implementar specs/spec_29-calculo-de-carga.md
 ```
 
 ## Roadmap

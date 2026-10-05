@@ -1,7 +1,8 @@
 """The ``.qsub`` script every type writes first (spec 25 R6): its three fields and its checks.
 
 The cluster side (QE and MPI paths, parallel environment, environment lines) comes from the
-``jobs:`` section of ``config.yaml``; the form only asks for the job name, NP and the pools.
+``jobs:`` section of ``config.yaml``, as do the defaults of NP and the pools; the form (``avancado``
+mode only) asks for the job name, NP and the pools. The runs are the inputs' names, chosen or not.
 """
 
 from __future__ import annotations
@@ -17,8 +18,9 @@ from .base import FormField, PlannedFile, Work
 if TYPE_CHECKING:
     from .base import CalcType
 
-__all__ = ["JOB_NAME_MAX", "job_name", "pool_notes", "script_fields", "script_file"]
+__all__ = ["JOB_NAME_MAX", "SCRIPT_KEY", "job_name", "pool_notes", "script_fields", "script_file"]
 
+SCRIPT_KEY = "script"
 JOB_NAME_MAX = 15
 _JOB_UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
 
@@ -29,7 +31,7 @@ def job_name(name: str) -> str:
 
 
 def script_fields(type_: CalcType, scf: ScfInfo, jobs: JobsConfig) -> list[FormField]:
-    group = type_.script_name
+    group = SCRIPT_KEY
     return [
         FormField(
             "job_name",
@@ -51,7 +53,7 @@ def script_fields(type_: CalcType, scf: ScfInfo, jobs: JobsConfig) -> list[FormF
             "nk",
             "Pools (nk)",
             "int",
-            type_.default_nk,
+            jobs.nk,
             group=group,
             tooltip="pw.x -nk: número de pools (grupos de k-points); NP deve ser múltiplo de nk",
         ),
@@ -81,7 +83,7 @@ def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
             f"Nome do job ajustado para {name} (até 15 caracteres: letras, números, . _ -)"
         )
     np_ = values["np"] if values["np"] is not None else jobs.cores
-    nk = values["nk"] if values["nk"] is not None else type_.default_nk
+    nk = values["nk"] if values["nk"] is not None else jobs.nk
     work.notes.extend(pool_notes(np_, nk))
     text = render(
         type_.script_template,
@@ -97,4 +99,5 @@ def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
             **type_.script_values(work),
         },
     )
-    return PlannedFile(type_.script_name, "qsub", text, f"Script ({type_.script_name})")
+    script = type_.script_name
+    return PlannedFile(script, "qsub", text, f"Script ({script})", SCRIPT_KEY)

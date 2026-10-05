@@ -1,6 +1,7 @@
 """Spec 25: a generated folder, once its outputs are there, is what Lain detects and plots.
 
-The outputs are copies of the fixtures' runs, under the names the generated script gives them.
+The outputs are copies of the fixtures' runs, under the names the generated script gives them
+(spec 28 R1.5: ``scf_<prefix>.out``, ``nscf_<prefix>.out``, bands.x's ``./band`` files).
 """
 
 import shutil
@@ -28,21 +29,24 @@ def fill(folder, source, pairs):
 def test_bands_folder_is_detected_with_its_path(tmp_path):
     calc = by_id("bandas")
     created = create_folder(tmp_path, calc, "Al", calc.plan(al(), {"kpath": AL_PATH}, JOBS))
+    assert created.folder.name == "Bands_Al"
     fill(
         created.folder,
         "al_bands",
         [
-            ("al.scf.out", "scf.out"),
+            ("al.scf.out", "scf_al.out"),
             ("al.band.out", "bands.out"),
             ("bands.out", "bands_pp.out"),
-            ("bands.dat", "bands.dat"),
-            ("bands.dat.gnu", "bands.dat.gnu"),
+            ("bands.dat", "band"),
+            ("bands.dat.gnu", "band.gnu"),
         ],
     )
     found, cache = results(created.folder)
     bands = found["bands"]
     assert bands.plottable
     assert bands.file("bands_in") == created.folder / "bands.in"
+    assert bands.file("scf_out") == created.folder / "scf_al.out"
+    assert bands.file("gnu") == created.folder / "band.gnu"
     dataset = BandsModule().load(bands, cache.sniff)
     assert dataset.labels == ["L", "Gamma", "X", "U", "Gamma"]
 
@@ -54,33 +58,36 @@ def test_spin_bands_folder_pairs_both_channels(tmp_path):
         created.folder,
         "qe731_ni_spin_bands",
         [
-            ("ni.scf.out", "scf.out"),
+            ("ni.scf.out", "scf_ni.out"),
             ("ni.band.out", "bands.out"),
             ("bands_up.out", "bands_pp_up.out"),
             ("bands_dw.out", "bands_pp_dw.out"),
-            ("bands_up.dat", "bands_up.dat"),
-            ("bands_up.dat.gnu", "bands_up.dat.gnu"),
-            ("bands_dw.dat", "bands_dw.dat"),
-            ("bands_dw.dat.gnu", "bands_dw.dat.gnu"),
+            ("bands_up.dat", "band_up"),
+            ("bands_up.dat.gnu", "band_up.gnu"),
+            ("bands_dw.dat", "band_dw"),
+            ("bands_dw.dat.gnu", "band_dw.gnu"),
         ],
     )
     found, _ = results(created.folder)
     bands = found["bands"]
     assert bands.plottable
-    assert [p.name for p in bands.files["gnu"]] == ["bands_up.dat.gnu"]
-    assert [p.name for p in bands.files["gnu_down"]] == ["bands_dw.dat.gnu"]
+    # Paired by the bands.x inputs (spin_component, filband = './band_up' / './band_dw').
+    assert [p.name for p in bands.files["gnu"]] == ["band_up.gnu"]
+    assert [p.name for p in bands.files["gnu_down"]] == ["band_dw.gnu"]
+    assert not any("canal" in warning for warning in bands.warnings), bands.warnings
 
 
 def test_pdos_folder_is_detected(tmp_path):
     calc = by_id("pdos")
-    created = create_folder(tmp_path, calc, "Al", calc.plan(al(), {}, JOBS))
+    created = create_folder(tmp_path, calc, "", calc.plan(al(), {}, JOBS))
     folder = created.folder
+    assert folder.name == "PDOS"
     fill(
         folder,
         "al_pdos_flat",
         [
-            ("al.scf.out", "scf.out"),
-            ("al.nscf.out", "nscf.out"),
+            ("al.scf.out", "scf_al.out"),
+            ("al.nscf.out", "nscf_al.out"),
             ("al.projwfc.out", "projwfc.out"),
             ("pdos.dat.pdos_tot", "pdos.dat.pdos_tot"),
         ],
@@ -91,5 +98,8 @@ def test_pdos_folder_is_detected(tmp_path):
     for path in (FIXTURES / "al_pdos_flat").glob("*pdos_atm*"):
         shutil.copy(path, folder / "orbitals" / path.name)
     found, _ = results(folder)
-    assert found["pdos"].plottable
-    assert found["pdos"].file("projwfc_out") == folder / "projwfc.out"
+    pdos = found["pdos"]
+    assert pdos.plottable
+    assert pdos.file("projwfc_out") == folder / "projwfc.out"
+    assert pdos.file("scf_out") == folder / "scf_al.out"
+    assert pdos.file("nscf_out") == folder / "nscf_al.out"

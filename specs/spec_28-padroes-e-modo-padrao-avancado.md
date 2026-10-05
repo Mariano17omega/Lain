@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 28 (base das specs 29 e 30) |
-| **Status** | Proposta |
+| **Status** | Implementada. Desvios:<br>- **Chave estável por arquivo:** como o nome pode ser editado, `PlannedFile.key` (`script`, `scf`, `relax`, `bands`, `bands_pp`…) identifica o arquivo; `FormField.group` passou a nomear a chave, e a janela indexa abas e prévias por ela. Cada tipo declara `input_files(scf)` → `types/files.py:InputFile(key, name, label)`; o campo "Nome do arquivo" é `name:<key>`.<br>- **Marcas pelo plano:** `CalcPlan.problems` (id do campo → problema) junta os problemas dos campos e dos nomes; a janela marca a partir dele. Nome repetido marca os dois campos.<br>- **Malha do NSCF:** oculta no Padrão, exceto quando o SCF não tem `K_POINTS automatic` (aí o padrão seria 4×4×4 e não a do SCF; o campo aparece).<br>- **`ScfInfo.warnings` removido:** as notas de `pseudo_dir` precisam de `jobs`, então estão em `core/calc_create/unit.py:unit_notes` com as de caminho fora da pasta; a de `outdir` absoluto deixou de existir.<br>- **`edits.put_text`:** `put_string` compara sem caixa (bom para palavras-chave); `outdir`/`pseudo_dir` usam `put_text`, que compara como escrito.<br>- **Templates:** `scf`/`relax`/`vc-relax` continuam um por tipo (laço sobre `pw_runs`); o teste de referência da PDOS passa `nk = 8` (o da referência), já que `jobs.nk` é 4.<br>- **Testes:** `test_calc_types.py` planeja no Avançado; os critérios desta spec estão em `tests/test_calc_standard.py` e no fim de `test_calc_create_dialog.py`.<br>- Como as 27-x, a spec fica em `specs/` (não movida para `Archived/`). |
 | **Depende de** | spec 25 (backend de "Criar cálculo"), spec 26 (janela), **spec 27-1** (`pdos.qsub` e `projwfc.in` corrigidos) e **spec 27-2** (caminho das bandas digitado, sem "Sugerir") |
 | **Usada por** | spec 29 (carga), spec 30 (diferença de carga) |
 | **Esforço** | G |
@@ -202,23 +202,23 @@ verdes com os nomes novos (`scf_<prefix>.in`, `nscf_<prefix>.in`).
   implementar.
 
 ## Critérios de aceite e testes
-- [ ] Nomes: cada tipo planeja exatamente os arquivos da tabela R1.3 (prefix `Al` → `scf_Al.in`); `.qsub` com
+- [x] Nomes: cada tipo planeja exatamente os arquivos da tabela R1.3 (prefix `Al` → `scf_Al.in`); `.qsub` com
       `-i "scf_Al.in" > "scf_Al.out"`; nenhum template contém um nome de input literal.
-- [ ] Pasta: `Bands_Al`; nome vazio → `Bands`; segunda criação → `Bands_1`; `validate_suffix("")` sem erro e
+- [x] Pasta: `Bands_Al`; nome vazio → `Bands`; segunda criação → `Bands_1`; `validate_suffix("")` sem erro e
       `validate_suffix("a/b")` com erro.
-- [ ] outdir `'./tmp/'` em todos os inputs gerados (lint sem erros); `pseudo_dir` = `jobs.pseudo_dir` quando
+- [x] outdir `'./tmp/'` em todos os inputs gerados (lint sem erros); `pseudo_dir` = `jobs.pseudo_dir` quando
       definido, o do SCF + nota quando não; diff da cópia do SCF contra o original = só essas linhas.
-- [ ] Modo: no Padrão, `plan` ignora um valor editado de um campo não-padrão; `visible_fields` por tipo = tabela
+- [x] Modo: no Padrão, `plan` ignora um valor editado de um campo não-padrão; `visible_fields` por tipo = tabela
       R3.3; `nbnd` obrigatório sem padrão aparece no Padrão; `nk` padrão = `jobs.nk`.
-- [ ] Bandas Padrão: `bands_pp.in` com `prefix`, `outdir = './tmp/'`, `filband = './band'`; spin → `_up`/`_dw`.
-- [ ] PDOS Padrão: `projwfc.in` com `DeltaE 0.01`, `Emin`/`Emax` do formulário, `ngauss 0`, `degauss 0.000735`,
+- [x] Bandas Padrão: `bands_pp.in` com `prefix`, `outdir = './tmp/'`, `filband = './band'`; spin → `_up`/`_dw`.
+- [x] PDOS Padrão: `projwfc.in` com `DeltaE 0.01`, `Emin`/`Emax` do formulário, `ngauss 0`, `degauss 0.000735`,
       `filpdos '<prefix>.dat'`; malha do NSCF = a do SCF; com NSCF em tetraedros, sem `ngauss`/`degauss` (27-1).
-- [ ] Avançado: "Nome do arquivo" muda o nome planejado e o `.qsub`; nome repetido, sem `.in` ou com `/` → erro que
+- [x] Avançado: "Nome do arquivo" muda o nome planejado e o `.qsub`; nome repetido, sem `.in` ou com `/` → erro que
       bloqueia "Criar".
-- [ ] `pdos.qsub`: mantém o `mv *pdos_atm#* orbitals/` da 27-1 com os nomes de entrada variáveis; o glob não casa `projwfc.in`/`projwfc.out` nem `nscf_<prefix>.*`.
-- [ ] Ida e volta: pastas `Bands_*` e `PDOS_*` com as saídas das fixtures (nomes novos) detectadas como Bandas e PDOS.
-- [ ] Janela: o botão troca o modo sem reconstruir as abas e sem perder edições; o modo volta após reabrir
+- [x] `pdos.qsub`: mantém o `mv *pdos_atm#* orbitals/` da 27-1 com os nomes de entrada variáveis; o glob não casa `projwfc.in`/`projwfc.out` nem `nscf_<prefix>.*`.
+- [x] Ida e volta: pastas `Bands_*` e `PDOS_*` com as saídas das fixtures (nomes novos) detectadas como Bandas e PDOS.
+- [x] Janela: o botão troca o modo sem reconstruir as abas e sem perder edições; o modo volta após reabrir
       (QSettings isolado do `main_window`); "Continuar" habilitado sem nome de pasta.
-- [ ] Config: `jobs.pseudo_dir` e `jobs.nk` aceitos, `nk < 1` recusado; as duas cópias de `config.example.yaml`
+- [x] Config: `jobs.pseudo_dir` e `jobs.nk` aceitos, `nk < 1` recusado; as duas cópias de `config.example.yaml`
       idênticas.
-- [ ] `test_architecture.py`: arquivos < 500 linhas; `ui/` sem nomes de tipo.
+- [x] `test_architecture.py`: arquivos < 500 linhas; `ui/` sem nomes de tipo.

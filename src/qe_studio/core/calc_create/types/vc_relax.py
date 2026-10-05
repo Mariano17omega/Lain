@@ -17,12 +17,13 @@ DEFAULT_PRESS = 0.0  # kbar
 class VcRelaxType(RelaxType):
     id: ClassVar[str] = "vc-relax"
     label: ClassVar[str] = "VC-Relax"
-    folder_prefix: ClassVar[str] = "vc-relax"
+    folder_prefix: ClassVar[str] = "VC-Relax"
+    script_stem: ClassVar[str] = "vc-relax"
     script_template: ClassVar[str] = "qsub/vc-relax.qsub.j2"
     calculation: ClassVar[str] = "vc-relax"
 
     def input_fields(self, scf: ScfInfo) -> list[FormField]:
-        group = self.input_name
+        group = self.calculation
         dynamics = (scf.value("cell", "cell_dynamics") or "").strip().lower()
         press = _number(scf, "cell", "press")
         return [

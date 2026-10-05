@@ -562,7 +562,7 @@ each drawn by its own module (vector export, pan/zoom per cell).
   `test_input_edit.py`, the editor properties in `test_properties.py`, `test_unique_names.py`,
   `test_scf_from_relax.py`, `test_scf_from_relax_ui.py`.
 
-### "Criar cálculo" backend (spec 25)
+### "Criar cálculo" backend (spec 25, spec 28)
 
 `core/calc_create/` (Qt-free; the window is spec 26) turns the user's SCF input into a new folder with the inputs and the
 SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside functions only
@@ -572,24 +572,45 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   `latgen` (every ibrav, QE's own vectors and its 13-digit `sqrt(2)`/`sqrt(3)`) and `abc2celldm`; `crystal_from_editor`
   gives `Crystal(cell Å, labels, frac)` or raises `StructureError` (`crystal_sg` is not supported).
 - **`scf_info.py`**: `scf_info(text, path)` (pure) / `read_scf(path)` (worker; adds `scf_bands`, the Kohn-Sham states
-  of `X.out` next to `X.in`) → `ScfInfo` (prefix [`pwscf`], outdir, nspin, occupations, nbnd, `kmesh`, `crystal` or
-  `structure_problem`, warnings for an absolute outdir and a relative/missing pseudo_dir; `value(namelist, key)` reads
-  the text as written). `calculation` other than scf → `ScfInputError`.
-- **Types** (`types/`, `REGISTRY`, `by_id`): `CalcType` ClassVars `id`, `label`, `folder_prefix`, `script_template`,
-  `input_templates`, `default_nk`; `fields(scf, jobs)` = the script's three (`types/script.py`: `job_name` sanitized
-  to 15 chars, `np` = `jobs.cores`, `nk`) + `input_fields(scf)`; `plan(scf, values, jobs)` never raises nor reads a
-  file: `resolve` (empty → default, invalid / required-without-value → `errors`), then the script and `inputs(work)`.
-  `CalcPlan(files, notes, errors)`: files in tab order (script first), `notes` warn, `errors` block "Criar".
-  `FormField.group` is the `PlannedFile.name` whose tab shows it. A new type = a module + its templates + a registry
-  entry. The pw.x inputs are edits of the SCF's text (`edits.py`: `put_*` change a value only when it differs, so an
-  unchanged field keeps its line; `ensure_smearing`); `scf.in` of bandas/pdos is the SCF byte for byte. Bandas with
-  `nspin = 2` writes `bands_pp_up.in` / `bands_pp_dw.in` (`spin_component` 1/2, `filband` `bands_up.dat` /
-  `bands_dw.dat`: the names spec 13 pairs). NP not a multiple of nk is a note (pw.x stops on it in `mp_start_pools`).
+  of `X.out` next to `X.in`) → `ScfInfo` (prefix [`pwscf`], outdir, pseudo_dir, nspin, occupations, nbnd, `kmesh`,
+  `crystal` or `structure_problem`; `value(namelist, key)` reads the text as written). `calculation` other than scf →
+  `ScfInputError`.
+- **Types** (`types/`, `REGISTRY`, `by_id`): `CalcType` ClassVars `id` (never renamed: QSettings and tests use them),
+  `label`, `folder_prefix` (`SCF`, `Relax`, `VC-Relax`, `Bands`, `PDOS`), `script_stem` (`scf`, `relax`, `vc-relax`,
+  `bands`, `pdos` → `script_name` `<stem>.qsub`), `script_template`, `input_templates`. `input_files(scf)` lists the
+  inputs as `types/files.py:InputFile(key, name, label)`: a stable key (`scf`, `relax`/`vc-relax`, `bands`, `bands_pp`
+  or `bands_pp_up`/`_dw`, `nscf`, `projwfc`) and the standard name (spec 28 R1.3: `scf_<prefix>.in`,
+  `relax_<prefix>.in`, `vc-relax_<prefix>.in`, `nscf_<prefix>.in`, `<prefix>` = `unit_stem(scf.prefix)`; plain
+  `bands.in`, `bands_pp.in`, `projwfc.in`). `fields(scf, jobs)` = the script's three (`types/script.py`, key `script`:
+  `job_name` sanitized to 15 chars, `np` = `jobs.cores`, `nk` = `jobs.nk`) + a "Nome do arquivo" field per input
+  (`name:<key>`, first in its tab) + `input_fields(scf)`. `FormField.group` and `PlannedFile.key` are that key (names
+  can be edited), and the script gets the names through `script_values(work)` (`pw_runs`, `bands_x`, `projwfc`: `(in,
+  out)` pairs from `work.run(key)`; no `.j2` under `qsub/` names an input, `test_no_script_template_names_an_input`).
+  `plan(scf, values, jobs, mode="padrao")` never raises nor reads a file: values of fields `visible_fields` hides in
+  the mode are dropped (their default counts; the window keeps them), `resolve` (empty → default, invalid /
+  required-without-value → errors), `files.check_names` (`.in`, `[A-Za-z0-9._-]`, unique; a bad name is still
+  previewed), then the script and `inputs(work)` (`work.name(key)`, `work.planned`, `work.pw_file`).
+  `CalcPlan(files, notes, errors, problems)`: files in tab order (script first), `notes` warn, `errors` block "Criar",
+  `problems` (field id → text) are what the window marks. A new type = a module + its templates + a registry entry.
+- **Modes** (spec 28 R3): `Mode` = `padrao` | `avancado` (`MODES`, `DEFAULT_MODE`). `FormField.standard` shows a field
+  in `padrao`; `is_visible` = `standard or avancado or (required and default is None)` (`nbnd` without an SCF value
+  or output shows in both). `padrao` shows: nothing for SCF / Relax / VC-Relax, the path for Bandas, `e_min` / `e_max`
+  for PDOS (its NSCF mesh only when the SCF has no automatic one). Defaults: projwfc `degauss` 0.000735 Ry, `filband`
+  `./band` (`channel_filband` → `./band_up` / `./band_dw`, the names spec 13 pairs by the bands.x input).
+- **Self-contained folder** (`unit.py`, spec 28 R2): `Work.editor()` is the SCF's text after `apply_unit`
+  (`outdir = './tmp/'` always, `jobs.pseudo_dir` when set; `edits.put_text` compares with case), so every pw.x input,
+  the SCF copy included, gets it (the copy differs from the SCF only there); bands.x and projwfc.x templates get
+  `UNIT_OUTDIR`. `unit_notes(scf, jobs)`: without `jobs.pseudo_dir`, `PSEUDO_DIR_NOTE` plus the missing / relative
+  pseudo_dir notes; a `..` pseudo_dir or an absolute / `..` `wfcdir` is "O SCF usa um caminho fora da pasta: …".
+  The pw.x inputs are edits of the SCF's text (`edits.py`: `put_*` change a value only when it differs, so an
+  unchanged field keeps its line; `ensure_smearing`). NP not a multiple of nk is a note (pw.x stops on it in
+  `mp_start_pools`).
 - **Templates** (`resources/templates/`, `render.py`: `FunctionLoader` over `importlib.resources`, `StrictUndefined`,
   `trim_blocks`/`lstrip_blocks`, filters `fstr`/`fnum`): `qsub/_base.qsub.j2` is the reference header once
-  (`Documentation/Referencia_de_scripts_QSUB`), each `qsub/<type>.qsub.j2` extends it with its commands; `qe/bandas/
-  bands_pp.in.j2`, `qe/pdos/projwfc.in.j2`. The cluster side comes from `config.yaml` `jobs:` (`JobsConfig`:
-  `qe_bin`, `mpi_command`, `parallel_env`, `omp_threads`, `env_lines`, `cores`), never from the form.
+  (`Documentation/Referencia_de_scripts_QSUB`), each `qsub/<type>.qsub.j2` (`bands.qsub.j2` for Bandas) extends it
+  with its commands; `qe/bandas/bands_pp.in.j2`, `qe/pdos/projwfc.in.j2`. The cluster side comes from `config.yaml`
+  `jobs:` (`JobsConfig`: `qe_bin`, `mpi_command`, `parallel_env`, `omp_threads`, `env_lines`, `cores`, `nk`,
+  `pseudo_dir`), never from the form.
 - **K-points** (`kpath.py`): `KMesh` (`K_POINTS automatic`), `KPoint(label, frac, npts)`, `KPath(points, breaks,
   warnings)`, `to_card` (`crystal_b`; weight `npts`, 1 at a break and at the end, `! Gamma` labels). The band path is
   typed by the user (spec 27-2: nothing suggests it). Two checks use `Crystal.cell` (Å) and never raise:
@@ -598,13 +619,15 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   `collapsed_segments` keeps those under 50 % (`CollapsedSegment(a, b, lost)`, `a` the vertex the segment starts at,
   `collapse_note` its Portuguese text); `distribute(path, cell, density, min_pts=2)` sets each `npts` to
   `round(length · density)` (≤ `MAX_NPTS` = 1000); the last point and the ones before a break keep theirs.
-- **`writer.py`**: `validate_target`, `preview_name` (`unique_names.next_free_dir`), `files_to_write` (+
+- **`writer.py`**: `folder_name` (`<folder_prefix>_<name>`, or the prefix alone: the name is optional),
+  `validate_target`, `preview_name` (`unique_names.next_free_dir`), `files_to_write` (+
   `descricao.md` when the notes have text), `create_folder` (worker): `unique_names.make_new_dir` (`mkdir` loop,
   `_N` always at the end), every file `open(…, "x")`, a failure removes only the files it wrote and `rmdir`s its
   folder (`CreateError`). Tests: `tests/calc_helpers.py` and `test_lattice.py`, `test_kpath.py`, `test_calc_*.py`
-  (`test_calc_roundtrip.py` fills generated folders with fixture outputs and detects them).
+  (`test_calc_types.py` plans in `avancado`; `test_calc_standard.py` holds spec 28's names, modes and unit;
+  `test_calc_roundtrip.py` fills generated folders with fixture outputs under the new names and detects them).
 
-### "Criar cálculo" window (spec 26)
+### "Criar cálculo" window (spec 26, spec 28 R5)
 
 `ui/calc_create_controller.py:CalcCreateController.for_window` connects `ActivityBar.create_requested` (button
 `new_calc`, "Criar") and the `calc.create` action (Ferramentas); both are disabled while `local_root` is not a
@@ -615,13 +638,19 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
 
 - `ui/dialogs/calc_create/`: `dialog.CalcCreateDialog` (steps in a `QStackedWidget`; `continue_` rebuilds step 2
   only when the type or the `ScfInfo` object changed; Esc / X / "Cancelar" ask `ask_discard` only when
-  `TabsPage.dirty`; emits `create_requested(CreateRequest)`), `setup_page.SetupPage` (type combo, SCF via
-  `looks_like_input` then `read_scf` in a `TaskGroup` → `scf_ready`, `choose_scf` / `choose_folder` module
-  functions, `problems()` gate "Continuar"), `tabs_page.TabsPage` (a tab per `CalcPlan.files` entry: `FieldForm`
-  | `FilePreview` in a `QSplitter`, then "Arquivos" and "Descrição"; edits replan after `debounce_ms` (tests: 0 or
-  `flush()`); `blocking()` = first plan error, the "Criar" tooltip), `form.FieldForm` (widget per `FormField.kind`,
-  `mark(field_problems)` sets the `invalid` property), `kmesh.KMeshEditor`, `preview.FilePreview` (read-only
-  `CodeView`, `InputHighlighter` / `ShellHighlighter`, changed lines in `diff_change_bg`) and `FilesView`.
+  `TabsPage.dirty`; emits `create_requested(CreateRequest)`; `settings=` is where the mode lives, QSettings
+  `calc_create/mode`, `padrao` the first time: the controller passes `window.settings`), `mode_switch.ModeSwitch`
+  (two exclusive `toggle` `QToolButton`s right of the step title, step 2 only; `set_mode` never emits),
+  `setup_page.SetupPage` (type combo, SCF via `looks_like_input` then `read_scf` in a `TaskGroup` → `scf_ready`,
+  `choose_scf` / `choose_folder` module functions, "Nome da pasta" optional, `problems()` gate "Continuar"),
+  `tabs_page.TabsPage` (a tab per `CalcPlan.files` entry, keyed by `PlannedFile.key` (`previews[key]`, labels
+  refreshed by every plan: a renamed file renames its tab): `FieldForm` | `FilePreview` in a `QSplitter`, then
+  "Arquivos" and "Descrição"; edits replan after `debounce_ms` (tests: 0 or `flush()`); `set_mode` shows the rows of
+  `visible_fields` and hides the form side of a tab with none (`form_shown(key)`), never rebuilding;
+  `blocking()` = first plan error, the "Criar" tooltip), `form.FieldForm` (widget per `FormField.kind`, `rows` per
+  field for `set_visible(ids)` / `shown(id)`, `mark(plan.problems)` sets the `invalid` property),
+  `kmesh.KMeshEditor`, `preview.FilePreview` (read-only `CodeView`, `InputHighlighter` / `ShellHighlighter`, changed
+  lines in `diff_change_bg`) and `FilesView`.
 - `ui/widgets/kpath_editor.py:KPathEditor(theme, cell)`: the `crystal_b` table, empty on open (`FieldForm` passes
   `scf.crystal.cell`, None without a readable structure); `set_path` shows a path without `changed(True)`. Cells take
   finite numbers only (no `nan`/`inf`/`1_0`), points 1 to `MAX_NPTS`. A point added after a break inherits it, removing
@@ -630,7 +659,8 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
   comprimento" (density field, 25 points/Å⁻¹) rewrites only the points column and is disabled without a `cell`. The
   bands plan carries the same notes (`types/bandas.py`), never as errors.
 - Tests: `test_calc_create_preview.py` (core), `test_kpath_editor.py`, `test_calc_create_dialog.py` (window alone,
-  `calc_dialog_helpers.py`: `pick_scf`, `fill_setup`, `to_files`), `test_calc_create_ui.py` (main window),
+  `make_dialog(mode="avancado", settings=None)`; `calc_dialog_helpers.py`: `pick_scf`, `fill_setup`, `to_files`),
+  `test_calc_create_ui.py` (main window),
   `test_shell_highlighter.py`. Patch `dialog.ask_discard` in every test that leaves a dirty window: a real
   question blocks, even at teardown; and do not `qtbot.addWidget` the dialog (delete-on-close).
 

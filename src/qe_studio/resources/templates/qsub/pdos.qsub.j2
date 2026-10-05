@@ -3,15 +3,15 @@
 PROJWFCCOMMAND="{{ qe_bin }}/projwfc.x"
 {% endblock %}
 {% block body %}
-${MPICOMMAND} ${PWCOMMAND} -i "scf.in" > "scf.out"
+{% for input, output in pw_runs %}
+${MPICOMMAND} ${PWCOMMAND} -i "{{ input }}" > "{{ output }}"
 
-${MPICOMMAND} ${PWCOMMAND} -i "nscf.in" > "nscf.out"
-
-${PROJWFCCOMMAND} -i "projwfc.in" > "projwfc.out"
+{% endfor %}
+${PROJWFCCOMMAND} -i "{{ projwfc[0] }}" > "{{ projwfc[1] }}"
 {% endblock %}
 {% block post %}
 
-{# projwfc.x names its projections <filpdos>.pdos_atm#N(El)_wfc#M(l) and detection reads them from orbitals/. A glob on "wfc" would also move projwfc.in and projwfc.out. #}
+{# projwfc.x names its projections <filpdos>.pdos_atm#N(El)_wfc#M(l) and detection reads them from orbitals/. A glob on "wfc" would also move the input and output of projwfc.x. #}
 mkdir -p orbitals
 mv *pdos_atm#* orbitals/ 2>/dev/null
 {% endblock %}

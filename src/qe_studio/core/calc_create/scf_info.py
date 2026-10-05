@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from ..qe.input_edit import InputEditor, read_input_text
 from ..qe.lattice import Crystal, StructureError, crystal_from_editor
@@ -50,7 +50,6 @@ class ScfInfo:
     crystal: Crystal | None = field(default=None, repr=False)
     structure_problem: str | None = None  # why ``crystal`` is None
     scf_bands: int | None = None  # Kohn-Sham states of the SCF's own output, when it ran
-    warnings: tuple[str, ...] = ()
 
     @property
     def name(self) -> str:
@@ -81,22 +80,6 @@ def _float(text: str | None) -> float | None:
     return fortran_float(text) if text is not None else None
 
 
-def _warnings(outdir: str | None, pseudo_dir: str | None) -> list[str]:
-    out = []
-    if outdir and PurePosixPath(outdir).is_absolute():
-        out.append(
-            f"outdir é absoluto ({outdir}): cálculos com o mesmo prefix nesse diretório se "
-            "sobrescrevem"
-        )
-    if pseudo_dir is None:
-        out.append("sem pseudo_dir: o pw.x procura os pseudopotenciais em $ESPRESSO_PSEUDO")
-    elif not PurePosixPath(pseudo_dir).is_absolute() and not pseudo_dir.startswith(("~", "$")):
-        out.append(
-            f"pseudo_dir relativo ({pseudo_dir}): confira se ele vale a partir da pasta nova"
-        )
-    return out
-
-
 def scf_info(text: str, path: Path | None = None) -> ScfInfo:
     """The facts of an SCF input. Raises ``ScfInputError`` when it is no pw.x SCF."""
     name = path.name if path is not None else "O arquivo"
@@ -123,13 +106,12 @@ def scf_info(text: str, path: Path | None = None) -> ScfInfo:
         crystal, problem = crystal_from_editor(editor), None
     except StructureError as exc:
         crystal, problem = None, str(exc)
-    outdir, pseudo_dir = get("control", "outdir"), get("control", "pseudo_dir")
     return ScfInfo(
         text=text,
         path=path,
         prefix=get("control", "prefix") or DEFAULT_PREFIX,
-        outdir=outdir,
-        pseudo_dir=pseudo_dir,
+        outdir=get("control", "outdir"),
+        pseudo_dir=get("control", "pseudo_dir"),
         ibrav=_int(get("system", "ibrav")),
         nat=_int(get("system", "nat")),
         ntyp=_int(get("system", "ntyp")),
@@ -145,7 +127,6 @@ def scf_info(text: str, path: Path | None = None) -> ScfInfo:
         species=species,
         crystal=crystal,
         structure_problem=problem,
-        warnings=tuple(_warnings(outdir, pseudo_dir)),
     )
 
 

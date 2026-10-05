@@ -27,7 +27,6 @@ def test_facts_of_the_al_scf():
     assert info.species == ("Al",)
     assert info.crystal is not None and info.structure_problem is None
     assert info.scf_bands == 6  # "number of Kohn-Sham states" of al.scf.out next to it
-    assert info.warnings == ()
     assert info.text == AL_SCF.read_text()
 
 
@@ -71,16 +70,6 @@ def test_a_structure_the_reader_cannot_build_is_no_error():
     info = from_text(text)
     assert info.crystal is None
     assert "celldm(1)" in info.structure_problem
-
-
-def test_warnings_of_outdir_and_pseudo_dir():
-    text = AL_SCF.read_text()
-    absolute = text.replace("outdir='./tmp'", "outdir='/scratch/m'")
-    assert any("outdir é absoluto (/scratch/m)" in w for w in from_text(absolute).warnings)
-    relative = text.replace("'/home/m/Documentos/pseudo'", "'../pseudo'")
-    assert any("pseudo_dir relativo (../pseudo)" in w for w in from_text(relative).warnings)
-    missing = text.replace("    pseudo_dir = '/home/m/Documentos/pseudo',\n", "")
-    assert any("sem pseudo_dir" in w for w in from_text(missing).warnings)
 
 
 def test_latin_1_input(tmp_path):

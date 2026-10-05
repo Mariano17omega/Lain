@@ -13,7 +13,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Protocol
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, QSettings, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
 from ..core.calc_create.preview import created_notice
@@ -58,8 +58,10 @@ class CalcCreateController(QObject):
         dialog_parent: QWidget,
         parent: QObject | None = None,
         sync_enabled: Callable[[], bool] = lambda: False,
+        settings: QSettings | None = None,
     ):
         super().__init__(parent)
+        self.settings = settings  # the window remembers its mode there (spec 28 R5.2)
         self._sync_enabled = sync_enabled  # the toast reminds of "Enviar ao cluster" (spec 27)
         self.theme, self._root, self._current_folder, self._jobs = theme, root, current_folder, jobs
         self.busy, self.toast, self._select_path, self._refresh = busy, toast, select_path, refresh
@@ -89,6 +91,7 @@ class CalcCreateController(QObject):
             dialog_parent=window,
             parent=window,
             sync_enabled=lambda: window.config.sync_enabled,
+            settings=window.settings,
         )
         window.activity.create_requested.connect(controller.open)
         window.first_run.refreshed.connect(controller.update_available)  # start and config reload
@@ -125,6 +128,7 @@ class CalcCreateController(QObject):
             self._jobs(),
             self.busy,
             self.dialog_parent,
+            settings=self.settings,
         )
         dialog.create_requested.connect(self.create)
         dialog.finished.connect(self._on_dialog_closed)

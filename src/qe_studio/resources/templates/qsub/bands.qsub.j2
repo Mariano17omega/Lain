@@ -1,7 +1,14 @@
 {% extends "qsub/_base.qsub.j2" %}
+{% block programs %}
+BANDSCOMMAND="{{ qe_bin }}/bands.x"
+{% endblock %}
 {% block body %}
 {% for input, output in pw_runs %}
 ${MPICOMMAND} ${PWCOMMAND} -i "{{ input }}" > "{{ output }}"
+
+{% endfor %}
+{% for input, output in bands_x %}
+${BANDSCOMMAND} -i "{{ input }}" > "{{ output }}"
 {% if not loop.last %}
 
 {% endif %}

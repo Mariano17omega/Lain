@@ -1,8 +1,6 @@
 &PROJWFC
   prefix = {{ prefix | fstr }}
-{% if outdir is not none %}
   outdir = {{ outdir | fstr }}
-{% endif %}
   DeltaE = {{ delta_e | fnum }}
   filpdos = {{ filpdos | fstr }}
   Emin = {{ e_min | fnum }}

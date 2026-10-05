@@ -1,7 +1,8 @@
-"""Creating the folder of a new calculation (spec 25 R7).
+"""Creating the folder of a new calculation (spec 25 R7, spec 28 R1).
 
-The folder is ``<folder_prefix>_<suffix>`` in the chosen place, or ``…_1``, ``…_2`` when the name is
-taken: an existing folder is never reused or touched. Each file is created exclusively, and a write
+The folder is ``<folder_prefix>_<suffix>`` (``Bands_Al``), or ``<folder_prefix>`` alone when no name
+is given, in the chosen place, or ``…_1``, ``…_2`` when the name is taken: an existing folder is never
+reused or touched. Each file is created exclusively, and a write
 that fails removes only what this call created. Workers only (``run_task``).
 """
 
@@ -46,15 +47,14 @@ class Created:
 
 
 def folder_name(type_: CalcType, suffix: str) -> str:
-    return f"{type_.folder_prefix}_{suffix.strip()}"
+    suffix = suffix.strip()
+    return f"{type_.folder_prefix}_{suffix}" if suffix else type_.folder_prefix
 
 
 def validate_suffix(suffix: str) -> list[str]:
-    """What is wrong with the name typed for the folder ([] = nothing)."""
+    """What is wrong with the name typed for the folder ([] = nothing; it may be empty)."""
     suffix = suffix.strip()
-    if not suffix:
-        return ["Informe o nome da pasta"]
-    if not _SUFFIX.fullmatch(suffix) or suffix in (".", ".."):
+    if suffix and (not _SUFFIX.fullmatch(suffix) or suffix in (".", "..")):
         return ["Use só letras sem acento, números, ponto, hífen e sublinhado no nome"]
     return []
 
@@ -74,7 +74,7 @@ def validate_target(parent: Path, suffix: str) -> list[str]:
 
 
 def preview_name(parent: Path, type_: CalcType, suffix: str) -> str:
-    """The name ``create_folder`` would use now (``bandas_Al_1`` if ``bandas_Al`` exists)."""
+    """The name ``create_folder`` would use now (``Bands_Al_1`` if ``Bands_Al`` exists)."""
     return next_free_dir(parent / folder_name(type_, suffix)).name
 
 
@@ -83,7 +83,7 @@ def files_to_write(plan: CalcPlan, notes: str) -> list[PlannedFile]:
     files = list(plan.files)
     if notes.strip():
         text = notes if notes.endswith("\n") else notes + "\n"
-        files.append(PlannedFile(NOTES_NAME, "notes", text, "Descrição"))
+        files.append(PlannedFile(NOTES_NAME, "notes", text, "Descrição", "notes"))
     return files
 
 

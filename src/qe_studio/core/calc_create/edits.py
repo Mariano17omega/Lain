@@ -11,7 +11,7 @@ from ..qe.pw_input import fortran_float
 from .kpath import KMesh, KPath, to_card
 from .render import fortran_number
 
-__all__ = ["ensure_smearing", "put_mesh", "put_number", "put_path", "put_string"]
+__all__ = ["ensure_smearing", "put_mesh", "put_number", "put_path", "put_string", "put_text"]
 
 DEFAULT_SMEARING = "gaussian"
 DEFAULT_DEGAUSS = 0.01
@@ -29,6 +29,15 @@ def put_string(editor: InputEditor, namelist: str, key: str, value: str) -> bool
         return False
     quote = _quote(editor, namelist, key)
     editor.set(namelist, key, f"{quote}{value}{quote}")
+    return True
+
+
+def put_text(editor: InputEditor, namelist: str, key: str, value: str) -> bool:
+    """A string compared as written (a path: case matters); the written quote is kept."""
+    if editor.get(namelist, key) == value:
+        return False
+    quote = _quote(editor, namelist, key)
+    editor.set(namelist, key, quote + value.replace(quote, quote * 2) + quote)
     return True
 
 

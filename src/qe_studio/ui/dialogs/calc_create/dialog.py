@@ -3,7 +3,8 @@ non-modal dialog, like the sync window's pages.
 
 Nothing is written here: "Criar" asks the controller (``create_requested``), which writes in a
 worker and closes the window on success. Esc, the close button and "Cancelar" never create
-anything; with fields edited or notes written they ask first.
+anything; with fields edited or notes written they ask first. The "Padrão / Avançado" switch of
+step 2 (spec 28) is remembered in QSettings ``calc_create/mode``.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NamedTuple
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import (
     QDialog,
@@ -26,17 +27,19 @@ from PyQt6.QtWidgets import (
 )
 
 from ....core.calc_create.scf_info import ScfInfo
-from ....core.calc_create.types import CalcPlan, CalcType
+from ....core.calc_create.types import DEFAULT_MODE, MODES, CalcPlan, CalcType, Mode
 from ....core.config import JobsConfig
 from ...busy import BusyTracker
 from ...theme.manager import ThemeManager
 from ...widgets.common import set_variant
+from .mode_switch import ModeSwitch
 from .setup_page import SetupPage
 from .tabs_page import DEBOUNCE_MS, TabsPage
 
 TITLE = "Criar cálculo"
 STEP_SETUP = "1 · Configuração"
 STEP_FILES = "2 · Arquivos"
+MODE_KEY = "calc_create/mode"
 
 
 class CreateRequest(NamedTuple):
@@ -69,7 +72,9 @@ class CalcCreateDialog(QDialog):
         jobs: JobsConfig,
         busy: BusyTracker | None = None,
         parent: QWidget | None = None,
+        settings: QSettings | None = None,
     ):
+        """``settings``: where the mode is remembered (None: not remembered, ``padrao``)."""
         super().__init__(parent)
         self.setObjectName("calcCreateDialog")
         self.setWindowTitle(TITLE)
@@ -81,8 +86,11 @@ class CalcCreateDialog(QDialog):
         self._built: tuple[CalcType, ScfInfo] | None = None  # what the step 2 was built for
         self._busy = False
         self._close_confirmed = False
+        self.settings = settings
 
         self.step = set_variant(QLabel(STEP_SETUP), "dialogTitle")
+        self.mode_switch = ModeSwitch(self._stored_mode())
+        self.mode_switch.mode_changed.connect(self.set_mode)
         self.setup = SetupPage(root, start, busy)
         self.setup.changed.connect(self._update)
         self.pages = QStackedWidget()
@@ -107,11 +115,34 @@ class CalcCreateDialog(QDialog):
             self.create_button,
         ):
             buttons.addWidget(button)
+        header = QHBoxLayout()
+        header.addWidget(self.step, 1)
+        header.addWidget(self.mode_switch)
         layout = QVBoxLayout(self)
-        layout.addWidget(self.step)
+        layout.addLayout(header)
         layout.addWidget(self.pages, 1)
         layout.addLayout(buttons)
         self._show_page(self.setup)
+
+    # -- mode ----------------------------------------------------------------------------------
+    @property
+    def mode(self) -> Mode:
+        return self.mode_switch.mode
+
+    def _stored_mode(self) -> Mode:
+        stored = self.settings.value(MODE_KEY) if self.settings is not None else None
+        for mode in MODES:
+            if mode == stored:
+                return mode
+        return DEFAULT_MODE
+
+    def set_mode(self, mode: Mode) -> None:
+        """Show the fields of ``mode`` in step 2 (nothing is rebuilt or lost) and remember it."""
+        self.mode_switch.set_mode(mode)
+        if self.settings is not None:
+            self.settings.setValue(MODE_KEY, mode)
+        if self.tabs is not None and self.tabs.mode != mode:
+            self.tabs.set_mode(mode)
 
     # -- pages ---------------------------------------------------------------------------------
     def continue_(self) -> None:
@@ -129,7 +160,9 @@ class CalcCreateDialog(QDialog):
         if self.tabs is not None:
             self.pages.removeWidget(self.tabs)
             self.tabs.deleteLater()
-        self.tabs = TabsPage(self.theme, calc_type, scf, self.jobs, debounce_ms=self.debounce_ms)
+        self.tabs = TabsPage(
+            self.theme, calc_type, scf, self.jobs, self.mode, debounce_ms=self.debounce_ms
+        )
         self.tabs.planned.connect(self._update)
         self.pages.addWidget(self.tabs)
         self._built = (calc_type, scf)
@@ -150,6 +183,7 @@ class CalcCreateDialog(QDialog):
         self.pages.setCurrentWidget(page)
         on_setup = page is self.setup
         self.step.setText(STEP_SETUP if on_setup else STEP_FILES)
+        self.mode_switch.setVisible(not on_setup)
         self.back_button.setVisible(not on_setup)
         self.continue_button.setVisible(on_setup)
         self.create_button.setVisible(not on_setup)
@@ -191,6 +225,7 @@ class CalcCreateDialog(QDialog):
         """While the folder is written: nothing can be edited and the window does not close."""
         self._busy = busy
         self.pages.setEnabled(not busy)
+        self.mode_switch.setEnabled(not busy)
         for button in (self.cancel_button, self.back_button):
             button.setEnabled(not busy)
         self._update()

@@ -75,9 +75,10 @@ def test_file_rows():
 
 def test_target_text(tmp_path):
     bandas = by_id("bandas")
-    assert target_text(tmp_path, bandas, "Al") == "Será criada: bandas_Al"
-    (tmp_path / "bandas_Al").mkdir()
-    assert target_text(tmp_path, bandas, "Al") == "Será criada: bandas_Al_1 — já existe bandas_Al"
+    assert target_text(tmp_path, bandas, "Al") == "Será criada: Bands_Al"
+    assert target_text(tmp_path, bandas, "") == "Será criada: Bands"
+    (tmp_path / "Bands_Al").mkdir()
+    assert target_text(tmp_path, bandas, "Al") == "Será criada: Bands_Al_1 — já existe Bands_Al"
 
 
 def test_outside_project(tmp_path):
@@ -89,19 +90,19 @@ def test_outside_project(tmp_path):
 
 
 def test_created_notice():
-    folder = Path("/p/bandas_Al_1")
-    files = tuple(folder / n for n in ("bandas.qsub", "scf.in", "bands.in", "bands_pp.in"))
-    text, details = created_notice(Created(folder, files, "bandas_Al"))
-    assert text == "Pasta bandas_Al_1 criada com 4 arquivos"
-    assert details.splitlines()[0] == "/p/bandas_Al_1"
+    folder = Path("/p/Bands_Al_1")
+    files = tuple(folder / n for n in ("bands.qsub", "scf_al.in", "bands.in", "bands_pp.in"))
+    text, details = created_notice(Created(folder, files, "Bands_Al"))
+    assert text == "Pasta Bands_Al_1 criada com 4 arquivos"
+    assert details.splitlines()[0] == "/p/Bands_Al_1"
     assert "  bands_pp.in" in details.splitlines()
-    assert details.endswith("bandas_Al já existia: criada como bandas_Al_1")
-    one, details = created_notice(Created(Path("/p/scf_x"), (Path("/p/scf_x/scf.in"),)))
-    assert one == "Pasta scf_x criada com 1 arquivo"
+    assert details.endswith("Bands_Al já existia: criada como Bands_Al_1")
+    one, details = created_notice(Created(Path("/p/SCF_x"), (Path("/p/SCF_x/scf_x.in"),)))
+    assert one == "Pasta SCF_x criada com 1 arquivo"
     assert "já existia" not in details
     reminded, _ = created_notice(Created(folder, files), sync=True)  # spec 26 R5.3, spec 27
     assert reminded == (
-        "Pasta bandas_Al_1 criada com 4 arquivos. Use ‘Enviar ao cluster’ para levar a pasta ao "
+        "Pasta Bands_Al_1 criada com 4 arquivos. Use ‘Enviar ao cluster’ para levar a pasta ao "
         "cluster"
     )
 
@@ -118,3 +119,9 @@ def test_field_problems_name_each_field():
     }
     bandas = by_id("bandas").fields(scf, JOBS)
     assert field_problems(bandas, {}) == {"kpath": "Preencha Caminho de alta simetria"}
+    # The plan carries them too, with the file names' (spec 28 R4.2): what the window marks.
+    plan = by_id("bandas").plan(scf, {"np": "x", "name:bands": "b"}, JOBS, "avancado")
+    assert set(plan.problems) == {"np", "kpath", "name:bands"}
+    assert by_id("bandas").plan(scf, {"np": "x"}, JOBS).problems == {
+        "kpath": plan.problems["kpath"]
+    }
