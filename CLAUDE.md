@@ -344,12 +344,19 @@ panel lands in `axes_limits[0]`. PDOS `spin_mode`: mirror (default) | overlay | 
 ### Energy gap in the legend (spec 20)
 
 `legend_gap` (default off) is a `bool` of `BandsParams` and `PdosParams` only: the shared
-`calculations/params.py:LEGEND_GAP_FIELD` goes after `COMMON_FIELDS` in both schemas (SCF and relax never see it).
+`calculations/params.py:LEGEND_GAP_FIELD` goes after `COMMON_FIELDS` in both schemas (SCF and relax never see it;
+bands and bands + DOS use `bands/params.py:BANDS_LEGEND_GAP_FIELD`, whose tooltip adds that the gap is along the k path).
 The entry is text only (`core/plotting/gap_label.py`, Qt-free: `gap_label`, `gap_handle`: an invisible `Line2D`),
 last in the legend, and does nothing with the legend hidden or without a gap (a metal writes no "metálico").
 Bands: `bands/gap.py:gap_entries(dataset)` is the one source of the footer (`summary`, `_spin_gaps`) and the legend:
 no spin → one entry (`channel=None`); spin → `up` / `down` (those with a gap) and `global`; the gap is `CBM − VBM`,
-independent of `reference` and the window. PDOS: `PdosDataset.gap` (`pdos/gap.py:GapInfo`, set in `load_dataset`, so
+independent of `reference` and the window. Every band gap is the one *along the path* (spec 27-6): the footer says
+`E_gap (no caminho) = …` / `gap ↑ (no caminho) …`, the legend keeps `$E_{gap}$ = …`. Without spin,
+`bands/data.py:band_edges` trusts the electron count only when E_F backs it: with smearing (`fermi_kind == "fermi"`)
+E_F outside `[VBM − EDGE_TOL, CBM + EDGE_TOL]` leaves no gap and `BandsDataset.gap_note` (`GAP_OFF_PATH_NOTE`; the
+footer then says no "metálico"), and no E_F at all keeps the counted gap with `GAP_NO_FERMI_NOTE`; fixed occupations
+and spin are not checked. `bands/render.notes` puts the note in `RenderInfo.notes` (never on the figure), and
+bands + DOS adds it to its own. PDOS: `PdosDataset.gap` (`pdos/gap.py:GapInfo`, set in `load_dataset`, so
 the GUI only draws) is the HOMO / LUMO pw.x printed (`homo_lumo`, first of NSCF, SCF; a closed pair = metal) else
 `projwfc.dos_gap` on `PdosData.total` (`dos`, drawn `≈`, 2 decimals): always the system's total, never the drawn
 series, and smeared edges make it read narrower than the true gap.
@@ -364,6 +371,14 @@ never matter, a different order is another compound), `compound_of(sites)`, `nor
 = `None`) and `CompoundStore` (`compounds.json` in the data dir, like `NavigationStore`: lazy read, atomic write, a corrupt
 file set aside, `save(key, formula, None)` removes the entry). `core/qe/structure.py:read_sites` streams the pw.x header
 (positions in alat units → Å, no ASE) in the load worker; `PdosDataset.sites` / `.compound`.
+
+Another geometry of the same sequence reuses the selection, so it warns (spec 27-6 R2): `save(key, formula, atoms,
+sites)` *merges* into the entry (unknown keys kept) and stores `"sites"` (Å, 0.01) without a new `FORMAT_VERSION`;
+`stored_sites(key)` reads them (None for an older entry or bad shapes). `pdos/atoms.py:stored_params` sets
+`PdosDataset.selection_drift = geometry_drift(saved, current)` (`GeometryDrift`: the atom that moved most over
+`DRIFT_TOLERANCE` = 0.5 Å, or `counts`) when a saved selection is applied; `save_stored` passes the sites and clears it.
+`pdos/atoms.notes` → `RenderInfo.notes` of the PDOS and of bands + DOS. The selection itself never changes. An atom
+that re-enters through the cell boundary is a known false positive.
 
 A parameter kept in a user store instead of `<kind>.plot` declares `field(metadata={"store": ...})`
 (`plot_file.stored_elsewhere`; `stored_params` and `apply_stored` skip it, an old `.plot` with the key is ignored). The base
@@ -491,6 +506,8 @@ each drawn by its own module (vector export, pan/zoom per cell).
   occurrence; `nat` must match; vc-relax: final `CELL_PARAMETERS`, `ibrav = 0`, no `celldm`/`A…cosBC`, except an
   `alat` cell, which keeps `celldm(1)` = the printed alat); `generate_scf_file` (worker) writes
   `scf_convergido_<prefix>.in` (`pwscf` without a prefix) through `write_new`. Errors are `ScfError` (Portuguese).
+  `ScfResult.warnings` (→ the toast's "Detalhes") always open with the shared `prefix`/`outdir` (running the SCF
+  overwrites `<outdir>/<prefix>.save`; `./` without outdir) and a vc-relax adds `VC_RELAX_CELL` (spec 27-6 R3).
 - **UI**: `ItemActions.scf_state` → `menu(scf=)` puts the item under "Resumo" (disabled with the reason as tooltip,
   `setToolTipsVisible`); `scf_from_relax_requested(Path)` → `ui/derive_controller.py:DeriveController.for_window`
   (`TaskGroup` by output, spinner "Gerando SCF convergido…" in `plot_workflow.busy`, toast `success` + refresh of the

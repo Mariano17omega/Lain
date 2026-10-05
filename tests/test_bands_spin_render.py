@@ -253,7 +253,7 @@ def test_summary_of_a_gapped_up_channel_and_a_metallic_down_channel():
         edges={"up": ChannelEdges(5.1, -1.0, 0.234), "down": ChannelEdges(5.1, metallic=True)}
     )
     assert BandsModule.summary(dataset) == (
-        "E_F = 5.1234 eV · spin polarizado · gap ↑ 1.234 eV · ↓ metálico · "
+        "E_F = 5.1234 eV · spin polarizado · gap ↑ (no caminho) 1.234 eV · ↓ metálico · "
         "M = 0.62 μB/célula · 12 bandas × 200 pontos k"
     )
 
@@ -262,7 +262,10 @@ def test_summary_adds_the_global_gap_when_both_channels_have_one():
     edges = {"up": ChannelEdges(5.1, 3.0, 4.2), "down": ChannelEdges(5.1, 3.2, 4.0)}
     dataset = _dataset(edges=edges, vbm=3.2, cbm=4.0)
     text = BandsModule.summary(dataset)
-    assert "gap ↑ 1.200 eV · gap ↓ 0.800 eV · gap global 0.800 eV" in text
+    assert (
+        "gap ↑ (no caminho) 1.200 eV · gap ↓ (no caminho) 0.800 eV · "
+        "gap global (no caminho) 0.800 eV"
+    ) in text
 
 
 def test_summary_with_two_fermi_energies_and_without_magnetization():
@@ -287,7 +290,7 @@ def test_summary_of_an_insulating_up_channel_without_its_down_channel():
     dataset = _dataset(bands_down=None, edges={"up": ChannelEdges(5.1, -1.0, 0.234)})
     assert (
         BandsModule.summary(dataset)
-        == "E_F = 5.1234 eV · gap ↑ 1.234 eV · 12 bandas × 200 pontos k"
+        == "E_F = 5.1234 eV · gap ↑ (no caminho) 1.234 eV · 12 bandas × 200 pontos k"
     )
 
 

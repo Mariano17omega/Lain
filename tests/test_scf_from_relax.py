@@ -14,6 +14,7 @@ from qe_studio.core.qe.pw_input import parse_input
 from qe_studio.core.qe.pw_output import parse_pw_output
 from qe_studio.core.qe.scf_from_relax import (
     NO_INPUT,
+    VC_RELAX_CELL,
     ScfError,
     can_generate_scf,
     generate_scf_file,
@@ -32,6 +33,16 @@ VC_OUT = FIXTURES / "kao_vc_relax/vc-relax.out"
 VC_IN = FIXTURES / "kao_vc_relax/vc-relax.in"
 SLAB_OUT = FIXTURES / "kao_slab_relax/relax-kaolinite-slab-001.out"
 SLAB_IN = FIXTURES / "kao_slab_relax/relax-kaolinite-slab-001.in"
+
+
+def same_save_dir(prefix: str, save: str) -> str:
+    """The warning every generated SCF carries (spec 27-6 R3)."""
+    return (
+        f"O SCF usa o mesmo prefix ({prefix}) e outdir do relax: rodá-lo regrava {save} e impede "
+        "reiniciar o relax. Mude o prefix ou o outdir antes de rodar."
+    )
+
+
 RELAX_OUTPUTS = [
     SI_OUT,
     VC_OUT,
@@ -168,7 +179,8 @@ def assert_scf(text: str, nat: int) -> InputEditor:
 def test_scf_of_a_relax_keeps_the_input_and_the_cell():
     result = scf_of(SI_OUT, SI_IN)
     editor = assert_scf(result.text, 2)
-    assert result.prefix == "silicon" and result.warnings == ()
+    assert result.prefix == "silicon"
+    assert result.warnings == (same_save_dir("silicon", "./tmp/silicon.save"),)
     assert (
         editor.get("system", "ibrav") == "2" and editor.get("system", "celldm(1)") == "10.16863713"
     )
@@ -199,6 +211,8 @@ def test_scf_of_a_vc_relax_writes_the_final_cell():
         editor.get("control", "prefix") == "kaolinite"
         and editor.get("control", "outdir") == "./tmp"
     )
+    assert result.warnings[0] == same_save_dir("kaolinite", "./tmp/kaolinite.save")
+    assert result.warnings[-1] == VC_RELAX_CELL
 
 
 def test_scf_of_a_slab_removes_every_ions_and_cell_namelist():
@@ -235,13 +249,30 @@ def test_vc_relax_with_an_alat_cell_keeps_celldm1_as_printed():
     assert editor.get("system", "celldm(3)") is None and editor.get("system", "a") is None
     card = editor.card("CELL_PARAMETERS")
     assert card is not None and card.option == "alat"
-    assert result.warnings == ("ibrav = 2 trocado por 0: a célula final vai em CELL_PARAMETERS",)
+    assert result.warnings == (
+        same_save_dir("pwscf", "./pwscf.save"),  # neither prefix nor outdir: pw.x's defaults
+        "ibrav = 2 trocado por 0: a célula final vai em CELL_PARAMETERS",
+        VC_RELAX_CELL,
+    )
     angstrom = parse_final_structure(
         [line.replace("(alat= 10.16863713)", "(angstrom)") for line in block]
     )
     assert angstrom is not None
     with pytest.raises(ScfError, match="Posições em alat"):
         scf_from_relax(angstrom, text)
+
+
+@pytest.mark.parametrize(
+    ("outdir", "save"),
+    [("'/scratch/run/'", "/scratch/run/si.save"), ("'/'", "/si.save"), ("'out'", "out/si.save")],
+)
+def test_the_warning_names_the_save_dir_the_scf_would_overwrite(outdir, save):
+    final = read_final_structure(SI_OUT)
+    assert final is not None
+    text = SI_IN.read_text().replace("prefix='silicon'", "prefix='si'")
+    text = text.replace("outdir='./tmp'", f"outdir={outdir}")
+    assert f"outdir={outdir}" in text
+    assert scf_from_relax(final, text).warnings[0] == same_save_dir("si", save)
 
 
 def test_nat_that_disagrees_and_an_input_that_is_no_relax_are_errors():

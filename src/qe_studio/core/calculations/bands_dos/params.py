@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from ...config import DEFAULT_ORBITAL_COLORS
 from ..bands import params as bands_params
 from ..bands.params import BandsParams
-from ..params import COMMON_FIELDS, LEGEND_GAP_FIELD, CommonParams, ParamField
+from ..params import COMMON_FIELDS, CommonParams, ParamField
 from ..pdos import params as pdos_params
 from ..pdos.params import PdosParams
 
@@ -140,7 +140,7 @@ def param_schema(dataset: BandsDosDataset) -> list[ParamField]:
         ),
         *take(bands, ("fermi_color",), "Estilo"),
         *COMMON_FIELDS,
-        LEGEND_GAP_FIELD,
+        bands_params.BANDS_LEGEND_GAP_FIELD,  # the gap is the bands' one
     ]
 
 

@@ -5,6 +5,11 @@ atom numbers (the ``N`` of ``pdos_atm#N``) follow that order, so the same sequen
 atoms. Positions never enter the key (a relax moves atoms, not the compound); the formula is only a
 label. The selection is kept in the app data dir (``compounds.json``), never inside a simulation
 folder (they get synced), like ``NavigationStore`` and ``FolderMemory``.
+
+Since the key ignores positions, a selection saved with one geometry is reused by another (a dopant
+in another site, a different relax) of the same sequence. The positions seen when it was saved go
+with it (``sites``, spec 27-6), and ``geometry_drift`` tells the plot to warn: it never changes the
+selection.
 """
 
 from __future__ import annotations
@@ -12,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -23,7 +29,13 @@ from .qe.structure import Site, format_formula
 
 log = logging.getLogger(__name__)
 
-FORMAT_VERSION = 1  # {"version": 1, "compounds": {key: {"formula": "Al2O3", "atoms": [1, 2, 4]}}}
+# {"version": 1, "compounds": {key: {"formula": "Al2O3", "atoms": [1, 2, 4], "sites": [[x, y, z]…]}}}
+# "sites" (Å, 0.01) came later without a new version: readers ignore keys they do not know.
+FORMAT_VERSION = 1
+SITE_DECIMALS = 2
+DRIFT_TOLERANCE = 0.5  # Å: a relax moves atoms less; a dopant in another site moves more
+
+Position = tuple[float, float, float]
 
 
 @dataclass(frozen=True)
@@ -66,6 +78,34 @@ def compound_of(sites: Sequence[Site]) -> Compound | None:
     return Compound(compound_key([site.species for site in sites]), formula)
 
 
+@dataclass(frozen=True)
+class GeometryDrift:
+    """How the structure differs from the one a selection was saved with: the atom (1-based) that
+    moved most and how far (Å), or, with another number of atoms, ``counts`` (saved, current)."""
+
+    atom: int | None
+    distance: float | None
+    counts: tuple[int, int] | None = None
+
+
+def geometry_drift(
+    saved: Sequence[Position], current: Sequence[Position], tol: float = DRIFT_TOLERANCE
+) -> GeometryDrift | None:
+    """None when every atom is within ``tol`` Å of where it was saved, else the worst one.
+
+    Positions are Cartesian as pw.x printed them, never wrapped: an atom that left the cell on one
+    side and came back on the other counts as a large move (a false positive the spec accepts).
+    """
+    if len(saved) != len(current):
+        return GeometryDrift(None, None, (len(saved), len(current)))
+    worst: GeometryDrift | None = None
+    for index, (old, new) in enumerate(zip(saved, current, strict=True), start=1):
+        distance = math.dist(old, new)
+        if distance > tol and (worst is None or distance > (worst.distance or 0.0)):
+            worst = GeometryDrift(index, distance)
+    return worst
+
+
 def normalize_selection(atoms: Sequence[int] | None, valid: Sequence[int]) -> list[int] | None:
     """The selected atoms that exist, sorted; None (= every atom) when all of them, or none, remain."""
     known = set(valid)
@@ -103,6 +143,21 @@ class CompoundStore:
             kept = [a for a in atoms if isinstance(a, int) and not isinstance(a, bool) and a > 0]
             return sorted(set(kept)) or None
 
+    def stored_sites(self, key: str) -> list[Position] | None:
+        """The positions (Å) seen when the selection was saved; None when the entry has none (saved
+        before spec 27-6) or they do not read as ``[[x, y, z], …]``."""
+        with self._lock:
+            entry = self._load().get(key)
+            sites = entry.get("sites") if isinstance(entry, dict) else None
+            if not isinstance(sites, list):
+                return None
+            out: list[Position] = []
+            for site in sites:
+                if not (isinstance(site, list) and len(site) == 3 and all(map(_is_number, site))):
+                    return None
+                out.append((float(site[0]), float(site[1]), float(site[2])))
+            return out
+
     def pop_warning(self) -> str | None:
         """The message about a corrupt file, once (None afterwards or when it was fine)."""
         with self._lock:
@@ -111,16 +166,28 @@ class CompoundStore:
             return warning
 
     # -- changes ---------------------------------------------------------------------------------
-    def save(self, key: str, formula: str, atoms: Sequence[int] | None) -> None:
-        """Remember ``atoms`` for the compound; None (every atom) removes the entry, so the file
-        does not grow with defaults."""
+    def save(
+        self,
+        key: str,
+        formula: str,
+        atoms: Sequence[int] | None,
+        sites: Sequence[Position] | None = None,
+    ) -> None:
+        """Remember ``atoms`` for the compound, and the positions (Å) they were chosen with when
+        ``sites`` is given; None (every atom) removes the entry, so the file does not grow with
+        defaults. Other keys of the entry are kept (a newer Lain may have written them)."""
         with self._lock:
             compounds = self._load()
             if atoms is None:
                 if compounds.pop(key, None) is None:
                     return
             else:
-                compounds[key] = {"formula": formula, "atoms": sorted({int(a) for a in atoms})}
+                old = compounds.get(key)
+                entry = dict(old) if isinstance(old, dict) else {}
+                entry.update(formula=formula, atoms=sorted({int(a) for a in atoms}))
+                if sites is not None:
+                    entry["sites"] = [[round(float(c), SITE_DECIMALS) for c in s] for s in sites]
+                compounds[key] = entry
             self._write()
 
     def forget(self, key: str) -> None:
@@ -164,3 +231,7 @@ class CompoundStore:
             return
         data = {"version": FORMAT_VERSION, "compounds": self._load()}
         atomic_write_text(self.path, json.dumps(data, indent=1, ensure_ascii=False))
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ...compounds import Compound, compound_of
+from ...compounds import Compound, GeometryDrift, compound_of
 from ...qe import projwfc
 from ...qe.pw_output import PwOutput
 from ...qe.structure import Site, read_sites
@@ -29,6 +29,9 @@ class PdosDataset:
         Site, ...
     ] = ()  # atoms of the SCF / NSCF header, in input order (empty: unreadable)
     compound: Compound | None = None  # who they are, for the saved atom selection
+    # The saved selection in force was chosen with other positions (spec 27-6): set from the store
+    # when the session is built (``atoms.stored_params``; the loader has no store), cleared on save.
+    selection_drift: GeometryDrift | None = None
 
     def _use_nscf(self, source: str) -> bool:
         if source == "nscf" and self.fermi_nscf is not None:

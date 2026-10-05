@@ -12,6 +12,7 @@ from ..bands import render as bands_render
 from ..bands.gap import gap_handles
 from ..bands.params import ENERGY_NAMES
 from ..params import RenderInfo
+from ..pdos import atoms as pdos_atoms
 from ..pdos import render as pdos_render
 from ..readout import signed
 from .data import BandsDosDataset
@@ -63,8 +64,9 @@ def _labels(handles: list) -> set[str]:
 
 
 def notes(dataset: BandsDosDataset) -> tuple[str, ...]:
-    """What the user should know about pairing these two runs."""
-    found = []
+    """What the user should know: the notes of each part (the bands' gap, the DOS atom selection)
+    and about pairing these two runs."""
+    found = [*bands_render.notes(dataset.bands), *pdos_atoms.notes(dataset.dos)]
     bands_fermi, dos_fermi = dataset.bands.fermi, dataset.dos.fermi("scf")
     delta = None if bands_fermi is None or dos_fermi is None else abs(dos_fermi - bands_fermi)
     if delta is not None and delta > FERMI_TOLERANCE:

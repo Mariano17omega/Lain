@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
 from ..params import (
@@ -16,6 +16,13 @@ from ..params import (
 if TYPE_CHECKING:
     from ...config import AppConfig
     from .data import BandsDataset
+
+# The bands' gap is the one along the path (spec 27-6 R1.3); bands + DOS shows the same gap.
+BANDS_LEGEND_GAP_FIELD = replace(
+    LEGEND_GAP_FIELD,
+    tooltip=f"{LEGEND_GAP_FIELD.tooltip} Gap ao longo do caminho de k; o gap indireto verdadeiro "
+    "pode estar fora dele.",
+)
 
 REFERENCES = (
     ("fermi", "E_F (SCF)"),
@@ -157,7 +164,7 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
         ParamField("fermi_color", "Fermi", "Estilo", "color"),
         *(_spin_fields() if dataset.spin else []),
         *COMMON_FIELDS,
-        LEGEND_GAP_FIELD,
+        BANDS_LEGEND_GAP_FIELD,
     ]
 
 

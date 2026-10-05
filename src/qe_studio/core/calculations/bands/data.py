@@ -15,6 +15,9 @@ from ..base import DetectionResult, LoadError, SniffFn
 
 BOHR_TO_ANGSTROM = 0.529177210903
 EDGE_TOL = 1e-3  # eV: a band within this of E_F is not counted as crossing it
+# Notes under the readout (spec 27-6 R1) when the gap of a run without spin is in doubt.
+GAP_OFF_PATH_NOTE = "gap indeterminado: E_F fora de [VBM, CBM] no caminho"
+GAP_NO_FERMI_NOTE = "E_F não encontrado: gap pela contagem de elétrons"
 CHANNELS = ("up", "down")
 # Roles holding the eigenvalue file of each spin channel: (.gnu, filband).
 CHANNEL_ROLES = {"up": ("gnu", "filband"), "down": ("gnu_down", "filband_down")}
@@ -103,6 +106,7 @@ class BandsDataset:
     edges: dict[str, ChannelEdges] = field(default_factory=dict)
     fermi_up_down: tuple[float, float] | None = None  # fixed magnetization: one E_F per channel
     magnetization: float | None = None  # total, μB/cell
+    gap_note: str | None = None  # why the gap is missing or in doubt (a RenderInfo note)
 
     @property
     def spin(self) -> bool:
@@ -159,7 +163,7 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> BandsDataset:
         magnetization=pw.total_magnetization if pw else None,
     )
     if pw is not None:
-        _band_edges(dataset, pw)
+        band_edges(dataset, pw)
         dataset.formula = header_formula(scf_path) if scf_path else None
     return dataset
 
@@ -235,7 +239,13 @@ def _ticks(
     return [float(x[0]), float(x[-1])], ["", ""], "nenhum"
 
 
-def _band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
+def band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
+    """The edges and gap of ``dataset``, all along the k path.
+
+    Without spin they come from the electron count. With smearing (``fermi_kind == "fermi"``) the
+    count is only trusted when E_F lies between them: E_F inside a band means pockets off the path
+    (a metal), so there is no gap, only ``gap_note``. Fixed occupations are not checked.
+    """
     if dataset.spin:
         spin_band_edges(dataset, pw)
         return
@@ -250,8 +260,14 @@ def _band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
     if n_occ is None:
         return
     edges = count_edges(dataset.bands.energies, n_occ, pw.fermi)
-    if edges.gap is not None:
-        dataset.n_occupied, dataset.vbm, dataset.cbm = n_occ, edges.vbm, edges.cbm
+    if edges.vbm is None or edges.cbm is None:
+        return
+    if pw.fermi is None:
+        dataset.gap_note = GAP_NO_FERMI_NOTE
+    elif pw.fermi_kind == "fermi" and not edges.vbm - EDGE_TOL <= pw.fermi <= edges.cbm + EDGE_TOL:
+        dataset.gap_note = GAP_OFF_PATH_NOTE
+        return
+    dataset.n_occupied, dataset.vbm, dataset.cbm = n_occ, edges.vbm, edges.cbm
 
 
 def spin_channel_edges(energies: np.ndarray, index: int, pw: PwOutput) -> ChannelEdges:

@@ -17,6 +17,7 @@ from ...plotting.style import PlotStyle
 from ...qe import projwfc
 from ..params import RenderInfo
 from ..readout import signed
+from .atoms import notes
 from .data import PdosDataset
 from .params import PdosParams
 
@@ -86,7 +87,7 @@ def render_pdos(
     finish(figure, ax, params, handles)
     e_lim = (params.emin, params.emax)
     xlim, ylim = (dos_lim, e_lim) if params.orientation == "vertical" else (e_lim, dos_lim)
-    return RenderInfo(xlim, ylim, summary(dataset, params))
+    return RenderInfo(xlim, ylim, summary(dataset, params), notes(dataset))
 
 
 def draw_pdos(

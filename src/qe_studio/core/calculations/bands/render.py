@@ -21,6 +21,7 @@ from .params import ENERGY_NAMES, Y_LABELS, BandsParams
 SYMBOL = {"up": "↑", "down": "↓"}
 FERMI_DASH = (0, (5, 3))
 DOWN_DASH = (0, (4, 2))  # the ↓ channel, when both share an axes
+ON_PATH = "(no caminho)"  # every band gap is the one along the k path (spec 27-6)
 
 
 def render_bands(
@@ -75,7 +76,8 @@ def _render_plain(
     handles = draw_plain(ax, dataset, params, style, dataset.reference(params.reference))
     handles += gap_handles(dataset, params)
     finish(figure, ax, params, handles)
-    return RenderInfo(band_xlim(dataset, params), (params.emin, params.emax), summary(dataset))
+    xlim = band_xlim(dataset, params)
+    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset), notes(dataset))
 
 
 def draw_plain(
@@ -160,7 +162,7 @@ def _render_spin(
         finish_side(figure, axes, params, handles)
     else:
         finish(figure, axes[0], params, handles)
-    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset))
+    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset), notes(dataset))
 
 
 def _draw_panel(
@@ -316,24 +318,31 @@ def summary(dataset: BandsDataset) -> str:
     elif dataset.edges:  # spin run with the ↑ channel only: not a verdict on the whole system
         parts += _spin_gaps(dataset)
     elif gaps := gap_entries(dataset):
-        parts.append(f"E_gap = {gaps[0].value:.3f} eV")
-    elif dataset.fermi is not None:
+        parts.append(f"E_gap {ON_PATH} = {gaps[0].value:.3f} eV")
+    elif dataset.fermi is not None and dataset.gap_note is None:  # the note says "indeterminado"
         parts.append("metálico")
     parts.append(f"{dataset.bands.n_bands} bandas × {dataset.bands.n_kpoints} pontos k")
     return " · ".join(parts)
 
 
+def notes(dataset: BandsDataset) -> tuple[str, ...]:
+    """What the readout warns about (spec 27-6): a gap the electron count gives but E_F does not
+    back, or one counted without E_F. Never drawn on the figure."""
+    return (dataset.gap_note,) if dataset.gap_note else ()
+
+
 def _spin_gaps(dataset: BandsDataset) -> list[str]:
-    """``gap ↑ 1.234 eV``, ``↓ metálico`` per channel, and the global gap when both have one."""
+    """``gap ↑ (no caminho) 1.234 eV``, ``↓ metálico`` per channel, and the global gap when both
+    have one."""
     parts = []
     gaps = {entry.channel: entry.value for entry in gap_entries(dataset)}
     for channel, edges in dataset.edges.items():
         if channel in gaps:
-            parts.append(f"gap {SYMBOL[channel]} {gaps[channel]:.3f} eV")
+            parts.append(f"gap {SYMBOL[channel]} {ON_PATH} {gaps[channel]:.3f} eV")
         elif edges.metallic:
             parts.append(f"{SYMBOL[channel]} metálico")
     if "global" in gaps:
-        parts.append(f"gap global {gaps['global']:.3f} eV")
+        parts.append(f"gap global {ON_PATH} {gaps['global']:.3f} eV")
     return parts
 
 

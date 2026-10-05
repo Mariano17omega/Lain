@@ -62,7 +62,7 @@ def test_si_bands_gap_and_bandsx_ticks():
     assert ds.n_occupied == 4
     assert ds.vbm == pytest.approx(6.3142, abs=1e-3)
     assert ds.gap == pytest.approx(0.454, abs=0.01)
-    assert "E_gap = 0.45" in module.summary(ds)
+    assert "E_gap (no caminho) = 0.45" in module.summary(ds)
     assert ds.reference("midgap") == pytest.approx((ds.vbm + ds.cbm) / 2)
     assert ds.reference("absolute") == 0.0
 

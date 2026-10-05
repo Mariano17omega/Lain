@@ -78,7 +78,7 @@ def test_the_gap_is_the_last_legend_entry_and_equals_the_footer():
     figure, info = render(module, dataset, params, LIGHT)
     assert dataset.gap is not None
     assert legend_texts(figure)[-1] == f"{GAP_TEXT} = {dataset.gap:.3f} eV"
-    assert f"E_gap = {dataset.gap:.3f} eV" in info.summary
+    assert f"E_gap (no caminho) = {dataset.gap:.3f} eV" in info.summary
 
 
 @pytest.mark.parametrize("reference", ["fermi", "vbm", "midgap", "absolute"])

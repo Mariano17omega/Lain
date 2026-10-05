@@ -25,6 +25,7 @@ from qe_studio.core.qe import projwfc
 from qe_studio.core.qe.projwfc import Channel, PdosData, PdosSeries
 from qe_studio.core.sniff import SniffCache
 from spin_helpers import SPIN_PDOS
+from test_bands_dos_render import combined
 from test_legend_gap_pdos import ENERGY, GAP_TEXT, bands_dos, dataset_of, legend_texts
 from test_plotting import CONFIG, load, render
 
@@ -290,3 +291,80 @@ def test_persist_leaves_ordinary_parameters_alone(tmp_path, stores):
 def test_without_stores_a_session_is_the_old_one(tmp_path):
     session = session_of(pdos_folder(tmp_path, ("Al", "O")), None)
     assert session.params.atoms is None
+
+
+# -- a selection saved with another geometry (spec 27-6 R2) ---------------------------------------
+ALAT = 7.6307 * 0.529177210903  # Å, of the fixture the folders are built from
+
+
+def notes_of(session):
+    return render(session.module, session.dataset, session.params, LIGHT)[1].notes
+
+
+def choose(session, stores, atoms):
+    """The "Átomos…" dialog: the session's choice saved through the module (with the positions)."""
+    session.params.atoms = atoms
+    assert session.persist("atoms", stores) is True
+
+
+def test_saving_keeps_the_positions_the_atoms_were_chosen_with(tmp_path, stores):
+    session = session_of(pdos_folder(tmp_path, ("Al", "O")), stores)
+    choose(session, stores, [2])
+    saved = stores.compounds.stored_sites(session.dataset.compound.key)
+    assert saved == [(round(s.x, 2), round(s.y, 2), round(s.z, 2)) for s in session.dataset.sites]
+    assert notes_of(session) == ()
+
+
+def test_another_geometry_keeps_the_selection_and_warns(tmp_path, stores):
+    choose(session_of(pdos_folder(tmp_path, ("Al", "O"), "a"), stores), stores, [2])
+    moved = session_of(pdos_folder(tmp_path, ("Al", "O"), "b", moved={2: 0.5}), stores)
+    assert moved.params.atoms == [2] and moved.defaults.atoms == [2]
+    distance = f"{0.5 * ALAT:.1f}".replace(".", ",")
+    assert notes_of(moved) == (
+        "A seleção de átomos salva foi feita com outras coordenadas "
+        f"(átomo 2 moveu {distance} Å). Confira em ‘Átomos…’",
+    )
+    choose(moved, stores, [2])  # saved again from this geometry: the warning goes
+    assert notes_of(moved) == ()
+    again = session_of(pdos_folder(tmp_path, ("Al", "O"), "c", moved={2: 0.5}), stores)
+    assert again.params.atoms == [2] and notes_of(again) == ()
+
+
+def test_a_small_move_or_an_old_entry_without_positions_does_not_warn(tmp_path, stores):
+    choose(session_of(pdos_folder(tmp_path, ("Al", "O"), "a"), stores), stores, [2])
+    near = session_of(pdos_folder(tmp_path, ("Al", "O"), "b", moved={1: 0.05}), stores)
+    assert near.params.atoms == [2] and notes_of(near) == ()  # 0.2 Å: a relax
+    old = session_of(pdos_folder(tmp_path, ("Al", "O"), "c", moved={2: 0.5}), stores)
+    stores.compounds.forget(old.dataset.compound.key)
+    save(stores, old, [1])  # as saved before spec 27-6: no positions to compare
+    assert stores.compounds.stored_sites(old.dataset.compound.key) is None
+    old = session_of(pdos_folder(tmp_path, ("Al", "O"), "d", moved={2: 1.0}), stores)
+    assert old.params.atoms == [1] and notes_of(old) == ()
+
+
+def test_no_warning_while_every_atom_is_shown(tmp_path, stores):
+    choose(session_of(pdos_folder(tmp_path, ("Al", "O"), "a"), stores), stores, [2])
+    moved = session_of(pdos_folder(tmp_path, ("Al", "O"), "b", moved={2: 0.5}), stores)
+    choose(moved, stores, None)  # every atom: the entry is gone
+    assert notes_of(moved) == ()
+    assert notes_of(session_of(pdos_folder(tmp_path, ("Al", "O"), "c"), stores)) == ()
+
+
+def test_bands_and_dos_carry_the_warning_of_the_dos(tmp_path, stores):
+    dos = pdos_folder(tmp_path, ("Al", "O"), "dos", moved={2: 0.5})
+    key, formula = _entry(dos)
+    stores.compounds.save(key, formula, [2], [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)])
+    module, dataset, params = combined(dos=dos)
+    for name, value in module.stored_params(dataset, stores).items():
+        setattr(params, name, value)
+    notes = render(module, dataset, params, LIGHT)[1].notes
+    assert params.atoms == [2]
+    assert notes[0].startswith(
+        "A seleção de átomos salva foi feita com outras coordenadas (átomo 2"
+    )
+
+
+def _entry(folder):
+    (result,) = detect_folder(folder, sniff=SniffCache().sniff)
+    compound = result.module.load(result, SniffCache().sniff).compound
+    return compound.key, compound.formula

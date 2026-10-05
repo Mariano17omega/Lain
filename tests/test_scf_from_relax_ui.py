@@ -114,6 +114,7 @@ def test_clicking_writes_the_scf_and_a_second_click_a_new_name(
     assert toast.current is not None and toast.current.level == "success"
     assert toast.current.text == "scf_convergido_silicon.in criado"
     assert str(path) in toast.current.details
+    assert "O SCF usa o mesmo prefix (silicon) e outdir do relax" in toast.current.details
     qtbot.waitUntil(lambda: "scf_convergido_silicon.in" in names(window.files), timeout=5000)
     again = generate(qtbot, window, output, monkeypatch, window.derive.generated)
     assert again == folder / "scf_convergido_silicon_1.in"

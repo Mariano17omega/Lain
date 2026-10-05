@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-6 |
-| **Status** | Proposta |
+| **Status** | Implementada. Desvios:<br>- **Sem "metálico" com a nota:** com E_F fora de [VBM, CBM] o rodapé não diz "metálico" (a nota ⚠ diz "indeterminado"; os dois juntos se contradiriam).<br>- **"(no caminho)" também no gap global** do spin (`gap global (no caminho) …`): todo gap das bandas é do caminho.<br>- **Tooltip:** `bands/params.py:BANDS_LEGEND_GAP_FIELD` (bandas e bandas + DOS); a PDOS mantém o `LEGEND_GAP_FIELD` compartilhado.<br>- **`GeometryDrift(atom, distance, counts)`:** com número de átomos diferente, `atom`/`distance` são None e `counts` = (salvo, atual), com texto próprio ("… com outra estrutura (N átomos; esta tem M)").<br>- **Onde o desvio é calculado:** o loader não tem os stores, então `pdos/atoms.py:stored_params` (ao montar a sessão) preenche `PdosDataset.selection_drift` e `save_stored` o limpa; só há aviso quando a seleção salva está em uso.<br>- **Avisos do SCF em texto simples** (sem crases), com `./` como outdir quando o input não define um; o de prefix/outdir vem primeiro. O teste do controlador estende `test_scf_from_relax_ui.py` (já existia um teste pela janela). |
 | **Depende de** | spec 13 (spin e gaps por canal), spec 20 (gap na legenda), spec 21 (seleção de átomos), spec 24 (SCF convergido) |
 | **Usada por** | nenhuma |
 | **Esforço** | P/M |
@@ -93,8 +93,8 @@
 - `CLAUDE.md`: spec 21 (formato de `compounds.json` com `sites`) e spec 24 (avisos do SCF convergido).
 
 ## Critérios de aceite e testes
-- [ ] Metal com E_F dentro de uma banda e `fermi_kind="fermi"`: sem número de gap e com a nota; isolantes, ocupação fixa e spin como antes.
-- [ ] Rodapé diz "no caminho"; legenda com o rótulo da spec 20; tooltip atualizado.
-- [ ] `compounds.json` antigo lê e salva sem erro e sem mudar a versão; `save` mescla; `geometry_drift` e a nota da PDOS cobertos.
-- [ ] `scf_from_relax`: aviso de prefix/outdir sempre; aviso de `ibrav = 0` no vc-relax; toast "Detalhes" os mostra.
-- [ ] `ruff`, `pyright`, `test_architecture.py`, goldens de figura (só a string `E_gap` muda) e suíte verdes.
+- [x] Metal com E_F dentro de uma banda e `fermi_kind="fermi"`: sem número de gap e com a nota; isolantes, ocupação fixa e spin como antes.
+- [x] Rodapé diz "no caminho"; legenda com o rótulo da spec 20; tooltip atualizado.
+- [x] `compounds.json` antigo lê e salva sem erro e sem mudar a versão; `save` mescla; `geometry_drift` e a nota da PDOS cobertos.
+- [x] `scf_from_relax`: aviso de prefix/outdir sempre; aviso de `ibrav = 0` no vc-relax; toast "Detalhes" os mostra.
+- [x] `ruff`, `pyright`, `test_architecture.py`, goldens de figura (só a string `E_gap` muda) e suíte verdes.

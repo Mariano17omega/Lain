@@ -4,7 +4,9 @@
 with ``calculation = 'scf'``, without ``restart_mode``, ``nstep``, ``&IONS`` and ``&CELL``, and with
 the final positions (and, for a vc-relax, the final cell) as the output printed them. Everything
 else (pseudopotentials, ``K_POINTS``, cutoffs, ``prefix``, ``outdir``…) stays as written: the edits
-go through ``InputEditor``.
+go through ``InputEditor``. The warnings say what that means (spec 27-6 R3): the same ``prefix`` and
+``outdir`` overwrite the relax's ``.save`` (always said), and a vc-relax's ``ibrav = 0`` cell leaves
+the symmetry to pw.x's tolerance.
 
 Whether the context menu offers it is decided from caches (``scf_availability``); the file is
 built in a worker (``generate_scf_file``).
@@ -30,6 +32,11 @@ RELAX = ("relax", "vc-relax")
 SCF_STEM = "scf_convergido"
 SEP = "_"  # between the stem and the prefix (spec 24, assumed decision 1)
 DEFAULT_PREFIX = "pwscf"  # pw.x's when the input sets none
+DEFAULT_OUTDIR = "./"  # pw.x's without outdir (and without $ESPRESSO_TMPDIR)
+VC_RELAX_CELL = (
+    "Cálculo vc-relax: a célula foi escrita com ibrav = 0; o pw.x detecta a simetria pela "
+    "tolerância numérica da célula final."
+)
 NO_INPUT = "Input do relax não encontrado na pasta"
 # The cell's geometry, which CELL_PARAMETERS replaces once ibrav = 0 (an ``alat`` cell keeps
 # celldm(1): it is the unit of its rows).
@@ -129,7 +136,7 @@ def scf_from_relax(final: FinalStructure, in_text: str, name: str = "O input") -
             f"nat = {nat if nat is not None else '?'} no input, {count} posições na saída"
         )
 
-    warnings: list[str] = []
+    warnings = [_same_save_dir(editor)]
     written = editor.raw("control", "calculation") or ""
     quote = written[0] if written[:1] in ("'", '"') else "'"
     editor.set("control", "calculation", f"{quote}scf{quote}")
@@ -144,6 +151,18 @@ def scf_from_relax(final: FinalStructure, in_text: str, name: str = "O input") -
     if editor.issues:
         raise ScfError(f"Não foi possível montar o SCF: {editor.issues[0]}")
     return ScfResult(editor.text(), editor.get("control", "prefix"), tuple(warnings))
+
+
+def _same_save_dir(editor: InputEditor) -> str:
+    """The SCF keeps the relax's ``prefix`` and ``outdir``: running it overwrites the relax's
+    ``<outdir>/<prefix>.save``. Said every time (spec 27-6 R3, decision 4)."""
+    prefix = (editor.get("control", "prefix") or "").strip() or DEFAULT_PREFIX
+    outdir = (editor.get("control", "outdir") or "").strip() or DEFAULT_OUTDIR
+    save = f"{outdir.rstrip('/')}/{prefix}.save"  # "/" stays "/"
+    return (
+        f"O SCF usa o mesmo prefix ({prefix}) e outdir do relax: rodá-lo regrava {save} e impede "
+        "reiniciar o relax. Mude o prefix ou o outdir antes de rodar."
+    )
 
 
 def _final_cell(editor: InputEditor, final: FinalStructure, warnings: list[str]) -> None:
@@ -165,6 +184,7 @@ def _final_cell(editor: InputEditor, final: FinalStructure, warnings: list[str])
         warnings.append(
             f"ibrav = {ibrav.strip()} trocado por 0: a célula final vai em CELL_PARAMETERS"
         )
+    warnings.append(VC_RELAX_CELL)
     for key in editor.keys("system"):
         celldm = _CELLDM.fullmatch(key)
         if key in _CELL_KEYS or (celldm and not (cell.unit == "alat" and celldm.group(1) == "1")):
