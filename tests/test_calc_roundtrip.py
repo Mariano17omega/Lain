@@ -85,8 +85,11 @@ def test_pdos_folder_is_detected(tmp_path):
             ("pdos.dat.pdos_tot", "pdos.dat.pdos_tot"),
         ],
     )
-    (folder / "orbitals").mkdir()  # what "mkdir -p orbitals; mv *wfc* orbitals/" leaves
+    # What the script leaves: projwfc.in/out and pdos_tot in the folder, the projections in orbitals/.
+    assert (folder / "projwfc.in").is_file()
+    (folder / "orbitals").mkdir()
     for path in (FIXTURES / "al_pdos_flat").glob("*pdos_atm*"):
         shutil.copy(path, folder / "orbitals" / path.name)
     found, _ = results(folder)
     assert found["pdos"].plottable
+    assert found["pdos"].file("projwfc_out") == folder / "projwfc.out"

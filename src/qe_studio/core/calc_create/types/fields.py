@@ -46,7 +46,9 @@ def nbnd_default(scf: ScfInfo) -> int | None:
     return None
 
 
-def nbnd_field(scf: ScfInfo, group: str) -> FormField:
+def nbnd_field(scf: ScfInfo, group: str, hint: str = "") -> FormField:
+    """``hint``: a sentence the type adds to the tooltip."""
+    tooltip = "Bandas calculadas: inclua as de condução que quer ver"
     return FormField(
         "nbnd",
         "Número de bandas (nbnd)",
@@ -54,5 +56,5 @@ def nbnd_field(scf: ScfInfo, group: str) -> FormField:
         nbnd_default(scf),
         required=True,
         group=group,
-        tooltip="Bandas calculadas: inclua as de condução que quer ver",
+        tooltip=f"{tooltip}. {hint}" if hint else tooltip,
     )

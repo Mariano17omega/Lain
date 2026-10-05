@@ -6,6 +6,7 @@ import pytest
 
 from qe_studio.core.calc_create.kpath import KMesh, KPath, KPoint
 from qe_studio.core.calc_create.types import REGISTRY, by_id
+from qe_studio.core.calc_create.types.pdos import NO_BROADENING_NOTE
 from qe_studio.core.qe.input_edit import InputEditor
 from qe_studio.core.qe.input_lint import lint
 
@@ -206,9 +207,44 @@ def test_pdos_inputs():
         "0.01",
         "-25.0",
         "25.0",
-        "0",
-        "0.01",
+        None,  # tetrahedra: no broadening in projwfc.in
+        None,
     ]
+    assert NO_BROADENING_NOTE in result.notes
+
+
+@pytest.mark.parametrize(
+    "occupations, broadening",
+    [
+        ("smearing", True),
+        ("fixed", True),
+        ("tetrahedra", False),
+        ("tetrahedra_opt", False),
+        ("tetrahedra_lin", False),
+    ],
+)
+def test_pdos_broadening_follows_the_occupations(occupations, broadening):
+    result = plan("pdos", occupations=occupations, ngauss=1, degauss=0.02)
+    projwfc = InputEditor.from_text(result.file("projwfc.in").text)
+    assert projwfc.get("projwfc", "ngauss") == ("1" if broadening else None)
+    assert projwfc.get("projwfc", "degauss") == ("0.02" if broadening else None)
+    assert [projwfc.get("projwfc", k) for k in ("DeltaE", "Emin", "Emax")] == [
+        "0.01",
+        "-25.0",
+        "25.0",
+    ]
+    assert (NO_BROADENING_NOTE in result.notes) is not broadening
+
+
+def test_pdos_tooltips_explain_occupations_and_the_energy_window():
+    fields = {f.id: f.tooltip for f in by_id("pdos").fields(al(), JOBS)}
+    for key in ("occupations", "degauss", "ngauss"):
+        assert "tetraedros" in fields[key]
+    assert "Ry" in fields["degauss"] and "ignorado com tetraedros" in fields["ngauss"]
+    for key in ("nbnd", "e_max"):
+        assert "energias absolutas" in fields[key] and "a DOS é zero" in fields[key]
+    bands = {f.id: f.tooltip for f in by_id("bandas").fields(al(), JOBS)}
+    assert "energias absolutas" not in bands["nbnd"]  # the hint is the PDOS's
 
 
 def test_pdos_defaults():

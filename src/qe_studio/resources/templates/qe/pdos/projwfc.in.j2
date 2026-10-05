@@ -7,6 +7,8 @@
   filpdos = {{ filpdos | fstr }}
   Emin = {{ e_min | fnum }}
   Emax = {{ e_max | fnum }}
+{% if broadening %}
   ngauss = {{ ngauss }}
   degauss = {{ degauss | fnum }}
+{% endif %}
 /

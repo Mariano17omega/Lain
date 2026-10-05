@@ -11,6 +11,7 @@ ${PROJWFCCOMMAND} -i "projwfc.in" > "projwfc.out"
 {% endblock %}
 {% block post %}
 
+{# projwfc.x names its projections <filpdos>.pdos_atm#N(El)_wfc#M(l) and detection reads them from orbitals/. A glob on "wfc" would also move projwfc.in and projwfc.out. #}
 mkdir -p orbitals
-mv *wfc* orbitals/ 2>/dev/null
+mv *pdos_atm#* orbitals/ 2>/dev/null
 {% endblock %}

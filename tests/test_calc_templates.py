@@ -1,5 +1,7 @@
 """Spec 25 R2, R6: the packaged Jinja2 templates and the .qsub scripts they make."""
 
+import fnmatch
+import re
 from importlib.resources import files
 from pathlib import Path
 
@@ -98,7 +100,13 @@ def _split(lines: list[str]) -> tuple[list[str], list[str]]:
         ("vc-relax", "vc-relax.qsub", al, {"job_name": "test", "nk": 8}, None),
         ("scf", "relax.qsub", al, {"job_name": "test", "nk": 8}, {"relax": "scf"}),
         ("bandas", "bands.qsub", al, {"job_name": "BD010o1", "kpath": AL_PATH}, None),
-        ("pdos", "PDOS.qsub", al, {"job_name": "pdo2"}, {"proj.": "projwfc."}),
+        (
+            "pdos",
+            "PDOS.qsub",
+            al,
+            {"job_name": "pdo2"},
+            {"proj.": "projwfc.", "mv *wfc* orbitals/": "mv *pdos_atm#* orbitals/"},
+        ),
     ],
 )
 def test_scripts_reproduce_the_reference(type_id, reference, scf, values, rename):
@@ -120,9 +128,28 @@ def test_steps_of_each_type_in_order():
     pdos = _ours("pdos", al(), {})
     assert runs(pdos) == ["scf.in", "nscf.in", "projwfc.in"]
     assert pdos.index("projwfc.out") < pdos.index(
-        "mkdir -p orbitals\nmv *wfc* orbitals/ 2>/dev/null"
+        "mkdir -p orbitals\nmv *pdos_atm#* orbitals/ 2>/dev/null"
     )
     assert "${MPICOMMAND} ${BANDSCOMMAND}" not in spin  # bands.x runs serial, like the reference
+
+
+@pytest.mark.parametrize("filpdos", ["pdos.dat", "wfc_teste.dat"])
+def test_pdos_mv_takes_only_the_projections(filpdos):
+    script = _ours("pdos", al(), {"filpdos": filpdos})
+    pattern = re.search(r"^mv (\S+) orbitals/", script, re.MULTILINE)
+    assert pattern is not None
+    projections = [f"{filpdos}.pdos_atm#1(Al)_wfc#1(s)", f"{filpdos}.pdos_atm#1(Al)_wfc#2(p)"]
+    others = [
+        "scf.in",
+        "scf.out",
+        "nscf.in",
+        "nscf.out",
+        "projwfc.in",
+        "projwfc.out",
+        f"{filpdos}.pdos_tot",
+    ]
+    moved = [n for n in (*others, *projections) if fnmatch.fnmatchcase(n, pattern.group(1))]
+    assert moved == projections  # a "wfc" glob would also take projwfc.in/out
 
 
 def test_scripts_run_exactly_the_planned_inputs():

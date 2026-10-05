@@ -16,6 +16,14 @@ PROJWFC = "projwfc.in"
 PROJWFC_TEMPLATE = "qe/pdos/projwfc.in.j2"
 OCCUPATIONS = ("smearing", "tetrahedra", "tetrahedra_opt", "tetrahedra_lin", "fixed")
 DEFAULT_OCCUPATIONS = "tetrahedra"
+NO_BROADENING_NOTE = (
+    "projwfc.in sem ngauss/degauss: com tetraedros o projwfc.x usa o método dos tetraedros "
+    "(um degauss no input o desligaria)"
+)
+ENERGY_WINDOW_HINT = (
+    "Emin/Emax são energias absolutas em eV; acima da energia da última banda calculada (nbnd) "
+    "a DOS é zero. Aumente nbnd ou reduza Emax"
+)
 
 
 def _occupations(scf: ScfInfo) -> str:
@@ -37,7 +45,7 @@ class PdosType(CalcType):
 
     def input_fields(self, scf: ScfInfo) -> list[FormField]:
         return [
-            nbnd_field(scf, NSCF),
+            nbnd_field(scf, NSCF, ENERGY_WINDOW_HINT),
             FormField(
                 "occupations",
                 "Ocupações (occupations)",
@@ -45,14 +53,39 @@ class PdosType(CalcType):
                 _occupations(scf),
                 group=NSCF,
                 choices=OCCUPATIONS,
-                tooltip="&SYSTEM occupations do NSCF (tetraedros dão uma DOS mais limpa)",
+                tooltip=(
+                    "&SYSTEM occupations do NSCF (tetraedros dão uma DOS mais limpa; com "
+                    "tetraedros o projwfc.in sai sem ngauss/degauss, e o projwfc.x usa o "
+                    "método dos tetraedros)"
+                ),
             ),
             kmesh_field(scf, NSCF, required=True),
             _projwfc(PROJWFC, "delta_e", "Passo de energia (DeltaE, eV)", "float", 0.01, "DeltaE"),
             _projwfc(PROJWFC, "e_min", "Energia mínima (Emin, eV)", "float", -25.0, "Emin"),
-            _projwfc(PROJWFC, "e_max", "Energia máxima (Emax, eV)", "float", 25.0, "Emax"),
-            _projwfc(PROJWFC, "degauss", "Alargamento (degauss, Ry)", "float", 0.01, "degauss"),
-            _projwfc(PROJWFC, "ngauss", "Tipo de alargamento (ngauss)", "int", 0, "ngauss"),
+            _projwfc(
+                PROJWFC,
+                "e_max",
+                "Energia máxima (Emax, eV)",
+                "float",
+                25.0,
+                f"Emax: {ENERGY_WINDOW_HINT}",
+            ),
+            _projwfc(
+                PROJWFC,
+                "degauss",
+                "Alargamento (degauss, Ry)",
+                "float",
+                0.01,
+                "degauss (em Ry): ignorado com tetraedros",
+            ),
+            _projwfc(
+                PROJWFC,
+                "ngauss",
+                "Tipo de alargamento (ngauss)",
+                "int",
+                0,
+                "ngauss: ignorado com tetraedros",
+            ),
             _projwfc(
                 PROJWFC,
                 "filpdos",
@@ -82,6 +115,9 @@ class PdosType(CalcType):
         e_min, e_max = values["e_min"], values["e_max"]
         if e_min is not None and e_max is not None and e_min >= e_max:
             work.errors.append("Emin deve ser menor que Emax")
+        broadening = not (occupations or "").startswith("tetrahedra")
+        if not broadening:
+            work.notes.append(NO_BROADENING_NOTE)
         projwfc = render(
             PROJWFC_TEMPLATE,
             {
@@ -91,6 +127,7 @@ class PdosType(CalcType):
                 "filpdos": values["filpdos"] or f"{scf.prefix}.dat",
                 "e_min": e_min if e_min is not None else -25.0,
                 "e_max": e_max if e_max is not None else 25.0,
+                "broadening": broadening,
                 "ngauss": values["ngauss"] if values["ngauss"] is not None else 0,
                 "degauss": values["degauss"] if values["degauss"] is not None else 0.01,
             },

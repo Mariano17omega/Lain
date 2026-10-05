@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 27-1 (primeira correção da revisão de 04/10/2026; antes da spec 28) |
-| **Status** | Proposta |
+| **Status** | Implementada |
 | **Depende de** | spec 25 (templates de "Criar cálculo"), spec 26 (janela) |
 | **Usada por** | spec 28 (nomes do padrão e modo Padrão/Avançado reaproveitam o `pdos.qsub` e o `projwfc.in` corrigidos) |
 | **Esforço** | P |
