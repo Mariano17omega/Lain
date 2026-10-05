@@ -23,15 +23,19 @@ PROGRAM_NAMELISTS: dict[str, frozenset[str]] = {
     "bands": frozenset({"bands"}),
     "projwfc": frozenset({"projwfc"}),
     "dos": frozenset({"dos"}),
+    "pp": frozenset({"inputpp", "plot"}),
 }
 PW_NAMELISTS = PROGRAM_NAMELISTS["pw"]
+# The namelists that identify a program when it reads more than it names: a bare ``&PLOT`` is also
+# the header of a bands.x ``filband`` file, so only ``&INPUTPP`` says pp.x (spec 29 R5.1).
+DECIDING_NAMELISTS: dict[str, frozenset[str]] = {"pp": frozenset({"inputpp"})}
 
 
 def deduce_program(names: Iterable[str]) -> str | None:
-    """``pw``, ``bands``, ``projwfc``, ``dos`` or None, from lowercase namelist names."""
+    """``pw``, ``bands``, ``projwfc``, ``dos``, ``pp`` or None, from lowercase namelist names."""
     present = set(names)
     for program, known in PROGRAM_NAMELISTS.items():
-        if present & known:
+        if present & DECIDING_NAMELISTS.get(program, known):
             return program
     return None
 
@@ -69,7 +73,7 @@ class QEInput:
 
     @property
     def program(self) -> str | None:
-        """``pw``, ``bands``, ``projwfc``, ``dos`` or None."""
+        """``pw``, ``bands``, ``projwfc``, ``dos``, ``pp`` or None."""
         return deduce_program(self.namelists)
 
     @property

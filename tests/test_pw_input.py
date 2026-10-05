@@ -107,6 +107,10 @@ def test_format_label(raw, formatted):
         (["projwfc"], "projwfc"),
         (["dos"], "dos"),
         (["control", "dos"], "pw"),
+        (["inputpp"], "pp"),
+        (["inputpp", "plot"], "pp"),
+        (["plot"], None),  # also the header of a bands.x filband file
+        (["control", "inputpp"], "pw"),
         (["inputph"], None),
         ([], None),
     ],

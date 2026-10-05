@@ -50,7 +50,7 @@ class BandasType(CalcType):
     script_template: ClassVar[str] = "qsub/bands.qsub.j2"
     input_templates: ClassVar[tuple[str, ...]] = (BANDS_X,)
 
-    def input_files(self, scf: ScfInfo) -> list[InputFile]:
+    def input_files(self, scf: ScfInfo, name: str = "") -> list[InputFile]:
         return [
             scf_input(scf),
             InputFile(BANDS_KEY, BANDS, "Bandas"),

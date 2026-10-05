@@ -18,6 +18,7 @@ from .base import (
     resolve,
     visible_fields,
 )
+from .charge import ChargeType
 from .files import InputFile
 from .pdos import PdosType
 from .relax import RelaxType
@@ -40,7 +41,14 @@ __all__ = [
     "visible_fields",
 ]
 
-REGISTRY: tuple[CalcType, ...] = (ScfType(), RelaxType(), VcRelaxType(), BandasType(), PdosType())
+REGISTRY: tuple[CalcType, ...] = (
+    ScfType(),
+    RelaxType(),
+    VcRelaxType(),
+    BandasType(),
+    PdosType(),
+    ChargeType(),
+)
 
 
 def by_id(type_id: str) -> CalcType:

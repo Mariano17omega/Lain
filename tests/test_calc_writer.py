@@ -60,7 +60,7 @@ def test_without_a_name_the_folder_is_the_prefix(tmp_path):
     second = create_folder(tmp_path, BANDAS, " ", plan)
     assert (second.folder.name, second.renamed_from) == ("Bands_1", "Bands")
     names = [folder_name(t, "") for t in REGISTRY]
-    assert names == ["SCF", "Relax", "VC-Relax", "Bands", "PDOS"]
+    assert names == ["SCF", "Relax", "VC-Relax", "Bands", "PDOS", "Charge"]
 
 
 def test_a_file_in_the_way_is_not_touched(tmp_path):

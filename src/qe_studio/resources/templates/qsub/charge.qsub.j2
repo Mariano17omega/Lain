@@ -1,0 +1,17 @@
+{% extends "qsub/_base.qsub.j2" %}
+{% block programs %}
+PPCOMMAND="{{ qe_bin }}/pp.x"
+{% endblock %}
+{% block body %}
+{% if fileout_dir %}
+{# pp.x does not make the folder of fileout: without it the write of the .xsf fails. #}
+mkdir -p {{ fileout_dir }}
+
+{% endif %}
+{% for input, output in pw_runs %}
+${MPICOMMAND} ${PWCOMMAND} -i "{{ input }}" > "{{ output }}"
+
+{% endfor %}
+{# pp.x runs without MPI, as in the cluster's cargas.qsub. #}
+${PPCOMMAND} -i "{{ pp[0] }}" > "{{ pp[1] }}"
+{% endblock %}

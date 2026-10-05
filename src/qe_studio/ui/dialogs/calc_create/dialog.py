@@ -83,7 +83,9 @@ class CalcCreateDialog(QDialog):
         self.theme, self.jobs, self.busy = theme, jobs, busy
         self.debounce_ms = DEBOUNCE_MS  # of the step 2 built next (tests set 0)
         self.tabs: TabsPage | None = None
-        self._built: tuple[CalcType, ScfInfo] | None = None  # what the step 2 was built for
+        # what the step 2 was built for: the type, the SCF and, for a type whose file names take it
+        # (``uses_name``), the folder's name
+        self._built: tuple[CalcType, ScfInfo, str] | None = None
         self._busy = False
         self._close_confirmed = False
         self.settings = settings
@@ -146,26 +148,49 @@ class CalcCreateDialog(QDialog):
 
     # -- pages ---------------------------------------------------------------------------------
     def continue_(self) -> None:
-        """Step 2, built again only when the type or the SCF changed (R2.3)."""
-        calc_type, scf = self.setup.calc_type, self.setup.scf
-        if self.setup.problems() or calc_type is None or scf is None:
+        """Step 2, built again only when the type or the SCF changed (R2.3), or the folder's name
+        for a type whose file names take it (spec 29)."""
+        wanted = self._wanted()
+        if self.setup.problems() or wanted is None:
             return
-        if self._built is None or self._built[0] is not calc_type or self._built[1] is not scf:
-            self._build_tabs(calc_type, scf)
+        if self._stale(wanted):
+            self._build_tabs(*wanted)
         assert self.tabs is not None
         self.tabs.set_target(self.setup.location, self.setup.suffix, self.setup.location_warnings())
         self._show_page(self.tabs)
 
-    def _build_tabs(self, calc_type: CalcType, scf: ScfInfo) -> None:
+    def _wanted(self) -> tuple[CalcType, ScfInfo, str] | None:
+        """What step 2 would be built for now (None: the type or the SCF is not chosen yet)."""
+        calc_type, scf = self.setup.calc_type, self.setup.scf
+        if calc_type is None or scf is None:
+            return None
+        return calc_type, scf, self.setup.suffix if calc_type.uses_name else ""
+
+    def _stale(self, wanted: tuple[CalcType, ScfInfo, str]) -> bool:
+        built = self._built
+        return (
+            built is None
+            or built[0] is not wanted[0]
+            or built[1] is not wanted[1]
+            or built[2] != wanted[2]
+        )
+
+    def _build_tabs(self, calc_type: CalcType, scf: ScfInfo, suffix: str) -> None:
         if self.tabs is not None:
             self.pages.removeWidget(self.tabs)
             self.tabs.deleteLater()
         self.tabs = TabsPage(
-            self.theme, calc_type, scf, self.jobs, self.mode, debounce_ms=self.debounce_ms
+            self.theme,
+            calc_type,
+            scf,
+            self.jobs,
+            self.mode,
+            debounce_ms=self.debounce_ms,
+            name=suffix,
         )
         self.tabs.planned.connect(self._update)
         self.pages.addWidget(self.tabs)
-        self._built = (calc_type, scf)
+        self._built = (calc_type, scf, suffix)
         self.setup.show_rebuild_note(False)
 
     def back(self) -> None:
@@ -198,11 +223,10 @@ class CalcCreateDialog(QDialog):
         problems = self.setup.problems()
         self.continue_button.setEnabled(not problems and not self._busy)
         self.continue_button.setToolTip(problems[0] if problems else "")
-        built = self._built
-        changed = built is not None and (
-            built[0] is not self.setup.calc_type or built[1] is not self.setup.scf
+        wanted = self._wanted()
+        self.setup.show_rebuild_note(
+            self._built is not None and wanted is not None and self._stale(wanted)
         )
-        self.setup.show_rebuild_note(changed and self.setup.scf is not None)
         blocking = self.tabs.blocking() if self.tabs is not None else ""
         self.create_button.setEnabled(self.tabs is not None and not blocking and not self._busy)
         self.create_button.setToolTip(blocking)

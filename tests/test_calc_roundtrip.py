@@ -103,3 +103,17 @@ def test_pdos_folder_is_detected(tmp_path):
     assert pdos.file("projwfc_out") == folder / "projwfc.out"
     assert pdos.file("scf_out") == folder / "scf_al.out"
     assert pdos.file("nscf_out") == folder / "nscf_al.out"
+
+
+def test_charge_folder_gets_the_scf_badge(tmp_path):
+    """Spec 29 R5.3: nothing detects pp.x; the SCF output next to its inputs is what shows."""
+    calc = by_id("charge")
+    created = create_folder(tmp_path, calc, "Al", calc.plan(al(), {}, JOBS, name="Al"))
+    folder = created.folder
+    assert folder.name == "Charge_Al"
+    assert [p.name for p in created.files] == ["charge.qsub", "scf_al.in", "pp_Al_charge.in"]
+    fill(folder, "al_bands", [("al.scf.out", "scf_al.out")])
+    found, _ = results(folder)
+    assert set(found) == {"scf"}  # no module takes the pp.x input
+    assert found["scf"].badge == "SCF"
+    assert found["scf"].file("scf_out") == folder / "scf_al.out"

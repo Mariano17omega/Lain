@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 READING = "Lendo SCF…"
 CHOOSE_TYPE = "Escolha o tipo de cálculo"
 CHOOSE_SCF = "Escolha o input de SCF"
-REBUILD_NOTE = "O tipo ou o SCF mudou: os campos da próxima etapa voltam aos padrões"
+REBUILD_NOTE = "Esta mudança refaz a próxima etapa: os campos voltam aos padrões"
 INPUT_FILTER = "Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)"
 
 

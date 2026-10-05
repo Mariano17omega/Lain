@@ -310,6 +310,51 @@ def test_changing_the_type_rebuilds_step_2(qtbot, dialog):
     assert not dialog.setup.rebuild_note.isHidden()
 
 
+def test_the_charge_type_names_its_input_after_the_folder(qtbot, dialog):
+    """Spec 29: ``pp_<nome>_charge.in`` takes the name typed in step 1, so changing it rebuilds
+    step 2 (the other types keep their fields: ``test_back_keeps_both_steps``)."""
+    assert dialog.setup.type_combo.findText("Carga") >= 0
+    tabs = to_files(qtbot, dialog, "charge", suffix="Al")
+    assert tabs.tab_labels()[:3] == ["Script (charge.qsub)", "SCF (scf_al.in)", "pp_Al_charge.in"]
+    assert tabs.widget_of("name:pp_charge").text() == "pp_Al_charge.in"
+    assert "pp_Al_charge.out" in tabs.previews["script"].toPlainText()
+    tabs.widget_of("fileout").setText("x/y.xsf")
+    dialog.back_button.click()
+    assert dialog.setup.rebuild_note.isHidden()
+    dialog.setup.suffix_edit.setText("Fe")
+    assert not dialog.setup.rebuild_note.isHidden()
+    dialog.continue_button.click()
+    assert dialog.tabs is not tabs and dialog.setup.rebuild_note.isHidden()
+    assert dialog.tabs.widget_of("name:pp_charge").text() == "pp_Fe_charge.in"
+    assert dialog.tabs.widget_of("fileout").text() == "cdd_xsf/al_charge.xsf"  # back to the default
+    dialog.back_button.click()
+    dialog.setup.suffix_edit.setText("")
+    dialog.continue_button.click()
+    assert dialog.tabs.tab_labels()[2] == "pp_charge.in"
+    with qtbot.waitSignal(dialog.create_requested) as blocker:
+        dialog.create_button.click()
+    assert [f.name for f in blocker.args[0].plan.files] == [
+        "charge.qsub",
+        "scf_al.in",
+        "pp_charge.in",
+    ]
+
+
+def test_the_charge_standard_mode_shows_no_field(qtbot, make_dialog):
+    dialog = make_dialog(mode="padrao")
+    tabs = to_files(qtbot, dialog, "charge")
+    assert [tabs.form_shown(key) for key in tabs.previews] == [False, False, False]
+    assert dialog.create_button.isEnabled()
+    dialog.set_mode("avancado")
+    assert tabs.form_shown("pp_charge") and tabs.widget_of("iflag").currentText().startswith("3")
+    tabs.widget_of("fileout").setText("../x.xsf")
+    tabs.flush()
+    assert tabs.widget_of("fileout").property("invalid") is True
+    assert (
+        not dialog.create_button.isEnabled() and "dentro da pasta" in dialog.create_button.toolTip()
+    )
+
+
 # -- closing --------------------------------------------------------------------------------------
 @pytest.mark.parametrize("how", ["cancel", "escape", "close"])
 def test_closing_creates_nothing(qtbot, dialog, place, asked, how):

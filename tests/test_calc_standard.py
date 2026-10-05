@@ -121,6 +121,7 @@ def test_fields_of_the_standard_mode():
         "vc-relax": [],
         "bandas": ["kpath"],
         "pdos": ["e_min", "e_max"],
+        "charge": [],
     }
     assert shown("bandas", without_output) == ["nbnd", "kpath"]  # required, no default
     assert shown("pdos", without_output) == ["nbnd", "e_min", "e_max"]

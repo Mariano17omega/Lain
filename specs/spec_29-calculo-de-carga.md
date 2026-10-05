@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 29 |
-| **Status** | Proposta |
+| **Status** | Implementada. Desvios:<br>- **Nome da pasta no plano:** `plan(scf, values, jobs, mode, name="")`, `fields(…, name)` e `input_files(scf, name)` recebem o nome digitado na Etapa 1 (a spec não dizia como `pp_<nome>_charge.in` o conhece); só um tipo com a ClassVar `CalcType.uses_name` o lê (`ChargeType`). A janela refaz a Etapa 2 quando esse nome muda (`CalcCreateDialog._wanted` / `_stale`), porque o campo "Nome do arquivo" abre preenchido com o padrão; os outros tipos continuam sem refazer.<br>- **Marca pelo plano:** `Work.problem(field_id, text)` (erro + marca no campo, mesclado em `CalcPlan.problems`) para `fileout`, `output_format` e `plot_num`.<br>- **Opções com rótulo:** `iflag` e `output_format` são `choice` cujo texto é `"5 — XSF para XCrySDen (3D, grade FFT inteira)"` (`charge.choice` / `code_of`). Códigos conferidos no `INPUT_PP` do QE: `iflag` 0–4; `output_format` 0, 2, 3, 5, 6, 7; coerência só para `iflag` 2 (2, 3, 7) e 3 (3, 5, 6), já que o `pp.x` ignora o formato nos gráficos 1D e polar.<br>- **Lint:** `PROGRAM_NAMELISTS["pp"]` + `DECIDING_NAMELISTS` (só `&INPUTPP` decide); `input_lint._ALL_NAMELISTS` fica sem as do `pp.x`, senão o `&INPUTPH` do ph.x ouviria "quis dizer &INPUTPP?".<br>- **Template:** sem recuo, como na ideia (as linhas do teste de aceite são as dela); `filepp(1)` usa a variável `filplot`.<br>- **Testes:** `tests/test_calc_charge.py` (tipo, template, script, validações), mais linhas em `test_calc_types.py`, `test_calc_writer.py`, `test_calc_standard.py`, `test_calc_roundtrip.py`, `test_calc_create_dialog.py`, `test_input_lint.py`, `test_pw_input.py` e `test_sniff.py`.<br>- Como as 27-x e a 28, a spec fica em `specs/` (não movida para `Archived/`): a spec 30 reaproveita o template e o script. |
 | **Depende de** | spec 28 (nomes do padrão, `outdir`/`pseudo_dir`, modo Padrão/Avançado) |
 | **Usada por** | spec 30 (diferença de carga reaproveita o template e o script) |
 | **Esforço** | M |
@@ -116,12 +116,12 @@
 - A janela não muda: tipo, abas e campos vêm do registro (spec 26) e do modo (spec 28).
 
 ## Critérios de aceite e testes
-- [ ] Registro: "Carga" no combo de tipos; `ChargeType.plan` com prefix `Al` e nome `Al` → `charge.qsub`,
+- [x] Registro: "Carga" no combo de tipos; `ChargeType.plan` com prefix `Al` e nome `Al` → `charge.qsub`,
       `scf_Al.in`, `pp_Al_charge.in`; sem nome → pasta `Charge` e `pp_charge.in`.
-- [ ] Template: render do Padrão igual, linha a linha, ao da ideia (com `prefix = 'Al'`); falta de variável levanta.
-- [ ] Script: `mkdir -p cdd_xsf` antes do `pw.x`; `pp.x` sem `${MPICOMMAND}`; nomes de R3.2; `fileout` em outra
+- [x] Template: render do Padrão igual, linha a linha, ao da ideia (com `prefix = 'Al'`); falta de variável levanta.
+- [x] Script: `mkdir -p cdd_xsf` antes do `pw.x`; `pp.x` sem `${MPICOMMAND}`; nomes de R3.2; `fileout` em outra
       pasta muda o `mkdir`.
-- [ ] Avançado: `fileout` com `..` ou absoluto → erro; `iflag`/`output_format` incoerentes → erro.
-- [ ] Lint: `pp_Al_charge.in` sem issues; uma `&INPUTPP` com erro de escrita continua marcada; `looks_like_input`
+- [x] Avançado: `fileout` com `..` ou absoluto → erro; `iflag`/`output_format` incoerentes → erro.
+- [x] Lint: `pp_Al_charge.in` sem issues; uma `&INPUTPP` com erro de escrita continua marcada; `looks_like_input`
       verdadeiro para o input do `pp.x` e falso para um `filband`.
-- [ ] Ida e volta: pasta `Charge_Al` com `scf_Al.out` de fixture recebe o badge SCF.
+- [x] Ida e volta: pasta `Charge_Al` com `scf_Al.out` de fixture recebe o badge SCF.

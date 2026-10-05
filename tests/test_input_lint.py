@@ -241,6 +241,47 @@ def test_unrecognized_programs_only_get_the_write_rules():
     ]
 
 
+PP = """&INPUTPP
+prefix = 'Al',
+outdir = './tmp/',
+filplot = 'Al.charge',
+plot_num = 0
+/
+&PLOT
+nfile = 1,
+filepp(1) = 'Al.charge',
+weight(1) = 1.0,
+iflag = 3,
+output_format = 5,
+fileout = 'cdd_xsf/Al_charge.xsf'
+/
+"""
+
+
+def test_pp_inputs_know_their_namelists():
+    """Spec 29 R5: neither &INPUTPP nor &PLOT is unknown in a pp.x input."""
+    doc = lint(PP)
+    assert doc.program == "pp" and doc.issues == []
+    assert lint("&inputpp\n prefix='x'\n/\n&plot\n iflag=3\n/\n").issues == []
+
+
+def test_pp_inputs_still_get_the_write_rules():
+    assert found(PP.replace("'./tmp/'", "'./tmp/")) == [
+        (3, "'./tmp/,", "error", "Aspas não fechadas")
+    ]
+    assert found(PP.replace("iflag = 3,", "iflag = 3.x,")) == [
+        (11, "3.x", "error", "Número inválido")
+    ]
+    assert [m for *_, m in found(PP.rstrip("/\n"))] == ["&PLOT não foi fechada com '/'"]
+
+
+def test_pp_does_not_make_a_close_namelist_of_another_program_a_typo():
+    """ph.x's &INPUTPH is one edit from &INPUTPP: it must stay unrecognized, not "corrected"."""
+    assert found("&inputph\n prefix='al'\n/\n") == []
+    assert found("&inputp\n/\n") == []
+    assert lint("&plot nbnd=8, nks=60 /\n").program is None  # a bands.x filband header
+
+
 def test_bands_projwfc_and_dos_inputs():
     assert lint("&bands\n prefix='x', filband='b.dat'\n/\n").program == "bands"
     assert lint("&projwfc\n DeltaE=0.1\n/\n").program == "projwfc"

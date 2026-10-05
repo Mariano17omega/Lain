@@ -34,6 +34,7 @@ FILES = {  # spec 28 R1.3, for the prefix 'al'
     "vc-relax": ["vc-relax.qsub", "vc-relax_al.in"],
     "bandas": ["bands.qsub", "scf_al.in", "bands.in", "bands_pp.in"],
     "pdos": ["pdos.qsub", "scf_al.in", "nscf_al.in", "projwfc.in"],
+    "charge": ["charge.qsub", "scf_al.in", "pp_charge.in"],
 }
 
 
@@ -64,15 +65,23 @@ def changed(before: str, after: str) -> tuple[list[str], list[str]]:
 
 
 def test_registry():
-    assert [t.id for t in REGISTRY] == ["scf", "relax", "vc-relax", "bandas", "pdos"]
-    assert [t.label for t in REGISTRY] == ["SCF", "Relax", "VC-Relax", "Bandas", "PDOS"]
-    assert [t.folder_prefix for t in REGISTRY] == ["SCF", "Relax", "VC-Relax", "Bands", "PDOS"]
+    assert [t.id for t in REGISTRY] == ["scf", "relax", "vc-relax", "bandas", "pdos", "charge"]
+    assert [t.label for t in REGISTRY] == ["SCF", "Relax", "VC-Relax", "Bandas", "PDOS", "Carga"]
+    assert [t.folder_prefix for t in REGISTRY] == [
+        "SCF",
+        "Relax",
+        "VC-Relax",
+        "Bands",
+        "PDOS",
+        "Charge",
+    ]
     assert [t.script_name for t in REGISTRY] == [
         "scf.qsub",
         "relax.qsub",
         "vc-relax.qsub",
         "bands.qsub",
         "pdos.qsub",
+        "charge.qsub",
     ]
     with pytest.raises(KeyError):
         by_id("dos")
@@ -104,6 +113,15 @@ def test_tab_labels():
     ]
 
 
+def input_namelist(planned) -> str:
+    """The namelist of the generated input that holds ``prefix`` and ``outdir``."""
+    if planned.kind == "pw_input":
+        return "control"
+    if planned.key.startswith("bands_pp"):
+        return "bands"
+    return "inputpp" if planned.key.startswith("pp_") else "projwfc"
+
+
 @pytest.mark.parametrize("type_id", FILES)
 def test_inputs_lint_clean_with_the_scf_prefix_and_outdir(type_id):
     for scf in (al(), ni(), from_text(SI_SCF.read_text())):
@@ -113,16 +131,14 @@ def test_inputs_lint_clean_with_the_scf_prefix_and_outdir(type_id):
             errors = [i for i in lint(planned.text).issues if i.severity == "error"]
             assert not errors, (planned.name, errors)
             editor = InputEditor.from_text(planned.text)
-            namelist = {"pw_input": "control"}.get(planned.kind) or (
-                "bands" if planned.key.startswith("bands_pp") else "projwfc"
-            )
+            namelist = input_namelist(planned)
             assert editor.get(namelist, "prefix") == scf.prefix
             assert editor.get(namelist, "outdir") == "./tmp/"  # spec 28 R2.1, both modes
 
 
 def test_scf_copies_change_only_the_outdir():
     text = AL_SCF.read_text()
-    for type_id in ("scf", "bandas", "pdos"):
+    for type_id in ("scf", "bandas", "pdos", "charge"):
         for mode in ("padrao", "avancado"):
             copy = text_of(plan(type_id, mode=mode), "scf")
             assert changed(text, copy) == (["    outdir='./tmp' "], ["    outdir='./tmp/' "])

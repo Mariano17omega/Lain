@@ -62,7 +62,7 @@ class PdosType(CalcType):
     script_template: ClassVar[str] = "qsub/pdos.qsub.j2"
     input_templates: ClassVar[tuple[str, ...]] = (PROJWFC_TEMPLATE,)
 
-    def input_files(self, scf: ScfInfo) -> list[InputFile]:
+    def input_files(self, scf: ScfInfo, name: str = "") -> list[InputFile]:
         return [
             scf_input(scf),
             pw_input(NSCF, "nscf", scf, "NSCF"),

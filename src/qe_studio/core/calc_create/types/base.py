@@ -204,6 +204,12 @@ class Work:
     names: dict[str, str] = field(default_factory=dict)  # key → the name in the folder
     notes: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    problems: dict[str, str] = field(default_factory=dict)  # field id → its problem (marked)
+
+    def problem(self, field_id: str, text: str) -> None:
+        """An error the window marks on the field ``field_id`` (it blocks "Criar" like any error)."""
+        self.problems.setdefault(field_id, text)
+        self.errors.append(text)
 
     def editor(self) -> InputEditor:
         """A fresh editor on the SCF's text, already a unit's (``outdir``, ``pseudo_dir``)."""
@@ -245,21 +251,23 @@ class CalcType:
     script_stem: ClassVar[str]  # the script is <script_stem>.qsub
     script_template: ClassVar[str]  # under templates/
     input_templates: ClassVar[tuple[str, ...]] = ()  # the other templates it renders
+    uses_name: ClassVar[bool] = False  # a standard file name takes the folder's name (spec 29)
 
     @property
     def script_name(self) -> str:
         return f"{self.script_stem}.qsub"
 
-    def fields(self, scf: ScfInfo, jobs: JobsConfig) -> list[FormField]:
+    def fields(self, scf: ScfInfo, jobs: JobsConfig, name: str = "") -> list[FormField]:
         """The script's fields, the name of each input (first in its tab) and the type's own."""
         from .files import name_field
         from .script import script_fields
 
-        names = [name_field(input_file) for input_file in self.input_files(scf)]
+        names = [name_field(input_file) for input_file in self.input_files(scf, name)]
         return [*script_fields(self, scf, jobs), *names, *self.input_fields(scf)]
 
-    def input_files(self, scf: ScfInfo) -> list[InputFile]:
-        """The inputs after the script, in tab order, with their standard names (spec 28 R1.3)."""
+    def input_files(self, scf: ScfInfo, name: str = "") -> list[InputFile]:
+        """The inputs after the script, in tab order, with their standard names (spec 28 R1.3).
+        ``name`` is the folder's name, which only a type with ``uses_name`` reads."""
         raise NotImplementedError
 
     def input_fields(self, scf: ScfInfo) -> list[FormField]:
@@ -279,21 +287,23 @@ class CalcType:
         values: Mapping[str, Any],
         jobs: JobsConfig,
         mode: Mode = DEFAULT_MODE,
+        name: str = "",
     ) -> CalcPlan:
         """The files of the new folder for ``values`` (the window's fields; empty → default). In
-        ``padrao`` a field the mode hides takes its default, whatever ``values`` holds. Never
-        raises and reads no file: the window calls it on every edit."""
+        ``padrao`` a field the mode hides takes its default, whatever ``values`` holds. ``name`` is
+        the folder's name typed in step 1 (may be empty). Never raises and reads no file: the
+        window calls it on every edit."""
         from ..render import TemplateFailure
         from ..unit import unit_notes
         from .files import check_names
         from .script import script_file
 
-        fields = self.fields(scf, jobs)
+        fields = self.fields(scf, jobs, name)
         shown = {form_field.id for form_field in visible_fields(fields, mode)}
         resolved, problems = _resolve_all(
             fields, {key: value for key, value in values.items() if key in shown}
         )
-        inputs = {input_file.key: input_file for input_file in self.input_files(scf)}
+        inputs = {input_file.key: input_file for input_file in self.input_files(scf, name)}
         work = Work(scf, resolved, jobs, inputs, notes=unit_notes(scf, jobs))
         work.errors.extend(problems.values())
         problems.update(check_names(work, self.script_name))
@@ -303,5 +313,7 @@ class CalcType:
             files.extend(self.inputs(work))
         except TemplateFailure as exc:
             work.errors.append(str(exc))
+        for field_id, text in work.problems.items():
+            problems.setdefault(field_id, text)
         notes = list(dict.fromkeys(work.notes))
         return CalcPlan(tuple(files), tuple(notes), tuple(dict.fromkeys(work.errors)), problems)

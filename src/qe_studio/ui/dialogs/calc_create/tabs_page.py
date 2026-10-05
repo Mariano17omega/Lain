@@ -51,14 +51,17 @@ class TabsPage(QWidget):
         jobs: JobsConfig,
         mode: Mode = DEFAULT_MODE,
         debounce_ms: int = DEBOUNCE_MS,
+        name: str = "",
         parent: QWidget | None = None,
     ):
+        """``name``: the folder's name typed in step 1, for a type whose file names take it."""
         super().__init__(parent)
         self.calc_type, self.scf, self.jobs = calc_type, scf, jobs
         self.mode: Mode = mode
         self.debounce_ms = debounce_ms
-        self.fields = calc_type.fields(scf, jobs)
-        self.plan: CalcPlan = calc_type.plan(scf, {}, jobs, mode)
+        self.name = name
+        self.fields = calc_type.fields(scf, jobs, name)
+        self.plan: CalcPlan = calc_type.plan(scf, {}, jobs, mode, name)
         self._edited = False
         self._target: tuple[Path, str] | None = None  # where the folder goes (step 1)
         self._extra_warnings: tuple[str, ...] = ()
@@ -155,7 +158,7 @@ class TabsPage(QWidget):
     def flush(self) -> None:
         """Plan now with what the fields hold, and show it."""
         self._timer.stop()
-        self.plan = self.calc_type.plan(self.scf, self.values(), self.jobs, self.mode)
+        self.plan = self.calc_type.plan(self.scf, self.values(), self.jobs, self.mode, self.name)
         for form in self.forms:
             form.mark(dict(self.plan.problems))
         original = self.scf.text

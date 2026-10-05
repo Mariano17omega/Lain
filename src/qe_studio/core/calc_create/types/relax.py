@@ -30,7 +30,7 @@ class RelaxType(CalcType):
     script_template: ClassVar[str] = "qsub/relax.qsub.j2"
     calculation: ClassVar[str] = "relax"  # also the key of its input
 
-    def input_files(self, scf: ScfInfo) -> list[InputFile]:
+    def input_files(self, scf: ScfInfo, name: str = "") -> list[InputFile]:
         """``relax_<prefix>.in`` (``vc-relax_<prefix>.in``)."""
         return [pw_input(self.calculation, self.calculation, scf, self.label)]
 

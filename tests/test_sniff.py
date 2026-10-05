@@ -168,6 +168,17 @@ def test_looks_like_input_on_fixtures(rel, expected):
     assert looks_like_input(FIXTURES / rel) is expected
 
 
+def test_looks_like_input_accepts_a_pp_input_and_refuses_a_filband(tmp_path):
+    """Spec 29 R5.2: pp.x's `&INPUTPP` + `&PLOT` is an input, the bands.x `&plot nbnd=…` head is not."""
+    pp = tmp_path / "pp_Al_charge.in"
+    pp.write_text("&INPUTPP\nprefix = 'Al',\nplot_num = 0\n/\n&PLOT\nnfile = 1,\niflag = 3\n/\n")
+    filband = tmp_path / "band"
+    filband.write_text(" &plot nbnd=   8, nks=  60 /\n  0.0 0.0 0.0\n")
+    assert looks_like_input(pp)
+    assert not looks_like_input(filband)
+    assert SniffCache().sniff(pp).kind is FileKind.UNKNOWN  # no detection of pp.x inputs
+
+
 def test_looks_like_input_rescues_what_sniff_gives_up_on(tmp_path):
     # ASE raises on a quote before the `=`: sniff says UNKNOWN, the viewer still shows an input.
     broken = tmp_path / "broken.in"

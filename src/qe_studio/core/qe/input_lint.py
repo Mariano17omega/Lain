@@ -28,7 +28,11 @@ from .pw_input import PROGRAM_NAMELISTS, deduce_program
 
 __all__ = ["Card", "Entry", "InputDoc", "LintIssue", "lint", "neighbour_issue"]
 
-_ALL_NAMELISTS = frozenset().union(*PROGRAM_NAMELISTS.values())
+# What a namelist of a program Lain does not know (ph.x…) is compared with for a typo hint. Without
+# pp.x's: ``&INPUTPH`` is one edit from ``&INPUTPP`` and would be told to be it (spec 29 R5.2).
+_ALL_NAMELISTS = frozenset().union(
+    *(known for program, known in PROGRAM_NAMELISTS.items() if program != "pp")
+)
 
 
 @dataclass(frozen=True)

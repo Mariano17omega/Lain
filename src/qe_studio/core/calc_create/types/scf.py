@@ -25,7 +25,7 @@ class ScfType(CalcType):
     script_stem: ClassVar[str] = "scf"
     script_template: ClassVar[str] = "qsub/scf.qsub.j2"
 
-    def input_files(self, scf: ScfInfo) -> list[InputFile]:
+    def input_files(self, scf: ScfInfo, name: str = "") -> list[InputFile]:
         return [scf_input(scf)]
 
     def input_fields(self, scf: ScfInfo) -> list[FormField]:

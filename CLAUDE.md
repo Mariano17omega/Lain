@@ -576,20 +576,24 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   `crystal` or `structure_problem`; `value(namelist, key)` reads the text as written). `calculation` other than scf →
   `ScfInputError`.
 - **Types** (`types/`, `REGISTRY`, `by_id`): `CalcType` ClassVars `id` (never renamed: QSettings and tests use them),
-  `label`, `folder_prefix` (`SCF`, `Relax`, `VC-Relax`, `Bands`, `PDOS`), `script_stem` (`scf`, `relax`, `vc-relax`,
-  `bands`, `pdos` → `script_name` `<stem>.qsub`), `script_template`, `input_templates`. `input_files(scf)` lists the
+  `label`, `folder_prefix` (`SCF`, `Relax`, `VC-Relax`, `Bands`, `PDOS`, `Charge`), `script_stem` (`scf`, `relax`,
+  `vc-relax`, `bands`, `pdos`, `charge` → `script_name` `<stem>.qsub`), `script_template`, `input_templates`, `uses_name`
+  (spec 29: a standard file name takes the folder's name). `input_files(scf, name="")` lists the
   inputs as `types/files.py:InputFile(key, name, label)`: a stable key (`scf`, `relax`/`vc-relax`, `bands`, `bands_pp`
-  or `bands_pp_up`/`_dw`, `nscf`, `projwfc`) and the standard name (spec 28 R1.3: `scf_<prefix>.in`,
+  or `bands_pp_up`/`_dw`, `nscf`, `projwfc`, `pp_charge`) and the standard name (spec 28 R1.3: `scf_<prefix>.in`,
   `relax_<prefix>.in`, `vc-relax_<prefix>.in`, `nscf_<prefix>.in`, `<prefix>` = `unit_stem(scf.prefix)`; plain
-  `bands.in`, `bands_pp.in`, `projwfc.in`). `fields(scf, jobs)` = the script's three (`types/script.py`, key `script`:
+  `bands.in`, `bands_pp.in`, `projwfc.in`; `pp_<name>_charge.in`, or `pp_charge.in` without a name, for Carga).
+  `fields(scf, jobs, name="")` = the script's three (`types/script.py`, key `script`:
   `job_name` sanitized to 15 chars, `np` = `jobs.cores`, `nk` = `jobs.nk`) + a "Nome do arquivo" field per input
   (`name:<key>`, first in its tab) + `input_fields(scf)`. `FormField.group` and `PlannedFile.key` are that key (names
   can be edited), and the script gets the names through `script_values(work)` (`pw_runs`, `bands_x`, `projwfc`: `(in,
   out)` pairs from `work.run(key)`; no `.j2` under `qsub/` names an input, `test_no_script_template_names_an_input`).
-  `plan(scf, values, jobs, mode="padrao")` never raises nor reads a file: values of fields `visible_fields` hides in
+  `plan(scf, values, jobs, mode="padrao", name="")` (`name`: the folder's name typed in step 1, read only by a
+  `uses_name` type) never raises nor reads a file: values of fields `visible_fields` hides in
   the mode are dropped (their default counts; the window keeps them), `resolve` (empty → default, invalid /
   required-without-value → errors), `files.check_names` (`.in`, `[A-Za-z0-9._-]`, unique; a bad name is still
-  previewed), then the script and `inputs(work)` (`work.name(key)`, `work.planned`, `work.pw_file`).
+  previewed), then the script and `inputs(work)` (`work.name(key)`, `work.planned`, `work.pw_file`,
+  `work.problem(field_id, text)`: an error the window marks on that field).
   `CalcPlan(files, notes, errors, problems)`: files in tab order (script first), `notes` warn, `errors` block "Criar",
   `problems` (field id → text) are what the window marks. A new type = a module + its templates + a registry entry.
 - **Modes** (spec 28 R3): `Mode` = `padrao` | `avancado` (`MODES`, `DEFAULT_MODE`). `FormField.standard` shows a field
@@ -597,6 +601,16 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   or output shows in both). `padrao` shows: nothing for SCF / Relax / VC-Relax, the path for Bandas, `e_min` / `e_max`
   for PDOS (its NSCF mesh only when the SCF has no automatic one). Defaults: projwfc `degauss` 0.000735 Ry, `filband`
   `./band` (`channel_filband` → `./band_up` / `./band_dw`, the names spec 13 pairs by the bands.x input).
+- **Carga** (`types/charge.py`, spec 29): `charge.qsub`, the SCF copy and `qe/charge/pp_charge.in.j2` (the idea's
+  input, no indent; `filepp(1)` = `filplot`). `padrao` shows no field; `avancado` adds `plot_num`, `iflag`, `output_format`
+  (`choice` fields whose text is `"5 — XSF …"`, `choice` / `code_of`) and `fileout` (`cdd_xsf/<prefix>_charge.xsf`):
+  `fileout` must be relative and inside the folder (`unit.absolute` / `climbs`), and `output_format` must fit `iflag`
+  where pp.x checks it (`FORMATS_OF_IFLAG`: 2 → 2, 3, 7; 3 → 3, 5, 6; the 1D and polar plots ignore it). The script
+  makes `fileout`'s folder (`mkdir -p cdd_xsf`: pp.x does not; `fileout_dir`, none for a bare name) before the pw.x of
+  the folder's own SCF and runs pp.x without MPI. The inputs of pp.x lint clean: `pw_input.PROGRAM_NAMELISTS["pp"]`,
+  decided by `&INPUTPP` only (`DECIDING_NAMELISTS`: a bare `&PLOT` is a bands.x `filband` header), and
+  `input_lint._ALL_NAMELISTS` leaves it out (else ph.x's `&INPUTPH` would be "corrected" to `&INPUTPP`). Nothing detects
+  pp.x: the folder shows the SCF badge.
 - **Self-contained folder** (`unit.py`, spec 28 R2): `Work.editor()` is the SCF's text after `apply_unit`
   (`outdir = './tmp/'` always, `jobs.pseudo_dir` when set; `edits.put_text` compares with case), so every pw.x input,
   the SCF copy included, gets it (the copy differs from the SCF only there); bands.x and projwfc.x templates get
@@ -624,7 +638,7 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   `descricao.md` when the notes have text), `create_folder` (worker): `unique_names.make_new_dir` (`mkdir` loop,
   `_N` always at the end), every file `open(…, "x")`, a failure removes only the files it wrote and `rmdir`s its
   folder (`CreateError`). Tests: `tests/calc_helpers.py` and `test_lattice.py`, `test_kpath.py`, `test_calc_*.py`
-  (`test_calc_types.py` plans in `avancado`; `test_calc_standard.py` holds spec 28's names, modes and unit;
+  (`test_calc_types.py` plans in `avancado`; `test_calc_standard.py` holds spec 28's names, modes and unit; `test_calc_charge.py` spec 29's Carga type;
   `test_calc_roundtrip.py` fills generated folders with fixture outputs under the new names and detects them).
 
 ### "Criar cálculo" window (spec 26, spec 28 R5)
@@ -637,7 +651,7 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
 `failed`); `CreateError` → `QMessageBox.critical`, window stays open. The window never writes.
 
 - `ui/dialogs/calc_create/`: `dialog.CalcCreateDialog` (steps in a `QStackedWidget`; `continue_` rebuilds step 2
-  only when the type or the `ScfInfo` object changed; Esc / X / "Cancelar" ask `ask_discard` only when
+  only when the type or the `ScfInfo` object changed (or, for a `uses_name` type, the folder's name: `_wanted` / `_stale`); Esc / X / "Cancelar" ask `ask_discard` only when
   `TabsPage.dirty`; emits `create_requested(CreateRequest)`; `settings=` is where the mode lives, QSettings
   `calc_create/mode`, `padrao` the first time: the controller passes `window.settings`), `mode_switch.ModeSwitch`
   (two exclusive `toggle` `QToolButton`s right of the step title, step 2 only; `set_mode` never emits),
