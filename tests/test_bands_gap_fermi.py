@@ -7,6 +7,7 @@ from qe_studio.core.calculations import REGISTRY
 from qe_studio.core.calculations.bands import BandsDataset, BandsModule
 from qe_studio.core.calculations.bands.data import (
     EDGE_TOL,
+    GAP_FROM_FERMI_NOTE,
     GAP_NO_FERMI_NOTE,
     GAP_OFF_PATH_NOTE,
     band_edges,
@@ -24,7 +25,7 @@ ENERGIES = np.array([[-4.0, -3.0, -3.5], [-2.0, -0.5, -1.0], [1.0, 2.0, 1.5], [3
 VBM, CBM = -0.5, 1.0
 
 
-def dataset_of(fermi: float | None, kind: FermiKind | None) -> BandsDataset:
+def dataset_of(fermi: float | None, kind: FermiKind | None, electrons: float = 4.0) -> BandsDataset:
     """The synthetic bands with the edges ``pw.x`` output would give them."""
     dataset = BandsDataset(
         folder=FIXTURES / "si_bands",
@@ -36,7 +37,7 @@ def dataset_of(fermi: float | None, kind: FermiKind | None) -> BandsDataset:
         labels=[],
         tick_source="nenhum",
     )
-    band_edges(dataset, PwOutput(fermi=fermi, fermi_kind=kind, n_electrons=4.0))
+    band_edges(dataset, PwOutput(fermi=fermi, fermi_kind=kind, n_electrons=electrons))
     return dataset
 
 
@@ -108,6 +109,47 @@ def test_a_metal_by_the_count_says_metallic_without_a_note():
     _module, dataset, _params = load(FIXTURES / "al_bands")  # 3 electrons: no band count
     info = rendered(dataset)
     assert "metálico" in info.summary and info.notes == ()
+
+
+# -- (d) an odd electron count: no whole bands to count, so the edges come from E_F --------------
+ODD = 5.0  # 2.5 bands: the count itself says nothing about the gap
+
+
+@pytest.mark.parametrize("fermi", [0.25, VBM, CBM])
+def test_an_odd_count_takes_the_edges_around_e_f(fermi):
+    dataset = dataset_of(fermi, "fermi", ODD)
+    assert (dataset.vbm, dataset.cbm) == (VBM, CBM) and dataset.n_occupied is None
+    assert dataset.gap == pytest.approx(1.5)
+    assert dataset.gap_note == GAP_FROM_FERMI_NOTE.format(n=ODD)
+    assert dataset.gap_note == "gap pela posição de E_F: 5 elétrons não enchem bandas inteiras"
+    info = rendered(dataset)
+    assert "E_gap (no caminho) = 1.500 eV" in info.summary and info.notes == (dataset.gap_note,)
+    assert dataset.reference("vbm") == VBM
+
+
+@pytest.mark.parametrize("fermi", [-1.0, 1.5])
+def test_an_odd_count_with_e_f_inside_a_band_leaves_no_gap(fermi):
+    dataset = dataset_of(fermi, "fermi", ODD)
+    assert dataset.gap is None and dataset.gap_note is None
+    info = rendered(dataset)
+    assert "metálico" in info.summary and info.notes == ()
+
+
+@pytest.mark.parametrize("kind", ["homo", "homo_lumo", None])
+def test_an_odd_count_without_smearing_or_e_f_still_gives_no_gap(kind):
+    dataset = dataset_of(None if kind is None else 0.25, kind, ODD)
+    assert dataset.gap is None and dataset.gap_note is None
+
+
+def test_the_gap_by_e_f_reaches_the_legend():
+    dataset = dataset_of(0.25, "fermi", ODD)
+    module = BandsModule()
+    params = module.default_params(CONFIG, dataset)
+    params.show_legend, params.legend_gap = True, True
+    figure, info = render(module, dataset, params, LIGHT)
+    texts = [t.get_text() for t in figure.axes[0].get_legend().get_texts()]
+    assert texts[-1] == "$E_{gap}$ = 1.500 eV"
+    assert info.notes == (dataset.gap_note,)  # the gap is there: no "sem gap" line
 
 
 # -- bands + DOS and the field ----------------------------------------------------------------------

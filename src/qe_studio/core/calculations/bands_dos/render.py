@@ -9,7 +9,7 @@ from matplotlib.ticker import MaxNLocator
 from ...plotting.draw import bands_dos_axes, finish_joined
 from ...plotting.style import PlotStyle
 from ..bands import render as bands_render
-from ..bands.gap import gap_handles
+from ..bands.gap import gap_handles, legend_gap_notes
 from ..bands.params import ENERGY_NAMES
 from ..params import RenderInfo
 from ..pdos import atoms as pdos_atoms
@@ -56,7 +56,8 @@ def render_bands_dos(
     handles += gap_handles(bands, bands_params)  # once: the axis is the same for both panels
     finish_joined(figure, ax_dos if dos_handles else ax_bands, params, handles)
     xlim = bands_render.band_xlim(bands, bands_params, channels[0])
-    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset, params), notes(dataset))
+    found = (*notes(dataset), *legend_gap_notes(bands, bands_params))
+    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset, params), found)
 
 
 def _labels(handles: list) -> set[str]:

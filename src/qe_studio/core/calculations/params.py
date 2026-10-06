@@ -65,6 +65,7 @@ class ParamField:
     tooltip: str = ""
     refreshes: bool = False  # after an edit the panel re-reads every value (dependent fields)
     colors: str = ""  # kind "series": name of the parameter holding the color overrides
+    requires: str = ""  # name of a bool parameter the field does nothing without (panel: disabled)
 
 
 @dataclass
@@ -132,7 +133,8 @@ LEGEND_GAP_FIELD = ParamField(
     "Gap de energia na legenda",
     "Legenda",
     "bool",
-    tooltip="Mostra o gap (CBM − VBM) na legenda. Sem efeito com a legenda oculta ou em sistema metálico.",
+    tooltip="Mostra o gap (CBM − VBM) na legenda. Sem efeito em sistema metálico.",
+    requires="show_legend",
 )
 
 COMMON_FIELDS = (

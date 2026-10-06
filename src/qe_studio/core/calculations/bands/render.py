@@ -15,7 +15,7 @@ from ...qe.pw_input import format_kpoint_label
 from ..params import RenderInfo
 from ..readout import nearest_tick_label, signed
 from .data import BandsDataset, valence_mask
-from .gap import gap_entries, gap_handles
+from .gap import gap_entries, gap_handles, legend_gap_notes
 from .params import ENERGY_NAMES, Y_LABELS, BandsParams
 
 SYMBOL = {"up": "↑", "down": "↓"}
@@ -77,7 +77,8 @@ def _render_plain(
     handles += gap_handles(dataset, params)
     finish(figure, ax, params, handles)
     xlim = band_xlim(dataset, params)
-    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset), notes(dataset))
+    found = (*notes(dataset), *legend_gap_notes(dataset, params))
+    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset), found)
 
 
 def draw_plain(
@@ -162,7 +163,8 @@ def _render_spin(
         finish_side(figure, axes, params, handles)
     else:
         finish(figure, axes[0], params, handles)
-    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset), notes(dataset))
+    found = (*notes(dataset), *legend_gap_notes(dataset, params))
+    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset), found)
 
 
 def _draw_panel(

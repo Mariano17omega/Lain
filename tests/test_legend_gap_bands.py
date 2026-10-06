@@ -6,7 +6,13 @@ import pytest
 from qe_studio.core.calculations import REGISTRY, module_for_file
 from qe_studio.core.calculations.bands import BandsDataset, BandsModule
 from qe_studio.core.calculations.bands.data import ChannelEdges
-from qe_studio.core.calculations.bands.gap import GapEntry, gap_entries
+from qe_studio.core.calculations.bands.gap import (
+    NO_COUNT_NOTE,
+    NO_GAP_NOTE,
+    GapEntry,
+    gap_entries,
+    legend_gap_notes,
+)
 from qe_studio.core.calculations.params import COMMON_FIELDS
 from qe_studio.core.detection import detect_folder, manual_result
 from qe_studio.core.plotting.style import LIGHT
@@ -105,6 +111,36 @@ def test_a_metal_has_no_gap_entry(folder):
     assert gap_entries(dataset) == []
     figure, _ = render(module, dataset, params, LIGHT)
     assert gap_texts(figure) == [] and legend_texts(figure)
+
+
+# -- why there is no gap in the legend (the readout's ⚠ lines) ---------------------------------
+@pytest.mark.parametrize("folder", ["al_bands", "qe731_ni_spin_bands"])
+def test_a_metal_with_the_gap_asked_says_so_in_the_readout(folder):
+    module, dataset, params = bands(FIXTURES / folder, legend_gap=True)
+    _figure, info = render(module, dataset, params, LIGHT)
+    assert NO_GAP_NOTE in info.notes
+
+
+def test_no_note_when_the_gap_is_there_or_nothing_asked_for():
+    module, dataset, params = bands(FIXTURES / "si_bands", legend_gap=True)
+    assert legend_gap_notes(dataset, params) == ()
+    module, dataset, params = bands(FIXTURES / "al_bands")  # not asked
+    assert legend_gap_notes(dataset, params) == ()
+    params.legend_gap, params.show_legend = True, False  # a hidden legend has no gap to miss
+    assert legend_gap_notes(dataset, params) == ()
+
+
+def test_a_gap_note_of_the_dataset_is_not_repeated():
+    _module, dataset, params = bands(FIXTURES / "al_bands", legend_gap=True)
+    dataset.gap_note = "gap indeterminado: E_F fora de [VBM, CBM] no caminho"
+    assert legend_gap_notes(dataset, params) == ()
+
+
+def test_without_the_scf_the_note_names_the_missing_electron_count():
+    dataset = synthetic(fermi=None, fermi_kind=None)
+    params = BandsModule().default_params(CONFIG, dataset)
+    params.show_legend = params.legend_gap = True
+    assert legend_gap_notes(dataset, params) == (NO_COUNT_NOTE,)
 
 
 # -- spin ----------------------------------------------------------------------------------------

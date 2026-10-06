@@ -54,6 +54,17 @@ QCheckBox::indicator:checked {
 QCheckBox::indicator:hover {
     border-color: ${accent};
 }
+QCheckBox:disabled {
+    color: ${text_dim};
+}
+QCheckBox::indicator:disabled {
+    border-color: ${border};
+    background: ${input};
+}
+QCheckBox::indicator:checked:disabled {
+    background: ${border_strong};
+    border-color: ${border_strong};
+}
 QProgressBar {
     background: ${input};
     border: 1px solid ${border};

@@ -40,6 +40,18 @@ def gap_entries(dataset: BandsDataset) -> list[GapEntry]:
     return [] if dataset.gap is None else [GapEntry(None, dataset.gap)]
 
 
+NO_GAP_NOTE = "Sem gap para a legenda: sistema metálico ao longo do caminho"
+NO_COUNT_NOTE = "Sem gap para a legenda: sem a saída do SCF não há contagem de elétrons"
+
+
+def legend_gap_notes(dataset: BandsDataset, params: BandsParams) -> tuple[str, ...]:
+    """Why a gap asked for in a visible legend is not there (the readout's ⚠ lines, never the
+    figure); empty when it is there or ``dataset.gap_note`` already says why."""
+    if not (params.legend_gap and params.show_legend) or dataset.gap_note or gap_entries(dataset):
+        return ()
+    return (NO_GAP_NOTE if dataset.fermi is not None else NO_COUNT_NOTE,)
+
+
 def gap_handles(dataset: BandsDataset, params: BandsParams) -> list[Line2D]:
     """Legend entries of the gaps, when the parameter asks for them."""
     if not params.legend_gap:

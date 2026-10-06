@@ -56,6 +56,7 @@ class ParamsBody(QWidget):
         self.theme, self.session, self.settings = theme, session, settings
         self.schema = session.module.param_schema(session.dataset)  # what this body was built from
         self._fields = {f.name: f for f in self.schema}
+        self._gated: list[tuple[QWidget, ParamField]] = []  # fields with ``requires``
         self._setters: dict[str, Callable[[Any], object]] = {}
         self._series: SeriesList | None = None
         self._series_field: ParamField | None = None
@@ -98,6 +99,7 @@ class ParamsBody(QWidget):
             for name, setter in self._setters.items():
                 setter(getattr(self.session.params, name))
             self._refresh_series()
+            self._apply_gates()
             self.update_readout()
         finally:
             self._updating = False
@@ -228,6 +230,18 @@ class ParamsBody(QWidget):
             self._setters[name] = lambda v, e=edit: e.setText(str(v))
             widget = edit
         section.add_row(field.label, widget, field.tooltip)
+        if field.requires:
+            self._gated.append((widget, field))
+            self._apply_gates()
+
+    def _apply_gates(self) -> None:
+        """Disable the fields whose ``requires`` parameter is off, and say what to turn on."""
+        for widget, field in self._gated:
+            on = bool(getattr(self.session.params, field.requires))
+            needed = self._fields.get(field.requires)
+            hint = "" if on or needed is None else f"Ligue “{needed.label}” para usar este campo."
+            widget.setEnabled(on)
+            widget.setToolTip("\n".join(part for part in (hint, field.tooltip) if part))
 
     def _atoms_widget(self, field: ParamField) -> QWidget:
         """The "Átomos…" button and how many atoms are shown; the window and the choices are the
@@ -351,6 +365,8 @@ class ParamsBody(QWidget):
         self.session.module.param_changed(self.session.dataset, params, name, old)
         if self._fields[name].refreshes:
             self.refresh_values()
+        elif any(field.requires == name for _widget, field in self._gated):
+            self._apply_gates()
         self._emit(name)
 
     def _emit(self, name: str) -> None:

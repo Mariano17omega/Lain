@@ -301,7 +301,9 @@ on the base class:
   files)` (what one plot shows: the folder, or the output file of a single-file module such as SCF;
   it keys and names the tab, `<kind>.plot` stays per folder).
 - `ParamField`: `refreshes=True` makes the panel re-read all values after an edit (dependent
-  fields); `colors=` names the color-override dict of a `"series"` field. `plot_file` validates stored
+  fields); `colors=` names the color-override dict of a `"series"` field; `requires=` names a bool parameter the field does
+  nothing without (the panel disables it while that one is off and says which to turn on: `ParamsBody._apply_gates`).
+  `plot_file` validates stored
   values by field kind (`color`, `choice`, series colors), never by name: a parameter without a
   schema field declares `field(metadata={"kind": "color" | "colors"})` on its dataclass.
 
@@ -439,7 +441,9 @@ panel lands in `axes_limits[0]`. PDOS `spin_mode`: mirror (default) | overlay | 
 `calculations/params.py:LEGEND_GAP_FIELD` goes after `COMMON_FIELDS` in both schemas (SCF and relax never see it;
 bands and bands + DOS use `bands/params.py:BANDS_LEGEND_GAP_FIELD`, whose tooltip adds that the gap is along the k path).
 The entry is text only (`core/plotting/gap_label.py`, Qt-free: `gap_label`, `gap_handle`: an invisible `Line2D`),
-last in the legend, and does nothing with the legend hidden or without a gap (a metal writes no "metálico").
+last in the legend, and does nothing with the legend hidden (the panel disables the field then: `requires="show_legend"`)
+or without a gap (a metal writes no "metálico" in the legend; with the legend visible `bands/gap.py:legend_gap_notes` puts
+"Sem gap para a legenda: …" in `RenderInfo.notes`, for bands and bands + DOS, unless `gap_note` already says why).
 Bands: `bands/gap.py:gap_entries(dataset)` is the one source of the footer (`summary`, `_spin_gaps`) and the legend:
 no spin → one entry (`channel=None`); spin → `up` / `down` (those with a gap) and `global`; the gap is `CBM − VBM`,
 independent of `reference` and the window. Every band gap is the one *along the path* (spec 27-6): the footer says
@@ -447,7 +451,11 @@ independent of `reference` and the window. Every band gap is the one *along the 
 `bands/data.py:band_edges` trusts the electron count only when E_F backs it: with smearing (`fermi_kind == "fermi"`)
 E_F outside `[VBM − EDGE_TOL, CBM + EDGE_TOL]` leaves no gap and `BandsDataset.gap_note` (`GAP_OFF_PATH_NOTE`; the
 footer then says no "metálico"), and no E_F at all keeps the counted gap with `GAP_NO_FERMI_NOTE`; fixed occupations
-and spin are not checked. `bands/render.notes` puts the note in `RenderInfo.notes` (never on the figure), and
+and spin are not checked. An electron count that fills no whole bands (odd: one half-filled band, or a fractional charge) has no
+counted gap: with smearing and E_F known `data.fermi_edges` takes the edges around E_F as `channel_edges` does for a
+spin channel (VBM = top of the bands below E_F, CBM = bottom of the ones above; a band crossing E_F leaves no gap)
+and sets `gap_note = GAP_FROM_FERMI_NOTE` ("gap pela posição de E_F: 495 elétrons não enchem bandas inteiras"): it
+is a gap between the bands below and above E_F, not an insulating one. `bands/render.notes` puts the note in `RenderInfo.notes` (never on the figure), and
 bands + DOS adds it to its own. PDOS: `PdosDataset.gap` (`pdos/gap.py:GapInfo`, set in `load_dataset`, so
 the GUI only draws) is the HOMO / LUMO pw.x printed (`homo_lumo`, first of NSCF, SCF; a closed pair = metal) else
 `projwfc.dos_gap` on `PdosData.total` (`dos`, drawn `≈`, 2 decimals): always the system's total, never the drawn

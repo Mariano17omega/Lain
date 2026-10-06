@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from matplotlib.ticker import MaxNLocator
 
+from qe_studio.core.calculations.bands.gap import NO_GAP_NOTE
 from qe_studio.core.calculations.bands_dos.render import JOIN_CLEARANCE, ClearOfJoin
 from qe_studio.core.calculations.params import ordered_sections
 from qe_studio.core.calculations.pdos.gap import GapInfo
@@ -129,6 +130,14 @@ def test_the_dos_panel_draws_with_the_element_colors():
     module, dataset, params = combined()
     assert params.atomos_colors["Al"] == "#E41A1C"
     assert module.series_colors(dataset, params, LIGHT)["Al s"] == "#E41A1C"
+
+
+def test_a_metal_with_the_gap_asked_has_the_note_in_the_combined_readout():
+    module, dataset, params = combined(legend_gap=True, show_legend=True)
+    _figure, info = render(module, dataset, params)
+    assert NO_GAP_NOTE in info.notes
+    _figure, info = render(module, dataset, combined(legend_gap=False, show_legend=True)[2])
+    assert NO_GAP_NOTE not in info.notes
 
 
 def test_the_gap_is_in_the_legend_once_from_the_bands():

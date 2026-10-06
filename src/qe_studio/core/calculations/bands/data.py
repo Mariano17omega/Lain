@@ -18,6 +18,7 @@ EDGE_TOL = 1e-3  # eV: a band within this of E_F is not counted as crossing it
 # Notes under the readout (spec 27-6 R1) when the gap of a run without spin is in doubt.
 GAP_OFF_PATH_NOTE = "gap indeterminado: E_F fora de [VBM, CBM] no caminho"
 GAP_NO_FERMI_NOTE = "E_F não encontrado: gap pela contagem de elétrons"
+GAP_FROM_FERMI_NOTE = "gap pela posição de E_F: {n:g} elétrons não enchem bandas inteiras"
 CHANNELS = ("up", "down")
 # Roles holding the eigenvalue file of each spin channel: (.gnu, filband).
 CHANNEL_ROLES = {"up": ("gnu", "filband"), "down": ("gnu_down", "filband_down")}
@@ -244,7 +245,8 @@ def band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
 
     Without spin they come from the electron count. With smearing (``fermi_kind == "fermi"``) the
     count is only trusted when E_F lies between them: E_F inside a band means pockets off the path
-    (a metal), so there is no gap, only ``gap_note``. Fixed occupations are not checked.
+    (a metal), so there is no gap, only ``gap_note``. Fixed occupations are not checked. A count that
+    fills no whole bands falls back to E_F (``fermi_edges``).
     """
     if dataset.spin:
         spin_band_edges(dataset, pw)
@@ -258,6 +260,8 @@ def band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
     occupied = pw.n_electrons if pw.noncollinear else pw.n_electrons / 2
     n_occ = occupied_count(occupied, len(dataset.bands.energies))
     if n_occ is None:
+        if abs(occupied - round(occupied)) > 1e-6:  # an odd count: no whole bands to count
+            fermi_edges(dataset, pw)
         return
     edges = count_edges(dataset.bands.energies, n_occ, pw.fermi)
     if edges.vbm is None or edges.cbm is None:
@@ -268,6 +272,23 @@ def band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
         dataset.gap_note = GAP_OFF_PATH_NOTE
         return
     dataset.n_occupied, dataset.vbm, dataset.cbm = n_occ, edges.vbm, edges.cbm
+
+
+def fermi_edges(dataset: BandsDataset, pw: PwOutput) -> None:
+    """The edges around E_F for a run whose electron count fills no whole bands (an odd count: one
+    band half full, or a fractional charge), found as ``channel_edges`` does for a spin channel.
+
+    Only with smearing, where E_F is the run's own reference; a band crossing E_F leaves no gap.
+    The gap comes with a note, since it separates the bands below E_F from the ones above it, and
+    that is not an insulating gap in the counting sense.
+    """
+    if pw.fermi is None or pw.fermi_kind != "fermi" or pw.n_electrons is None:
+        return
+    edges = channel_edges(dataset.bands.energies, pw.fermi)
+    if edges.vbm is None or edges.cbm is None:
+        return
+    dataset.vbm, dataset.cbm = edges.vbm, edges.cbm
+    dataset.gap_note = GAP_FROM_FERMI_NOTE.format(n=pw.n_electrons)
 
 
 def spin_channel_edges(energies: np.ndarray, index: int, pw: PwOutput) -> ChannelEdges:
