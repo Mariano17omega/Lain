@@ -52,7 +52,9 @@ def test_scale_qss_changes_every_font_size_and_nothing_else(sizes, scale):
     out = scale_qss(text, scale)
     assert out.count("color: red;") == len(sizes)
     for line, px in zip(out.splitlines(), sizes, strict=True):
-        assert f"font-size: {scale_px(px, scale, MIN_FONT_PX)}px;" in line
+        # At exactly 1.0 the text is left untouched (no minimum applied), as the test above says.
+        expected = px if scale == 1.0 else scale_px(px, scale, MIN_FONT_PX)
+        assert f"font-size: {expected}px;" in line
 
 
 def test_clamp_scale():
