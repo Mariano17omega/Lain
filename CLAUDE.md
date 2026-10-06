@@ -79,7 +79,15 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   `qe_studio.ui.plot_export.ask_overwrite`, `qe_studio.ui.main_window.ask_rename`.
 - Exports and `.plot` writes run in workers: wait for `window.export_finished` (the written paths)
   before looking into `plots/`, and call `window.plot_settings.flush_now()` (drains the settings
-  queue, then writes what is pending) before reading a `.plot`.
+  queue, then writes what is pending) before reading a `.plot`. Spec 32: an export is named from the
+  project root (`<folder from local_root>-<stem>`: `demo_project` is the root, so `03_bands` exports
+  `03_bands-bands.png`; a folder outside it, like the contract test's `dummy_sim`, keeps its own name) and
+  writes `.csv` last for bands, PDOS and bands + DOS. `test_export_names.py` (names, `plan_export(session,
+  root)`), `test_plot_table.py` (the CSV format and every module's columns, each compared with the
+  artists of the rendered figure: a table that drifts from the drawing fails there) and
+  `test_export_csv_ui.py` (a window on the `raiz` fixture) cover it; `test_no_wheel.py` the fields of the
+  panel. A modal run with a real `exec()` needs `test_atoms_dialog.py:drive_modal(act)`, which acts on the
+  window once `exec` has it up (a plain call before `exec` runs would block).
 - `test_architecture.py` checks the architecture rules by AST: no `.py` over 500 lines (exceptions
   list, empty; `PER_FILE_LIMIT` gives `ui/main_window.py` 450), `core/` never imports `qe_studio.ui`, PyQt6 only in the four `core` modules listed
   below, no `open(` / `read_text` / `read_bytes` / `loadtxt` in `ui/` (but `ui/theme/manager.py`),
@@ -176,8 +184,9 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   / "Carregando …" / "Exportando…", plus a spinner in the tab of a plot being regenerated; no
   `setOverrideCursor`). It asks the window for panels and messages through signals
   (`panel_requested`, `message`). Exports: `ui/plot_export.py:PlotExporter` (overwrite question on
-  the GUI thread from `core/plotting/export.plan_export`, then `export_figure` in a worker on a
-  snapshot of the params; close waits up to 10 s for exports).
+  the GUI thread from `core/plotting/export.plan_export(session, root)`, `root` = `lambda: config.paths.local_root`
+  read at each export, then `export_files` in a worker on a snapshot of the params; close waits up to 10 s for
+  exports).
 - `ui/sync_coordinator.py:SyncCoordinator`: `core/sync/request.prepare_sync` → session password →
   `SyncController` + dialogs → report; owns the `ConnectionMonitor` (replaced on config reload) and
   emits `cluster_changed`, `synced(local_dir)` (its own `on_synced` calls the injected `refresh`, the window's
@@ -256,7 +265,8 @@ File names are only hints; everything is identified by content.
    `match(listing, sniffs, sniff, forced)` fills roles in passes: user mapping (`forced`) → PRD glob
    verified by content → content only; `finalize()` hooks cross-role logic, and
    `infer_from_neighbours()` finds the SCF output in the parent or sibling `*scf*` folders. A module
-   with no anchor role present returns `None`.
+   with no anchor role present returns `None`. `FolderListing` (the files a detection reads) and `IGNORED_SUBDIRS`
+   live in `core/calculations/listing.py`, which `base` re-exports: `base.py` stays under the 500 lines.
 3. `core/detection.py`: `detect_folder()` sniffs each file once (`sniff_once`: a per-call memo that
    also covers neighbour folders and the hooks) and runs every module in `REGISTRY` on those sniffs;
    `fallback` modules (SCF/CALC info badges) apply only when no primary kind matched.
@@ -318,6 +328,23 @@ defaults); `build_session` makes one from a load (defaults → stored `.plot` or
 export match; `ThemeManager` only styles the widgets around the canvas. Toolbar pan/zoom is written back into params (`apply_limits`) so exports keep
 it. `core/plotting/export.py` writes into `<simulation>/plots/`; existing files are never
 overwritten without asking (PRD §7 data integrity).
+
+**Names and CSV of an export (spec 32).** The stem is `names.join_stem(names.export_prefix(folder, root),
+module.export_stem(params))`: the folders from `local_root` down to the simulation joined by `-`, then the module's
+own stem (`<local_root>/ilita/Analise_1/Bandas` → `ilita-Analise_1-Bandas-bands.png`). Pure, no disk: the root itself
+has no prefix (the grid keeps `grid_<name>`), a folder outside it only its own name, no leading dot, at most
+`MAX_STEM_BYTES` (whole parts go from the left), and `_remove_orphans` matches the stem with `glob.escape`.
+A module with `has_table = True` (bands, PDOS, bands + DOS) also gives `table(dataset, params) -> PlotTable | None`
+(`core/plotting/table.py`: `Column`, `PlotTable`, `to_csv`): the values *as drawn*, whole (energy minus the plot's
+reference; the view's limits do not cut them), laid out by `bands/table.py`, `pdos/table.py` (the series of
+`draw_pdos`, in its order; a spin ↓ in `mirror` is negative) and `bands_dos/table.py` (the two blocks side by side,
+each with its own x, both from the bands' reference). `k` is `k (2π/alat)`: bands.x's own unit. `to_csv` separates
+columns by `;`, writes decimals with a comma and 10 significant digits (QE prints ≤ 8; the rounding noise of
+`E − E_F` stays out of the file), leaves NaN / infinity / the end of a short column empty and the first
+line holds the names; `write_table` adds a UTF-8 byte-order mark (Excel in pt-BR) and moves a temporary file in
+place like the figures. `export_files` = `export_figure` (unchanged: figures only) + the CSV, last; `ExportPlan.table`
+puts the `.csv` in `existing` and in the `_2` search, so the set is asked about and versioned together. The CSV is
+not an `export_formats` entry and has no checkbox.
 
 `ParamsPanel` (`ui/widgets/plot_params.py`) keeps one `ParamsBody` per open plot in a `QStackedWidget`
 (keyed by `session.key`): `bind` shows it (rebuilding only if the session or its schema changed),
@@ -861,6 +888,9 @@ about). Three controllers are built by `for_window(window)` factories (keeps `ma
   adjustments → footer) from Qt's chain, grouped by region, in `MainWindow.focusNextPrevChild` before each
   Tab (widgets created later land at the end of Qt's chain), and answers Ctrl+1..4 (`focus.*` actions).
   An icon-only `IconButton` takes its tooltip as `accessibleName`; a parameter widget the label of its field.
+  The mouse wheel only scrolls the settings panel (spec 32 R2): its spin boxes and combos are
+  `ui/widgets/no_wheel.py:NoWheelSpinBox / NoWheelDoubleSpinBox / NoWheelComboBox` (`wheelEvent` ignores the event,
+  so the scroll area gets it; `StrongFocus`: a wheel turn gives no focus). Any field of a scrolled form takes them.
 
 ### Text viewer and tabs (spec 10)
 
@@ -954,11 +984,14 @@ header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program
   turns any parser exception into an `UNKNOWN` it caches (logged once), so one odd file does not zero its folder.
 - `PlotWorkflow` loads datasets in the global pool, then renders on the GUI thread. Exports run in a
   worker with their own `Figure` + `FigureCanvasAgg`. matplotlib's global state is serialized by
-  `MPL_LOCK` (`threading.RLock`): `PlotSession.render`, `render_figure` and `export_figure` hold it;
+  `MPL_LOCK` (`threading.RLock`): `PlotSession.render`, `render_figure` and `export_figure` (so `export_files`) hold it;
   on screen `PlotView.render` and `ScaledFigureCanvas.draw` only *try* it and retry after 50 ms, so
   the GUI never waits for an export.
 - Connect long-lived signals (e.g. `ThemeManager.theme_changed`) to bound methods, not lambdas,
-  so they disconnect when the widget is deleted. Dialogs use delete-on-close.
+  so they disconnect when the widget is deleted. Dialogs use delete-on-close, **except a modal run with `exec()`**
+  whose answer is read afterwards (`ask_atoms`, `ask_rename`…): `exec` deletes a `WA_DeleteOnClose` dialog before it
+  returns, and reading the answer then raises "wrapped C/C++ object … has been deleted" (spec 32 R1). Read the answer,
+  then `deleteLater()`.
 - `app.main()` waits on the global pool before exit (`finish`: `POOL_WAIT_MS`, then `os._exit`; see `ui/shutdown.py`).
 - Data files are written whole by `core/appdirs.py:atomic_write_text` (unique temp `.<name>.<pid>.<token>.tmp`
   made with `O_EXCL` and mode `0o666` so the umask applies, `fsync`, `os.replace`, folder `fsync`; any error

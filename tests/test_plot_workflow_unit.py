@@ -104,8 +104,9 @@ def test_export_writes_in_a_worker_and_reports(qtbot, rig, demo_project):
     with qtbot.waitSignal(rig.workflow.export_finished, timeout=10_000) as blocker:
         assert rig.workflow.export()
         assert rig.workflow.busy.labels == ["Exportando…"]
-    assert [p.name for p in blocker.args[0]] == ["bands.png", "bands.svg", "bands.pdf"]
-    assert ("Salvo em plots/: bands.png, bands.svg, bands.pdf", "info") in rig.messages
+    names = ["03_bands-bands.png", "03_bands-bands.svg", "03_bands-bands.pdf", "03_bands-bands.csv"]
+    assert [p.name for p in blocker.args[0]] == names
+    assert (f"Salvo em plots/: {', '.join(names)}", "info") in rig.messages
     assert rig.workflow.busy.labels == []
 
 

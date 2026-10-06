@@ -9,14 +9,11 @@ from PyQt6.QtCore import QLocale, QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
-    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QSizePolicy,
-    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -28,6 +25,7 @@ from ...core.plotting.session import PlotSession
 from ..dialogs.atoms import ask_atoms
 from ..theme.manager import ThemeManager
 from .common import set_variant
+from .no_wheel import NoWheelComboBox, NoWheelDoubleSpinBox, NoWheelSpinBox
 from .param_widgets import ColorButton, Section, SeriesList
 
 SECTIONS_KEY = "params/sections"  # QSettings: <kind>/<section title> → open (bool)
@@ -185,7 +183,7 @@ class ParamsBody(QWidget):
         if field.kind == "float":
             widget = self._float_widget(field, value)
         elif field.kind == "int":
-            spin = QSpinBox()
+            spin = NoWheelSpinBox()
             spin.setRange(int(field.minimum or 0), int(field.maximum or 10**6))
             spin.setValue(int(value))
             spin.valueChanged.connect(lambda v: self._set(name, int(v)))
@@ -200,7 +198,7 @@ class ParamsBody(QWidget):
         elif field.kind == "color":
             widget = self._color_widget(name, value)
         elif field.kind == "choice":
-            combo = QComboBox()
+            combo = NoWheelComboBox()
             choices = list(field.choices)
             if value not in [c[0] for c in choices]:
                 choices.append((value, str(value)))
@@ -293,7 +291,7 @@ class ParamsBody(QWidget):
 
     def _float_widget(self, field: ParamField, value: float | None) -> QWidget:
         name = field.name
-        spin = QDoubleSpinBox()
+        spin = NoWheelDoubleSpinBox()
         spin.setLocale(QLocale.c())
         spin.setDecimals(field.decimals)
         spin.setRange(

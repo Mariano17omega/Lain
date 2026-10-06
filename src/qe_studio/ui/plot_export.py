@@ -1,20 +1,21 @@
 """Saving a plot into ``<simulation>/plots/`` (PRD §4.4) without blocking the window (spec 15 R3).
 
-``core`` plans (``plan_export``) and writes (``export_figure``, in a worker with its own figure,
-serialized with the screen by ``MPL_LOCK``); this asks before overwriting, on the GUI thread, and
-reports.
+``core`` plans (``plan_export``) and writes (``export_files``: the figures and the CSV of the data, in a
+worker with its own figure, serialized with the screen by ``MPL_LOCK``); this asks before overwriting, on
+the GUI thread, and reports.
 """
 
 from __future__ import annotations
 
 import copy
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
-from ..core.plotting.export import export_figure, plan_export
+from ..core.plotting.export import export_files, plan_export
 from ..core.plotting.session import PlotSession
 from ..core.tasks import TaskGroup
 from .busy import BusyTracker
@@ -28,10 +29,20 @@ class PlotExporter(QObject):
     finished = pyqtSignal(object)  # list[Path] written into plots/
     message = pyqtSignal(str, str, int)  # text, level, timeout (ms)
 
-    def __init__(self, busy: BusyTracker, dialog_parent: QWidget, parent: QObject | None = None):
+    def __init__(
+        self,
+        busy: BusyTracker,
+        dialog_parent: QWidget,
+        parent: QObject | None = None,
+        *,
+        root: Callable[[], Path | None] | None = None,
+    ):
+        """``root``: the project root now (read at each export, so a reloaded config or a session
+        root counts); the names of the files start from it (spec 32 R3)."""
         super().__init__(parent)
         self.busy = busy
         self._dialog_parent = dialog_parent
+        self._root = root or (lambda: None)
         self._tasks = TaskGroup()  # by plot key, in the global pool
         self._overwrite_always = False  # "Sempre" in the overwrite dialog, for this run
 
@@ -41,7 +52,9 @@ class PlotExporter(QObject):
         Existing files are never overwritten without asking (PRD §7 data integrity): the question
         comes first, then the worker writes.
         """
-        plan = plan_export(session)  # stats the targets on this thread: see its docstring
+        plan = plan_export(
+            session, self._root()
+        )  # stats the targets on this thread: see its docstring
         if plan.error is not None:
             self.message.emit(plan.error, "warning", 4000)
             return False
@@ -59,7 +72,7 @@ class PlotExporter(QObject):
         self.busy.begin(f"export:{session.key}", "Exportando…")
         self._tasks.submit(
             session.key,
-            export_figure,
+            export_files,
             session.module,
             session.dataset,
             params,

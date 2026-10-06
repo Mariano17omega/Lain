@@ -25,9 +25,11 @@ from . import render as render_mod
 from .data import BandsDosDataset, load_dataset
 from .pair import PARTS
 from .params import BandsDosParams, dos_view
+from .table import bands_dos_table
 
 if TYPE_CHECKING:
     from ...config import AppConfig
+    from ...plotting.table import PlotTable
 
 
 def _prefixed(roles: tuple[FileRole, ...], prefix: str, label: str) -> tuple[FileRole, ...]:
@@ -45,6 +47,7 @@ class BandsDosModule(CalculationModule[BandsDosDataset, BandsDosParams]):
         "Estrutura de bandas e PDOS de duas pastas, com o mesmo eixo de energia"
     )
     plottable: ClassVar[bool] = True
+    has_table: ClassVar[bool] = True
     selectable: ClassVar[bool] = False  # made from two folders, not mapped from one
     view_fields: ClassVar[tuple[str, ...]] = ("emin", "emax", "xmin", "xmax", "dos_max")
     sections: ClassVar[tuple[tuple[str, str | None], ...]] = params_mod.SECTIONS
@@ -75,6 +78,9 @@ class BandsDosModule(CalculationModule[BandsDosDataset, BandsDosParams]):
         self, figure: FigureBase, dataset: BandsDosDataset, params: BandsDosParams, style: PlotStyle
     ) -> RenderInfo:
         return render_mod.render_bands_dos(figure, dataset, params, style)
+
+    def table(self, dataset: BandsDosDataset, params: BandsDosParams) -> PlotTable:
+        return bands_dos_table(dataset, params)
 
     # -- view hooks ----------------------------------------------------------------------------
     def apply_limits(self, params: BandsDosParams, axes_limits: AxesLimits) -> None:

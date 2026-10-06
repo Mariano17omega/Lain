@@ -21,6 +21,7 @@ from ..base import (
 from ..params import ParamField, RenderInfo
 from . import params as params_mod
 from . import render as render_mod
+from . import table as table_mod
 from .data import BandsDataset, load_dataset
 from .detection import assign_channels, check_bands, named_by_bandsx
 from .params import BandsParams
@@ -28,6 +29,7 @@ from .params import BandsParams
 if TYPE_CHECKING:
     from ...config import AppConfig
     from ...folder_memory import FolderMemory
+    from ...plotting.table import PlotTable
 
 
 class BandsModule(CalculationModule[BandsDataset, BandsParams]):
@@ -39,6 +41,7 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
     display_name: ClassVar[str] = "Estrutura de bandas"
     description: ClassVar[str] = "bands.x/.gnu detectados"
     plottable: ClassVar[bool] = True
+    has_table: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole(
             "scf_out",
@@ -151,6 +154,9 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
         self, figure: FigureBase, dataset: BandsDataset, params: BandsParams, style: PlotStyle
     ) -> RenderInfo:
         return render_mod.render_bands(figure, dataset, params, style)
+
+    def table(self, dataset: BandsDataset, params: BandsParams) -> PlotTable:
+        return table_mod.bands_table(dataset, params)
 
     def format_coordinates(
         self, x: float, y: float, axes_index: int, dataset: BandsDataset, params: BandsParams

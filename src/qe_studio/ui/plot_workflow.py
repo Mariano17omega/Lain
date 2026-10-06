@@ -113,7 +113,9 @@ class PlotWorkflow(QObject):
         # Busy indicator (spec 15 R2): counted by name, so a task that never ends cannot leave a
         # global cursor behind; detections, loads and exports all show in the footer.
         self.busy = BusyTracker(status)
-        self.exporter = PlotExporter(self.busy, dialog_parent, self)
+        self.exporter = PlotExporter(
+            self.busy, dialog_parent, self, root=lambda: self._config().paths.local_root
+        )
         self.exporter.finished.connect(self.export_finished)
         self.exporter.message.connect(self.message)
         self._render_timer = QTimer(self)

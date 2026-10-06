@@ -54,11 +54,12 @@ def test_exporting_does_not_block_the_event_loop(
         assert window.status.busy.text() == "Exportando…" and not window.status.spinner.isHidden()
     timer.stop()
     assert len(ticks) >= 10  # the loop ran during the half-second render
-    assert [p.name for p in blocker.args[0]] == ["bands.png", "bands.svg", "bands.pdf"]
+    names = ["03_bands-bands.png", "03_bands-bands.svg", "03_bands-bands.pdf", "03_bands-bands.csv"]
+    assert [p.name for p in blocker.args[0]] == names
     assert all(p.stat().st_size > 0 for p in blocker.args[0])
     assert not list((folder / "plots").glob(".*.tmp"))
     assert window.status.spinner.isHidden()
-    assert window.status.message.text() == "Salvo em plots/: bands.png, bands.svg, bands.pdf"
+    assert window.status.message.text() == "Salvo em plots/: " + ", ".join(names)
 
 
 def test_a_screen_render_during_an_export_waits_and_then_happens(
@@ -98,9 +99,10 @@ def test_closing_the_window_waits_for_a_running_export(
     assert window.export_plot()
     window.close()  # the export was still rendering
     assert sorted(p.name for p in (folder / "plots").iterdir()) == [
-        "bands.pdf",
-        "bands.png",
-        "bands.svg",
+        "03_bands-bands.csv",
+        "03_bands-bands.pdf",
+        "03_bands-bands.png",
+        "03_bands-bands.svg",
     ]
 
 
@@ -110,13 +112,13 @@ def test_edits_after_the_export_starts_are_not_in_it(
     window = main_window
     plot(qtbot, window, demo_project / "03_bands")
     seen = []
-    real = export_module.export_figure
+    real = export_module.export_figure  # what ``export_files`` calls
 
     def spy(module, dataset, params, *args, **kwargs):
         seen.append(params.emin)
         return real(module, dataset, params, *args, **kwargs)
 
-    monkeypatch.setattr("qe_studio.ui.plot_export.export_figure", spy)
+    monkeypatch.setattr(export_module, "export_figure", spy)
     with qtbot.waitSignal(window.export_finished, timeout=10_000):
         assert window.export_plot()
         window.params.set_param("emin", -1.0)

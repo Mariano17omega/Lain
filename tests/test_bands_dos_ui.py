@@ -122,10 +122,14 @@ def test_export_goes_to_the_bands_folder(qtbot, main_window, project, menus):
     session.params.export_svg = session.params.export_pdf = False
     with qtbot.waitSignal(main_window.export_finished, timeout=20_000) as blocker:
         assert main_window.export_plot()
-    assert blocker.args[0] == [bands / "plots" / "bands_dos.png"]
-    plan = plan_export(session)  # a second export would ask before overwriting
-    assert plan.existing == [bands / "plots" / "bands_dos.png"]
-    assert plan.new_stem == "bands_dos_2"
+    written = [
+        bands / "plots" / "03_bands-bands_dos.png",
+        bands / "plots" / "03_bands-bands_dos.csv",
+    ]
+    assert blocker.args[0] == written  # the DOS folder is not in the name: it is the bands' figure
+    plan = plan_export(session, main_window.root)  # a second export would ask before overwriting
+    assert plan.existing == written
+    assert plan.new_stem == "03_bands-bands_dos_2"
 
 
 def test_renaming_the_dos_folder_closes_the_figure(qtbot, main_window, project, menus, monkeypatch):

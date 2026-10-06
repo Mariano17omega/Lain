@@ -72,6 +72,8 @@ The system dynamically scans the selected directory to determine the calculation
 
 ### 4.4. Storage and Export
 - **Automatic Subfolder:** All generated figures must be saved automatically to a `plots/` subfolder inside the active simulation directory.
+- **File names (spec 32):** the folders from the project root down to the simulation, joined by `-`, then the plot's name (`<local_root>/projeto_ilita/bulk/bandas` → `projeto_ilita-bulk-bandas-bands.png`).
+- **Data export (spec 32):** the band structure, PDOS and bands + DOS figures also write a `.csv` with the plotted data (same name, `;` between columns, decimal comma, column names on the first line).
 - **Output Formats:** Support for vector export (`SVG`, `PDF`) and high-resolution raster images (`PNG` at 300 or 600 DPI), according to `config.yaml`.
 
 ---

@@ -9,7 +9,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from ...core.compounds import AtomChoices, normalize_selection
@@ -34,8 +33,9 @@ class AtomsDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle("Átomos da PDOS")
-        self.setModal(True)
-        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.setModal(
+            True
+        )  # no WA_DeleteOnClose: ``exec`` would delete it before the answer is read
         self.resize(560, 480)
         self.sites = sorted(choices.sites, key=lambda site: site.index)
 
@@ -111,4 +111,6 @@ def ask_atoms(
     """The new selection, or None when the window was cancelled."""
     dialog = AtomsDialog(choices, selected, parent)
     accepted = dialog.exec() == QDialog.DialogCode.Accepted
-    return dialog.answer() if accepted else None
+    answer = dialog.answer() if accepted else None
+    dialog.deleteLater()
+    return answer

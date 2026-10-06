@@ -65,17 +65,21 @@ def test_generate_bands_exports_to_plots(qtbot, main_window, demo_project, no_di
     assert isinstance(view, PlotView) and view.session is session
     assert window.left.currentWidget() is window.params
     assert sorted(p.name for p in (folder / "plots").iterdir()) == [
-        "bands.pdf",
-        "bands.png",
-        "bands.svg",
+        "03_bands-bands.csv",
+        "03_bands-bands.pdf",
+        "03_bands-bands.png",
+        "03_bands-bands.svg",
     ]
     assert "E_F = 8.0584 eV" in window.status.readout.full_text()
     assert no_dialogs["overwrite"] == []
-    assert to_hex(imread(folder / "plots" / "bands.png")[0, 0]) == "#ffffff"  # dark app theme
+    assert (
+        to_hex(imread(folder / "plots" / "03_bands-bands.png")[0, 0]) == "#ffffff"
+    )  # dark app theme
 
     written = export(qtbot, window)  # files exist now: dialog → new version
-    assert no_dialogs["overwrite"] == [["bands.png", "bands.svg", "bands.pdf"]]
-    assert [p.name for p in written] == ["bands_2.png", "bands_2.svg", "bands_2.pdf"]
+    names = ["03_bands-bands.png", "03_bands-bands.svg", "03_bands-bands.pdf", "03_bands-bands.csv"]
+    assert no_dialogs["overwrite"] == [names]
+    assert [p.name for p in written] == [n.replace("bands.", "bands_2.") for n in names]
 
 
 def test_overwrite_remembered_for_session(
@@ -91,7 +95,7 @@ def test_overwrite_remembered_for_session(
     export(qtbot, window)
     export(qtbot, window)
     assert len(answers) == 1
-    assert not (demo_project / "03_bands" / "plots" / "bands_2.png").exists()
+    assert not (demo_project / "03_bands" / "plots" / "03_bands-bands_2.png").exists()
 
 
 def test_cancel_export(qtbot, main_window, demo_project, no_dialogs, monkeypatch):
@@ -265,16 +269,16 @@ def test_relax_plot(qtbot, main_window, demo_project, no_dialogs):
     tabs = window.workspace.tabs
     assert tabs.tabText(tabs.currentIndex()) == "Otimização estrutural · 01_relax"
     assert sorted(p.name for p in (folder / "plots").iterdir()) == [
-        "relax.pdf",
-        "relax.png",
-        "relax.svg",
+        "01_relax-relax.pdf",
+        "01_relax-relax.png",
+        "01_relax-relax.svg",
     ]
     assert window.status.readout.full_text().startswith("01_relax · Relaxado ✓ · 6 passos BFGS")
     window.params.set_param("panels", "energy")
     assert [p.name for p in export(qtbot, window)] == [
-        "relax_energia.png",
-        "relax_energia.svg",
-        "relax_energia.pdf",
+        "01_relax-relax_energia.png",
+        "01_relax-relax_energia.svg",
+        "01_relax-relax_energia.pdf",
     ]
     # toolbar zoom of the two stacked panels: only the step range of the first is kept
     session.apply_limits([((1.0, 4.0), (1e-6, 1e-2)), ((1.0, 4.0), (0.0, 1.0))])
@@ -293,7 +297,7 @@ def test_scf_folder_plots_the_convergence_without_a_mapping(
     tabs = window.workspace.tabs
     assert tabs.tabText(tabs.currentIndex()) == "Convergência SCF · scf.out"
     assert session.key == f"plot:scf:{folder / 'scf.out'}"
-    assert (folder / "plots" / "scf.png").exists()
+    assert (folder / "plots" / "02_scf-scf.png").exists()
     assert window.status.readout.full_text().startswith("scf.out · Convergiu ✓ em 4 iterações")
 
 
@@ -576,7 +580,7 @@ def test_placeholder_generates_and_saves(qtbot, main_window, demo_project, no_di
     assert button.text() == "Gerar gráfico"
     with qtbot.waitSignals([window.plot_ready, window.export_finished], timeout=10_000):
         button.click()
-    assert (folder / "plots" / "bands.png").exists()
+    assert (folder / "plots" / "03_bands-bands.png").exists()
 
 
 def test_readout_follows_the_plot_on_screen(qtbot, main_window, demo_project, no_dialogs):

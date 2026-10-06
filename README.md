@@ -17,7 +17,8 @@ requirements, [`specs/README.md`](specs/README.md) for the index of change specs
   two bands.x runs, `spin_component` 1 and 2: overlaid or side by side, a gap per channel; PDOS
   mirrored, overlaid, one channel or summed), PDOS grouped by species and/or orbital, relax / vc-relax progress (|ΔE| and total force per BFGS step against the
   convergence thresholds, log or linear), and a tuning panel. Figures go to each simulation's `plots/` folder as PNG
-  (300/600 DPI), SVG and PDF; existing files are never replaced without asking.
+  (300/600 DPI), SVG and PDF, named from the project root (`<project>-<folders>-<plot>.png`), with a `.csv` of the
+  plotted data next to bands, PDOS and bands + DOS figures; existing files are never replaced without asking.
 - **Pull-only cluster sync** over rsync + ssh with configurable excludes (`tmp/`, `*.save/`,
   wavefunctions, …), a per-file conflict prompt and a cancellable progress dialog.
 - **Dark, light and system themes** (`ui.font_scale` for bigger text, AA contrast, visible keyboard focus, Ctrl+1..4), Inter + JetBrains Mono, Portuguese UI.

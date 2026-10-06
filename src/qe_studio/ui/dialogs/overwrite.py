@@ -32,7 +32,7 @@ class OverwriteDialog(QDialog):
         self.choice = OverwriteChoice.CANCEL
         layout = QVBoxLayout(self)
         layout.addWidget(
-            set_variant(QLabel("Figuras com este nome já existem em plots/"), "dialogTitle")
+            set_variant(QLabel("Arquivos com este nome já existem em plots/"), "dialogTitle")
         )
         names = "\n".join(p.name for p in existing)
         layout.addWidget(set_variant(QLabel(names), "mono"))

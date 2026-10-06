@@ -10,17 +10,15 @@ from __future__ import annotations
 
 import fnmatch
 import os
-import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
-from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar
 
 from ..compounds import AtomChoices, CompoundStore
-from ..qe import projwfc
 from ..sniff import FileKind, FileSniff
+from .listing import IGNORED_SUBDIRS, FolderListing, is_pdos_name
 from .load_cache import CACHE
 from .params import CommonParams, ParamField, RenderInfo
 
@@ -32,6 +30,7 @@ if TYPE_CHECKING:
     from ..grid_store import GridStore
     from ..plotting.session import PlotSession
     from ..plotting.style import PlotStyle
+    from ..plotting.table import PlotTable
 
 D = TypeVar("D")  # dataset a module loads (``None`` for detection-only modules)
 P = TypeVar("P", bound=CommonParams)  # the module's plot parameters
@@ -39,8 +38,6 @@ AxesLimits = list[tuple[tuple[float, float], tuple[float, float]]]  # (xlim, yli
 
 SniffFn = Callable[[Path], FileSniff]
 
-# Folders never scanned below the simulation folder itself.
-IGNORED_SUBDIRS = re.compile(r"^(tmp|plots|out|.*\.save|\..*)$", re.I)
 # Sibling folders ``infer_from_neighbours`` takes the SCF output from.
 NEIGHBOUR_PATTERN = "*scf*"
 
@@ -79,7 +76,7 @@ def feeds_parent(folder: Path) -> bool:
     if IGNORED_SUBDIRS.match(folder.name):
         return False
     try:
-        return any(_is_pdos_name(e.name) for e in os.scandir(folder) if e.is_file())
+        return any(is_pdos_name(e.name) for e in os.scandir(folder) if e.is_file())
     except OSError:
         return True
 
@@ -132,57 +129,6 @@ def output_of(kind: FileKind, *calculations: str) -> Callable[[FileSniff], bool]
         return s.kind is kind and (not calculations or s.calculation in calculations)
 
     return accepts
-
-
-@dataclass(frozen=True)
-class FolderListing:
-    """Files of a simulation folder plus PDOS files in its immediate subfolders."""
-
-    folder: Path
-    files: tuple[Path, ...]
-
-    @classmethod
-    def scan(cls, folder: Path) -> FolderListing:
-        files: list[Path] = []
-        try:
-            entries = sorted(os.scandir(folder), key=lambda e: e.name)
-        except OSError:
-            return cls(folder, ())
-        for entry in entries:
-            try:
-                if entry.is_file():
-                    files.append(Path(entry.path))
-                elif entry.is_dir() and not IGNORED_SUBDIRS.match(entry.name):
-                    files.extend(_pdos_files(Path(entry.path)))
-            except OSError:
-                continue
-        return cls(folder, tuple(files))
-
-    def relative(self, path: Path) -> str:
-        if (name := self._relatives.get(path)) is not None:
-            return name
-        try:
-            return path.relative_to(self.folder).as_posix()
-        except ValueError:
-            return path.as_posix()
-
-    @cached_property
-    def _relatives(self) -> dict[Path, str]:
-        """Relative name of every listed file, computed once: every role of every module matches
-        its globs against them."""
-        return {path: path.relative_to(self.folder).as_posix() for path in self.files}
-
-
-def _is_pdos_name(name: str) -> bool:
-    return projwfc.parse_atm_name(name) is not None or projwfc.is_pdos_tot_name(name)
-
-
-def _pdos_files(subdir: Path) -> list[Path]:
-    try:
-        names = sorted(e.name for e in os.scandir(subdir) if e.is_file())
-    except OSError:
-        return []
-    return [subdir / n for n in names if _is_pdos_name(n)]
 
 
 @dataclass
@@ -287,6 +233,8 @@ class CalculationModule(Generic[D, P]):
     grid_cell: ClassVar[bool] = True
     # Preview drawn off the GUI thread (``core/plotting/offscreen.py``): a figure too slow to draw there.
     render_in_worker: ClassVar[bool] = False
+    # ``table`` gives the plotted data: an export also writes a CSV of it (spec 32 R4).
+    has_table: ClassVar[bool] = False
 
     def role(self, role_id: str) -> FileRole:
         return next(r for r in self.roles if r.id == role_id)
@@ -413,6 +361,13 @@ class CalculationModule(Generic[D, P]):
     def export_stem(self, params: P) -> str:
         """File name (without extension) of the exported figure in ``plots/``."""
         return self.kind
+
+    def table(self, dataset: D, params: P) -> PlotTable | None:
+        """What the figure plots, as columns (the CSV an export writes next to it; spec 32 R4):
+        the values as drawn, whole (the view's limits do not cut them). None: no data to give;
+        a module that returns one also sets ``has_table``, which the export plan reads without
+        computing it."""
+        return None
 
     def load(self, result: DetectionResult, sniff: SniffFn) -> D:
         """Read the dataset of ``result``. ``sniff`` is the caller's cache (the detection

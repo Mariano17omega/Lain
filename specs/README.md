@@ -5,7 +5,8 @@
 30/09/2026) e as specs 20–27 organizam a **segunda rodada** de `Ideias.md` (04/10/2026: gap de energia na legenda,
 átomos da PDOS, bandas com DOS, Grids, SCF convergido, "Criar cálculo" e envio ao cluster) e as specs 28–31
 organizam a **terceira rodada** (05/10/2026: padrões de unidade de simulação, modo Padrão/Avançado, carga, diferença
-de carga e Projetos), em grupos de itens relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
+de carga e Projetos) e a spec 32 a **quarta** (06/10/2026: nomes de exportação com o caminho do projeto, CSV dos dados, roda do
+mouse no painel de ajustes e o botão "Átomos…" da PDOS), em grupos de itens relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
 ```
@@ -56,6 +57,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 29 | [spec_29-calculo-de-carga.md](spec_29-calculo-de-carga.md) | Tipo "Carga" (`pp.x`): `pp_<nome>_charge.in`, `charge.qsub` com `mkdir -p cdd_xsf`; lint reconhece inputs do `pp.x` | 28 | M | Sonnet 5.5 |
 | 30 | [spec_30-diferenca-de-carga.md](spec_30-diferenca-de-carga.md) | Tipo "Diferença de carga": aba "Átomos", SCFs `_clean` e `_isolated` gerados do base, `pp_charge_diff.in` (Δρ = base − clean − isolated) | 29, 28, 21 | G | Opus 5.5 |
 | 31 | [spec_31-projetos.md](Archived/spec_31-projetos.md) | Pastas de 1º nível de `local_root` = Projetos; dropdown "Projeto" filtra árvore, grade, breadcrumb e paleta; "Criar projeto…"; sync do projeto selecionado | 16, 17, 18, 26, 27 | M/G | Opus 5.5 |
+| 32 | [spec_32-exportacao-nomes-csv-e-ajustes.md](Archived/spec_32-exportacao-nomes-csv-e-ajustes.md) | Figuras exportadas como `<projeto>-<pastas>-<tipo>.png`; CSV (`;`, vírgula decimal, nomes das colunas) ao lado das figuras de bandas, PDOS e bandas + DOS; a roda do mouse não mexe nos campos do painel de ajustes; corrige o botão "Átomos…" da PDOS (`WA_DeleteOnClose` + `exec`) | 15, 21, 22, 31 | G | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -81,12 +83,14 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
    27-1 e 27-2 antes de tudo (a 28 parte do `pdos.qsub` e do caminho das bandas que elas deixam); 27-3 e 27-5 extraem
    código de `main_window.py` (496/500 linhas) e abrem folga para a 31; 27-4 antes da 27-5 (loaders canceláveis tornam o
    fechamento rápido). As demais (27-6 … 27-9) são independentes entre si.
-8. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
+8. **Exportação e ajustes (32, decisão de 06/10/2026):** independente de 28–31 e sem pressa por ordem, mas o R1 (botão "Átomos…"
+   da PDOS, um defeito) pode ser feito já, antes de tudo, e o R2 (roda do mouse) também; R3 (nomes) vem antes de R4 (CSV).
+9. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–27) ficam em [`Archived/`](Archived/); aqui na raiz ficam o PRD (`spec_0`), as
-propostas ainda abertas (28–31, `spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–27, 31, 32) ficam em [`Archived/`](Archived/); aqui na raiz ficam o PRD (`spec_0`), as
+propostas ainda abertas (28–30, `spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
@@ -263,6 +267,18 @@ As ideias vieram no pedido (não em `Ideias.md`); cada spec cita o trecho de ori
 | 15 | "Criar Projeto" no dropdown, com diálogo de nome | spec 31, R4 |
 | — | (`report-04-10-26.md` F1) `mv *wfc*` do `pdos.qsub` move `projwfc.in/out` | spec 27-1, R1 (a spec 28 R6 só aponta para ela) |
 
+## Rastreabilidade: ideias da quarta rodada (06/10/2026) → specs
+
+As ideias vieram no pedido (não em `Ideias.md`, que está vazio); a spec cita o trecho de origem.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Nome das figuras com a estrutura de pastas a partir do projeto: `projeto_ilita-bulk-bandas-bands.png` | spec 32, R3 |
+| 2 | CSV com os dados de todos os eixos (bandas, PDOS, bandas com PDOS), vírgula decimal, nomes das colunas, mesma pasta e mesmo nome da imagem | spec 32, R4 (e R3.1 para o nome) |
+| 3 | A roda do mouse sobre os campos do painel de ajustes rola o painel, nunca o valor | spec 32, R2 |
+| 4 | "Átomos…" da PDOS: marcar, salvar e nada acontece (erro em `ask_atoms`) | spec 32, R1 |
+| — | (`report.md` F3) Exportar dados (CSV) | spec 32, R4 (só bandas, PDOS e bandas + DOS; os demais módulos ficam abertos pelo hook `table`) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -311,6 +327,12 @@ Decisões de 05/10/2026 (terceira rodada):
 - **Unidades de simulação** são pastas normais: nada de lista, aba ou marca nova; árvore e grade como hoje.
 - **Projetos:** "Sincronizar projeto" vale para o projeto selecionado; com "Todos os projetos", para a raiz inteira.
 - **Modelo recomendado** por spec (coluna "Modelo" do roadmap): Opus 5.5 para 28, 30 e 31; Sonnet 5.5 para 29.
+
+Decisões de 06/10/2026 (quarta rodada, spec 32):
+- **CSV largo:** x + uma coluna por série (bandas + DOS: dois blocos lado a lado); colunas separadas por `;` e vírgula decimal. O "padrão do
+  software de origem" do pedido chegou sem o padrão; esta decisão o substitui.
+- **Roda do mouse:** bloqueada **só no painel de ajustes do gráfico**; "Criar cálculo" e a tabela do grid ficam como estão.
+- **Modelo recomendado:** Opus 5.5 para a 32 (contrato novo no `CalculationModule`, `plan_export` e `base.py` no limite de linhas).
 
 Decisões de 05/10/2026 (correções do `report-04-10-26.md`, specs 27-1 … 27-9):
 - **Implementar antes da spec 28**, na ordem do roadmap (27-1 primeiro).

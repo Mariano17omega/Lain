@@ -69,12 +69,18 @@ def spin_mode(dataset: PdosDataset, params: PdosParams) -> str:
     return "mirror"
 
 
+def reference(dataset: PdosDataset, params: PdosParams) -> float:
+    """The energy the plot is measured from: E_F of the chosen run, or 0 (absolute energies)."""
+    fermi = dataset.fermi(params.fermi_source)
+    return fermi if params.shift_to_fermi and fermi is not None else 0.0
+
+
 def render_pdos(
     figure: FigureBase, dataset: PdosDataset, params: PdosParams, style: PlotStyle
 ) -> RenderInfo:
     ax = new_axes(figure, style)
     fermi = dataset.fermi(params.fermi_source)
-    ref = fermi if params.shift_to_fermi and fermi is not None else 0.0
+    ref = reference(dataset, params)
     pair = dataset.fermi_channels(params.fermi_source)
     dos_lim = draw_pdos(ax, dataset, params, style, ref, fermi, pair)
     handles = None
@@ -152,7 +158,7 @@ def draw_pdos(
             elif down is not None and mode == "overlay":
                 draw(down, color, None, width, alpha, None, ls=DOWN_DASH, fill=False)
 
-    total, total_label = _total(data, params)
+    total, total_label = total_curve(data, params)
     if params.show_total and total is not None:
         channel(total, params.total_color or style.total_dos, total_label, params.line_width, 0.12)
     colors = series_colors(dataset, params, style)
@@ -191,7 +197,7 @@ def draw_pdos(
     return dos_lim
 
 
-def _total(data: projwfc.PdosData, params: PdosParams) -> tuple[projwfc.Channel | None, str]:
+def total_curve(data: projwfc.PdosData, params: PdosParams) -> tuple[projwfc.Channel | None, str]:
     """The "DOS total" curve and its legend label. pdos_tot holds every atom, which would mislead
     next to a subset of them: then it is the sum of what is drawn."""
     if params.atoms is not None:

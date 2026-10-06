@@ -190,7 +190,12 @@ def test_dummy_flows_through_the_window(qtbot, main_window, dummy_folder):
     assert stored["color"] == "#00ff00"
     with qtbot.waitSignal(window.export_finished, timeout=10_000) as blocker:
         assert window.export_plot()
-    assert [p.name for p in blocker.args[0]] == ["dummy.png", "dummy.svg", "dummy.pdf"]
+    # ``dummy_folder`` is outside the window's root: the prefix is the folder's own name.
+    assert [p.name for p in blocker.args[0]] == [
+        "dummy_sim-dummy.png",
+        "dummy_sim-dummy.svg",
+        "dummy_sim-dummy.pdf",
+    ]
 
 
 def test_no_file_of_the_ui_knows_the_dummy_module():

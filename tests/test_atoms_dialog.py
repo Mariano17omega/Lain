@@ -1,7 +1,8 @@
 """The atom picker window and the "Átomos…" button of the PDOS panel (spec 21 R4, R5)."""
 
 import pytest
-from PyQt6.QtWidgets import QDialog, QLabel, QMessageBox, QPushButton
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import QApplication, QDialog, QLabel, QMessageBox, QPushButton
 
 from atoms_helpers import pdos_folder
 from qe_studio.core.compounds import AtomChoices, CompoundStore, compound_of
@@ -124,6 +125,57 @@ def test_ask_atoms_returns_the_answer_or_none(monkeypatch, qtbot):
     assert ask_atoms(None, CHOICES, [1]) is None  # type: ignore[arg-type]
 
 
+def drive_modal(act):
+    """Run ``act(dialog)`` once the modal window of a *real* ``exec`` is up (it needs the event loop
+    that ``exec`` runs, so it cannot be a plain call before it). If no window ever comes, the open
+    dialogs are rejected after 3 s so a broken test fails instead of blocking in ``exec``."""
+    timer = QTimer(QApplication.instance())  # owned by the application: nothing to keep alive
+    timer.setInterval(10)
+    polls = 0
+
+    def poll():
+        nonlocal polls
+        polls += 1
+        dialog = QApplication.activeModalWidget()
+        if dialog is None and polls < 300:
+            return
+        timer.stop()
+        timer.deleteLater()
+        if dialog is None:
+            for window in QApplication.topLevelWidgets():
+                if isinstance(window, QDialog) and window.isVisible():
+                    window.reject()
+            return
+        act(dialog)
+
+    timer.timeout.connect(poll)
+    timer.start()
+
+
+def test_a_real_exec_returns_the_answer_before_the_window_goes(qtbot):
+    """The window must outlive ``exec`` until its answer is read: with ``WA_DeleteOnClose`` the
+    checkboxes were already deleted and ``answer()`` raised (spec 32 R1)."""
+
+    def oxygen_and_save(dialog):
+        dialog.only_species("O")
+        dialog.save_button.click()
+
+    drive_modal(oxygen_and_save)
+    assert ask_atoms(None, CHOICES, None) == AtomsAnswer([3, 4])  # type: ignore[arg-type]
+    drive_modal(lambda dialog: dialog.cancel_button.click())
+    assert ask_atoms(None, CHOICES, [1]) is None  # type: ignore[arg-type]
+
+
+def test_the_window_is_not_deleted_on_close_and_is_deleted_by_the_helper(qtbot):
+    parent = QPushButton()  # any widget: the dialog is its child until ``deleteLater`` runs
+    qtbot.addWidget(parent)
+    dialog = AtomsDialog(CHOICES, None, parent)
+    assert not dialog.testAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+    drive_modal(lambda window: window.save_button.click())
+    ask_atoms(parent, CHOICES, None)
+    qtbot.waitUntil(lambda: len(parent.findChildren(QDialog)) == 1, timeout=2000)  # only ours
+
+
 # -- the panel button ---------------------------------------------------------------------------
 @pytest.fixture
 def folders(demo_project):
@@ -177,6 +229,19 @@ def test_the_choice_is_saved_for_the_compound_and_replots(
     qtbot.waitUntil(lambda: "1 de 2 átomos" in (session.info.summary if session.info else ""))
     window.plot_settings.flush_now()
     assert not (folders[0] / "pdos.plot").exists()  # picking atoms is not a plot edit
+
+
+def test_the_button_with_the_real_window_filters_the_plot(qtbot, window_factory, folders):
+    """No stand-in for ``ask_atoms``: the window opens, atoms are marked and saved (spec 32 R1)."""
+    window = window_factory()
+    session = generate(qtbot, window, folders[0])
+    drive_modal(lambda dialog: (dialog.only_species("O"), dialog.save_button.click()))
+    button_of(window).click()  # a slot error would fail the test (pytest-qt)
+    assert session.params.atoms == [2]
+    key = session.dataset.compound.key
+    assert CompoundStore(window.compounds.path).selection(key) == [2]
+    qtbot.waitUntil(lambda: "1 de 2 átomos" in (session.info.summary if session.info else ""))
+    assert window.params.body.findChildren(QLabel)  # the panel is still alive
 
 
 def test_another_folder_of_the_same_compound_opens_filtered(
