@@ -63,6 +63,17 @@ DEFAULT_ORBITAL_COLORS: dict[str, str] = {
     "d": "#a855f7",
     "f": "#ec4899",
 }
+# Initial color of each element in the PDOS, by the species label of the output (user entries are
+# added to these, never replace the whole card).
+DEFAULT_ATOMOS_COLORS: dict[str, str] = {
+    "Al": "#E41A1C",
+    "C": "#377EB8",
+    "H": "#4DAF4A",
+    "Hg": "#FF7F00",
+    "K": "#984EA3",
+    "O": "#228B22",
+    "Si": "#F781BF",
+}
 
 
 class _Section(BaseModel):
@@ -153,6 +164,7 @@ class PlotConfig(_Section):
     orbital_colors: dict[Orbital, Color] = Field(
         default_factory=lambda: cast(dict[Orbital, Color], dict(DEFAULT_ORBITAL_COLORS))
     )
+    atomos_colors: dict[str, Color] = Field(default_factory=lambda: dict(DEFAULT_ATOMOS_COLORS))
     export: ExportConfig = Field(default_factory=ExportConfig)
 
     @field_validator("figure_size")
@@ -166,6 +178,14 @@ class PlotConfig(_Section):
     @classmethod
     def _fill_orbitals(cls, value: dict[str, str]) -> dict[str, str]:
         return {**DEFAULT_ORBITAL_COLORS, **value}
+
+    @field_validator("atomos_colors")
+    @classmethod
+    def _fill_atoms(cls, value: dict[str, str]) -> dict[str, str]:
+        for label in value:
+            if not label or label != label.strip() or any(c.isspace() for c in label):
+                raise ValueError(f"rótulo de elemento inválido: {label!r}")
+        return {**DEFAULT_ATOMOS_COLORS, **value}
 
     @model_validator(mode="after")
     def _energy_window(self) -> PlotConfig:

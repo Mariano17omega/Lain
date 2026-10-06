@@ -9,6 +9,7 @@ import pytest
 from atoms_helpers import pdos_folder
 from qe_studio.core.calculations import module_for
 from qe_studio.core.calculations.base import Stores
+from qe_studio.core.calculations.pdos import render as pdos_render
 from qe_studio.core.compounds import CompoundStore
 from qe_studio.core.detection import detect_folder
 from qe_studio.core.folder_memory import FolderMemory
@@ -92,6 +93,52 @@ def test_labels_and_colors_do_not_change_with_the_filter(al_o):
     params.atoms = [2]
     chosen = module.series_colors(dataset, params, LIGHT)
     assert chosen == {"O": everything["O"]}  # only what is drawn, same color as before
+
+
+# -- element colors (plot.atomos_colors) --------------------------------------------------------
+def test_species_grouping_takes_the_element_colors(al_o):
+    module, dataset, params = al_o
+    params.grouping = "species"
+    colors = module.series_colors(dataset, params, LIGHT)
+    assert colors == {"Al": "#E41A1C", "O": "#228B22"}
+
+
+def test_species_and_orbital_shade_the_element_color_by_orbital(al_o):
+    module, dataset, params = al_o
+    colors = module.series_colors(dataset, params, LIGHT)
+    assert colors["Al s"] == "#E41A1C"  # the first orbital keeps the element's own color
+    assert colors["O s"] == "#228B22"
+    assert colors["Al p"] != colors["Al s"] != colors["O s"]
+    assert colors["Al p"] == pdos_render._shade("#E41A1C", 1)
+
+
+def test_an_element_without_an_entry_keeps_the_orbital_colors(al_o):
+    module, dataset, params = al_o
+    del params.atomos_colors["O"]
+    colors = module.series_colors(dataset, params, LIGHT)
+    assert colors["Al s"] == "#E41A1C"
+    assert colors["O s"] == pdos_render._shade(params.orbital_colors["s"], 1)  # second species
+    params.grouping = "species"
+    assert module.series_colors(dataset, params, LIGHT)["O"] == LIGHT.palette[1]
+
+
+def test_a_series_color_wins_over_the_element_color(al_o):
+    module, dataset, params = al_o
+    params.series_colors = {"Al s": "#000000"}
+    assert module.series_colors(dataset, params, LIGHT)["Al s"] == "#000000"
+
+
+def test_the_orbital_grouping_ignores_the_element_colors(al_o):
+    module, dataset, params = al_o
+    params.grouping = "orbital"
+    colors = module.series_colors(dataset, params, LIGHT)
+    assert colors["s"] == params.orbital_colors["s"]
+
+
+def test_the_drawn_lines_use_the_element_colors(al_o):
+    module, dataset, params = al_o
+    figure, _info = render(module, dataset, params)
+    assert lines_by_label(figure)["Al s"].get_color() == "#E41A1C"
 
 
 # -- the total ----------------------------------------------------------------------------------

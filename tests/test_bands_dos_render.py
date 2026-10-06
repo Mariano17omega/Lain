@@ -15,6 +15,7 @@ from qe_studio.core.detection import PairTarget
 from qe_studio.core.plotting.gap_label import gap_label
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
 from qe_studio.core.plotting.session import load_plot
+from qe_studio.core.plotting.style import LIGHT
 from qe_studio.core.sniff import SniffCache
 from spin_helpers import SPIN_BANDS, SPIN_PDOS
 from test_plotting import CONFIG, render
@@ -122,6 +123,12 @@ def test_the_legend_goes_to_the_bands_when_the_dos_draws_nothing():
     module, dataset, params = combined(show_total=False, hidden_series=["Al s", "Al p"])
     figure, _ = render(module, dataset, params)
     assert [ax.get_legend() is not None for ax in figure.axes] == [True, False]
+
+
+def test_the_dos_panel_draws_with_the_element_colors():
+    module, dataset, params = combined()
+    assert params.atomos_colors["Al"] == "#E41A1C"
+    assert module.series_colors(dataset, params, LIGHT)["Al s"] == "#E41A1C"
 
 
 def test_the_gap_is_in_the_legend_once_from_the_bands():

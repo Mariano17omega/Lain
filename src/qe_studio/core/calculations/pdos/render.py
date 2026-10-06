@@ -37,7 +37,9 @@ def _shade(color: str, index: int) -> str:
 
 
 def series_colors(dataset: PdosDataset, params: PdosParams, style: PlotStyle) -> dict[str, str]:
-    """Color of every group for the current grouping (user overrides first)."""
+    """Color of every group for the current grouping (user overrides first). A species with an
+    entry in ``atomos_colors`` takes it (shaded per orbital when grouped by orbital too), else the
+    orbital color shaded by species, else the palette."""
     orbital_colors = {**DEFAULT_ORBITAL_COLORS, **params.orbital_colors}
     species_index = {name: i for i, name in enumerate(dataset.data.species)}
     # Colors follow the order of *all* the atoms, so choosing atoms never recolors a group; only
@@ -49,7 +51,11 @@ def series_colors(dataset: PdosDataset, params: PdosParams, style: PlotStyle) ->
             continue
         label = series_label(key)
         species, orbital = key
-        if orbital:
+        if species in params.atomos_colors:
+            color = _shade(
+                params.atomos_colors[species], max(projwfc.ORBITAL_ORDER.find(orbital), 0)
+            )
+        elif orbital:
             color = _shade(orbital_colors[orbital], species_index.get(species, 0))
         else:
             color = style.palette[i % len(style.palette)]

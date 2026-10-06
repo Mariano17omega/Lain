@@ -46,6 +46,7 @@ def test_round_trip_pdos(tmp_path):
         hidden_series=["Al s"],
         series_colors={"Al p": "#000000"},
         orbital_colors={"s": "#ff0000", "p": "#00ff00", "d": "#0000ff", "f": "#ffffff"},
+        atomos_colors={"Al": "#123456", "Fe": "#abcdef"},
     )
     write_plot_file(tmp_path, "pdos", params)
     stored, _ = read_plot_file(tmp_path, "pdos")
@@ -123,9 +124,11 @@ def test_colour_collections_and_empty_colours():
 def test_colours_without_a_schema_field_are_validated_by_their_metadata():
     params = PdosParams()
     ignored = apply_stored(
-        params, {"total_color": "nope", "orbital_colors": {"s": "nope"}}, pdos_schema()
+        params,
+        {"total_color": "nope", "orbital_colors": {"s": "nope"}, "atomos_colors": {"Al": "nope"}},
+        pdos_schema(),
     )
-    assert sorted(ignored) == ["orbital_colors", "total_color"]
+    assert sorted(ignored) == ["atomos_colors", "orbital_colors", "total_color"]
     assert apply_stored(params, {"total_color": "red", "orbital_colors": {"s": "#fff"}}) == []
     assert (params.total_color, params.orbital_colors["s"]) == ("red", "#fff")
 

@@ -69,6 +69,18 @@ plot:
     p: "#06b6d4"
     d: "#a855f7"
     f: "#ec4899"
+  # Default color of each element in the PDOS, by the species label of the output (as in the
+  # input's ATOMIC_SPECIES). Add a line `Label: "#color"` for a new element; entries are added to
+  # these and win over the same label. Quote labels YAML reads as booleans ("No"). Grouped by
+  # species + orbital, the orbitals of an element are shades of its color.
+  atomos_colors:
+    Al: "#E41A1C"
+    C:  "#377EB8"
+    H:  "#4DAF4A"
+    Hg: "#FF7F00"
+    K:  "#984EA3"
+    O:  "#228B22"
+    Si: "#F781BF"
   export:
     # Any of: png, svg, pdf
     formats: [png, svg, pdf]

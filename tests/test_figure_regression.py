@@ -112,8 +112,8 @@ GOLDEN = {
                 "line_collections": [],
                 "lines": [
                     {"label": "Total", "color": "#0f172a", "lw": 1.2, "ls": "-", "n": 2261},
-                    {"label": "Al s", "color": "#fbbf24", "lw": 1.2, "ls": "-", "n": 2261},
-                    {"label": "Al p", "color": "#06b6d4", "lw": 1.2, "ls": "-", "n": 2261},
+                    {"label": "Al s", "color": "#e41a1c", "lw": 1.2, "ls": "-", "n": 2261},
+                    {"label": "Al p", "color": "#ec595b", "lw": 1.2, "ls": "-", "n": 2261},
                     {"label": "_", "color": "#f43f5e", "lw": 0.9, "ls": "--", "n": 2},
                 ],
                 "fills": 3,
@@ -136,8 +136,8 @@ GOLDEN = {
                 "line_collections": [],
                 "lines": [
                     {"label": "Total", "color": "#0f172a", "lw": 1.2, "ls": "-", "n": 2261},
-                    {"label": "Al s", "color": "#fbbf24", "lw": 1.2, "ls": "-", "n": 2261},
-                    {"label": "Al p", "color": "#06b6d4", "lw": 1.2, "ls": "-", "n": 2261},
+                    {"label": "Al s", "color": "#e41a1c", "lw": 1.2, "ls": "-", "n": 2261},
+                    {"label": "Al p", "color": "#ec595b", "lw": 1.2, "ls": "-", "n": 2261},
                     {"label": "_", "color": "#f43f5e", "lw": 0.9, "ls": "--", "n": 2},
                 ],
                 "fills": 3,

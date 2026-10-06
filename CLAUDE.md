@@ -346,6 +346,13 @@ place like the figures. `export_files` = `export_figure` (unchanged: figures onl
 puts the `.csv` in `existing` and in the `_2` search, so the set is asked about and versioned together. The CSV is
 not an `export_formats` entry and has no checkbox.
 
+**Element colors of the PDOS.** `plot.atomos_colors` (`config.DEFAULT_ATOMOS_COLORS`: Al, C, H, Hg, K, O, Si) is
+`orbital_colors` keyed by species label: the user's entries are *added to* the defaults (`PlotConfig._fill_atoms`), copied
+into `PdosParams` / `BandsDosParams.atomos_colors` (`kind: colors`, kept in the `.plot` like `orbital_colors`).
+`pdos/render.py:series_colors` gives a species with an entry its color (grouping "Espécie"), shaded per orbital with
+`_shade(color, "spdf".find(orbital))` in "Espécie + orbital" (s pure); a species without one keeps the orbital color /
+palette; `series_colors` (the panel's swatches) still wins; grouping "Orbital" ignores it.
+
 `ParamsPanel` (`ui/widgets/plot_params.py`) keeps one `ParamsBody` per open plot in a `QStackedWidget`
 (keyed by `session.key`): `bind` shows it (rebuilding only if the session or its schema changed),
 `discard` drops it when the tab closes. Section open/closed state is QSettings

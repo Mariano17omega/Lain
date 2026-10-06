@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ...config import DEFAULT_ORBITAL_COLORS
+from ...config import DEFAULT_ATOMOS_COLORS, DEFAULT_ORBITAL_COLORS
 from ..params import (
     COMMON_FIELDS,
     LEGEND_GAP_FIELD,
@@ -55,6 +55,9 @@ class PdosParams(CommonParams):
     orbital_colors: dict[str, str] = field(
         default_factory=lambda: dict(DEFAULT_ORBITAL_COLORS), metadata={"kind": "colors"}
     )
+    atomos_colors: dict[str, str] = field(
+        default_factory=lambda: dict(DEFAULT_ATOMOS_COLORS), metadata={"kind": "colors"}
+    )
     show_legend: bool = True
     legend_gap: bool = False  # the energy gap as a legend entry
     spin_mode: str = "mirror"  # only offered (and used) when the PDOS has two channels
@@ -68,6 +71,7 @@ def default_params(config: AppConfig, dataset: PdosDataset) -> PdosParams:
         emax=plot.energy_max,
         fermi_color=plot.fermi_color,
         orbital_colors={orbital: color for orbital, color in plot.orbital_colors.items()},
+        atomos_colors=dict(plot.atomos_colors),
     )
     params.fermi_source = "scf" if dataset.fermi_scf is not None else "nscf"
     if not params.shift_to_fermi and (fermi := dataset.fermi(params.fermi_source)) is not None:

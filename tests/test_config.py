@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from qe_studio.core.config import (
+    DEFAULT_ATOMOS_COLORS,
     ENV_CONFIG,
     AppConfig,
     ConfigError,
@@ -36,6 +37,7 @@ def test_example_config_validates(tmp_path):
     assert config.cluster.host == "cluster.example.org"
     assert config.sync_enabled
     assert config.plot.orbital_colors["d"] == "#a855f7"
+    assert config.plot.atomos_colors == DEFAULT_ATOMOS_COLORS
     assert config.paths.local_root == Path("~/qe_simulations").expanduser()
     assert config.sync.push_exclude == AppConfig().sync.push_exclude
 
@@ -114,6 +116,36 @@ def test_partial_orbital_colors_keep_defaults():
     config = parse_config({"plot": {"orbital_colors": {"s": "red"}}})
     assert config.plot.orbital_colors["s"] == "red"
     assert config.plot.orbital_colors["p"] == "#06b6d4"
+
+
+def test_default_atomos_colors():
+    assert parse_config({}).plot.atomos_colors == {
+        "Al": "#E41A1C",
+        "C": "#377EB8",
+        "H": "#4DAF4A",
+        "Hg": "#FF7F00",
+        "K": "#984EA3",
+        "O": "#228B22",
+        "Si": "#F781BF",
+    }
+
+
+def test_atomos_colors_are_incremental():
+    config = parse_config({"plot": {"atomos_colors": {"Fe": "#abcdef", "Al": "blue"}}})
+    colors = config.plot.atomos_colors
+    assert colors["Fe"] == "#abcdef" and colors["Al"] == "blue"  # added / overridden
+    assert colors["O"] == "#228B22" and len(colors) == len(DEFAULT_ATOMOS_COLORS) + 1
+    assert AppConfig().plot.atomos_colors == DEFAULT_ATOMOS_COLORS  # no shared state
+
+
+@pytest.mark.parametrize(
+    ("entry", "fragment"),
+    [({"Fe": "nope"}, "cor inválida"), ({"F e": "red"}, "rótulo"), ({"": "red"}, "rótulo")],
+)
+def test_invalid_atomos_colors(entry, fragment):
+    with pytest.raises(ConfigError) as info:
+        parse_config({"plot": {"atomos_colors": entry}})
+    assert fragment in str(info.value)
 
 
 def test_paths_are_expanded(monkeypatch, tmp_path):

@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass, field, fields, replace
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from ...config import DEFAULT_ORBITAL_COLORS
+from ...config import DEFAULT_ATOMOS_COLORS, DEFAULT_ORBITAL_COLORS
 from ..bands import params as bands_params
 from ..bands.params import BandsParams
 from ..params import COMMON_FIELDS, CommonParams, ParamField
@@ -66,6 +66,9 @@ class BandsDosParams(CommonParams):
     series_colors: dict[str, str] = field(default_factory=dict)
     orbital_colors: dict[str, str] = field(
         default_factory=lambda: dict(DEFAULT_ORBITAL_COLORS), metadata={"kind": "colors"}
+    )
+    atomos_colors: dict[str, str] = field(
+        default_factory=lambda: dict(DEFAULT_ATOMOS_COLORS), metadata={"kind": "colors"}
     )
     spin_mode: str = "overlay"  # mirrored makes the DOS axis symmetric, odd next to the bands
     show_legend: bool = True
