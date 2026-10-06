@@ -66,9 +66,32 @@ def test_fermi_on_the_edge_of_the_gap_or_just_inside_a_band_still_finds_it(fermi
     assert dos_gap(ENERGY, gapped().total, fermi) == pytest.approx(1.2, abs=STEP)
 
 
-@pytest.mark.parametrize("fermi", [-3.0, 5.0, -0.5, 1.8])
-def test_fermi_inside_a_band_is_a_metal(fermi):
+@pytest.mark.parametrize("fermi", [-3.0, 5.0, -1.5, 2.8])
+def test_fermi_deep_inside_a_band_is_a_metal(fermi):
     assert dos_gap(ENERGY, gapped().total, fermi) is None
+
+
+@pytest.mark.parametrize("fermi", [-0.9, -0.5, 1.8, 2.1])
+def test_fermi_a_few_tenths_inside_a_band_still_finds_the_gap(fermi):
+    # Smearing puts E_F in the top of the valence band (real PDOS: 0.3-0.5 eV below the gap).
+    assert dos_gap(ENERGY, gapped().total, fermi) == pytest.approx(1.2, abs=STEP)
+
+
+def test_the_widest_region_near_fermi_wins():
+    total = gapped(up=((0.0, 0.5), (1.0, 2.5))).total  # 0.5 eV and 1.5 eV, E_F between them
+    assert dos_gap(ENERGY, total, 0.75) == pytest.approx(1.5, abs=STEP)
+    assert dos_gap(ENERGY, total, 0.25) == pytest.approx(1.5, abs=STEP)  # 0.75 eV from it
+
+
+def test_a_region_further_than_the_search_is_ignored_for_a_nearer_one():
+    total = gapped(up=((0.0, 0.5), (4.0, 6.0))).total  # the wide one is 3.5 eV from E_F
+    assert dos_gap(ENERGY, total, 0.25) == pytest.approx(0.5, abs=STEP)
+
+
+def test_an_edge_region_is_no_candidate_but_does_not_hide_another():
+    dos = np.where(ENERGY < -9.5, 0.0, bands_dos((0.0, 1.2)))  # empty from the grid start to -9.5
+    assert dos_gap(ENERGY, Channel(dos), -9.0) is None  # only the edge region is near
+    assert dos_gap(ENERGY, Channel(dos), 0.6) == pytest.approx(1.2, abs=STEP)
 
 
 def test_without_a_fermi_energy_there_is_no_gap():
@@ -212,4 +235,4 @@ def test_a_hidden_legend_stays_hidden():
 
 
 def test_projwfc_keeps_its_gap_constants_named():
-    assert projwfc.GAP_DOS_REL_TOL == 1e-3 and projwfc.GAP_SEARCH_EV == 0.25
+    assert projwfc.GAP_DOS_REL_TOL == 1e-3 and projwfc.GAP_SEARCH_EV == 1.0

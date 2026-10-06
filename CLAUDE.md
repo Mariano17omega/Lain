@@ -329,6 +329,15 @@ export match; `ThemeManager` only styles the widgets around the canvas. Toolbar 
 it. `core/plotting/export.py` writes into `<simulation>/plots/`; existing files are never
 overwritten without asking (PRD §7 data integrity).
 
+**Legend and axis text sizes.** `CommonParams` (so every module, in the "Legenda" section of `COMMON_FIELDS`) has
+`legend_size` ("Tamanho"), `legend_transparency` ("Transparência": 0 opaque … 1 invisible, the frame's alpha upside
+down, default 0.2 = matplotlib's 0.8; only visible with `legend_frame`), `tick_size` ("Marcações") and `label_size`
+("Rotulagem dos eixos"); the three sizes are `float | None` (`None` = "auto": 0.85 × `font_size` for the legend, the
+figure font for the others, so figures made before them do not change). `plotting/draw.py` is the one place that
+applies them: `add_legend` and `apply_text_sizes`, which `finish`, `finish_side` and `finish_joined` call before
+`tight` (a module draws its labels first, then calls one of them). A stored value that cannot be a size or an alpha
+falls back to the default instead of raising. Tests: `test_legend_style.py`.
+
 **Names and CSV of an export (spec 32).** The stem is `names.join_stem(names.export_prefix(folder, root),
 module.export_stem(params))`: the folders from `local_root` down to the simulation joined by `-`, then the module's
 own stem (`<local_root>/ilita/Analise_1/Bandas` → `ilita-Analise_1-Bandas-bands.png`). Pure, no disk: the root itself
@@ -442,7 +451,10 @@ and spin are not checked. `bands/render.notes` puts the note in `RenderInfo.note
 bands + DOS adds it to its own. PDOS: `PdosDataset.gap` (`pdos/gap.py:GapInfo`, set in `load_dataset`, so
 the GUI only draws) is the HOMO / LUMO pw.x printed (`homo_lumo`, first of NSCF, SCF; a closed pair = metal) else
 `projwfc.dos_gap` on `PdosData.total` (`dos`, drawn `≈`, 2 decimals): always the system's total, never the drawn
-series, and smeared edges make it read narrower than the true gap.
+series, and smeared edges make it read narrower than the true gap. `dos_gap` takes the *widest* empty region within
+`GAP_SEARCH_EV` = 1.0 eV of E_F (nearest on a tie; a region touching the grid edge is no candidate): with smearing E_F
+often sits a few tenths of eV *inside* the top of the valence band, so a tighter window (it was 0.25 eV) found no gap
+in real insulators; semicore gaps are further away, and a metal still has no empty region near E_F.
 
 ### Atom selection in the PDOS (spec 21)
 

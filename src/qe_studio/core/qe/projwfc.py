@@ -26,9 +26,10 @@ ORBITAL_ORDER = "spdf"
 # maximum count as "no states": a smeared band edge has a long, faint tail that would otherwise
 # close the gap. Raising it widens the tail that is ignored and shrinks the gap found.
 GAP_DOS_REL_TOL = 1e-3
-# How far (eV) from E_F the empty region may lie: E_F sits in a gap or on its edge, but a region
-# further away says nothing about the Fermi level (a metal with a pseudogap elsewhere).
-GAP_SEARCH_EV = 0.25
+# How far (eV) from E_F the empty region may lie. With smearing, E_F often lands in the top of the
+# valence band, a few tenths of eV below the gap; but a region further away says nothing about the
+# Fermi level (a metal with a pseudogap or a semicore gap elsewhere).
+GAP_SEARCH_EV = 1.0
 
 
 class PdosFormatError(ValueError):
@@ -229,11 +230,11 @@ def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosDa
 def dos_gap(energy: np.ndarray, total: Channel, fermi: float | None) -> float | None:
     """The energy gap around ``fermi`` read off the total DOS (both spin channels summed), or None.
 
-    The gap is the empty region (``GAP_DOS_REL_TOL`` of the maximum or less) nearest E_F, at most
-    ``GAP_SEARCH_EV`` away, measured from the last point above the threshold below it to the first
-    above it: the error is about the grid step plus the broadening. There is none without E_F, with
-    E_F inside a band (a metal), or when the region reaches the edge of the grid (no states on one
-    side to bound it).
+    The gap is the widest empty region (``GAP_DOS_REL_TOL`` of the maximum or less) at most
+    ``GAP_SEARCH_EV`` from E_F (nearest on a tie), measured from the last point above the threshold
+    below it to the first above it: the error is about the grid step plus the broadening. A region
+    that reaches the edge of the grid has no states on one side to bound it and is not a candidate.
+    There is none without E_F or when no such region lies near it (a metal, or E_F deep in a band).
     """
     if fermi is None or len(energy) < 3:
         return None
@@ -243,14 +244,17 @@ def dos_gap(energy: np.ndarray, total: Channel, fermi: float | None) -> float | 
         return None
     padded = np.concatenate(([False], dos <= GAP_DOS_REL_TOL * peak, [False]))
     changes = np.flatnonzero(padded[1:] != padded[:-1])  # runs of empty points: [start, stop)
-    best: tuple[float, int, int] | None = None
+    best: tuple[float, float, int, int] | None = None  # (width, -away, start, stop)
     for start, stop in zip(changes[::2], changes[1::2], strict=True):
+        if start == 0 or stop == len(energy):
+            continue
         away = max(float(energy[start]) - fermi, fermi - float(energy[stop - 1]), 0.0)
-        if away <= GAP_SEARCH_EV and (best is None or away < best[0]):
-            best = (away, int(start), int(stop))
+        if away > GAP_SEARCH_EV:
+            continue
+        candidate = (float(energy[stop] - energy[start - 1]), -away, int(start), int(stop))
+        if best is None or candidate[:2] > best[:2]:
+            best = candidate
     if best is None:
         return None
-    _, start, stop = best
-    if start == 0 or stop == len(energy):
-        return None
+    _, _, start, stop = best
     return float(energy[stop] - energy[start - 1])

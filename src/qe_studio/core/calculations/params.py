@@ -78,6 +78,10 @@ class CommonParams:
     show_legend: bool = False
     legend_loc: str = "best"
     legend_frame: bool = False
+    legend_size: float | None = None  # pt; None = 0.85 × font_size
+    legend_transparency: float = 0.2  # 0 opaque … 1 invisible (0.2 = matplotlib's frame alpha 0.8)
+    tick_size: float | None = None  # tick labels, pt; None = font_size
+    label_size: float | None = None  # axis labels, pt; None = font_size
     export_png: bool = True
     export_svg: bool = True
     export_pdf: bool = True
@@ -136,6 +140,52 @@ COMMON_FIELDS = (
     ParamField("show_legend", "Mostrar legenda", "Legenda", "bool"),
     ParamField("legend_loc", "Posição", "Legenda", "choice", choices=LEGEND_LOCATIONS),
     ParamField("legend_frame", "Moldura", "Legenda", "bool"),
+    ParamField(
+        "legend_size",
+        "Tamanho",
+        "Legenda",
+        "float",
+        minimum=4,
+        maximum=40,
+        step=1,
+        suffix="pt",
+        optional=True,
+        tooltip="Tamanho do texto da legenda. Automático = 85 % da fonte da figura.",
+    ),
+    ParamField(
+        "legend_transparency",
+        "Transparência",
+        "Legenda",
+        "float",
+        minimum=0,
+        maximum=1,
+        step=0.05,
+        tooltip="0 = fundo da legenda opaco, 1 = invisível. Vale com a moldura ligada.",
+    ),
+    ParamField(
+        "tick_size",
+        "Marcações",
+        "Legenda",
+        "float",
+        minimum=4,
+        maximum=40,
+        step=1,
+        suffix="pt",
+        optional=True,
+        tooltip="Tamanho dos números nas marcações dos eixos. Automático = fonte da figura.",
+    ),
+    ParamField(
+        "label_size",
+        "Rotulagem dos eixos",
+        "Legenda",
+        "float",
+        minimum=4,
+        maximum=40,
+        step=1,
+        suffix="pt",
+        optional=True,
+        tooltip="Tamanho dos rótulos dos eixos. Automático = fonte da figura.",
+    ),
     ParamField("title", "Título", "Figura", "text"),
     ParamField(
         "figure_width", "Largura", "Figura", "float", minimum=1, maximum=30, step=0.5, suffix="in"
