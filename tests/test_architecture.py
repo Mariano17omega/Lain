@@ -66,6 +66,8 @@ FS_ALLOWED: dict[str, int] = {
 # Moved out of ui/ by spec 15 R5: they must load without Qt (and be tested without it).
 QT_FREE = [
     "qe_studio.core.text_preview",
+    "qe_studio.core.qsub_lint",
+    "qe_studio.core.markdown_links",
     "qe_studio.core.file_kinds",
     "qe_studio.core.plotting.session",
     "qe_studio.core.plotting.gap_label",

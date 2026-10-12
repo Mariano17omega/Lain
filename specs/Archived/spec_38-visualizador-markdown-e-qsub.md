@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 38 (dois itens do mesmo visualizador; independentes das specs de gráficos) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (12/10/2026); ver "Decisões na implementação" |
 | **Depende de** | spec 10 (`TextViewer`, `read_preview`), spec 11 (`InputView`, `LintIssue`, `InputHighlighter`), spec 26 (R6: `ShellHighlighter`; `descricao.md`), spec 19 (tokens de tema) |
 | **Usada por** | spec 39 (a edição no modo Avançado reaproveita a verificação do script) |
 | **Esforço** | G (R1: M; R2: M) |
@@ -45,9 +45,10 @@
    tarefas, código; HTML cru **não** é interpretado). `read_preview` marca `is_markdown` (sufixo; nunca para log de job nem saída de QE).
 2. **Alternar Texto / Renderizado:** um botão de duas posições na barra do visualizador; "Texto" é o `CodeView` de hoje (números de linha,
    busca, "Ir para a linha"). A escolha vale para o programa todo e fica no QSettings (`viewer/markdown_rendered`, padrão `true`).
-3. **Tema:** cores só de tokens existentes (`text`, `text_secondary`, `accent`, `card`, `border`, `window`), aplicadas por
-   `document().setDefaultStyleSheet` e refeitas em `theme_changed`; a fonte do texto é a de UI e a do código é a mono (`ui_font`,
-   `mono_font`). Nenhum token novo (os de contraste de `test_theme_contrast.py` já cobrem).
+3. **Tema:** cores só de tokens existentes (`text`, `text_secondary`, `accent`, `card`, `border`, `workspace`), aplicadas por **uma
+   passada de formatos sobre o documento** logo depois do `setMarkdown` (a folha de estilo do `QTextDocument` só vale para
+   `setHtml`: ver "Decisões na implementação") e refeitas em `theme_changed`; a fonte do texto é a de UI e a do código é a mono
+   (`ui_font`, `mono_font`). Nenhum token novo (os de contraste de `test_theme_contrast.py` já cobrem).
 4. **Links:** `setOpenLinks(False)`; `http(s)://` abre em `QDesktopServices.openUrl`; âncoras `#titulo` rolam; qualquer outro destino
    (arquivo local, `file:`) **não abre** e o rodapé diz "Link não aberto: …". **Imagens** relativas se resolvem na pasta do arquivo
    (`setSearchPaths`), nada é baixado da rede.
@@ -74,7 +75,8 @@
    - `if`/`fi`, `for`/`while`/`until`/`do`/`done`, `case`/`esac` sem par, em posição de comando (erro, na linha do que sobrou);
    - `\` no fim da linha seguido de espaço: a continuação quebra (aviso);
    - diretiva `#$` com opção fora do conjunto do `qsub` do SGE (`-N -pe -cwd -wd -V -v -S -j -o -e -q -l -m -M -t -hold_jid -b -r -P -A -p
-     -R -w -binding -h -a`): aviso "opção desconhecida"; `-pe` sem ambiente **e** número de slots, ou `-N` sem nome: erro;
+     -R -w -binding -h -a`, mais `-hard -soft -tc -notify -shell -ckpt …`: `SGE_OPTIONS`): aviso "opção desconhecida"; `-pe` sem
+     ambiente **ou** sem número de slots, ou `-N` sem nome: erro;
    - sem `#!` na primeira linha (aviso).
 3. **A linha de problemas:** `InputView` ganha `bind_issues(issues, noun)` ("N problemas de escrita no script", F8 / Shift+F8 como no
    input); os chips e o "Comparar com…" ficam ocultos para script. `CodeView.set_diagnostics` pinta a margem.
@@ -105,8 +107,9 @@
 6. A busca no modo renderizado passa para "Texto" (a busca do visualizador é do `CodeView`).
 
 ## Notas de implementação
-- Novos: `ui/widgets/markdown_view.py`, `core/qsub_lint.py` (entra em `QT_FREE` de `tests/test_architecture.py`),
-  `tests/test_markdown_view.py`, `tests/test_qsub_lint.py`, `tests/test_qsub_viewer.py`.
+- Novos: `ui/widgets/markdown_view.py`, `core/qsub_lint.py` e `core/markdown_links.py` (entram em `QT_FREE` de
+  `tests/test_architecture.py`), `tests/test_markdown_view.py`, `tests/test_markdown_links.py`, `tests/test_qsub_lint.py`,
+  `tests/test_qsub_viewer.py`.
 - Alterados: `core/file_kinds.py` (`.markdown`), `core/text_preview.py` (94: `is_markdown`, `is_script`, as `issues`), `ui/widgets/text_viewer.py`
   (264: a pilha `CodeView` | `MarkdownView`, o botão, a escolha do realce), `ui/widgets/highlighters.py` (167: `set_issues` na base),
   `ui/widgets/input_view.py` (174: `bind_issues`), `tests/test_properties.py`.
@@ -114,10 +117,42 @@
 - Documentação ao implementar: `CLAUDE.md`, seções "Text viewer and tabs (spec 10)" (Markdown) e "Input viewer (spec 11)" (script).
 
 ## Critérios de aceite e testes
-- [ ] `.md` abre renderizado (títulos, listas, tabela, código, links), alterna para o texto original e lembra a escolha.
-- [ ] HTML cru não é interpretado; link `http(s)` abre no navegador; link local não abre; arquivo > 1 MB abre em texto com banner.
-- [ ] `.qsub` abre com realce e a linha de problemas; cada regra do R2.2 com um exemplo; os scripts de referência e todos os gerados
+- [x] `.md` abre renderizado (títulos, listas, tabela, código, links), alterna para o texto original e lembra a escolha.
+- [x] HTML cru não é interpretado; link `http(s)` abre no navegador; link local não abre; arquivo > 1 MB abre em texto com banner.
+- [x] `.qsub` abre com realce e a linha de problemas; cada regra do R2.2 com um exemplo; os scripts de referência e todos os gerados
       passam limpos.
-- [ ] `lint_script` nunca levanta (propriedade) e `test_properties.py` continua verde.
-- [ ] `test_architecture.py` (`QT_FREE`, 500 linhas), `ruff check`, `ruff format --check`, `pyright`, `test_theme_contrast.py` e a suíte
+- [x] `lint_script` nunca levanta (propriedade) e `test_properties.py` continua verde.
+- [x] `test_architecture.py` (`QT_FREE`, 500 linhas), `ruff check`, `ruff format --check`, `pyright`, `test_theme_contrast.py` e a suíte
       `-m "not realdata and not perf"` verdes.
+
+## Decisões na implementação
+
+1. As decisões 1–6 acima ficaram como estavam (renderizado por padrão, HTML cru e links locais não abrem, verificação por regras
+   escritas, aviso para opção desconhecida, limite de 1 MB, a busca passa para "Texto").
+2. **A folha de estilo não vale para o Markdown.** `QTextDocument.setDefaultStyleSheet` só alcança o `setHtml`: o importador do
+   Markdown escreve os formatos direto (medido: o link continua `#0000ff` com a folha e sem ela). O tema é uma passada sobre o
+   documento depois do `setMarkdown` (`MarkdownView._style`: links, código em linha, blocos de código, bordas das tabelas), que
+   `theme_changed` refaz a partir do texto guardado. Custo medido em 1 MB: 0,19 s de `setMarkdown` + 0,27 s da passada, na thread da
+   GUI (por isso o limite). Cor do texto e fundo são o QSS de `#markdownView`, com o token `workspace` (o do `#textViewer`) em vez de
+   `window`.
+3. **Os títulos não têm nome de âncora** na importação do Qt, então `#titulo` não rola sozinho: `core/markdown_links.heading_slugs`
+   (estilo GitHub, `-1` nos repetidos) dá os nomes e `MarkdownView.scroll_to_heading` acha o bloco. A regra de quais links abrem fica
+   em `core/markdown_links.link_action`, sem Qt, e é o que o teste de tabela exercita.
+4. **De 1 a 4 MB não havia banner** (o de "arquivo grande" só aparece com truncamento, acima de 4 MB): `read_preview` ganhou o
+   "Markdown grande (N): exibido como texto, sem renderizar."; um arquivo truncado pelo leitor mantém o seu banner e também não é
+   renderizado.
+5. **`.qsub` e `.md` são julgados pelo nome, nunca como input.** O `PDOS.qsub` de referência tem um heredoc com `&PROJWFC`, que o
+   `looks_like_input` (só o início do arquivo) poderia tomar por input.
+6. **O conjunto de opções `#$` ficou maior que o da spec** (`-hard -soft -tc -notify -shell -ckpt -c -i -u -sync -terse -verify -ac
+   -dc -sc -js -jc -masterq -now -pty -clear -C -dl -ar -xdv -hold_jid_ad -help`, da `qsub(1)` do SGE): um aviso falso custa mais
+   que um que falta. **Continua não verificado contra a documentação do cluster do usuário.** Um `#$` é lido onde estiver, dentro de
+   um heredoc também (o SGE lê o arquivo todo); `-pe` pede os dois valores e `-N` um nome não vazio.
+7. **`#$ -p -5`:** `-5` é valor, não opção (a opção é `-[A-Za-z_]+`).
+8. **Ctrl+F / F3 no modo renderizado** mostram o texto *daquela aba* e não gravam a escolha (um Ctrl+F não vira a preferência do
+   programa). Um clique em Texto / Renderizado grava `viewer/markdown_rendered` **e** muda as outras abas de texto abertas
+   (`Workspace._sync_render_mode`): "vale para o programa todo". Ctrl+L não faz nada no modo renderizado (não há números de linha).
+9. **Defeito que o teste achou:** o importador deixa o cursor, e com ele a vista, no fim do documento; `set_source` termina com
+   `go_start`. `go_end` leva a barra ao máximo (o cursor só precisa estar visível).
+10. **`TextViewer`** passou de 264 para ~380 linhas, abaixo das 500 da regra; `main_window.py` ganhou 1 linha (448 de 450).
+11. **Medida do lint:** 1 MB de script em 0,13 s (`test_lint_script_of_a_big_script_is_quick`, `-m perf -s`); uma linha sem aspas,
+    barras, `$`, `#` nem operadores é tokenizada por `split()` e não pelo laço de caracteres.

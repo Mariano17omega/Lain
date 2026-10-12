@@ -1005,6 +1005,33 @@ shows) lie inside a renamed path; `set_busy(key, on)` swaps a tab's icon for a s
 `core/text_preview.py:read_preview` (worker) is what the viewer shows: text or ends, banner (job logs,
 big files), `LineMap`, and for inputs the lint and the extract.
 
+**Markdown (spec 38 R1).** `.md` / `.markdown` (`file_kinds.MARKDOWN_SUFFIXES`, `is_markdown`) open
+**rendered** in `ui/widgets/markdown_view.py:MarkdownView` (`QTextBrowser`, `setMarkdown` with `GitHub | NoHTML`: raw
+HTML is shown as the text it is), in a `QStackedWidget` next to the `CodeView`; two exclusive `Texto` / `Renderizado`
+buttons sit at the left of the viewer's tool bar. `read_preview` says `is_markdown` and `renderable`
+(`MARKDOWN_RENDER_LIMIT` = 1 MB, whole, not truncated; above it the text opens with the "Markdown grande" banner and the
+button is disabled with the reason), and judges a `.md` by its name, never as an input. The choice is the program's:
+QSettings `viewer/markdown_rendered` (default on), passed `Workspace(theme, settings=)` → `TextViewer(settings=)`; a
+click writes it and `Workspace._sync_render_mode` sets the other open viewers (`set_rendered(on, remember=False)`).
+Ctrl+F / F3 in the rendered view show the text *of that tab* (the choice stays) and open the search, which is the
+`CodeView`'s; Ctrl+L does nothing there. A viewer renders lazily (`_markdown_dirty`): a file kept on "Texto" is never parsed.
+- **Theming is a format pass, not a style sheet.** `QTextDocument.setDefaultStyleSheet` reaches `setHtml` only: Qt's
+  Markdown import writes char and block formats directly (measured: the link stays `#0000ff` with the sheet or without it).
+  So `MarkdownView._style` walks the document once after `setMarkdown` (spans collected first, formats merged after:
+  no iterator lives across an edit): links `accent`; inline code `text_secondary` on `card` in `mono_font`'s family; code
+  fences the same plus a `card` block background; table borders `border`. Text color and background are the QSS of
+  `#markdownView` (`viewers.qss`, token `workspace` like `#textViewer`, so no new token). `theme_changed` runs
+  `set_source` again from the kept text and restores the scroll value. 1 MB costs ≈ 0.2 s to parse and 0.3 s to style on
+  the GUI thread (why the limit); `set_source` ends with `go_start` because the import leaves the caret, and the view,
+  at the end.
+- **Nothing is followed.** The files come from synced cluster folders the user did not write. `core/markdown_links.py`
+  (Qt-free) is the policy: `link_action(href)` → `open` (`http` / `https` with a host: `markdown_view.open_url`, over
+  `QDesktopServices.openUrl`, the function tests replace), `anchor` (`#frag`) or `blocked` (everything else, `file:`
+  included: the footer says "Link não aberto: …" through `TextViewer.message` → `Workspace.message` →
+  `status.set_message`). Headings carry no anchor name in Qt's import, so `heading_slugs` (GitHub style, `-1` on repeats)
+  gives the slugs and `MarkdownView.scroll_to_heading` finds the block. `loadResource` answers only scheme-less relative
+  paths (searched in the file's folder), so no image is fetched and no absolute path is read.
+
 ### Input viewer (spec 11)
 
 A QE input opens in the same `TextViewer`. `core/qe/input_lexer.py:scan_line(text, LexState, lineno)`
@@ -1024,6 +1051,30 @@ diagnostics (`set_diagnostics`: margin marker + tooltips; the wavy underline is 
 (tab key `diff:<a>|<b>`; `compare_with` asks for the file) opens `ui/widgets/diff_view.py:DiffView`,
 which only lays out `core/qe/input_diff.py:compare_files` (worker): by parameter (`normalize_value`:
 numbers as floats, logicals as bools, strings casefolded) or line by line (`text_rows`, `difflib`).
+
+**`.qsub` scripts (spec 38 R2).** `file_kinds.SCRIPT_SUFFIXES` = `{".qsub"}` (`is_script`; `.sh` / `.pbs` / `.slurm` stay
+plain text: one entry each when wanted). `read_preview` judges a script by its name, so a heredoc of `&PROJWFC` never
+makes it an input, runs `core/qsub_lint.py:lint_script` up to `INPUT_READ_LIMIT` (above it: banner "Script grande … a
+escrita não foi verificada", colors only) and puts the issues in `TextPreview.script_issues` (`TextPreview.issues` is the
+input's or the script's, the one the viewer marks). `TextViewer` picks `ShellHighlighter` (`SHELL_RULES`, the `syn_*`
+colors) and `InputView.bind_issues(issues, "script")` shows only the "N problemas de escrita no script" row (F8 /
+Shift+F8, "Ir ao primeiro"): no extract strip, no chips, no "Comparar com…", and no row at all without issues.
+`ThemedHighlighter` (the base) owns `set_issues` and `underline_issues`, so the wavy underline is the same for inputs
+and scripts; `CodeView.set_diagnostics` does the margin.
+- **`lint_script(text)`** is Qt-free, never raises (`Cancelled` passes), one linear pass, never runs anything (no `bash -n`:
+  the result must not depend on the user's shell). A pass that is wrong without ambiguity is a rule; a script that passes
+  is not proved right. Rules: CRLF (error, once, first line with `\r`; the rest is read without it); a quote open at the end
+  of the file (error, on the line it opened: a string on two lines is valid; a quote in a comment or a heredoc body is not
+  one; `$'…'` keeps its escapes); `${` with no `}` on the line (error); `if`/`fi`, `for`/`while`/`until`/`select` +
+  `do`/`done`, `case`/`esac` with no pair, and a stray `do` (error, in *command position* only: line start or after
+  `; & | ( { ! then do else elif`, never a quoted word, an argument (`echo if`) or a `case` pattern `fi)`); `\` + blanks
+  at the end of a line (warning); a `#$` directive (column 0, read wherever it stands, heredoc body included, as SGE does)
+  with an option outside `SGE_OPTIONS` (warning; `-5` is a value, not an option), `-pe` with fewer than two values or
+  `-N` with none (error); no `#!` on line 1 (warning; an empty file has no issue). A heredoc (`<<[-]WORD`, quoted or not,
+  not `<<<`) is skipped until a line equal to its delimiter.
+- **`SGE_OPTIONS`** is qsub(1) as known to the author (the spec's list plus `-hard -soft -tc -notify -shell -ckpt …`), **not**
+  checked against the user's cluster; an unknown option is only a warning and a false warning costs more than a miss, so
+  the set errs long. It is the one place to add a site's own option.
 
 ### Output summary (spec 12)
 

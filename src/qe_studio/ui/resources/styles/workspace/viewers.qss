@@ -6,6 +6,15 @@
     color: ${text};
     border: none;
 }
+/* Rendered Markdown (spec 38): the text and the page; links, code and tables are colored by the
+   view itself after the import, since a style sheet does not reach QTextDocument.setMarkdown. */
+#markdownView {
+    font-family: "Inter";
+    font-size: 13px;
+    background: ${workspace};
+    color: ${text};
+    border: none;
+}
 #viewerBannerBar {
     background: ${panel_alt};
     border-bottom: 1px solid ${border};

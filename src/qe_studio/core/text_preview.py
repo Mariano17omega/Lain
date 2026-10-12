@@ -1,5 +1,6 @@
-"""What the text viewer shows of a file (spec 10 R4, spec 11 R4, spec 4 R4): the text or its ends,
-the banner, the real line numbers, and for a QE input its write checks and key parameters.
+"""What the text viewer shows of a file (spec 10 R4, spec 11 R4, spec 4 R4, spec 38): the text or its
+ends, the banner, the real line numbers, for a QE input its write checks and key parameters, for a
+``.qsub`` script its write checks, and for Markdown whether it can be rendered.
 
 Read in a worker: a file can be big or on a network disk.
 """
@@ -10,11 +11,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import cancel, textfile
-from .file_kinds import human_size, is_job_log
+from .file_kinds import human_size, is_job_log, is_markdown, is_script
 from .qe.input_extract import Chip, extract
+from .qe.input_lexer import LintIssue
 from .qe.input_lint import InputDoc, lint
+from .qsub_lint import lint_script
 from .sniff import INPUT_READ_LIMIT, FileSniff, looks_like_input, sniff
 from .textfile import LineMap
+
+MARKDOWN_RENDER_LIMIT = 1024 * 1024  # a QTextDocument is not made for megabytes (spec 38 R1.5)
 
 
 @dataclass(frozen=True)
@@ -28,10 +33,21 @@ class TextPreview:
     is_input: bool = False  # a QE input: color it as one
     input_doc: InputDoc | None = None  # its lint; None when too big to check (spec 11 R4.2)
     chips: tuple[Chip, ...] = ()  # its extract
+    is_markdown: bool = False
+    renderable: bool = False  # Markdown small and whole enough to be rendered (spec 38 R1.5)
+    is_script: bool = False  # a ``.qsub``: color it as a shell script
+    script_issues: tuple[LintIssue, ...] = ()  # its write checks; empty when too big to check
 
     @property
     def truncated(self) -> bool:
         return self.line_map.truncated
+
+    @property
+    def issues(self) -> list[LintIssue]:
+        """The write problems the viewer marks: an input's or a script's."""
+        if self.input_doc is not None:
+            return list(self.input_doc.issues)
+        return list(self.script_issues)
 
     @property
     def omitted_lines(self) -> int:
@@ -72,14 +88,29 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
         else:
             job, level = "Arquivo vazio: o job não registrou erros.", "success"
         banner = f"{job} {banner}".rstrip()
-    is_input = not (job_log or output) and looks_like_input(path)
+    # A script or a Markdown file is judged by its name: a heredoc of ``&PROJWFC`` in a ``.qsub``
+    # must not make it an input.
+    script = is_script(path) and not (job_log or output)
+    markdown = is_markdown(path) and not (job_log or output)
+    is_input = not (job_log or output or script or markdown) and looks_like_input(path)
     doc = None
+    issues: tuple[LintIssue, ...] = ()
     if is_input:
         if piece.size <= INPUT_READ_LIMIT:  # below the viewer's own limit: the text is whole
             doc = lint(piece.text)
         else:
             note = f"Input grande ({human_size(piece.size)}): a escrita não foi verificada, só o realce."
             banner = f"{note} {banner}".rstrip()
+    elif script:
+        if piece.size <= INPUT_READ_LIMIT:
+            issues = tuple(lint_script(piece.text))
+        else:
+            note = f"Script grande ({human_size(piece.size)}): a escrita não foi verificada, só o realce."
+            banner = f"{note} {banner}".rstrip()
+    renderable = markdown and not piece.truncated and piece.size <= MARKDOWN_RENDER_LIMIT
+    if markdown and not piece.truncated and not renderable:  # the truncation banner says it already
+        note = f"Markdown grande ({human_size(piece.size)}): exibido como texto, sem renderizar."
+        banner = f"{note} {banner}".rstrip()
     chips = extract(doc) if doc is not None else ()
     return TextPreview(
         piece.text,
@@ -91,4 +122,8 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
         is_input,
         doc,
         chips,
+        markdown,
+        renderable,
+        script,
+        issues,
     )

@@ -13,18 +13,29 @@ from .qe import projwfc
 from .sniff import FileSniff, looks_like_input
 
 TEXT_SUFFIXES = {
-    ".in", ".inp", ".out", ".log", ".txt", ".dat", ".gnu", ".md", ".yaml", ".yml", ".json",
-    ".xml", ".csv", ".py", ".sh", ".qsub", ".slurm", ".pbs", ".rap", ".xmgr", ".cif", ".xsf",
-    ".pwi", ".pwo", ".dos", ".upf", ".plot",
+    ".in", ".inp", ".out", ".log", ".txt", ".dat", ".gnu", ".md", ".markdown", ".yaml", ".yml",
+    ".json", ".xml", ".csv", ".py", ".sh", ".qsub", ".slurm", ".pbs", ".rap", ".xmgr", ".cif",
+    ".xsf", ".pwi", ".pwo", ".dos", ".upf", ".plot",
 }  # fmt: skip
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 SVG_SUFFIXES = {".svg"}
+MARKDOWN_SUFFIXES = {".md", ".markdown"}  # rendered by the text viewer (spec 38 R1)
+# SGE job scripts: highlighted and checked (spec 38 R2); `.sh` is one entry away.
+SCRIPT_SUFFIXES = {".qsub"}
 # Queue logs: PBS/Torque/SGE stdout `job.o12345` and stderr `job.e12345`, job arrays `.o12345.1`.
 JOB_LOG = re.compile(r"^.+\.[oe]\d+(?:[.-]\d+)?$", re.IGNORECASE)
 
 
 def is_job_log(path: Path) -> bool:
     return JOB_LOG.match(path.name) is not None
+
+
+def is_markdown(path: Path) -> bool:
+    return path.suffix.lower() in MARKDOWN_SUFFIXES
+
+
+def is_script(path: Path) -> bool:
+    return path.suffix.lower() in SCRIPT_SUFFIXES
 
 
 def viewer_kind(path: Path) -> str:

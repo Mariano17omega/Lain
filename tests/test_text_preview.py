@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from qe_studio.core.text_preview import read_preview
+from qe_studio.core.text_preview import MARKDOWN_RENDER_LIMIT, read_preview
 
 from conftest import FIXTURES
 
@@ -75,3 +75,55 @@ def test_empty_and_written_job_logs(tmp_path):
     assert (empty.banner, empty.level) == ("Arquivo vazio: o job não registrou erros.", "success")
     errors = read_preview(write(tmp_path, "segfault\n", "job.e1"))
     assert (errors.banner, errors.level) == ("O job registrou mensagens de erro.", "error")
+
+
+# -- Markdown and scripts (spec 38) ------------------------------------------------------------
+def test_markdown_is_renderable_up_to_the_limit(tmp_path):
+    small = read_preview(write(tmp_path, "# Titulo\n\ntexto\n", "LEIA.md"))
+    assert small.is_markdown and small.renderable and small.banner == ""
+    assert not small.is_input and not small.is_script and small.issues == []
+    assert read_preview(write(tmp_path, "# T\n", "LEIA.markdown")).renderable
+    plain = read_preview(write(tmp_path, "# T\n", "notas.txt"))
+    assert not plain.is_markdown and not plain.renderable
+
+
+def test_markdown_over_the_limit_says_it_is_shown_as_text(tmp_path):
+    text = "x" * (MARKDOWN_RENDER_LIMIT + 1)
+    big = read_preview(write(tmp_path, text, "grande.md"))
+    assert big.is_markdown and not big.renderable and not big.truncated
+    assert big.banner.startswith("Markdown grande (1.0 MB): exibido como texto")
+    assert len(big.text) == len(text)  # the text is whole, only not rendered
+    just = read_preview(write(tmp_path, "x" * MARKDOWN_RENDER_LIMIT, "justo.md"))
+    assert just.renderable and just.banner == ""
+
+
+def test_markdown_cut_by_the_reader_keeps_its_own_banner_and_is_not_rendered(tmp_path):
+    path = tmp_path / "enorme.md"
+    path.write_bytes(b"# Cabeca\n" + b"x" * (5 * 1024 * 1024) + b"\n# Cauda\n")
+    loaded = read_preview(path)
+    assert loaded.truncated and not loaded.renderable
+    assert loaded.banner.startswith("Arquivo grande") and "Markdown grande" not in loaded.banner
+
+
+def test_markdown_that_looks_like_an_input_is_still_markdown(tmp_path):
+    loaded = read_preview(write(tmp_path, "&control\n  calculation = 'scf'\n/\n", "nota.md"))
+    assert loaded.is_markdown and not loaded.is_input and loaded.input_doc is None
+
+
+def test_qsub_is_a_script_with_its_issues_and_never_an_input(tmp_path):
+    clean = read_preview(write(tmp_path, "#!/bin/bash\necho ok\n", "job.qsub"))
+    assert clean.is_script and clean.issues == [] and not clean.is_input and not clean.highlight
+    broken = read_preview(write(tmp_path, "#!/bin/bash\nif true; then\n", "job.qsub"))
+    assert [(i.line, i.severity) for i in broken.issues] == [(2, "error")]
+    heredoc = "#!/bin/bash\ncat > a.in << EOF\n&control\n  calculation = 'scf'\n/\nEOF\n"
+    assert not read_preview(write(tmp_path, heredoc, "job.qsub")).is_input
+
+
+def test_big_script_is_not_checked_and_says_so(tmp_path):
+    from qe_studio.core.sniff import INPUT_READ_LIMIT
+
+    line = "echo ok  # linha de enchimento do script\n"
+    text = '#!/bin/bash\necho "aberta\n' + line * (INPUT_READ_LIMIT // len(line) + 5)
+    loaded = read_preview(write(tmp_path, text, "grande.qsub"))
+    assert loaded.is_script and loaded.issues == []
+    assert loaded.banner.startswith("Script grande (") and "não foi verificada" in loaded.banner

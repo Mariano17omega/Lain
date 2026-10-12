@@ -5,6 +5,8 @@ import pytest
 from qe_studio.core.file_kinds import (
     human_size,
     is_job_log,
+    is_markdown,
+    is_script,
     status_label,
     status_tooltip,
     viewer_kind,
@@ -111,3 +113,27 @@ def test_levels_map_to_theme_tokens():
         "error",
     ]
     assert level_token("other") == "text_meta"
+
+
+@pytest.mark.parametrize(
+    ("name", "markdown", "script"),
+    [
+        ("LEIA.md", True, False),
+        ("LEIA.MARKDOWN", True, False),
+        ("notas.markdown", True, False),
+        ("job.qsub", False, True),
+        ("JOB.QSUB", False, True),
+        ("run.sh", False, False),  # `.sh`, `.pbs` and `.slurm` stay plain text (spec 38 scope)
+        ("job.pbs", False, False),
+        ("job.o123", False, False),
+        ("notas.txt", False, False),
+    ],
+)
+def test_markdown_and_script_are_told_by_the_suffix(name, markdown, script):
+    path = Path(name)
+    assert (is_markdown(path), is_script(path)) == (markdown, script)
+    assert viewer_kind(path) == ("text" if markdown or script else viewer_kind(path))
+
+
+def test_markdown_extensions_open_in_the_text_viewer():
+    assert viewer_kind(Path("a.md")) == viewer_kind(Path("a.markdown")) == "text"

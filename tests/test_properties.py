@@ -34,6 +34,7 @@ from qe_studio.core.qe.pw_output import parse_pw_output
 from qe_studio.core.qe.relax import parse_relax
 from qe_studio.core.qe.scf import parse_scf
 from qe_studio.core.qe.summary import summarize, summarize_lines
+from qe_studio.core.qsub_lint import lint_script
 
 from conftest import FIXTURES
 
@@ -634,3 +635,44 @@ def test_split_input_never_raises_on_any_text(text, selected):
     if result.errors:
         assert result.clean == result.isolated == text
     assert atom_rows(text).error == "" or result.errors
+
+
+# -- .qsub write checks (spec 38 R2.5) ---------------------------------------------------------
+# An alphabet of what the rules look at, so random text reaches quotes, heredocs, braces, keywords
+# and directives often instead of being one long word.
+SCRIPT_PIECES = st.sampled_from(
+    ["\"", "'", "\\", "$", "${", "}", "#", "#$", "#!", "<<", "<<-", "<<<", "EOF", " ", "\t", "\n",
+     "\r\n", ";", "&", "|", "(", ")", "`", "if", "fi", "for", "do", "done", "case", "esac", "while",
+     "then", "in", "-N", "-pe", "-cwd", "-zz", "physica", "64", "echo", "x", "\u00e9"]
+)  # fmt: skip
+
+
+@given(st.lists(SCRIPT_PIECES, max_size=80).map("".join) | st.text(max_size=300))
+def test_lint_script_never_raises_and_its_issues_fit_the_text(text):
+    issues = lint_script(text)
+    lines = text.replace("\r\n", "\n").split("\n")
+    # a CRLF issue is on a line with its \r still there: measure it on the original split
+    originals = text.split("\n")
+    assert issues == sorted(issues, key=lambda i: (i.line, i.col_start))
+    for issue in issues:
+        assert 1 <= issue.line <= len(originals) == len(lines)
+        assert 0 <= issue.col_start <= issue.col_end <= len(originals[issue.line - 1])
+        assert issue.severity in ("error", "warning") and issue.message
+
+
+@given(st.text(alphabet="ab \n'\"\\$#{}<", max_size=200))
+def test_lint_script_is_deterministic(text):
+    assert lint_script(text) == lint_script(text)
+
+
+@pytest.mark.perf
+def test_lint_script_of_a_big_script_is_quick():
+    import time
+
+    line = '${MPICOMMAND} ${PWCOMMAND} -i "scf.in" > "scf.out"  # run\n'
+    text = "#!/bin/bash\n#$ -N x\nif true; then\n" + line * (1_000_000 // len(line)) + "fi\n"
+    start = time.perf_counter()
+    issues = lint_script(text)
+    elapsed = time.perf_counter() - start
+    print(f"lint_script: {len(text) / 1e6:.1f} MB in {elapsed:.2f} s")
+    assert issues == [] and elapsed < 3.0

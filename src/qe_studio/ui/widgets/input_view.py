@@ -1,9 +1,10 @@
-"""What the text viewer adds for a QE input (spec 11): write errors, extract strip, comparison.
+"""What the text viewer adds for a QE input (spec 11): write errors, extract strip, comparison; and
+for a ``.qsub`` script (spec 38): the write errors alone.
 
-``InputView`` is one container the ``TextViewer`` embeds, hidden for anything that is not an input.
-It holds no parsing: the worker lints the text (``core/qe/input_lint``) and extracts its key
-parameters (``core/qe/input_extract``) and hands both to ``bind``; this widget only shows them and
-moves the editor's cursor.
+``InputView`` is one container the ``TextViewer`` embeds, hidden for anything that is neither. It
+holds no parsing: the worker lints the text (``core/qe/input_lint``, ``core/qsub_lint``) and extracts
+an input's key parameters (``core/qe/input_extract``) and hands them to ``bind`` / ``bind_issues``;
+this widget only shows them and moves the editor's cursor.
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ class InputView(QWidget):
         self.editor = editor
         self.theme = editor.theme
         self.issues: list[LintIssue] = []
+        self._noun = "input"  # what the row says the problems are in: "input" or "script"
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -94,11 +96,22 @@ class InputView(QWidget):
         """Show the lint and the extract of an input; ``None`` (not an input, or too big to read)
         hides everything."""
         self.issues = list(doc.issues) if doc is not None else []
+        self._noun = "input"
         self._set_issues_row()
         self._set_chips(chips)
         self.extract_bar.setVisible(doc is not None)
         self.toggle.setVisible(bool(chips))
         self.setVisible(doc is not None)
+
+    def bind_issues(self, issues: Sequence[LintIssue], noun: str) -> None:
+        """Show only the write problems of a file that has no extract (a script): "N problemas de
+        escrita no <noun>". No problem hides the whole view; chips and "Comparar com…" never show."""
+        self.issues = list(issues)
+        self._noun = noun
+        self._set_issues_row()
+        self._set_chips(())
+        self.extract_bar.hide()
+        self.setVisible(bool(self.issues))
 
     # -- write errors ------------------------------------------------------------------------
     def _set_issues_row(self) -> None:
@@ -108,7 +121,7 @@ class InputView(QWidget):
             return
         level = "error" if any(i.severity == "error" for i in self.issues) else "warning"
         noun = "problema" if count == 1 else "problemas"
-        self.issues_label.setText(f"{count} {noun} de escrita no input")
+        self.issues_label.setText(f"{count} {noun} de escrita no {self._noun}")
         for widget in (self.issues_bar, self.issues_label):
             widget.setProperty("level", level)
             style = widget.style()

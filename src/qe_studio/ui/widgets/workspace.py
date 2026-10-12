@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6 import sip
-from PyQt6.QtCore import QPoint, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QPoint, QRectF, QSettings, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
@@ -87,10 +87,17 @@ class Workspace(QStackedWidget):
     tab_closing = pyqtSignal(object)  # tab widget about to be removed
     external_open_requested = pyqtSignal(Path)  # a text viewer asks for the default program
     reveal_requested = pyqtSignal(Path)  # tab menu "Revelar no explorador"
+    message = pyqtSignal(str, str, int)  # footer text, level, timeout (ms): from the text viewers
 
-    def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
+    def __init__(
+        self,
+        theme: ThemeManager,
+        parent: QWidget | None = None,
+        settings: QSettings | None = None,
+    ):
         super().__init__(parent)
         self.theme = theme
+        self._settings = settings  # where a text viewer keeps "Texto / Renderizado"
         self.empty = QWidget()
         self.empty.setObjectName("emptyWorkspace")
         self.empty.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -157,12 +164,21 @@ class Workspace(QStackedWidget):
             self.tabs.setCurrentWidget(self._keys[key])
             return self._keys[key]
         if kind == "text":
-            widget = TextViewer(path, self.theme)
+            widget = TextViewer(path, self.theme, settings=self._settings)
             widget.external_requested.connect(self.external_open_requested)
             widget.compare_requested.connect(self.compare_with)
+            widget.render_mode_changed.connect(self._sync_render_mode)
+            widget.message.connect(self.message)
         else:
             widget = ImageViewer(path)
         return self.add(key, widget, path.name, file_visual(path), str(path))
+
+    def _sync_render_mode(self, rendered: bool) -> None:
+        """A click on Texto / Renderizado is the choice of the program: the other open text tabs
+        follow it (the clicked one has written the setting already)."""
+        for _key, widget in self.items():
+            if isinstance(widget, TextViewer) and widget is not self.sender():
+                widget.set_rendered(rendered, remember=False)
 
     def open_diff(self, a: Path, b: Path) -> QWidget:
         """The tab that compares input ``a`` with ``b`` (spec 11 R6); an open one is shown again."""

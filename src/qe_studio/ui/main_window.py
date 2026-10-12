@@ -146,7 +146,7 @@ class MainWindow(QMainWindow):
         self.left.addWidget(self.params)
         self.files = FilePanel(self.theme, self.service, self.root, hidden)
         self.files.setMinimumWidth(170)
-        self.workspace = Workspace(self.theme)
+        self.workspace = Workspace(self.theme, settings=self.settings)
         self.workspace.setMinimumWidth(320)
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setHandleWidth(1)
@@ -235,6 +235,7 @@ class MainWindow(QMainWindow):
         self.top_bar.plot_file_requested.connect(self.plot_workflow.plot_open_file)
         self.workspace.external_open_requested.connect(self.item_actions.open_default)
         self.workspace.reveal_requested.connect(self.reveal_in_explorer)
+        self.workspace.message.connect(self.status.set_message)
         self.params.back_requested.connect(self.panel_layout.show_tree)
         self.params.generate_requested.connect(self.generate_plot)
         layout, workflow, sync = self.panel_layout, self.plot_workflow, self.sync
