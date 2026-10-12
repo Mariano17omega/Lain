@@ -1,6 +1,7 @@
 """Spec 6: relaxation progress (relax / vc-relax) parser, module and figure."""
 
 import re
+import shutil
 import time
 import warnings
 from dataclasses import asdict, replace
@@ -11,8 +12,8 @@ import pytest
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
-from qe_studio.core.calculations import module_for
-from qe_studio.core.calculations.base import LoadError
+from qe_studio.core.calculations import module_for, module_for_file
+from qe_studio.core.calculations.base import LoadError, Method
 from qe_studio.core.calculations.params import ordered_sections
 from qe_studio.core.calculations.relax import (
     NO_DELTAS,
@@ -22,7 +23,7 @@ from qe_studio.core.calculations.relax import (
     input_settings,
 )
 from qe_studio.core.config import AppConfig
-from qe_studio.core.detection import detect_folder
+from qe_studio.core.detection import detect_folder, manual_result
 from qe_studio.core.plotting.plot_file import apply_stored, read_plot_file, write_plot_file
 from qe_studio.core.plotting.style import LIGHT
 from qe_studio.core.qe.relax import (
@@ -181,6 +182,117 @@ def test_detected_and_loaded_with_input_thresholds(tmp_path):
         dataset.data.energy_threshold == 1e-5 and dataset.data.force_threshold_source == QE_DEFAULT
     )
     assert "limiares de convergência não encontrados: padrões do QE" in dataset.warnings
+
+
+# -- one output of a folder, its own input (spec 35) --------------------------------------------
+def runs_folder(tmp_path: Path, outputs: list[str], inputs: dict[str, str]) -> Path:
+    """A folder of synthetic runs without thresholds in their headers, so the ``etot_conv_thr`` of
+    the input paired with an output shows in its dataset."""
+    folder = tmp_path / "runs"
+    folder.mkdir()
+    for name in outputs:
+        (folder / name).write_text(synthetic(3, thresholds=False))
+    for name, threshold in inputs.items():
+        (folder / name).write_text(
+            f" &CONTROL\n  calculation = 'relax'\n  etot_conv_thr = {threshold}\n /\n"
+            " &SYSTEM\n  ibrav = 2\n /\n"
+        )
+    return folder
+
+
+@pytest.mark.parametrize(
+    "path, kind",
+    [
+        (FIXTURES / "si_relax" / "si.rel.out", "relax"),
+        (VC_OUT, "relax"),
+        (FIXTURES / "al_bands" / "al.scf.out", "scf"),
+        (FIXTURES / "al_bands" / "al.band.out", None),  # pw.x bands
+        (FIXTURES / "si_relax" / "si.rel.in", None),
+    ],
+)
+def test_a_relax_or_vc_relax_output_is_plottable_alone(path, kind):
+    module = module_for_file(SniffCache().sniff(path))
+    assert (module.kind if module else None) == kind
+
+
+def test_the_button_names_what_it_plots():
+    assert (RELAX.plot_file_label, RELAX.plot_file_tip) == (
+        "Plotar relaxamento",
+        "Plotar os passos do relaxamento do arquivo aberto",
+    )
+    assert module_for("scf").plot_file_label == "Plotar SCF"
+
+
+def test_plot_target_is_the_output_or_the_folder(tmp_path):
+    out = tmp_path / "a.out"
+    assert RELAX.plot_target(tmp_path, {"relax_out": [out]}) == out
+    assert RELAX.plot_target(tmp_path, {"relax_in": [tmp_path / "a.in"]}) == tmp_path
+
+
+def test_each_output_of_a_folder_is_plotted_with_its_own_input(tmp_path):
+    folder = runs_folder(tmp_path, ["a.out", "b.out"], {"a.in": "1.0d-3", "b.in": "2.0d-3"})
+    sniffer = SniffCache().sniff
+    seen = {}
+    for name, threshold in (("a", 1e-3), ("b", 2e-3)):
+        result = manual_result(RELAX, folder, {"relax_out": [folder / f"{name}.out"]}, sniffer)
+        dataset = RELAX.load(result, sniff)
+        assert result.plot_target == folder / f"{name}.out"
+        assert result.file("relax_in") == folder / f"{name}.in"
+        assert dataset.data.energy_threshold == threshold
+        seen[name] = result.plot_id
+    assert seen["a"] != seen["b"]  # a tab each
+
+
+def test_a_forced_output_does_not_take_the_input_of_another_run(tmp_path):
+    folder = copy_fixture("si_relax", tmp_path)
+    for ext in ("in", "out"):
+        shutil.copy(folder / f"si.rel.{ext}", folder / f"si_b.rel.{ext}")
+    for stem in ("si", "si_b"):
+        mapping = {"relax_out": [folder / f"{stem}.rel.out"]}
+        result = manual_result(RELAX, folder, mapping, SniffCache().sniff)
+        assert result.file("relax_in") == folder / f"{stem}.rel.in"
+        assert result.methods["relax_in"] is not Method.MANUAL
+
+
+def test_the_only_input_of_the_folder_is_used_when_no_name_matches(tmp_path):
+    folder = runs_folder(tmp_path, ["relax.out"], {"other.in": "3.0d-3"})
+    result, dataset, _params = load(folder)
+    assert result.file("relax_in") == folder / "other.in"
+    assert dataset.data.energy_threshold == 3e-3
+
+
+def test_several_inputs_and_none_of_the_name_pair_with_nothing(tmp_path):
+    folder = runs_folder(tmp_path, ["run.out"], {"a.in": "1.0d-3", "b.in": "2.0d-3"})
+    result, dataset, _params = load(folder)
+    assert result.file("relax_in") is None and "relax_in" not in result.methods
+    assert result.plottable and dataset.data.energy_threshold_source == QE_DEFAULT
+
+
+def test_a_mapped_input_is_never_replaced(tmp_path):
+    folder = runs_folder(tmp_path, ["a.out"], {"a.in": "1.0d-3", "b.in": "2.0d-3"})
+    mapping = {"relax_out": [folder / "a.out"], "relax_in": [folder / "b.in"]}
+    result = manual_result(RELAX, folder, mapping, SniffCache().sniff)
+    assert result.file("relax_in") == folder / "b.in"
+    assert result.methods["relax_in"] is Method.MANUAL
+
+
+def test_a_folder_with_several_outputs_says_which_one_it_shows(tmp_path):
+    folder = runs_folder(tmp_path, ["a.out", "b.out"], {})
+    (result,) = detect_folder(folder, sniff=SniffCache().sniff)
+    shown = result.file("relax_out")
+    assert shown is not None
+    warning = (
+        f"2 saídas de relax/vc-relax na pasta; mostrando {shown.name}. "
+        "As outras: botão direito ▸ Plotar."
+    )
+    assert warning in result.warnings
+    assert warning in RELAX.load(result, sniff).warnings
+
+
+def test_one_output_has_no_such_warning(tmp_path):
+    folder = runs_folder(tmp_path, ["a.out"], {"a.in": "1.0d-3"})
+    (result,) = detect_folder(folder, sniff=SniffCache().sniff)
+    assert not any("saídas de relax" in w for w in result.warnings)
 
 
 def test_no_complete_step_is_a_load_error(tmp_path):

@@ -210,7 +210,8 @@ def test_scf_only_folder_is_plottable_and_keyed_by_its_output(tmp_path):
 
 def test_plot_target_is_the_folder_for_the_other_modules(tmp_path):
     assert module_for("bands").plot_target(tmp_path, {}) == tmp_path
-    assert module_for("relax").single_file_role is None
+    assert module_for("bands").single_file_role is None
+    assert module_for("pdos").single_file_role is None
     assert SCF.plot_target(tmp_path, {}) == tmp_path  # nothing mapped yet
 
 
@@ -221,13 +222,13 @@ def test_plot_target_is_the_folder_for_the_other_modules(tmp_path):
         (FIXTURES / "si_bands" / "si.scf.out", True),
         (FIXTURES / "al_bands" / "al.band.out", False),  # pw.x bands
         (FIXTURES / "al_bands" / "bands.out", False),  # bands.x
-        (FIXTURES / "si_relax" / "si.rel.out", False),
+        (FIXTURES / "si_relax" / "si.rel.out", False),  # a relax: its own module (spec 35)
         (FIXTURES / "al_bands" / "al.scf.in", False),
     ],
 )
-def test_only_scf_outputs_are_plottable_alone(path, plottable):
+def test_only_scf_outputs_are_plottable_by_the_scf_module(path, plottable):
     module = module_for_file(SniffCache().sniff(path))
-    assert (module is SCF) == plottable and (module is None) == (not plottable)
+    assert (module is SCF) == plottable
     assert module_for_file(None) is None
 
 

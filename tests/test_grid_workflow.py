@@ -83,7 +83,8 @@ def test_a_cell_of_a_gone_folder_is_unavailable(qtbot, main_window, demo_project
     shutil.rmtree(demo_project / "01_relax")
     view = generate(qtbot, main_window, saved=True)
     failed = view.session.dataset.cells[1]
-    assert failed.session is None and failed.error.startswith("Pasta não encontrada")
+    # a relax cell is its output file (spec 35), like an SCF one
+    assert failed.session is None and failed.error.startswith("Arquivo não encontrado")
     assert (
         view.session.info.notes
         and "Plot indisponível" in view.figure.subfigs[1].texts[0].get_text()

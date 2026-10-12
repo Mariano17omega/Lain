@@ -246,6 +246,13 @@ class TopBar(QWidget):
     def set_path(self, folder: Path) -> None:
         self.breadcrumb.set_path(folder)
 
+    def set_plot_file(self, visible: bool, label: str = "", tip: str = "") -> None:
+        """The button of the open output: named by the module that plots it (spec 35 R4)."""
+        if visible and label:
+            self.plot_file.setText(label)
+            self.plot_file.setToolTip(tip)
+        self.plot_file.setVisible(visible)
+
     def set_history(self, can_back: bool, can_forward: bool) -> None:
         self.back_button.setEnabled(can_back)
         self.forward_button.setEnabled(can_forward)

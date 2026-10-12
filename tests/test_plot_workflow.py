@@ -267,13 +267,13 @@ def test_relax_plot(qtbot, main_window, demo_project, no_dialogs):
     session = generate(qtbot, window, folder)
     assert no_dialogs["mapping"] == []  # plottable now: no manual mapping
     tabs = window.workspace.tabs
-    assert tabs.tabText(tabs.currentIndex()) == "Otimização estrutural · 01_relax"
+    assert tabs.tabText(tabs.currentIndex()) == "Otimização estrutural · si.rel.out"
     assert sorted(p.name for p in (folder / "plots").iterdir()) == [
         "01_relax-relax.pdf",
         "01_relax-relax.png",
         "01_relax-relax.svg",
     ]
-    assert window.status.readout.full_text().startswith("01_relax · Relaxado ✓ · 6 passos BFGS")
+    assert window.status.readout.full_text().startswith("si.rel.out · Relaxado ✓ · 6 passos BFGS")
     window.params.set_param("panels", "energy")
     assert [p.name for p in export(qtbot, window)] == [
         "01_relax-relax_energia.png",
@@ -338,6 +338,56 @@ def test_two_outputs_of_one_folder_get_a_tab_each(qtbot, main_window, demo_proje
     assert window.workspace.tabs.tabText(1) == "Convergência SCF · al.scf.out"
     # the one scf.plot of the folder is shared by both
     assert {s.folder for s in (window.workspace.widget_for(k).session for k in keys)} == {folder}
+
+
+def test_two_relax_outputs_of_one_folder_get_a_tab_each(
+    qtbot, main_window, demo_project, no_dialogs
+):
+    window = main_window
+    folder = demo_project / "01_relax"
+    for ext in ("in", "out"):
+        shutil.copy(folder / f"si.rel.{ext}", folder / f"si_b.rel.{ext}")
+    keys = []
+    for name in ("si.rel.out", "si_b.rel.out"):
+        with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+            window.plot_file(folder / name, "relax")
+        session = blocker.args[0]
+        assert session.kind == "relax" and session.result.methods["relax_out"] is Method.MANUAL
+        assert session.result.file("relax_in") == (folder / name).with_suffix(".in")
+        keys.append(session.key)
+    assert len(set(keys)) == 2 and all(window.workspace.widget_for(k) for k in keys)
+    tabs = window.workspace.tabs
+    assert [tabs.tabText(i) for i in range(2)] == [
+        "Otimização estrutural · si.rel.out",
+        "Otimização estrutural · si_b.rel.out",
+    ]
+    assert not (folder / "plots").exists() and no_dialogs["mapping"] == []
+    # the one relax.plot of the folder is shared by both
+    assert {window.workspace.widget_for(k).session.folder for k in keys} == {folder}
+
+
+def test_plot_button_names_the_calculation_of_the_open_output(
+    qtbot, main_window, demo_project, no_dialogs
+):
+    window = main_window
+    button = window.top_bar.plot_file
+    relax, scf = demo_project / "01_relax", demo_project / "02_scf"
+    for folder in (relax, scf):
+        window.service.detect_now(folder)
+    window.open_file(relax / "si.rel.out")
+    assert button.isVisible() and button.text() == "Plotar relaxamento"
+    assert button.toolTip() == "Plotar os passos do relaxamento do arquivo aberto"
+    window.open_file(scf / "scf.out")
+    assert button.isVisible() and button.text() == "Plotar SCF"
+    assert button.toolTip() == "Plotar a convergência do SCF do arquivo aberto"
+    window.open_file(relax / "si.rel.in")  # an input
+    assert not button.isVisible()
+    window.workspace.set_current(window.workspace.widget_for(str(relax / "si.rel.out")))
+    assert button.isVisible() and button.text() == "Plotar relaxamento"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+        button.click()
+    assert blocker.args[0].kind == "relax" and not button.isVisible()
+    assert not (relax / "plots").exists()
 
 
 def test_plot_button_is_only_for_an_open_scf_output(qtbot, main_window, demo_project, no_dialogs):

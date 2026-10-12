@@ -8,6 +8,7 @@ enthalpy), and ``panels = "all"`` adds its pressure and volume (``relax_panels.p
 
 from __future__ import annotations
 
+import fnmatch
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, NamedTuple
@@ -27,18 +28,21 @@ from ..plotting.draw import (
     style_axes,
 )
 from ..plotting.style import PlotStyle
+from ..qe.pairing import same_name_input
 from ..qe.pw_input import parse_input
 from ..qe.relax import QE_DEFAULT, RelaxData, read_relax
-from ..sniff import FileKind
+from ..sniff import FileKind, FileSniff
 from .base import (
     AxesLimits,
     CalculationModule,
     DetectionResult,
     FileRole,
     LoadError,
+    Method,
     SniffFn,
     output_of,
 )
+from .listing import FolderListing
 from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
 from .relax_panels import cell_readout, cell_summary, draw_pressure, draw_volume
 
@@ -123,6 +127,9 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     display_name: ClassVar[str] = "Otimização estrutural"
     description: ClassVar[str] = "Saída de relax/vc-relax do pw.x com passos BFGS"
     plottable: ClassVar[bool] = True
+    single_file_role: ClassVar[str | None] = "relax_out"
+    plot_file_label: ClassVar[str] = "Plotar relaxamento"
+    plot_file_tip: ClassVar[str] = "Plotar os passos do relaxamento do arquivo aberto"
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole(
             "relax_in",
@@ -140,6 +147,50 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
             anchor=True,
         ),
     )
+
+    def plot_target(self, folder: Path, files: dict[str, list[Path]]) -> Path:
+        """One tab per output: a folder can hold several relax runs (spec 35). The ``relax.plot``
+        stays one per folder."""
+        paths = files.get("relax_out")
+        return paths[0] if paths else folder
+
+    def finalize(
+        self,
+        result: DetectionResult,
+        listing: FolderListing,
+        sniffs: dict[Path, FileSniff],
+        sniff: SniffFn,
+    ) -> None:
+        """The input of the output chosen, not of another run in the folder (spec 35 R2), and a
+        warning when the folder holds more than one output (R3)."""
+        output = result.file("relax_out")
+        if output is None:
+            return
+        out_role = self.role("relax_out")
+        outputs = [p for p in listing.files if out_role.accepts(sniffs[p])]
+        if len(outputs) > 1:
+            result.warnings.append(
+                f"{len(outputs)} saídas de relax/vc-relax na pasta; mostrando {output.name}. "
+                "As outras: botão direito ▸ Plotar."
+            )
+        if result.methods.get("relax_in") is Method.MANUAL:
+            return  # the user's own choice
+        in_role = self.role("relax_in")
+        inputs = [p for p in listing.files if in_role.accepts(sniffs[p])]
+        same = same_name_input(output)
+        if same is not None and in_role.accepts(sniffs.get(same) or sniff(same)):
+            chosen = same
+        else:  # no input of this name: the only one of the folder, else none (never a guess)
+            chosen = inputs[0] if len(inputs) == 1 else None
+        if chosen is None:
+            result.files.pop("relax_in", None)
+            result.methods.pop("relax_in", None)
+        elif result.file("relax_in") != chosen:
+            named = any(
+                fnmatch.fnmatch(listing.relative(chosen).lower(), g.lower()) for g in in_role.globs
+            )
+            result.files["relax_in"] = [chosen]
+            result.methods["relax_in"] = Method.NAME if named else Method.CONTENT
 
     def load(self, result: DetectionResult, sniff: SniffFn) -> RelaxDataset:
         output = result.file("relax_out")

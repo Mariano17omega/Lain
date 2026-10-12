@@ -34,8 +34,8 @@ def menu_of(window, path, menus) -> QMenu:
 
 def test_the_item_follows_resumo_for_a_converged_relax(main_window, demo_project, menus):
     menu = menu_of(main_window, demo_project / "01_relax/si.rel.out", menus)
-    assert menu_texts(menu)[:2] == ["Resumo", ITEM]
-    assert menu.actions()[2].isSeparator()
+    assert menu_texts(menu)[:3] == ["Plotar", "Resumo", ITEM]  # "Plotar" since spec 35
+    assert menu.actions()[3].isSeparator()
     action = item(menu)
     assert action is not None and action.isEnabled() and action.toolTip() == ITEM
 

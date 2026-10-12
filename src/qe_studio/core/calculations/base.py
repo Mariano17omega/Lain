@@ -225,6 +225,9 @@ class CalculationModule(Generic[D, P]):
     sections: ClassVar[tuple[tuple[str, str | None], ...]] = ()
     # Role whose single file can be plotted on its own (right-click "Plotar"); see ``module_for_file``.
     single_file_role: ClassVar[str | None] = None
+    # Label and tooltip of the top bar button that plots the open output (spec 35 R4).
+    plot_file_label: ClassVar[str] = "Plotar"
+    plot_file_tip: ClassVar[str] = "Plotar o arquivo aberto"
     # Offered in the manual mapping dialog. False for figures built from other results (spec 22).
     selectable: ClassVar[bool] = True
     # Parameters kept in ``<folder>/<kind>.plot``. False: every edit goes to ``save_stored`` (a grid).

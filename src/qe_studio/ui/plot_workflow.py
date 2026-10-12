@@ -80,7 +80,8 @@ class PlotWorkflow(QObject):
     export_finished = pyqtSignal(object)  # list[Path] written into plots/
     message = pyqtSignal(str, str, int)  # text, level, timeout (ms; 0 = stays)
     panel_requested = pyqtSignal(str)  # "workspace" | "params"
-    plot_file_available = pyqtSignal(bool)  # the current tab is an output one module plots alone
+    # The current tab is an output one module plots alone: (visible, button label, tooltip)
+    plot_file_available = pyqtSignal(bool, str, str)
 
     def __init__(
         self,
@@ -109,7 +110,7 @@ class PlotWorkflow(QObject):
         self._loading: dict[str, _Loading] = {}  # by plot key
         self._loads = TaskGroup()  # by plot key, in the global pool
         self._replacing: str | None = None  # key of the tab a new session is about to replace
-        self._plot_file_source: tuple[Path, str] | None = None  # what "Plotar SCF" plots
+        self._plot_file_source: tuple[Path, str] | None = None  # what the "Plotar …" button plots
         # Busy indicator (spec 15 R2): counted by name, so a task that never ends cannot leave a
         # global cursor behind; detections, loads and exports all show in the footer.
         self.busy = BusyTracker(status)
@@ -462,17 +463,19 @@ class PlotWorkflow(QObject):
         self.status.set_readout(f"{name} · {info.summary} · {px} ({dpi} DPI)")
 
     def update_plot_file_button(self) -> None:
-        """ "Plotar SCF" while the current tab is an output one module can plot alone."""
+        """The "Plotar …" button while the current tab is an output one module can plot alone;
+        its label and tooltip come from that module."""
         widget = self.workspace.current()
-        source = None
+        source, label, tip = None, "", ""
         if isinstance(widget, TextViewer):
             sniff = self.service.file_sniff(widget.path)
             if sniff is None:  # not detected yet: the button follows when it arrives
                 self.service.results(widget.path.parent)
             if module := module_for_file(sniff):
                 source = (widget.path, module.kind)
+                label, tip = module.plot_file_label, module.plot_file_tip
         self._plot_file_source = source
-        self.plot_file_available.emit(source is not None)
+        self.plot_file_available.emit(source is not None, label, tip)
 
     def _on_settings_warning(self, text: str) -> None:
         self.message.emit(text, "warning", 8000)

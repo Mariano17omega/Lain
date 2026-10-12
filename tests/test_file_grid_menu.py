@@ -169,7 +169,7 @@ def test_scf_output_menu_starts_with_plotar(main_window, demo_project, monkeypat
         ("03_bands", "bands.dat.gnu", []),
         ("04_pdos", "nscf.out", ["Resumo"]),
         ("04_pdos", "projwfc.out", ["Resumo"]),
-        ("01_relax", "si.rel.out", ["Resumo", "Gerar SCF convergido"]),  # spec 24
+        ("01_relax", "si.rel.out", ["Plotar", "Resumo", "Gerar SCF convergido"]),  # specs 24, 35
         ("01_relax", "si.rel.in", []),
     ],
 )
@@ -211,6 +211,24 @@ def test_plotar_opens_the_convergence_tab_without_saving(
         window._show_item_menu([folder / "al.scf.out"], QPoint())
     tabs = window.workspace.tabs
     assert tabs.tabText(tabs.currentIndex()) == "Convergência SCF · al.scf.out"
+    assert not (folder / "plots").exists()
+
+
+@pytest.mark.parametrize("stem", ["si.rel", "si_b.rel"])
+def test_plotar_of_a_relax_output_opens_its_own_tab(
+    qtbot, main_window, demo_project, monkeypatch, stem
+):
+    window = main_window
+    folder = demo_project / "01_relax"
+    for ext in ("in", "out"):
+        shutil.copy(folder / f"si.rel.{ext}", folder / f"si_b.rel.{ext}")
+    detected(window, folder)
+    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: menu.actions()[0].trigger())  # "Plotar"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as blocker:
+        window._show_item_menu([folder / f"{stem}.out"], QPoint())
+    session = blocker.args[0]
+    assert session.kind == "relax" and session.plot_target == folder / f"{stem}.out"
+    assert session.result.file("relax_in") == folder / f"{stem}.in"
     assert not (folder / "plots").exists()
 
 

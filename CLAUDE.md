@@ -179,7 +179,7 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   → `choose_result` / `NeedsMapping` → `ask_mapping`, `ManualTarget`) → `load_plot` (load pool) →
   `.plot` read (settings queue; a second request for a plot that is loading replaces the first, spec 27-9: `_load`
   cancels both stages, `PlotSettingsStore.cancel_read`, and keeps the first one's `auto_export`) →
-  `build_session` → tab; readout, "Plotar SCF" source, busy
+  `build_session` → tab; readout, the "Plotar …" button's source, busy
   indicator (`ui/busy.py:BusyTracker`, counted by name: the footer spinner and "Detectando cálculo…"
   / "Carregando …" / "Exportando…", plus a spinner in the tab of a plot being regenerated; no
   `setOverrideCursor`). It asks the window for panels and messages through signals
@@ -292,8 +292,10 @@ on the base class:
 - ClassVars: `view_fields` (params the toolbar Reset restores), `sections` (own panel sections as
   `(name, insert before)`, ordered by `ordered_sections`), `badge_token` (theme colors
   `badge_<token>_{bg,fg,border}`; none → the generic `badge_other_*`), `single_file_role` (a role
-  whose one file can be plotted alone: the right-click "Plotar" and the "Plotar SCF" button ask
-  `module_for_file(sniff)`, never a module name).
+  whose one file can be plotted alone, today the SCF's and the relax's: the right-click "Plotar" and the
+  top bar button ask `module_for_file(sniff)`, never a module name; the button's text and tooltip are the
+  module's `plot_file_label` / `plot_file_tip`, which `PlotWorkflow.plot_file_available(visible, label, tip)`
+  carries to `TopBar.set_plot_file`, spec 35).
 - Hooks: `apply_limits(params, axes_limits)` (pan/zoom of *every* figure axes into the params),
   `legacy_params` (old `FolderMemory` data when there is no `<kind>.plot`), `default_labels`,
   `series_colors` (for a `"series"` field), `format_coordinates(x, y, axes_index, dataset, params)`
@@ -413,6 +415,17 @@ press_conv_thr` band) and the volume panels from `core/calculations/relax_panels
 without a value skipped) and is `both` for a run with neither. `test_relax_figures.py` compares the artists
 (bars included) of every relax fixture with `relax_golden.json`: the non-vc entries were captured before
 spec 27-7, so a change of `both` / `energy` / `force` fails there.
+
+**One output at a time (spec 35).** `RelaxModule.single_file_role = "relax_out"`, so a relax / vc-relax output has "Plotar"
+in the context menu and the top bar button ("Plotar relaxamento"), and `plot_target` is the output (a tab per output, like
+the SCF's: `plot:relax:<output>`); the folder keeps one `relax.plot`, shared by its outputs. The module's `finalize` pairs
+the chosen `relax_out` with its own input: `core/qe/pairing.py:same_name_input` (`X.out` → `X.in`, `looks_like_input`, the rule
+`scf_from_relax.pair_input` shares) when that is a relax / vc-relax input, else the only relax input of the folder, else none
+(never the newest of several: it was another run's thresholds and target pressure); a `relax_in` the user mapped is never
+replaced. A folder with more than one output adds "N saídas de relax/vc-relax na pasta; mostrando <nome>. As outras: botão
+direito ▸ Plotar." to `DetectionResult.warnings`. "Gerar Gráfico" still detects the folder and plots what `match` picks. A grid
+cell of a relax is now the output file (`PlotRef.path`), so one saved with the folder path still loads (`ref_target` detects
+the folder).
 
 ### Spin (spec 13)
 

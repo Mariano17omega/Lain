@@ -252,6 +252,7 @@ def test_sections_are_ordered_from_the_module_declarations():
 def test_a_module_plots_its_folder_unless_it_says_otherwise(dummy_folder):
     result = detect_dummy(dummy_folder)
     assert result.plot_target == dummy_folder and DUMMY.single_file_role is None
+    assert (DUMMY.plot_file_label, DUMMY.plot_file_tip) == ("Plotar", "Plotar o arquivo aberto")
     session = PlotSession(result, DUMMY.load(result, sniff), DummyParams())
     assert session.key == f"plot:dummy:{dummy_folder}"
     assert session.title == "Cálculo de teste · dummy_sim"

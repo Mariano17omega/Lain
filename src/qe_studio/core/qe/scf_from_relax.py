@@ -20,10 +20,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..sniff import FileKind, FileSniff, looks_like_input
+from ..sniff import FileKind, FileSniff
 from ..unique_names import write_new
 from .final_structure import FinalStructure, read_final_structure
 from .input_edit import InputEditor, read_input_text
+from .pairing import same_name_input
 
 if TYPE_CHECKING:
     from ..calculations.base import DetectionResult
@@ -75,8 +76,7 @@ def can_generate_scf(sniff: FileSniff | None) -> bool:
 def pair_input(output: Path, results: Iterable[DetectionResult] | None) -> Path | None:
     """The input of ``output``: the same name with ``.in`` (when it is a QE input), else the
     ``relax_in`` of the folder's detection, if that result's output is this one."""
-    same = output.with_suffix(".in")
-    if same != output and same.is_file() and looks_like_input(same):
+    if (same := same_name_input(output)) is not None:
         return same
     for result in results or ():
         found = result.file("relax_in")

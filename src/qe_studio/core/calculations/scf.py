@@ -100,6 +100,8 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
     plottable: ClassVar[bool] = True
     fallback: ClassVar[bool] = True  # only when no other kind was detected in the folder
     single_file_role: ClassVar[str | None] = "scf_out"
+    plot_file_label: ClassVar[str] = "Plotar SCF"
+    plot_file_tip: ClassVar[str] = "Plotar a convergência do SCF do arquivo aberto"
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole(
             "scf_out",

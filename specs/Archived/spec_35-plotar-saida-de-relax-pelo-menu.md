@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 35 (pequena e independente; depois dos defeitos da spec 33) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (12/10/2026); ver "Decisões na implementação" |
 | **Depende de** | spec 6 (gráficos de relaxamento), spec 9 (`single_file_role`, "Plotar" do menu, botão "Plotar SCF"), spec 27-7 (vc-relax) |
 | **Usada por** | nenhuma |
 | **Esforço** | M |
@@ -104,3 +104,22 @@
 - [ ] `test_relax_figures.py` e `relax_golden.json` sem regenerar; `test_module_contract.py` com os `ClassVar` novos no `DummyModule`.
 - [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` (`plot_workflow.py` ≤ 500, `main_window.py` ≤ 450) e a suíte
       `-m "not realdata and not perf"` verdes.
+
+## Decisões na implementação
+
+1. As decisões 1–4 acima ficaram como estavam. O aviso de R3 sai também quando a saída é a escolhida pelo menu ou pelo mapeamento
+   (o resultado diz "mostrando `<nome>`" nos dois casos): o texto é o da spec e não distingue como a saída foi escolhida.
+2. O input de mesmo nome só vale se for um input de relax / vc-relax (`output_of(PW_IN, "relax", "vc-relax")`); um `X.in` de SCF ao
+   lado de `X.out` cai na regra "o único input de relax da pasta". Um `relax_in` mapeado pelo usuário nunca é trocado.
+3. `same_name_input` ficou em `core/qe/pairing.py` e é o que `scf_from_relax.pair_input` chama; `pair_input` mantém o segundo passo
+   (o `relax_in` do resultado cuja saída é esta), que o relax não precisa.
+4. Uma célula de grade de relax passa a ser o arquivo de saída (`PlotRef.path`, como a do SCF). Uma grade salva com a pasta continua
+   carregando (`ref_target` detecta a pasta); com a pasta apagada a célula diz "Arquivo não encontrado" em vez de "Pasta não
+   encontrada" (`test_a_cell_of_a_gone_folder_is_unavailable`).
+5. O rótulo e o tooltip iniciais do botão em `bars.py` ficaram como eram ("Plotar SCF"): o botão só aparece depois de
+   `set_plot_file`, que os troca pelos do módulo.
+6. A aba, o readout do rodapé e o toast de "Plotar" do relax passam a mostrar o nome da saída (`si.rel.out`), não o da pasta:
+   `test_relax_plot` mudou por isso. As exportações seguem `<pasta>-relax*.png` (`PlotSession.folder`).
+7. Testes: `test_relax.py` (módulo, pareamento, aviso), `test_plot_workflow.py` (aba por saída, botão), `test_file_grid_menu.py`
+   (menu), `test_module_contract.py` (os dois `ClassVar`). `test_plot_file.py` testa o formato do `.plot`, não o menu, por isso não
+   recebeu testes.

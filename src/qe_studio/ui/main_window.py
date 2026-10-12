@@ -241,7 +241,7 @@ class MainWindow(QMainWindow):
         layout.workspace_visibility_changed.connect(workflow.update_readout)
         workflow.panel_requested.connect(self._show_panel)
         workflow.message.connect(self.status.set_message)
-        workflow.plot_file_available.connect(self.top_bar.plot_file.setVisible)
+        workflow.plot_file_available.connect(self.top_bar.set_plot_file)
         workflow.export_finished.connect(self._on_exported)
         workflow.export_finished.connect(self.export_finished)
         workflow.plot_ready.connect(self.plot_ready)
