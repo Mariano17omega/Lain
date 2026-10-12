@@ -23,5 +23,5 @@ def test_relative_links_exist(doc):
 
 def test_readme_points_at_the_prd_and_the_spec_index():
     links = local_links(ROOT / "README.md")
-    assert "specs/spec_0-PRD.md" in links and "specs/README.md" in links
+    assert "specs/Archived/spec_0-PRD.md" in links and "specs/README.md" in links
     assert not (ROOT / "Documentation" / "PRD.md").exists()  # the old, removed location

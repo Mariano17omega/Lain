@@ -3,7 +3,7 @@
 [![CI](https://github.com/Mariano17omega/Lain/actions/workflows/ci.yml/badge.svg)](https://github.com/Mariano17omega/Lain/actions/workflows/ci.yml)
 
 Desktop app (PyQt6) to browse, sync and plot [Quantum ESPRESSO](https://www.quantum-espresso.org/)
-simulations (QE 7.1 or newer). See [`specs/spec_0-PRD.md`](specs/spec_0-PRD.md) for the product
+simulations (QE 7.1 or newer). See [`specs/Archived/spec_0-PRD.md`](specs/Archived/spec_0-PRD.md) for the product
 requirements, [`specs/README.md`](specs/README.md) for the index of change specs and
 `Documentation/design system (UX)/` for the design system the UI follows.
 
