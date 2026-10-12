@@ -88,17 +88,22 @@ def _param(doc: InputDoc, label: str, namelist: str, key: str) -> Chip | None:
     return None
 
 
-def _k_points(card: Card) -> Chip:
-    """``automatic 8×8×8 (0 0 0)``, ``crystal_b 5 pontos``, ``gamma``."""
+def k_points_text(card: Card) -> str:
+    """``automatic 8×8×8 (0 0 0)``, ``crystal_b 5 pontos``, ``gamma``: the chip's value, and the
+    summary's "Malha k" (spec 33 R1)."""
     mode = card.option or "tpiba"
     first = card.lines[0].split() if card.lines else []
     if mode == "automatic":
         if len(first) >= 3:
             shift = f" ({' '.join(first[3:6])})" if len(first) >= 6 else ""
-            return Chip("K_POINTS", f"{mode} {'×'.join(first[:3])}{shift}", card.line)
+            return f"{mode} {'×'.join(first[:3])}{shift}"
     elif mode != "gamma" and len(first) == 1 and first[0].isdigit():
-        return Chip("K_POINTS", f"{mode} {first[0]} pontos", card.line)
-    return Chip("K_POINTS", mode, card.line)
+        return f"{mode} {first[0]} pontos"
+    return mode
+
+
+def _k_points(card: Card) -> Chip:
+    return Chip("K_POINTS", k_points_text(card), card.line)
 
 
 def _spin(doc: InputDoc) -> Chip | None:

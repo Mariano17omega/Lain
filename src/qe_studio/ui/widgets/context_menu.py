@@ -291,11 +291,17 @@ class ItemActions(QObject):
         return True
 
     def _on_reveal_finished(self, watcher) -> None:
+        """The watcher has no ``isError``: the outcome is read through a ``QDBusPendingReply``."""
+        from PyQt6.QtDBus import QDBusPendingReply
+
         paths = self._reveals.pop(watcher, None)
-        if watcher.isError() and paths:
-            log.info("%s.ShowItems failed: %s", FILE_MANAGER, watcher.error().message())
-            self._open_parent(paths[0])
-        watcher.deleteLater()
+        try:
+            reply = QDBusPendingReply(watcher)
+            if reply.isError() and paths:
+                log.info("%s.ShowItems failed: %s", FILE_MANAGER, reply.error().message())
+                self._open_parent(paths[0])
+        finally:
+            watcher.deleteLater()
 
     @staticmethod
     def _open_parent(path: Path) -> None:

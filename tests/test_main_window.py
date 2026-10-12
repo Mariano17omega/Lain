@@ -6,7 +6,7 @@ import pytest
 from PyQt6 import sip
 from PyQt6.QtCore import QCoreApplication, QEvent, QSettings
 from PyQt6.QtGui import QDesktopServices
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QLabel, QMessageBox
 
 from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.folder_memory import FolderMemory
@@ -16,7 +16,7 @@ from qe_studio.core.sync.rsync import Endpoint
 from qe_studio.ui.layout_controller import fit_widths
 from qe_studio.ui.main_window import MainWindow
 from qe_studio.ui.theme.manager import ThemeManager
-from qe_studio.ui.widgets.bars import ActivityBar
+from qe_studio.ui.widgets.bars import ActivityBar, TopBar
 from qe_studio.ui.widgets.fs_model import SORT_DATE
 from qe_studio.ui.widgets.text_viewer import TextViewer
 from qe_studio.ui.widgets.workspace import ImageViewer
@@ -44,7 +44,8 @@ def test_window_builds_with_badges(qtbot, main_window, demo_project):
         "03_bands": ["BANDS"],
         "04_pdos": ["PDOS"],
     }
-    assert window.top_bar.cluster_label.text() == "cluster não configurado"
+    assert not hasattr(window.top_bar, "cluster_label")  # spec 33 R3: only the LED
+    assert "não configurado" in window.top_bar.led.toolTip()
 
 
 def test_hidden_dirs_are_filtered(qtbot, main_window, demo_project):
@@ -446,6 +447,20 @@ def test_a_closed_window_survives_the_cycle_collector(qtbot, tmp_path):
         gc.collect()
         pump(0.3)
         QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def test_top_bar_shows_the_cluster_only_as_a_led(qtbot):
+    """Spec 33 R3: no user@host text in the bar; the address is in the LED's tooltip."""
+    bar = TopBar(ThemeManager("dark"))
+    qtbot.addWidget(bar)
+    assert not hasattr(bar, "cluster_label")
+    bar.set_cluster("usuario@host", "online")
+    assert bar.led.state == "online"
+    assert bar.led.toolTip() == "Cluster acessível\nusuario@host"
+    shown = [label.text() for label in bar.findChildren(QLabel)]
+    assert all("usuario@host" not in text for text in shown)
+    bar.set_cluster("cluster não configurado", "disabled")  # nothing to add to the state's sentence
+    assert bar.led.toolTip() == "Cluster não configurado (config.yaml)"
 
 
 def pump(seconds: float) -> None:

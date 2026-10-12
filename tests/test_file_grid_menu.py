@@ -298,23 +298,43 @@ def test_reveal_in_file_manager(main_window, demo_project, monkeypatch):
     actions.reveal(path)
     assert asked == [[path]] and opened == []
 
-    class FailedCall:  # no FileManager1 on this desktop: the answer is an error
-        def isError(self):
-            return True
-
-        def error(self):
-            return type("Error", (), {"message": lambda self: "ServiceUnknown"})()
-
-        def deleteLater(self):
-            pass
-
-    call = FailedCall()
-    actions._reveals[call] = [path]
-    actions._on_reveal_finished(call)
-    assert opened == [QUrl.fromLocalFile(str(path.parent))]
     monkeypatch.setattr(actions, "_show_items_dbus", lambda p: False)  # no session bus
     actions.reveal(demo_project / "04_pdos")
     assert opened[-1] == QUrl.fromLocalFile(str(demo_project))
+
+
+def answered_watcher(parent, *, error: bool):
+    """A real ``QDBusPendingCallWatcher`` on an already answered ``ShowItems`` call: no session bus
+    is touched (spec 33 R2)."""
+    from PyQt6.QtDBus import QDBusMessage, QDBusPendingCall, QDBusPendingCallWatcher
+
+    name = "org.freedesktop.FileManager1"
+    call = QDBusMessage.createMethodCall(name, "/org/freedesktop/FileManager1", name, "ShowItems")
+    answer = (
+        call.createErrorReply("org.freedesktop.DBus.Error.ServiceUnknown", "sem FileManager1")
+        if error
+        else call.createReply()
+    )
+    return QDBusPendingCallWatcher(QDBusPendingCall.fromCompletedCall(answer), parent)
+
+
+@pytest.mark.parametrize("error", [True, False], ids=["error", "ok"])
+def test_reveal_reads_the_dbus_reply(qtbot, main_window, demo_project, monkeypatch, error):
+    from PyQt6 import sip
+
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(opened.append))
+    actions = main_window.item_actions
+    path = demo_project / "03_bands" / "bands.in"
+    watcher = answered_watcher(actions, error=error)
+    actions._reveals[watcher] = [path]
+    with qtbot.capture_exceptions() as exceptions:
+        watcher.finished.connect(actions._on_reveal_finished)  # as _show_items_dbus wires it
+        qtbot.waitUntil(lambda: sip.isdeleted(watcher), timeout=5000)
+    assert exceptions == []
+    assert actions._reveals == {}
+    # A failed ShowItems falls back to the parent folder; an answered one does nothing more.
+    assert opened == ([QUrl.fromLocalFile(str(path.parent))] if error else [])
 
 
 @pytest.fixture

@@ -18,6 +18,7 @@ from ...sniff import sniff
 from ..pw_output import PwOutput
 from ..relax import parse_relax
 from .build import RELAX_CALCULATIONS, build_summary
+from .mesh import k_mesh_of
 from .model import Level, OutputSummary, SummaryIssue, SummaryRow, SummarySection
 from .scan import Scanner
 from .text import to_text
@@ -46,7 +47,11 @@ def _observe(lines: Iterable[str], scanner: Scanner) -> Iterator[str]:
 
 def summarize_lines(lines: Iterable[str], pw: PwOutput | None = None) -> OutputSummary:
     """``pw``: the parsed pw.x output when known; without it there are no Fermi / HOMO-LUMO values,
-    no calculation type and no relax steps."""
+    no calculation type and no relax steps. Lines only: no "Malha k" (it comes from another file)."""
+    return _summarize(lines, pw, None)
+
+
+def _summarize(lines: Iterable[str], pw: PwOutput | None, mesh: str | None) -> OutputSummary:
     scanner = Scanner()
     stream = _observe(lines, scanner)
     relax = None
@@ -55,11 +60,13 @@ def summarize_lines(lines: Iterable[str], pw: PwOutput | None = None) -> OutputS
     else:
         for _ in stream:
             pass
-    return build_summary(scanner.finish(), pw, relax)
+    return build_summary(scanner.finish(), pw, relax, mesh)
 
 
 def summarize(path: Path) -> OutputSummary:
-    """Raises ``OSError`` when the file cannot be read."""
+    """Raises ``OSError`` when the file cannot be read. The input of the same name next to it, if
+    any, gives the k-point mesh (spec 33 R1)."""
     pw = sniff(path).pw
+    mesh = k_mesh_of(path)
     with open(path, encoding="utf-8", errors="replace") as handle:
-        return summarize_lines(handle, pw)
+        return _summarize(handle, pw, mesh)

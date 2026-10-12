@@ -189,7 +189,8 @@ the `.plot` store, registers the actions and wires signals. It keeps only what s
   exports).
 - `ui/sync_coordinator.py:SyncCoordinator`: `core/sync/request.prepare_sync` → session password →
   `SyncController` + dialogs → report; owns the `ConnectionMonitor` (replaced on config reload) and
-  emits `cluster_changed`, `synced(local_dir)` (its own `on_synced` calls the injected `refresh`, the window's
+  emits `cluster_changed` (label `user@host`, state: the `TopBar` shows only the LED and keeps the label in its
+  tooltip, spec 33 R3), `synced(local_dir)` (its own `on_synced` calls the injected `refresh`, the window's
   `refresh_folder`) and `finished`. Its entry points are `start_selected()` (the Rsync button, `sync.start`:
   the injected `current_folder`) and `start_project()` (`sync.project`: the selected project, else the root; spec 31
   `set_project`), the slots in `ACTIONS`. It also says
@@ -974,7 +975,11 @@ the scanner sees each line through `_observe`, and for relax / vc-relax the same
 already holds, so `summarize_lines(lines, pw=None)` (the property tests) has neither. `parse_scf` is
 not used: it describes the first SCF cycle only. The formula counts the `tau(` site lines of the
 header (no ASE). Only pw.x outputs get "Sistema" and "Resultados"; every program gets "Geral" and
-"Avisos e erros". Outputs of hundreds of MB take seconds (about 30 MB/s), in a worker, behind
+"Avisos e erros". Spec 33 R1: "k-pontos irredutíveis" is the count pw.x prints (`number of k points=`), and "Malha k"
+right after it is the mesh the *input* asked for (`automatic 5×5×5 (0 0 0)`, `gamma`, `crystal_b 5 pontos`), which pw.x
+never prints: `core/qe/summary/mesh.py:k_mesh_of(output)` reads `<output>.with_suffix(".in")` (if `looks_like_input`, up
+to `INPUT_READ_LIMIT`, never raises) and uses `input_extract.k_points_text`, the phrase of the viewer's `K_POINTS` chip.
+Only `summarize(path)` has it (`summarize_lines` keeps its signature and has no "Malha k"); the row has no `line`. Outputs of hundreds of MB take seconds (about 30 MB/s), in a worker, behind
 "Lendo <arquivo>…".
 
 ### Threading rules (GUI thread must never parse files)
@@ -1091,7 +1096,9 @@ and never emits `synced`. "Criar cálculo"'s toast reminds of it when sync is on
 `file_actions_of`: "Plotar" for a
 single-file module, "Resumo" for any QE output, both above the four spec-5 actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
 cached `catalog()` per session; `Terminal=true` programs stay in `apps` but are never listed nor the default) and starts them with `QProcess.startDetached(argv)`, never a
-shell. A folder also gets "Adicionar/Remover dos favoritos" (`favorite_toggled`, answered by the
+shell. "Abrir local de origem" calls `FileManager1.ShowItems` over D-Bus and reads the answer through
+`QDBusPendingReply(watcher)` (`QDBusPendingCallWatcher` has no `isError`); an error falls back to opening the parent
+folder. Tests build a real watcher on `QDBusPendingCall.fromCompletedCall`, never the session bus. A folder also gets "Adicionar/Remover dos favoritos" (`favorite_toggled`, answered by the
 `NavigationController`). With several items selected in the grid (`multi_menu`) the menu is the
 count title, "Abrir local de origem" (`ShowItems` with every URI), "Copiar" (one URI / path per line),
 "Comparar" for exactly two `looks_like_input` files (path order; `compare_requested` →

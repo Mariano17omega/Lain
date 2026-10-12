@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import pytest
 
+from qe_studio.core.qe.input_extract import extract
+from qe_studio.core.qe.input_lint import lint
 from qe_studio.core.qe.pw_output import parse_pw_output
 from qe_studio.core.qe.summary import OutputSummary, summarize, summarize_lines, to_text
+from qe_studio.core.qe.summary.mesh import k_mesh_of
 from qe_studio.core.qe.summary.text import (
     clock_text,
     duration_text,
@@ -63,7 +66,9 @@ def test_scf_output():
     assert system["Cutoff da função de onda"].value == "100.0 Ry"
     assert system["Cutoff da densidade de carga"].value == "143.0 Ry"
     assert system["Funcional (XC)"].value == "PBE"
-    assert system["k-pontos"].value == "47"
+    assert system["k-pontos irredutíveis"].value == "47"
+    assert system["Malha k"].value == "automatic 10×10×10 (0 0 0)"  # from al.scf.in next to it
+    assert system["Malha k"].line is None  # another file: nothing to jump to
     assert "Gaussian" in system["Smearing"].value and "0.0100" in system["Smearing"].value
     assert system["Spin"].value == "não polarizado"
     assert results["Energia total"].value == "-5.03855495 Ry"
@@ -248,6 +253,65 @@ def test_unreadable_path_raises_oserror(tmp_path):
 
 
 # -- plain text and formatting ----------------------------------------------------------------
+# -- spec 33 R1: the mesh from the input next to the output -----------------------------------------
+SI_SCF = FIXTURES / "si_bands" / "si.scf.out"
+
+
+def chip_of(path) -> str:
+    (chip,) = [c for c in extract(lint(path.read_text())) if c.label == "K_POINTS"]
+    return chip.value
+
+
+def test_mesh_row_is_the_inputs_k_points_chip_after_the_irreducible_count():
+    summary = summarize(SI_SCF)
+    system = rows(summary, "Sistema")
+    assert (
+        system["Malha k"].value == chip_of(SI_SCF.with_suffix(".in")) == "automatic 8×8×8 (0 0 0)"
+    )
+    assert system["k-pontos irredutíveis"].value == "29"  # what pw.x prints, as before
+    labels = list(system)
+    assert labels.index("Malha k") == labels.index("k-pontos irredutíveis") + 1
+    assert "k-pontos" not in system
+
+
+def test_no_mesh_row_without_the_input(tmp_path):
+    output = tmp_path / "si.scf.out"
+    output.write_bytes(SI_SCF.read_bytes())
+    system = rows(summarize(output), "Sistema")
+    assert "Malha k" not in system
+    assert system["k-pontos irredutíveis"].value == "29"
+
+
+def test_summarize_lines_has_no_mesh():
+    text = SI_SCF.read_text()
+    assert "Malha k" not in rows(from_text(text), "Sistema")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"&control\n calculation='scf'\n/\n\xff\xfe\xfa\n",  # not UTF-8, no K_POINTS
+        b"&control\n\x00\x01\x02\n/\n",  # binary
+        b"",
+    ],
+)
+def test_unreadable_input_leaves_the_summary_whole(tmp_path, content):
+    output = tmp_path / "si.scf.out"
+    output.write_bytes(SI_SCF.read_bytes())
+    output.with_suffix(".in").write_bytes(content)
+    assert k_mesh_of(output) is None
+    system = rows(summarize(output), "Sistema")
+    assert "Malha k" not in system
+    assert system["k-pontos irredutíveis"].value == "29"
+
+
+def test_mesh_of_a_directory_named_like_the_input(tmp_path):
+    output = tmp_path / "si.scf.out"
+    output.write_bytes(SI_SCF.read_bytes())
+    (tmp_path / "si.scf.in").mkdir()
+    assert k_mesh_of(output) is None
+
+
 def test_to_text_has_one_block_per_section():
     text = to_text(summarize(AL_SCF))
     blocks = text.strip().split("\n\n")

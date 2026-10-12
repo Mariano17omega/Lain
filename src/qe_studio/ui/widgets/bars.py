@@ -51,9 +51,11 @@ class StatusLed(QWidget):
     def _on_theme_changed(self, _name: str) -> None:
         self.update()
 
-    def set_state(self, state: str) -> None:
+    def set_state(self, state: str, detail: str = "") -> None:
+        """``detail`` (``usuario@host``) goes under the state's sentence in the tooltip."""
         self.state = state
-        self.setToolTip(LED_TIPS.get(state, state))
+        tip = LED_TIPS.get(state, state)
+        self.setToolTip(f"{tip}\n{detail}" if detail else tip)
         self.update()
 
     def paintEvent(self, _event) -> None:
@@ -185,8 +187,6 @@ class TopBar(QWidget):
             button.setEnabled(False)
         self.breadcrumb = Breadcrumb()
         self.led = StatusLed(theme)
-        self.cluster_label = QLabel()
-        self.cluster_label.setObjectName("clusterLabel")
         separator = QWidget()
         separator.setObjectName("topSeparator")
         separator.setFixedHeight(18)
@@ -196,7 +196,6 @@ class TopBar(QWidget):
         layout.addWidget(self.forward_button)
         layout.addWidget(self.breadcrumb)
         layout.addWidget(self.led)
-        layout.addWidget(self.cluster_label)
         layout.addWidget(separator)
         self.toggles: dict[str, QToolButton] = {}
         for key, icon, text in (
@@ -252,8 +251,9 @@ class TopBar(QWidget):
         self.forward_button.setEnabled(can_forward)
 
     def set_cluster(self, label: str, state: str) -> None:
-        self.cluster_label.setText(label)
-        self.led.set_state(state)
+        """Only the LED shows the cluster; ``usuario@host`` is in its tooltip (spec 33 R3). A cluster
+        that is not configured has nothing to add to the state's sentence."""
+        self.led.set_state(state, "" if state == "disabled" else label)
 
     def _refresh_icons(self, *_args) -> None:
         self.generate.setIcon(self.theme.icon("bolt", "primary_fg", size=14))

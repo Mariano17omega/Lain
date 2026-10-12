@@ -30,11 +30,14 @@ def _group(hit: Hit | None, index: int = 0) -> str | None:
     return hit.groups[index] if hit else None
 
 
-def build_summary(facts: Facts, pw: PwOutput | None, relax: RelaxData | None) -> OutputSummary:
+def build_summary(
+    facts: Facts, pw: PwOutput | None, relax: RelaxData | None, mesh: str | None = None
+) -> OutputSummary:
+    """``mesh``: the k-point mesh of the input next to the output (``mesh.k_mesh_of``), if any."""
     sections = [SummarySection("Geral", tuple(_general(facts)))]
     if facts.program == PW_PROGRAM:
         for title, rows in (
-            ("Sistema", _system(facts, pw)),
+            ("Sistema", _system(facts, pw, mesh)),
             ("Resultados", _results(facts, pw, relax)),
         ):
             if rows:
@@ -115,7 +118,7 @@ def _memory_rows(facts: Facts) -> list[SummaryRow]:
 
 
 # -- Sistema ------------------------------------------------------------------------------------
-def _system(facts: Facts, pw: PwOutput | None) -> list[SummaryRow]:
+def _system(facts: Facts, pw: PwOutput | None, mesh: str | None) -> list[SummaryRow]:
     rows = [
         SummaryRow("Cálculo", (pw.calculation if pw else None) or "—"),
         SummaryRow("Fórmula", format_formula(facts.species) or "—"),
@@ -136,11 +139,7 @@ def _system(facts: Facts, pw: PwOutput | None) -> list[SummaryRow]:
             rows.append(
                 _row(label, template.format(normalize_number(value) if normalize else value), hit)
             )
-    if kpoints := facts.hit("kpoints", first=True):
-        count, smearing, width = kpoints.groups
-        rows.append(_row("k-pontos", count or "", kpoints))
-        if smearing:
-            rows.append(_row("Smearing", f"{smearing} (largura {width} Ry)", kpoints))
+    rows += _kpoint_rows(facts, mesh)
     if (spin := _spin(facts, pw)) is not None:
         rows.append(SummaryRow("Spin", spin))
     if facts.pseudos:
@@ -149,6 +148,21 @@ def _system(facts: Facts, pw: PwOutput | None) -> list[SummaryRow]:
             for _index, (element, name, line) in sorted(facts.pseudos.items())
         )
         rows.append(SummaryRow("Pseudopotenciais", str(len(children)), children=children))
+    return rows
+
+
+def _kpoint_rows(facts: Facts, mesh: str | None) -> list[SummaryRow]:
+    """The irreducible count pw.x prints, the mesh the input asked for (another file: no line), then
+    the smearing, which the same output line carries."""
+    kpoints = facts.hit("kpoints", first=True)
+    rows = []
+    if kpoints:
+        rows.append(_row("k-pontos irredutíveis", kpoints.groups[0] or "", kpoints))
+    if mesh:
+        rows.append(SummaryRow("Malha k", mesh))
+    if kpoints and kpoints.groups[1]:
+        _count, smearing, width = kpoints.groups
+        rows.append(_row("Smearing", f"{smearing} (largura {width} Ry)", kpoints))
     return rows
 
 
