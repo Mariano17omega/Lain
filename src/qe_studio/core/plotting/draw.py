@@ -90,9 +90,30 @@ def apply_text_sizes(figure: FigureBase, params: CommonParams) -> None:
             ax.yaxis.label.set_fontsize(label)
 
 
+def _offset(value: float) -> float:
+    """A legend shift (fraction of the axes) from the parameters: a number within -1…1, else none
+    (a stored value that cannot be one falls back to the default, spec 36 R2.4)."""
+    if isinstance(value, int | float) and math.isfinite(value) and -1.0 <= value <= 1.0:
+        return float(value)
+    return 0.0
+
+
+# The point of the axes each ``legend_loc`` hangs from (``best`` is decided at draw time and takes
+# no anchor: with a shift it counts as ``upper right``).
+LEGEND_ANCHORS = {
+    "best": (1.0, 1.0),
+    "upper right": (1.0, 1.0),
+    "upper left": (0.0, 1.0),
+    "lower right": (1.0, 0.0),
+    "lower left": (0.0, 0.0),
+    "center right": (1.0, 0.5),
+}
+OUTSIDE_ANCHOR = (1.02, 1.0)  # "outside": the right of the axes, top aligned
+
+
 def add_legend(ax: Axes, params: CommonParams, handles: list | None = None) -> None:
-    """Legend as configured (position, frame, size, transparency). ``handles`` None = the axes'
-    labelled artists."""
+    """Legend as configured (position and shift, frame, size, transparency). ``handles`` None =
+    the axes' labelled artists."""
     if not params.show_legend:
         return
     kwargs = {
@@ -100,8 +121,16 @@ def add_legend(ax: Axes, params: CommonParams, handles: list | None = None) -> N
         "fontsize": _size(params.legend_size, params.font_size * 0.85),
         "framealpha": 1.0 - _unit(params.legend_transparency, 0.2),
     }
+    dx, dy = _offset(params.legend_dx), _offset(params.legend_dy)
     if params.legend_loc == "outside":
-        kwargs.update(loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0.0)
+        kwargs.update(loc="upper left", bbox_to_anchor=OUTSIDE_ANCHOR, borderaxespad=0.0)
+        if dx or dy:
+            x, y = OUTSIDE_ANCHOR
+            kwargs.update(bbox_to_anchor=(x + dx, y + dy), bbox_transform=ax.transAxes)
+    elif (dx or dy) and params.legend_loc in LEGEND_ANCHORS:
+        x, y = LEGEND_ANCHORS[params.legend_loc]
+        loc = "upper right" if params.legend_loc == "best" else params.legend_loc
+        kwargs.update(loc=loc, bbox_to_anchor=(x + dx, y + dy), bbox_transform=ax.transAxes)
     else:
         kwargs["loc"] = params.legend_loc
     if handles is None:

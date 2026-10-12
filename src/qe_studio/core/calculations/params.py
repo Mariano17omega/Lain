@@ -78,6 +78,9 @@ class CommonParams:
     line_width: float = 1.2
     show_legend: bool = False
     legend_loc: str = "best"
+    # Shift of the legend as a fraction of its axes (positive: right / up), spec 36.
+    legend_dx: float = field(default=0.0, metadata={"range": (-1.0, 1.0)})
+    legend_dy: float = field(default=0.0, metadata={"range": (-1.0, 1.0)})
     legend_frame: bool = False
     legend_size: float | None = None  # pt; None = 0.85 × font_size
     legend_transparency: float = 0.2  # 0 opaque … 1 invisible (0.2 = matplotlib's frame alpha 0.8)
@@ -171,6 +174,30 @@ COMMON_FIELDS = (
     ParamField("line_width", "Espessura", "Estilo", "float", minimum=0.1, maximum=6, step=0.1),
     ParamField("show_legend", "Mostrar legenda", "Legenda", "bool"),
     ParamField("legend_loc", "Posição", "Legenda", "choice", choices=LEGEND_LOCATIONS),
+    ParamField(
+        "legend_dx",
+        "dx",
+        "Legenda",
+        "float",
+        minimum=-1,
+        maximum=1,
+        step=0.05,
+        tooltip="Deslocamento horizontal da legenda, em fração da largura do gráfico (positivo: "
+        "direita). Com a posição Automática, qualquer deslocamento usa Superior direita.",
+        requires="show_legend",
+    ),
+    ParamField(
+        "legend_dy",
+        "dy",
+        "Legenda",
+        "float",
+        minimum=-1,
+        maximum=1,
+        step=0.05,
+        tooltip="Deslocamento vertical da legenda, em fração da altura do gráfico (positivo: "
+        "cima). Com a posição Automática, qualquer deslocamento usa Superior direita.",
+        requires="show_legend",
+    ),
     ParamField("legend_frame", "Moldura", "Legenda", "bool"),
     ParamField(
         "legend_size",

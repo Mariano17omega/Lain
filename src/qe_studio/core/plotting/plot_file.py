@@ -145,6 +145,7 @@ def apply_stored(
         if kind := f.metadata.get("kind"):
             kinds.setdefault(f.name, kind)
     choices = {f.name: [c[0] for c in f.choices] for f in schema if f.kind == "choice"}
+    ranges = {f.name: f.metadata["range"] for f in declared if "range" in f.metadata}
     names = {f.name for f in declared} - stored_elsewhere(params) - derived_fields(params)
     ignored = []
     for name, value in stored.items():
@@ -152,8 +153,10 @@ def apply_stored(
             log.debug("plot file: unknown field %r ignored", name)
             continue
         default = getattr(params, name)
-        valid = _fits(hints[name], value) and _valid_value(
-            kinds.get(name), value, default, choices.get(name)
+        valid = (
+            _fits(hints[name], value)
+            and _valid_value(kinds.get(name), value, default, choices.get(name))
+            and _in_range(value, ranges.get(name))
         )
         if not valid:
             log.warning("plot file: %s = %r ignored (default %r)", name, value, default)
@@ -163,6 +166,13 @@ def apply_stored(
             value = float(value)
         setattr(params, name, value)
     return ignored
+
+
+def _in_range(value: Any, bounds: tuple[float, float] | None) -> bool:
+    """A parameter that declares ``metadata={"range": (low, high)}`` takes numbers within it."""
+    if bounds is None:
+        return True
+    return isinstance(value, int | float) and bounds[0] <= value <= bounds[1]
 
 
 def _options(hint: Any) -> tuple[Any, ...]:

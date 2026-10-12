@@ -259,6 +259,18 @@ def test_a_module_plots_its_folder_unless_it_says_otherwise(dummy_folder):
     assert module_for_file(SniffCache().sniff(dummy_folder / "a.dummy"), (DUMMY,)) is None
 
 
+def test_the_legend_shift_comes_with_the_common_fields(dummy_folder):
+    """Spec 36: a module that spreads ``COMMON_FIELDS`` gets ``dx`` / ``dy`` in "Legenda"."""
+    dataset = DUMMY.load(detect_dummy(dummy_folder), sniff)
+    schema = {f.name: f for f in DUMMY.param_schema(dataset)}
+    assert [(schema[n].section, schema[n].label) for n in ("legend_dx", "legend_dy")] == [
+        ("Legenda", "dx"),
+        ("Legenda", "dy"),
+    ]
+    params = DummyParams()
+    assert (params.legend_dx, params.legend_dy) == (0.0, 0.0)
+
+
 def test_base_hooks_have_neutral_defaults(dummy_folder):
     dataset = DUMMY.load(detect_dummy(dummy_folder), sniff)
     params = DummyParams()

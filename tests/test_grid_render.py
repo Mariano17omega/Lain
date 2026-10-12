@@ -230,3 +230,21 @@ def test_a_bands_cell_with_the_window_gap_draws_the_open_plots_legend(tmp_path):
     expected = gap_texts_of(open_plot.axes[0])
     assert expected  # Al is a metal: only the window method has a gap to draw
     assert gap_texts_of(draw(grid).axes[0]) == expected
+
+
+def test_a_shifted_legend_goes_with_the_cell_and_stays_inside_it(tmp_path):
+    """Spec 36 R3: ``legend_dx`` / ``legend_dy`` travel with the session into the cell, and
+    ``fit_cell`` measures the legend where it was moved to."""
+    grid = grid_of([(0, 0, PDOS, "")], tmp_path, cols=1)
+    params = grid.dataset.cells[0].session.params
+    params.show_legend, params.legend_loc = True, "upper right"
+    params.legend_dx, params.legend_dy = 0.3, -0.2
+    figure = draw(grid)
+    (cell,) = cells_of(figure)
+    (legend,) = [ax.get_legend() for ax in cell.axes if ax.get_legend()]
+    box, extent = cell.bbox, legend.get_window_extent(figure.canvas.get_renderer())
+    assert extent.x0 >= box.x0 - 1 and extent.x1 <= box.x1 + 1
+    assert extent.y0 >= box.y0 - 1 and extent.y1 <= box.y1 + 1
+    inverse = legend.axes.transAxes.inverted()
+    anchor = legend.get_bbox_to_anchor()
+    assert tuple(inverse.transform((anchor.x0, anchor.y0))) == pytest.approx((1.3, 0.8))

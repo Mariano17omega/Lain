@@ -343,6 +343,16 @@ applies them: `add_legend` and `apply_text_sizes`, which `finish`, `finish_side`
 `tight` (a module draws its labels first, then calls one of them). A stored value that cannot be a size or an alpha
 falls back to the default instead of raising. Tests: `test_legend_style.py`.
 
+**Legend shift (spec 36).** `CommonParams.legend_dx` / `legend_dy` ("dx" / "dy" after "Posição", `requires="show_legend"`)
+move the legend by a fraction of the axes it lives in (positive: right / up; the DOS axes in bands + DOS). `add_legend`
+hangs it from the corner of `legend_loc` (`draw.LEGEND_ANCHORS`) plus `(dx, dy)` with `bbox_transform=ax.transAxes` and the same
+`loc`, so the same corner of the legend sits there; `outside` starts at `OUTSIDE_ANCHOR` (1.02, 1.0). `best` takes no anchor,
+so with a shift it counts as `upper right` (the tooltips say so). Without a shift the `legend()` arguments are the old ones
+(goldens untouched). The range is `-1 … 1`: the dataclass fields declare `metadata={"range": (-1.0, 1.0)}`, which
+`plot_file.apply_stored` enforces (a number outside it, a string or a bool is ignored like any invalid stored value) and
+`draw._offset` repeats for a value set in code. A grid cell needs nothing of its own: the session's params go into the cell
+and `fit_cell` measures the moved legend.
+
 **Names and CSV of an export (spec 32).** The stem is `names.join_stem(names.export_prefix(folder, root),
 module.export_stem(params))`: the folders from `local_root` down to the simulation joined by `-`, then the module's
 own stem (`<local_root>/ilita/Analise_1/Bandas` → `ilita-Analise_1-Bandas-bands.png`). Pure, no disk: the root itself

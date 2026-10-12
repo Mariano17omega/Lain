@@ -63,7 +63,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 33 | [spec_33-pequenos-defeitos-resumo-reveal-e-barra.md](Archived/spec_33-pequenos-defeitos-resumo-reveal-e-barra.md) | Resumo: "k-pontos irredutíveis" e "Malha k" (do input de mesmo nome); "Abrir local de origem" lê a resposta D-Bus com `QDBusPendingReply` (hoje falha em toda chamada); barra superior só com o LED (o `usuario@host` vai para o tooltip) | 5, 11, 12 | P | Sonnet 5.5 |
 | 34 | [spec_34-gap-metodo-de-calculo.md](Archived/spec_34-gap-metodo-de-calculo.md) | Parâmetro `gap_method` (automático, HOMO/LUMO do SCF, maior intervalo na janela) em bandas, PDOS e bandas + DOS; legenda e rodapé seguem o método; reproduz o "metálico" da pasta real (já corrigido em `f5492fb`, mas com 0,07 eV) | 13, 20, 21, 22, 27-6 | M | Opus 5.5 |
 | 35 | [spec_35-plotar-saida-de-relax-pelo-menu.md](Archived/spec_35-plotar-saida-de-relax-pelo-menu.md) | "Plotar" no menu das saídas de relax/vc-relax: aba por saída, input pareado por nome (hoje casa o de outra corrida), aviso de várias saídas, rótulo do botão por módulo | 6, 9, 27-7 | M | Sonnet 5.5 |
-| 36 | [spec_36-deslocamento-da-legenda.md](spec_36-deslocamento-da-legenda.md) | Campos `dx` e `dy` na seção "Legenda" (fração do painel; `best` com deslocamento = `upper right`), para todos os módulos | 8, 20, 22, 23 | P | Sonnet 5.5 |
+| 36 | [spec_36-deslocamento-da-legenda.md](Archived/spec_36-deslocamento-da-legenda.md) | Campos `dx` e `dy` na seção "Legenda" (fração do painel; `best` com deslocamento = `upper right`), para todos os módulos | 8, 20, 22, 23 | P | Sonnet 5.5 |
 | 37 | [spec_37-grade-nomes-completos-e-arvore-com-arquivos.md](spec_37-grade-nomes-completos-e-arvore-com-arquivos.md) | Nome do arquivo quebra linha no cartão da grade (altura única por pasta, até 6 linhas); árvore só de pastas por padrão, com `ui.tree_show_files` | 5, 16, 19, 31 | M | Sonnet 5.5 |
 | 38 | [spec_38-visualizador-markdown-e-qsub.md](spec_38-visualizador-markdown-e-qsub.md) | `.md` renderizado (alterna para o texto, sem HTML cru, links locais não abrem); `.qsub` com `ShellHighlighter` e verificação de escrita em `core/qsub_lint.py` | 10, 11, 19, 26 | G | Sonnet 5.5 |
 | 39 | [spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md](spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md) | "Continuar" nunca mudo e rede de testes tipo × SCF (a Diferença de carga **não foi reproduzida**); prévia editável só no Avançado, a edição vence o formulário | 24, 26, 28, 30, 38 | M | Opus 5.5 |
@@ -102,8 +102,8 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–35, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (`spec_end` e as specs 36–39) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–36, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (`spec_end` e as specs 37–39) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 36 (pequena e independente) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (12/10/2026); ver "Decisões na implementação" |
 | **Depende de** | spec 8 (`ParamField`, `requires`), spec 20 (seção "Legenda"), spec 22 (a legenda de bandas + DOS), spec 23 (grids: `fit_cell`) |
 | **Usada por** | nenhuma |
 | **Esforço** | P |
@@ -92,3 +92,21 @@ O script de referência do usuário já faz isso: `Documentation/Exemplos_plot/p
 - [ ] Os campos aparecem na seção "Legenda" de bandas, PDOS, bandas + DOS, SCF e relax, desabilitados com a legenda oculta.
 - [ ] Persistência em `.plot` e célula de grid.
 - [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+
+## Decisões na implementação
+
+1. As decisões 1–3 acima ficaram como estavam (fração dos eixos, faixa `−1 … 1`, rótulos `dx` e `dy`).
+2. **A faixa é validada em `plot_file`, não "por tipo de campo".** `apply_stored` só validava `choice`, `color` e `colors`; um `float`
+   fora do intervalo passava. Os dois campos declaram `metadata={"range": (-1.0, 1.0)}` e `apply_stored` o aplica (`_in_range`): um
+   número fora dele, uma string, `None` ou um `bool` é ignorado e listado como qualquer valor inválido. Outros campos `float` não mudam
+   (a faixa do esquema não é imposta aos demais: uma escala guardada fora dela continua valendo).
+3. `draw._offset` repete a regra para um valor posto em código (não número, não finito ou fora de `−1 … 1` = sem deslocamento, o padrão
+   de R2.4; a transparência, ao contrário, continua sendo *limitada* a 0–1, como antes).
+4. Sem deslocamento os argumentos de `ax.legend` são os de antes, inclusive `outside` (`bbox_to_anchor=(1.02, 1.0)`, sem
+   `bbox_transform`); `bbox_transform=ax.transAxes` só entra com `dx` ou `dy` diferente de zero.
+5. Um `legend_loc` desconhecido (nunca vem do painel: `choice` valida) ignora o deslocamento e segue como antes.
+6. Testes: `test_legend_style.py` (esquema, âncora por posição, `best`, `outside`, valores inválidos, `.plot`, painel),
+   `test_grid_render.py` (a legenda deslocada fica dentro da célula), `test_module_contract.py` (o `DummyModule` ganha os campos).
+   `test_figure_regression.py` e os goldens passam sem regenerar. Um teste da posição da caixa compara só as âncoras à esquerda
+   (`upper left`, `lower left`): numa legenda que passa da borda direita o `tight_layout` encolhe os eixos e a fração muda.
+   `test_plot_file.py` testa o formato do `.plot` em geral, por isso os testes de ida e volta ficaram em `test_legend_style.py`.
