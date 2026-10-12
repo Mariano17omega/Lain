@@ -138,12 +138,12 @@ def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
 
     windows = []
 
-    def make(loaded=None, **kwargs):
+    def make(loaded=None, ui=None, **kwargs):
         """``loaded``: a ``LoadedConfig`` of its own (first run, missing root…) instead of one
-        whose ``local_root`` is ``demo_project``."""
+        whose ``local_root`` is ``demo_project``; ``ui``: keys of its ``ui:`` section."""
         kwargs.setdefault("navigation", NavigationStore(tmp_path / "navigation.json"))
         kwargs.setdefault("compounds", CompoundStore(tmp_path / "compounds.json"))
-        config = parse_config({"paths": {"local_root": str(demo_project)}})
+        config = parse_config({"paths": {"local_root": str(demo_project)}, "ui": ui or {}})
         theme = ThemeManager("dark")
         theme.apply()
         settings = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
@@ -167,6 +167,12 @@ def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
 @pytest.fixture
 def main_window(window_factory):
     return window_factory()
+
+
+@pytest.fixture
+def tree_files_window(window_factory):
+    """A window whose folder tree lists the files too (``ui.tree_show_files``, spec 37)."""
+    return window_factory(ui={"tree_show_files": True})
 
 
 @pytest.fixture

@@ -131,10 +131,10 @@ def test_reveal_selects_the_file_in_the_tree_and_the_grid(
     window.open_file(path)
     window.set_panel_visible("grid", False)
     window.set_left_mode("params")
-    assert window.explorer.current_path() != path
+    assert window.explorer.current_path() is None
     menu_choice[0][0] = "Revelar no explorador"
     window.workspace.tabs.bar.menu_requested.emit(0, QPoint())
-    assert window.explorer.current_path() == path
+    assert window.explorer.current_path() == path.parent  # the tree lists folders only (spec 37)
     assert window.left.currentIndex() == 0 and not window.left.isHidden()  # the tree is shown
     assert not window.files.isHidden()
     qtbot.waitUntil(

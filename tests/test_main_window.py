@@ -273,7 +273,12 @@ def test_viewable_files_open_the_workspace(qtbot, main_window, demo_project, tmp
     window.open_file(pdf)
     assert len(opened) == 1 and not window.workspace.isVisible()
 
+
+def test_enter_on_a_file_of_the_tree_opens_it(qtbot, tree_files_window, demo_project):
+    window = tree_files_window  # the tree lists files only with ui.tree_show_files (spec 37)
     scf = demo_project / "02_scf" / "scf.out"
+    window.explorer.select_path(demo_project / "02_scf")
+    qtbot.waitUntil(lambda: window.explorer.proxy.index_for(scf).isValid(), timeout=5000)
     window.explorer.tree.activated.emit(window.explorer.proxy.index_for(scf))  # Enter
     assert window.workspace.isVisible() and window.workspace.widget_for(str(scf)) is not None
 

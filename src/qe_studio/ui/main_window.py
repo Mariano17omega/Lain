@@ -137,7 +137,7 @@ class MainWindow(QMainWindow):
         body.addWidget(self.activity)
 
         hidden = self.config.ui.hidden_dirs
-        self.explorer = ExplorerPanel(self.theme, self.service, self.root, hidden)
+        self.explorer = ExplorerPanel(self.theme, self.service, self.root, self.config.ui)
         self.left = QStackedWidget()
         self.left.setObjectName("leftPanel")
         self.left.setMinimumWidth(200)
@@ -438,7 +438,7 @@ class MainWindow(QMainWindow):
         self.service.paranoid_refresh = self.config.ui.paranoid_refresh
         self.theme.set_font_scale(self.config.ui.font_scale)
         self.sync.set_config(self.config)
-        self.explorer.apply_config(self.root, self.config.ui.hidden_dirs)
+        self.explorer.apply_config(self.root, self.config.ui)
         self.files.apply_config(self.root, self.config.ui.hidden_dirs)
         self.project.config_applied(old_root)  # the views were reset to the root (spec 31)
         self.refresh()

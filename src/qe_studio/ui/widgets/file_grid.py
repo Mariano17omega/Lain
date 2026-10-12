@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 from PyQt6.QtCore import (
@@ -11,6 +12,7 @@ from PyQt6.QtCore import (
     QSize,
     Qt,
     QThreadPool,
+    QTimer,
     pyqtSignal,
 )
 from PyQt6.QtGui import QActionGroup, QKeySequence, QShortcut
@@ -27,10 +29,12 @@ from ...core.tasks import TaskGroup
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
 from .common import IconButton, PanelHeader, selection_of, viewport_of
-from .file_card import FileCardDelegate, card_size
+from .file_card import FileCardDelegate, card_size, name_lines, name_metrics, name_width
 from .filter_bar import FilterBar
 from .fs_model import SORT_DATE, SORT_NAME, SORT_SIZE, FileFilterProxy, make_fs_model
 from .grid_view import GridView
+
+NAME_LINES_DELAY_MS = 30  # rows arrive in bursts: measure the names once per burst
 
 
 class FilePanel(QWidget):
@@ -53,6 +57,9 @@ class FilePanel(QWidget):
         self.theme, self.service = theme, service
         self.setObjectName("filePanel")
         self.grid_mode = True
+        self.name_lines = 1  # lines of the longest name listed: the cards are this tall (spec 37)
+        self._wanted_lines = 1  # what the names listed so far need; ``name_lines`` follows it
+        self._remeasure = False  # a row left or the filter changed: the longest may be gone
         self._counts: dict[str, int | None] = {}
         self._count_pool = QThreadPool()  # no Qt parent: see core/tasks.py, "private pools"
         self._count_pool.setMaxThreadCount(2)
@@ -118,11 +125,17 @@ class FilePanel(QWidget):
         find.activated.connect(self.filter_bar.open)
         self._fixing_selection = False
         self._pending_select: Path | None = None  # a file to select once its folder is listed
+        self._lines_timer = QTimer(self)
+        self._lines_timer.setSingleShot(True)
+        self._lines_timer.setInterval(NAME_LINES_DELAY_MS)
+        self._lines_timer.timeout.connect(self._flush_name_lines)
         self.model.directoryLoaded.connect(self._update_count)
         self.model.directoryLoaded.connect(self._select_pending)
         self.proxy.rowsInserted.connect(self._update_count)
         self.proxy.rowsInserted.connect(self._select_pending)
         self.proxy.rowsRemoved.connect(self._update_count)
+        self.proxy.rowsInserted.connect(self._on_rows_inserted)
+        self.proxy.rowsRemoved.connect(self._remeasure_later)
         service.detected.connect(self._on_detected)
         theme.theme_changed.connect(self._on_theme_changed)
         theme.scale_changed.connect(self._on_scale_changed)
@@ -144,6 +157,7 @@ class FilePanel(QWidget):
         self.view.setRootIndex(self.proxy.index_for(folder))
         self.service.results(self._folder)  # warm the sniff cache for status labels
         self._update_count()
+        self.refresh_name_lines()
 
     def set_view_root(self, folder: Path) -> None:
         """The top the grid may go up to (spec 31: the selected project, else the root): there
@@ -164,6 +178,7 @@ class FilePanel(QWidget):
         """Window close: the model stops talking to the proxy and this panel (see
         ``FileFilterProxy.detach``); queued counts are dropped and the running ones waited for,
         or the pool's destructor would run every queued scan, without a time limit."""
+        self._lines_timer.stop()
         self.model.blockSignals(True)
         self.proxy.detach()
         return self._count_tasks.shutdown(msecs)
@@ -213,11 +228,69 @@ class FilePanel(QWidget):
         self._counts[key] = count
         viewport_of(self.view).update()
 
+    def _names(self, parent: QModelIndex, rows: range) -> Iterator[str]:
+        """The names of ``rows`` of ``parent`` straight from the model (no paths, no disk);
+        ``..`` is no card of its own worth a taller grid."""
+        proxy = self.proxy
+        fs = proxy.fs
+        for row in rows:
+            name = fs.fileName(proxy.mapToSource(proxy.index(row, 0, parent)))
+            if name != "..":
+                yield name
+
+    def _measure_name_lines(self) -> int:
+        """Lines of the longest name the view lists now, after the filters."""
+        root = self.view.rootIndex()
+        return name_lines(
+            self._names(root, range(self.proxy.rowCount(root))), name_width(), name_metrics()
+        )
+
+    def _on_rows_inserted(self, parent: QModelIndex, first: int, last: int) -> None:
+        """Rows listed later (the model reads in its thread, bursts of them): only the new
+        names are measured, once; the card grows at the next tick of the timer."""
+        if self.grid_mode and parent == self.view.rootIndex():
+            lines = name_lines(
+                self._names(parent, range(first, last + 1)), name_width(), name_metrics()
+            )
+            self._wanted_lines = max(self._wanted_lines, lines)
+            self._start_lines_timer()
+
+    def _remeasure_later(self, *_args) -> None:
+        self._remeasure = True
+        self._start_lines_timer()
+
+    def _start_lines_timer(self) -> None:
+        if not self._lines_timer.isActive():
+            self._lines_timer.start()
+
+    def _flush_name_lines(self) -> None:
+        if not self.grid_mode:
+            return
+        if self._remeasure:
+            self._remeasure = False
+            self._wanted_lines = self._measure_name_lines()
+        self._set_name_lines(self._wanted_lines)
+
+    def refresh_name_lines(self) -> None:
+        """Cards are as tall as the longest name listed (spec 37 R1.2), measured again now: on a
+        folder change (rows that come later add to it). Nothing to do in list mode."""
+        if self.grid_mode:
+            self._remeasure = False
+            self._wanted_lines = self._measure_name_lines()
+            self._set_name_lines(self._wanted_lines)
+
+    def _set_name_lines(self, lines: int) -> None:
+        if lines != self.name_lines:
+            self.name_lines = lines
+            self.view.setGridSize(card_size(lines))
+            self.view.doItemsLayout()  # pyright: ignore[reportAttributeAccessIssue]
+
     def _apply_mode(self) -> None:
         view = self.view
         if self.grid_mode:
+            self._wanted_lines = self.name_lines = self._measure_name_lines()
             view.setViewMode(QListView.ViewMode.IconMode)
-            view.setGridSize(card_size())
+            view.setGridSize(card_size(self.name_lines))
             view.setWrapping(True)
             view.setResizeMode(QListView.ResizeMode.Adjust)
             view.setMovement(QListView.Movement.Static)
@@ -285,6 +358,7 @@ class FilePanel(QWidget):
         category = bar.category_filter()
         self.proxy.set_filters(bar.name_text(), category)
         self._update_count()
+        self._remeasure_later()  # the rows that stay may all be shorter, or longer, than before
         if category.badges:
             self._request_pending_badges()
 

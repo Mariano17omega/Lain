@@ -8,8 +8,8 @@ ALL = "Todos os projetos"
 CREATE = "Criar projeto…"
 
 
-def config_of(root: Path) -> LoadedConfig:
-    return LoadedConfig(parse_config({"paths": {"local_root": str(root)}}), None)
+def config_of(root: Path, ui: dict | None = None) -> LoadedConfig:
+    return LoadedConfig(parse_config({"paths": {"local_root": str(root)}, "ui": ui or {}}), None)
 
 
 def pick(window, text: str) -> None:

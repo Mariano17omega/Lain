@@ -72,7 +72,9 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   mirrored PDOS (`figure_structure.py`) with data captured before the spin work.
 - `main_window` fixture builds a full `MainWindow` with isolated QSettings, `FolderMemory` and
   `NavigationStore` (`tmp_path` files); it is `window_factory()`, which a test calls again (after
-  `window.close()`) to restart the app on the same files. The
+  `window.close()`) to restart the app on the same files (`window_factory(ui={...})` sets keys of the `ui:`
+  section; `tree_files_window` is one with `tree_show_files`, spec 37: the tree lists folders only otherwise, so
+  `grid_helpers.tree_names` shows no files in `main_window`). The
   controllers are tested without it too: `test_plot_workflow_unit.py` (a `Rig` with real workspace,
   params panel, status bar and detection service) and `test_sync_coordinator.py`. Dialogs are patched
   where they are imported: `qe_studio.ui.plot_workflow.{ask_mapping,choose_result}`,
@@ -846,6 +848,26 @@ the tree's when navigation (`select_path`) would be hidden by it. `nav_sections.
 `enter_many`, `FilePanel` drops `..` from every selection (`selection_changed(list[Path])`) and opens
 at most `MANY_FILES` files without asking (`ask_open_many`).
 
+**Names on the cards (spec 37 R1).** A grid card's name wraps instead of eliding (`file_card.wrap_name(text, width, metrics,
+max_lines)`: a line breaks after the last `BREAK_AFTER` character (`-`, `_`, `.`, space) that leaves it more than half
+full, else at the last character that fits; past `MAX_NAME_LINES` = 6 the last line is elided on the right with `…`).
+The view is uniform, so every card of a folder has the height of the longest name listed there: `card_size(lines)` adds
+`name_height()` per line over the one-line card (148 × 86 at scale 1), `FilePanel.name_lines` is `name_lines(names, width,
+metrics)` of what the proxy lists after the filters (only names wider than a line are wrapped). `set_folder`, the grid /
+list mode and a font scale change measure the whole listing at once; rows inserted later (the model reads in its thread)
+measure only their own names, and rows removed or a filter change measure the listing again, all applied by a 30 ms
+one-shot timer that coalesces bursts (about 35 µs a long name: 10 000 names ≈ 0.35 s). The line width is `name_width()`: the item is the grid
+cell less `CARD_MARGIN` (what `sizeHint` takes off), the painted rect is `CARD_INSET` in and the name has `NAME_SIDE`
+of air: 125 px at scale 1, not the cell's width. `paint` draws the name from the top and keeps the state line at the
+bottom (aligned across the cards of a row); the tooltip of a card whose name is cut (or of a row that elides it) starts
+with the whole name. List mode is one line per row, as before.
+
+**The tree lists folders only (spec 37 R2).** `ui.tree_show_files` (default `false`) is `ExplorerPanel`'s `dirs_only` of its
+`FileFilterProxy` (`set_dirs_only`; the model still reads the files, as it always did). The panel takes the `UiConfig`
+(`ExplorerPanel(theme, service, root, ui)`, `apply_config(root, ui)`), so "Recarregar config.yaml" applies it without a
+restart; the file grid is not affected. With files hidden, `select_path(file)` selects the file's folder and emits
+`file_selected(file)`, so the grid still selects the file (the tab menu's "Revelar no explorador" works the same).
+
 ### Projetos (spec 31)
 
 A **project** is a first-level folder of `paths.local_root` (the root folder: the texts say "pasta raiz"); the simulation
@@ -946,7 +968,8 @@ about). Three controllers are built by `for_window(window)` factories (keeps `ma
   `${activity_w}`) of the heights that hold text; `ui/theme/scale.py` keeps the scale in force for code
   without a `ThemeManager` (`scaled`, `scaled_font`). `mono_font` / `ui_font` take the size **at scale 1**.
   Row and card heights come from there or from `QFontMetrics` (`ui/widgets/file_card.py:card_size`), never
-  from a bare constant; paddings, icons and dialog widths do not scale. A widget that caches a size
+  from a bare constant; paddings, icons and dialog widths do not scale. A card is as tall as the longest name of
+  its folder (spec 37, below). A widget that caches a size
   connects `theme.scale_changed`. `MainWindow._apply_loaded` re-reads the scale ("Recarregar config.yaml").
 - **Contrast.** `core/colors.py` has `contrast_ratio` and `composite` (rgba over its background);
   `tests/test_theme_contrast.py` holds the WCAG AA table of the tokens in both themes. `text_dim` is only

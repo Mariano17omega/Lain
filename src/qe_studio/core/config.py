@@ -199,6 +199,8 @@ class UiConfig(_Section):
     # Scales every font and the heights that hold text; paddings and icons stay (spec 19 R2).
     font_scale: float = Field(default=1.0, ge=MIN_SCALE, le=MAX_SCALE)
     hidden_dirs: list[str] = Field(default_factory=lambda: ["tmp", "*.save"])
+    # The folder tree lists only folders; true adds the files (the file grid always shows them).
+    tree_show_files: bool = False
     # F5 rereads every file, even those whose (mtime, size) did not change (spec 14 R4.2).
     paranoid_refresh: bool = False
 

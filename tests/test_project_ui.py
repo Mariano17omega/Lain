@@ -39,8 +39,13 @@ def test_the_dropdown_lists_the_projects_of_the_root(open_window):
 def test_all_projects_is_how_it_was_before(qtbot, open_window, raiz):
     window = open_window()
     assert window.explorer.root == raiz and window.project.view_root == raiz
-    qtbot.waitUntil(lambda: tree_names(window) == ["ilita", "outro", "plots", "solto.txt"])
+    qtbot.waitUntil(lambda: tree_names(window) == ["ilita", "outro", "plots"])  # folders only
     assert window.windowTitle().endswith(f"[Raiz: {raiz}]")
+
+
+def test_the_tree_lists_the_loose_file_with_tree_show_files(qtbot, window_factory, raiz):
+    window = window_factory(config_of(raiz, ui={"tree_show_files": True}))
+    qtbot.waitUntil(lambda: tree_names(window) == ["ilita", "outro", "plots", "solto.txt"])
 
 
 def test_a_project_narrows_the_tree_to_its_folders(qtbot, open_window, raiz):

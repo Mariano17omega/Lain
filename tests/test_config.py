@@ -42,6 +42,15 @@ def test_example_config_validates(tmp_path):
     assert config.sync.push_exclude == AppConfig().sync.push_exclude
 
 
+def test_tree_show_files_is_off_by_default_and_documented(tmp_path):
+    """Spec 37 R2.1: the folder tree lists folders only unless the key turns files on."""
+    assert AppConfig().ui.tree_show_files is False
+    assert parse_config({"ui": {"tree_show_files": True}}).ui.tree_show_files is True
+    example = ROOT / "config.example.yaml"
+    assert "tree_show_files" in example.read_text(encoding="utf-8")
+    assert load_config(example, environ={}, cwd=tmp_path).config.ui.tree_show_files is False
+
+
 def test_search_order(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     cwd_cfg = write(tmp_path / "config.yaml", "{}")

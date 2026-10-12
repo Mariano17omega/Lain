@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 37 (dois ajustes de painel, independentes entre si; depois dos defeitos e dos ganhos pequenos) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (12/10/2026); ver "Decisões na implementação" |
 | **Depende de** | spec 5 (cartões da grade), spec 16 (filtros), spec 19 (`font_scale`: tamanhos dos cartões vêm da métrica da fonte), spec 31 (a raiz da árvore é o projeto) |
 | **Usada por** | nenhuma |
 | **Esforço** | M (R1: M; R2: P) |
@@ -105,3 +105,32 @@
 - [ ] `select_path` de um arquivo seleciona a pasta pai com a árvore só de pastas.
 - [ ] `config.example.yaml` (as duas cópias) idênticas e com a chave.
 - [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` (`main_window.py` ≤ 450) e a suíte `-m "not realdata and not perf"` verdes.
+
+## Decisões na implementação
+
+1. As decisões 1–4 acima ficaram como estavam (altura única por pasta, limite de 6 linhas, chave `ui.tree_show_files`, árvore só de
+   pastas por padrão).
+2. **A linha do nome tem 125 px, não 131.** O item do cartão é a célula da grade menos `CARD_MARGIN` = 6 (o que o `sizeHint` tira), e o
+   retângulo pintado entra `CARD_INSET` = 5 e deixa `NAME_SIDE` = 12 de ar: `name_width()` = `scaled(148) − 6 − 5 − 12`. Com 131, a
+   linha estourava o cartão e o `drawText` cortava as letras das pontas (visto numa captura da grade). Em escala 1 cabem 17 caracteres
+   da fonte mono, não 18; os testes derivam o número de caracteres por linha da métrica, nunca de uma constante.
+3. **`sizeHint` e `gridSize()` coincidem pela mesma conta, não no valor:** `sizeHint` = `card_size(linhas) − (CARD_MARGIN, CARD_MARGIN)`
+   (como já era) e `gridSize()` = `card_size(linhas)`; ambos mudam juntos com `FilePanel.name_lines`.
+4. **Onde quebrar:** depois do último `-`, `_`, `.` ou espaço que deixe a linha mais da metade cheia; um separador cedo demais
+   (`a-xxxxxxxx…`) não gasta a linha: quebra no último caractere que cabe. Sem separador, em qualquer caractere.
+5. **Custo da conta de linhas:** só os nomes mais largos que uma linha são quebrados (cerca de 35 µs cada; 10 000 nomes ≈ 0,35 s). Por
+   isso as linhas que chegam depois (o modelo lê numa thread, em rajadas) medem **só os nomes novos**, uma vez, e o recálculo da
+   listagem inteira fica para a troca de pasta, linhas removidas e mudança de filtro; um `QTimer` de 30 ms junta as rajadas.
+6. **O nome fica no alto do cartão e o estado embaixo** (alinhado entre os cartões de uma linha da grade); a conta de linhas usa a fonte
+   em negrito (a do selecionado), a mais larga, para o cartão não mudar de altura ao selecionar.
+7. **Tooltip:** o nome inteiro, uma linha em branco e, se houver, a explicação do selo ou do estado. Vale também no modo lista, quando a
+   linha elide (o modo lista segue com uma linha por item).
+8. **A árvore:** só o filtro do proxy (`dirs_only`) esconde os arquivos; o modelo continua lendo-os como antes (nenhum custo novo no
+   disco, e a troca por "Recarregar config.yaml" não depende de o modelo reler as pastas). `ExplorerPanel` recebe o `UiConfig` inteiro:
+   `main_window.py` ficou com 447 linhas.
+9. **`select_path(arquivo)`** com a árvore só de pastas seleciona a pasta e emite `file_selected(arquivo)`: a grade seleciona o
+   arquivo, e "Revelar no explorador" de uma aba de arquivo segue selecionando o arquivo na grade.
+10. **Testes:** `test_file_card_wrap.py` (a conta pura com Hypothesis, a janela: curtos, 4 linhas, 6 linhas com `…` e tooltip, voltar
+   ao tamanho, filtro, arquivos que chegam depois, escala, modo lista) e `test_tree_show_files.py` (padrão, ligado, grade igual, recarga,
+   `select_path` de um arquivo); `window_factory(ui=...)` e a fixture `tree_files_window` em `conftest.py`. Os testes que listavam arquivos
+   na árvore passaram a usá-la (`test_file_filter_ui`, `test_main_window`) ou a esperar só pastas (`test_project_ui`, `test_workspace_tabs`).

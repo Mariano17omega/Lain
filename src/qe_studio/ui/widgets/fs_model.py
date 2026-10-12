@@ -84,6 +84,12 @@ class FileFilterProxy(QSortFilterProxyModel):
         self.hidden_dirs = normalize_patterns(patterns)
         self.invalidateFilter()
 
+    def set_dirs_only(self, dirs_only: bool) -> None:
+        """Folders only (the tree's default) or folders and files."""
+        if dirs_only != self.dirs_only:
+            self.dirs_only = dirs_only
+            self.invalidateFilter()
+
     def set_root(self, root: Path) -> None:
         """Only entries below ``root`` are filtered (its ancestors may be named ``tmp``)."""
         self.root = Path(root)

@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...core.config import UiConfig
 from ...core.file_kinds import human_size, status_label, status_tooltip
 from ...core.filtering import BADGES, NO_BADGE
 from ..file_types import file_visual, level_token
@@ -172,7 +173,7 @@ class ExplorerPanel(QWidget):
         theme: ThemeManager,
         service: DetectionService,
         root: Path,
-        hidden_dirs: list[str],
+        ui: UiConfig,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -202,7 +203,13 @@ class ExplorerPanel(QWidget):
         layout.addWidget(self.filter_bar)
 
         self.model = make_fs_model(root, self)
-        self.proxy = FileFilterProxy(hidden_dirs, parent=self, service=service, keep_ancestors=True)
+        self.proxy = FileFilterProxy(
+            ui.hidden_dirs,
+            dirs_only=not ui.tree_show_files,
+            parent=self,
+            service=service,
+            keep_ancestors=True,
+        )
         self.proxy.setSourceModel(self.model)
         self.tree = QTreeView()
         self.tree.setObjectName("explorerTree")
@@ -265,9 +272,10 @@ class ExplorerPanel(QWidget):
         root); ``current_folder`` falls back to it."""
         self.set_root(folder)
 
-    def apply_config(self, root: Path, hidden_dirs: list[str]) -> None:
-        """A reloaded config: project root and hidden folders."""
-        self.proxy.set_hidden_dirs(hidden_dirs)
+    def apply_config(self, root: Path, ui: UiConfig) -> None:
+        """A reloaded config: project root, hidden folders and whether the tree lists files."""
+        self.proxy.set_hidden_dirs(ui.hidden_dirs)
+        self.proxy.set_dirs_only(not ui.tree_show_files)
         self.set_root(root)
 
     def refresh(self) -> None:
@@ -304,6 +312,11 @@ class ExplorerPanel(QWidget):
             self.folder_selected.emit(self._root)
             return
         index = self.proxy.index_for(path)
+        if not index.isValid() and self._is_unlisted_file(path):
+            # A folders-only tree (spec 37 R2.4): its folder is selected, the grid selects the file.
+            self.select_path(Path(path).parent)
+            self.file_selected.emit(Path(path))
+            return
         if not index.isValid() and self.filter_bar.is_active:
             self.filter_bar.dismiss()  # the filter hides it: navigation wins
             index = self.proxy.index_for(path)
@@ -311,6 +324,13 @@ class ExplorerPanel(QWidget):
             self.tree.setCurrentIndex(index)
             self.tree.scrollTo(index)
             self.tree.expand(index)
+
+    def _is_unlisted_file(self, path: Path) -> bool:
+        """A file the tree does not list because it shows folders only (read from the model)."""
+        if not self.proxy.dirs_only:
+            return False
+        source = self.proxy.fs.index(str(path))
+        return source.isValid() and not self.proxy.fs.isDir(source)
 
     def _on_current(self, current: QModelIndex, _previous: QModelIndex) -> None:
         if not current.isValid():

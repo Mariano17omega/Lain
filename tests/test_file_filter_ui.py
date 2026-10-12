@@ -170,8 +170,10 @@ def test_undetected_folders_wait_as_detectando(main_window, demo_project, monkey
 
 
 # -- tree ----------------------------------------------------------------------------------------
-def test_tree_filters_the_loaded_folders_and_keeps_ancestors(qtbot, main_window, demo_project):
-    window = main_window
+def test_tree_filters_the_loaded_folders_and_keeps_ancestors(
+    qtbot, tree_files_window, demo_project
+):
+    window = tree_files_window  # with ui.tree_show_files: the filter reaches the files
     window.explorer.select_path(demo_project / "04_pdos")  # opens it: its files are loaded
     qtbot.waitUntil(
         lambda: (
@@ -192,6 +194,20 @@ def test_tree_filters_the_loaded_folders_and_keeps_ancestors(qtbot, main_window,
     qtbot.keyClick(bar.field, Qt.Key.Key_Escape)
     assert tree_names(window) == everything and window.explorer.tree.hasFocus()
     assert not window.explorer.proxy.isRecursiveFilteringEnabled()
+
+
+def test_the_name_filter_of_the_tree_stays_on_the_folders_by_default(
+    qtbot, main_window, demo_project
+):
+    window = main_window  # folders only: a file name matches nothing, so nothing is kept
+    window.explorer.select_path(demo_project / "04_pdos")
+    bar = window.explorer.filter_bar
+    set_name(bar, "band")
+    assert tree_names(window) == ["03_bands"]
+    set_name(bar, "nscf")
+    assert tree_names(window) == []
+    qtbot.keyClick(bar.field, Qt.Key.Key_Escape)
+    assert tree_names(window) == ["01_relax", "02_scf", "03_bands", "04_pdos"]
 
 
 def test_tree_badge_filter(qtbot, main_window, demo_project):

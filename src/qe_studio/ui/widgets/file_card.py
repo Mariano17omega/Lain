@@ -1,10 +1,13 @@
 """The cards (grid) and rows (list) of the file view, painted by hand (PRD §2.1.3).
 
-Sizes come from the font metrics, so ``ui.font_scale`` never clips a name (spec 19 R2.3).
+Sizes come from the font metrics, so ``ui.font_scale`` never clips a name (spec 19 R2.3). A long
+name wraps over several lines instead of eliding (spec 37 R1): the grid is uniform, so every card of
+a folder is as tall as the longest name listed there (``FilePanel.name_lines``).
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -27,7 +30,11 @@ if TYPE_CHECKING:
 CARD_WIDTH = 148
 CARD_INSET = 5  # both sides of the painted rect together
 TILE, TILE_TOP, NAME_GAP, CARD_BOTTOM = 34, 7, 4, 5
+NAME_SIDE = 12  # air at both sides of the name, inside the painted rect
+CARD_MARGIN = 6  # the item is the grid cell less this (``sizeHint``): the card's air in its cell
 ROW = 26
+MAX_NAME_LINES = 6  # about 108 characters at scale 1; only past it the last line ends in "…"
+BREAK_AFTER = "-_. "  # a long name prefers to wrap after one of these, kept at its line's end
 
 
 def name_font_for(selected: bool) -> QFont:
@@ -47,9 +54,75 @@ def meta_band() -> int:
     return meta_height() + 12
 
 
-def card_size() -> QSize:
-    height = CARD_INSET + TILE_TOP + TILE + NAME_GAP + name_height() + 1 + meta_height()
+def name_width() -> int:
+    """Width of one line of a card's name: the item (the grid cell less ``CARD_MARGIN``), then
+    the painted rect (``CARD_INSET`` in), less the air at its sides."""
+    return scaled(CARD_WIDTH) - CARD_MARGIN - CARD_INSET - NAME_SIDE
+
+
+def name_metrics() -> QFontMetrics:
+    return QFontMetrics(name_font_for(True))  # a selected name is bold, the widest weight
+
+
+def card_size(lines: int = 1) -> QSize:
+    """The card for a name of ``lines`` lines (1 = today's 148 x 86 at scale 1)."""
+    lines = min(max(lines, 1), MAX_NAME_LINES)
+    height = CARD_INSET + TILE_TOP + TILE + NAME_GAP + lines * name_height() + 1 + meta_height()
     return QSize(scaled(CARD_WIDTH), height + CARD_BOTTOM)
+
+
+def wrap_name(
+    text: str, width: int, metrics: QFontMetrics, max_lines: int = MAX_NAME_LINES
+) -> list[str]:
+    """``text`` in lines that fit ``width`` px (spec 37 R1.1).
+
+    A line breaks after the last ``BREAK_AFTER`` character that leaves it more than half full,
+    else at the last character that fits (a word wider than the line cannot spill out of the
+    card). Past ``max_lines`` the last line is elided on the right with "…". Pure over the
+    metrics: no widget, no disk. Joined, the lines are ``text`` unless it was cut.
+    """
+    lines: list[str] = []
+    rest = text
+    while rest:
+        total = metrics.horizontalAdvance(rest)
+        if total <= width:
+            lines.append(rest)
+            break
+        if len(lines) >= max_lines - 1:
+            lines.append(metrics.elidedText(rest, Qt.TextElideMode.ElideRight, width))
+            break
+        fit = _chars_that_fit(rest, total, width, metrics)
+        cut = next((k for k in range(fit, fit // 2, -1) if rest[k - 1] in BREAK_AFTER), fit)
+        lines.append(rest[:cut])
+        rest = rest[cut:]
+    return lines or [""]
+
+
+def _chars_that_fit(text: str, total: int, width: int, metrics: QFontMetrics) -> int:
+    """Largest ``n`` (one at least, so every line makes progress) with ``text[:n]`` within
+    ``width``; ``total`` is the advance of ``text`` (wider than ``width``). The guess by
+    proportion is exact in the mono font, so a few measures settle it."""
+    n = max(1, min(len(text) - 1, len(text) * width // total))
+    if metrics.horizontalAdvance(text[:n]) <= width:
+        while n < len(text) and metrics.horizontalAdvance(text[: n + 1]) <= width:
+            n += 1
+        return n
+    n -= 1
+    while n > 1 and metrics.horizontalAdvance(text[:n]) > width:
+        n -= 1
+    return n
+
+
+def name_lines(names: Iterable[str], width: int, metrics: QFontMetrics) -> int:
+    """Lines of the longest of ``names`` (1 when all fit one line), at most ``MAX_NAME_LINES``.
+    Only a name wider than ``width`` is wrapped, so short ones cost a measure."""
+    most = 1
+    for name in names:
+        if metrics.horizontalAdvance(name) > width:
+            most = max(most, len(wrap_name(name, width, metrics)))
+            if most >= MAX_NAME_LINES:
+                break
+    return most
 
 
 def row_height() -> int:
@@ -67,7 +140,7 @@ class FileCardDelegate(QStyledItemDelegate):
 
     def sizeHint(self, option, index) -> QSize:
         if self.panel.grid_mode:
-            return card_size() - QSize(6, 6)
+            return card_size(self.panel.name_lines) - QSize(CARD_MARGIN, CARD_MARGIN)
         return QSize(option.rect.width(), row_height())
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
@@ -102,9 +175,7 @@ class FileCardDelegate(QStyledItemDelegate):
         else:
             title = path.name
             icon_name, token = file_visual(path, is_dir)
-            meta, meta_token = self._meta(path, is_dir, proxy.fs.size(proxy.mapToSource(index)))
-            if proxy.is_pending(index):  # a badge filter waits for this folder's detection
-                meta, meta_token = "detectando…", "text_meta"
+            meta, meta_token = self._meta_for(index, path, is_dir)
         name_color = theme.color("accent_text" if selected or is_dir else "text")
         name_font = name_font_for(selected)
         if self.panel.grid_mode:
@@ -119,16 +190,21 @@ class FileCardDelegate(QStyledItemDelegate):
             )
             painter.setFont(name_font)
             painter.setPen(name_color)
+            room = self.panel.name_lines  # the lines every card of this folder has for its name
             name_rect = QRect(
-                int(rect.left()) + 6,
+                int(rect.left()) + NAME_SIDE // 2,
                 int(tile.bottom()) + NAME_GAP,
-                int(rect.width()) - 12,
-                name_height(),
+                int(rect.width()) - NAME_SIDE,
+                name_height() * room,
             )
-            name = painter.fontMetrics().elidedText(
-                title, Qt.TextElideMode.ElideMiddle, name_rect.width()
-            )
-            painter.drawText(name_rect, Qt.AlignmentFlag.AlignCenter, name)
+            for row, line in enumerate(wrap_name(title, name_width(), name_metrics(), room)):
+                line_rect = QRect(
+                    name_rect.left(),
+                    name_rect.top() + row * name_height(),
+                    name_rect.width(),
+                    name_height(),
+                )
+                painter.drawText(line_rect, Qt.AlignmentFlag.AlignCenter, line)
             painter.setFont(mono_font(10))
             painter.setPen(theme.color(meta_token))
             painter.drawText(
@@ -150,7 +226,7 @@ class FileCardDelegate(QStyledItemDelegate):
             )
             painter.setFont(name_font)
             painter.setPen(name_color)
-            name_rect = rect.toRect().adjusted(28, 0, -meta_width - 8, 0)
+            name_rect = self._list_name_rect(rect, meta_width)
             name = painter.fontMetrics().elidedText(
                 title, Qt.TextElideMode.ElideMiddle, name_rect.width()
             )
@@ -158,6 +234,18 @@ class FileCardDelegate(QStyledItemDelegate):
                 name_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, name
             )
         painter.restore()
+
+    @staticmethod
+    def _list_name_rect(rect: QRectF, meta_width: int) -> QRect:
+        """Where a row's name goes: after the icon, before the size / state at the right."""
+        return rect.toRect().adjusted(28, 0, -meta_width - 8, 0)
+
+    def _meta_for(self, index: QModelIndex, path: Path, is_dir: bool) -> tuple[str, str]:
+        """The line under a card's name (or at the end of a row) and its color token."""
+        proxy = self.panel.proxy
+        if proxy.is_pending(index):  # a badge filter waits for this folder's detection
+            return "detectando…", "text_meta"
+        return self._meta(path, is_dir, proxy.fs.size(proxy.mapToSource(index)))
 
     def _meta(self, path: Path, is_dir: bool, size: int) -> tuple[str, str]:
         """Folders: entry count. Files: state only on cards, size (and state) in list mode."""
@@ -185,14 +273,31 @@ class FileCardDelegate(QStyledItemDelegate):
         if proxy.is_up(index):
             return ""
         path = proxy.path(index)
-        if proxy.is_dir(index):
-            return folder_tooltip(service, path)
-        size = proxy.fs.size(proxy.mapToSource(index))
-        meta = self._meta(path, False, size)[0]
-        if self.panel.grid_mode:  # the state is the line under the name
-            in_meta = pos.y() >= rect.bottom() - meta_band()
-        else:  # the state ends the row
-            in_meta = (
-                pos.x() >= rect.right() - QFontMetrics(mono_font(10)).horizontalAdvance(meta) - 16
-            )
-        return state_tooltip(service, path, size) if in_meta else ""
+        is_dir = proxy.is_dir(index)
+        meta = self._meta_for(index, path, is_dir)[0]
+        parts = [path.name if self._name_cut(path.name, rect, meta) else ""]  # spec 37 R1.3
+        if is_dir:
+            parts.append(folder_tooltip(service, path))
+        else:
+            if self.panel.grid_mode:  # the state is the line under the name
+                in_meta = pos.y() >= rect.bottom() - meta_band()
+            else:  # the state ends the row
+                in_meta = (
+                    pos.x()
+                    >= rect.right() - QFontMetrics(mono_font(10)).horizontalAdvance(meta) - 16
+                )
+            if in_meta:
+                size = proxy.fs.size(proxy.mapToSource(index))
+                parts.append(state_tooltip(service, path, size))
+        return "\n\n".join(part for part in parts if part)
+
+    def _name_cut(self, name: str, rect: QRect, meta: str) -> bool:
+        """Whether the card (or row) shows ``name`` incomplete: past the line limit, or elided
+        in a row. Mirrors ``paint``, which wraps / elides with the same widths."""
+        if self.panel.grid_mode:
+            lines = wrap_name(name, name_width(), name_metrics(), self.panel.name_lines)
+            return "".join(lines) != name
+        meta_width = QFontMetrics(mono_font(10)).horizontalAdvance(meta) + 8
+        shown = QRectF(rect).adjusted(2.5, 2.5, -2.5, -2.5)
+        width = max(self._list_name_rect(shown, meta_width).width(), 0)
+        return QFontMetrics(name_font_for(False)).horizontalAdvance(name) > width
