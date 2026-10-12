@@ -465,6 +465,26 @@ series, and smeared edges make it read narrower than the true gap. `dos_gap` tak
 often sits a few tenths of eV *inside* the top of the valence band, so a tighter window (it was 0.25 eV) found no gap
 in real insulators; semicore gaps are further away, and a metal still has no empty region near E_F.
 
+**Gap method (spec 34).** `gap_method` (`auto` | `homo_lumo` | `janela`, `params.GAP_METHODS`) of `BandsParams`,
+`PdosParams` and `BandsDosParams` is `GAP_METHOD_FIELD`, right after the legend-gap field, `requires="legend_gap"`; it
+changes only the gap of the legend and the footer, never the reference (`vbm`, `midgap`), `dataset.vbm/cbm/edges` or the
+figure. `params.gap_method_in_force(params)` is the one place that reads it: the chosen method only with `legend_gap` on
+(an unknown value is `auto` too), else `auto`, so a disabled field does nothing. `auto` is everything above, unchanged.
+`homo_lumo` is the pair pw.x printed (`PwOutput.homo_lumo`, a property; `BandsDataset.homo_lumo` from the bands' SCF,
+`PdosDataset.homo_lumo` from the NSCF, else SCF: `pdos/gap.py:printed_pair`), `bands/gap.py:printed_gap` (`> EDGE_TOL`,
+also used by `pdos_gap`), one entry for both spin channels. `janela` is the user's script: `bands/gap.py:window_gap(energies,
+ref, emin, emax)` takes every `E − ref` inside the plot's window and the widest spacing between neighbours, at least
+`WINDOW_GAP_MIN_EV` = 0.05 eV (`window_entries`: per spin channel, global by `spin_band_edges`' rule); the PDOS one is
+`projwfc.dos_gap_window(energy, total, low, high, min_width)`, the widest empty run of the system's total (never the atoms
+chosen) whose two bounding points lie in the window (`_empty_runs` is shared with `dos_gap`). `gap_entries(dataset, params)`,
+`summary` and `notes` of bands take `params=None` (= `auto`); bands + DOS passes `bands_view(params)` and never asks the DOS
+(`gap_for` is the PDOS figure's). Footer: bands `auto` as before, the others `(HOMO/LUMO)` / `(na janela)` or `sem gap (…)`
+and never "metálico"; `dataset.gap_note` only in `auto`; the PDOS footer has a gap only outside `auto`. Missing gaps say why
+in a visible legend (`method_note`: `NO_HOMO_LUMO_NOTE`, `CLOSED_HOMO_LUMO_NOTE`, `NO_WINDOW_GAP_NOTE`). Pan/zoom does not
+redraw, so the on-screen `janela` gap follows the window at the next render; exports always use it. Tests:
+`test_gap_method_bands.py`, `test_gap_method_pdos.py`, and the method cases in `test_bands_dos_render.py`,
+`test_grid_render.py`, `test_params_requires.py`.
+
 ### Atom selection in the PDOS (spec 21)
 
 `PdosParams.atoms` (`list[int] | None`, 1-based, `None` = all) is picked in `ui/dialogs/atoms.py:AtomsDialog` (button

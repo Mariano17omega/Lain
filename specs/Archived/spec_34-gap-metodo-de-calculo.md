@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 34 (o aviso "metálico" do item 1 já foi corrigido em `f5492fb`; o valor que o usuário espera só vem com o método do R1) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (12/10/2026); ver "Decisões na implementação" |
 | **Depende de** | spec 13 (spin), spec 20 (gap na legenda: `gap_entries`, `legend_gap`), spec 21 (a seleção de átomos não muda o gap), spec 22 (bandas + DOS), spec 27-6 (regras de E_F e "no caminho") |
 | **Usada por** | nenhuma |
 | **Esforço** | M |
@@ -124,6 +124,23 @@ Os dois itens são o mesmo problema: o gap que o app mostra não é o que o usu�
 5. O rodapé (`E_gap (no caminho) = …`) segue o método, para ele e a legenda dizerem o mesmo número (a regra "uma fonte" da spec 20).
 6. Em `janela` com spin, a entrada `global` usa a mesma regra de `spin_band_edges` (só com gap nos dois canais).
 
+## Decisões na implementação (12/10/2026, com o usuário)
+1. **O método só vale com "Gap de energia na legenda" ligado** (o contrato do `requires`: campo desabilitado não tem efeito).
+   `params.gap_method_in_force(params)` dá `auto` sem `legend_gap` ou com um valor desconhecido; o rodapé de bandas também volta
+   ao `auto` então (corrige a decisão 5 para esse caso).
+2. **Rodapé da PDOS** (R3.3): em `auto` continua sem gap (bit a bit); `homo_lumo` e `janela` acrescentam
+   `E_gap (HOMO/LUMO) = … eV` / `E_gap (na janela) ≈ … eV` ou `sem gap (…)` logo depois de E_F.
+3. **O par, não só o `lumo`** (R2.1): `PwOutput.homo_lumo` (propriedade) e `homo_lumo: tuple[float, float] | None` em
+   `BandsDataset` e `PdosDataset` (NSCF antes do SCF, `pdos/gap.py:printed_pair`); `printed_gap(pair)` (`bands/gap.py`) é a regra
+   única (`> EDGE_TOL`), também de `pdos_gap`. Par impresso fechado: `CLOSED_HOMO_LUMO_NOTE`.
+4. **Rodapé de bandas por método:** `auto` igual a antes (`(no caminho)`, "metálico"); os outros dizem `(HOMO/LUMO)` /
+   `(na janela)`, por canal e global com spin, ou `sem gap (…)`, e nunca "↑ metálico" (isso é da contagem).
+   `dataset.gap_note` só aparece em `auto` (R2.3). `gap_entries` e `summary` aceitam `params=None` (= `auto`).
+5. **`dos_gap_window(energy, total, low, high, min_width)`**: `min_width` vem de quem chama (`core/qe` não importa `calculations`);
+   `_empty_runs` é comum a ela e a `dos_gap` (resultado de `dos_gap` inalterado).
+6. **Limitação:** pan/zoom da barra do gráfico não redesenha a figura; o gap `janela` da legenda na tela muda no próximo desenho
+   (edição no painel, regenerar). A exportação sempre desenha com a janela atual.
+
 ## Notas de implementação
 - Novos: `tests/test_gap_method_bands.py`, `tests/test_gap_method_pdos.py`.
 - Alterados: `core/calculations/params.py` (218 linhas; o campo), `bands/params.py`, `pdos/params.py`, `bands_dos/params.py`, `bands/data.py`
@@ -134,13 +151,13 @@ Os dois itens são o mesmo problema: o gap que o app mostra não é o que o usu�
 - Documentação ao implementar: `CLAUDE.md`, seção "Energy gap in the legend (spec 20)": o método e que ele só muda a legenda e o rodapé.
 
 ## Critérios de aceite e testes
-- [ ] Padrão `auto`: `test_legend_gap_bands.py`, `test_legend_gap_pdos.py`, `test_bands_gap_fermi.py`, `test_figure_regression.py` e
+- [x] Padrão `auto`: `test_legend_gap_bands.py`, `test_legend_gap_pdos.py`, `test_bands_gap_fermi.py`, `test_figure_regression.py` e
       `test_bands_spin_render.py` passam sem regenerar goldens.
-- [ ] Bandas, contagem ímpar com `janela`: gap do vazio grande (não 0,07) e rodapé e legenda com o mesmo valor.
-- [ ] `janela` respeita `emin/emax` e `reference`; sem intervalo ≥ 0,05 eV: sem entrada e com a nota.
-- [ ] `homo_lumo` sem par impresso: sem entrada e com `NO_HOMO_LUMO_NOTE` em bandas, PDOS e bandas + DOS.
-- [ ] PDOS `janela` e `homo_lumo` nos casos sintéticos e com as fixtures citadas; a seleção de átomos não muda o gap.
-- [ ] Uma célula de grid de bandas com `janela` desenha a mesma legenda que a figura aberta.
+- [x] Bandas, contagem ímpar com `janela`: gap do vazio grande (não 0,07) e rodapé e legenda com o mesmo valor.
+- [x] `janela` respeita `emin/emax` e `reference`; sem intervalo ≥ 0,05 eV: sem entrada e com a nota.
+- [x] `homo_lumo` sem par impresso: sem entrada e com `NO_HOMO_LUMO_NOTE` em bandas, PDOS e bandas + DOS.
+- [x] PDOS `janela` e `homo_lumo` nos casos sintéticos e com as fixtures citadas; a seleção de átomos não muda o gap.
+- [x] Uma célula de grid de bandas com `janela` desenha a mesma legenda que a figura aberta.
 - [ ] **Conferência manual (usuário):** na pasta `Exemplo-bands-010-mehg-O1`, "Maior intervalo na janela" com a janela do script (−2 a 8 eV)
       mostra ≈ 3,76 eV.
-- [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+- [x] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.

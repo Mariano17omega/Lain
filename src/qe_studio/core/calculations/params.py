@@ -137,6 +137,36 @@ LEGEND_GAP_FIELD = ParamField(
     requires="show_legend",
 )
 
+# How the gap of the legend and the footer is found (spec 34); only the band and PDOS modules.
+GAP_METHODS = (
+    ("auto", "Automático"),
+    ("homo_lumo", "HOMO/LUMO do SCF"),
+    ("janela", "Maior intervalo na janela"),
+)
+GAP_METHOD_FIELD = ParamField(
+    "gap_method",
+    "Método do gap",
+    "Legenda",
+    "choice",
+    choices=GAP_METHODS,
+    tooltip="Automático: nas bandas, pela contagem de elétrons; na PDOS, pelo HOMO/LUMO impresso "
+    "ou pela DOS total perto de E_F.\n"
+    "HOMO/LUMO do SCF: o par que o pw.x imprime (só com ocupações fixas e nbnd maior que as "
+    "bandas ocupadas).\n"
+    "Maior intervalo na janela: o maior vazio de pelo menos 0,05 eV entre as energias visíveis; "
+    "muda com E mín e E máx.",
+    requires="legend_gap",
+)
+
+
+def gap_method_in_force(params: CommonParams) -> str:
+    """The gap method that applies: the chosen one only while the gap is in the legend (the field
+    does nothing without ``legend_gap``), else ``auto``; an unknown stored value is ``auto`` too."""
+    method = getattr(params, "gap_method", "auto")
+    known = method in (value for value, _label in GAP_METHODS)
+    return method if known and getattr(params, "legend_gap", False) else "auto"
+
+
 COMMON_FIELDS = (
     ParamField("line_width", "Espessura", "Estilo", "float", minimum=0.1, maximum=6, step=0.1),
     ParamField("show_legend", "Mostrar legenda", "Legenda", "bool"),

@@ -227,34 +227,57 @@ def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosDa
     return PdosData(energy, tuple(series), total, total_is_sum, tuple(warnings))
 
 
-def dos_gap(energy: np.ndarray, total: Channel, fermi: float | None) -> float | None:
-    """The energy gap around ``fermi`` read off the total DOS (both spin channels summed), or None.
-
-    The gap is the widest empty region (``GAP_DOS_REL_TOL`` of the maximum or less) at most
-    ``GAP_SEARCH_EV`` from E_F (nearest on a tie), measured from the last point above the threshold
-    below it to the first above it: the error is about the grid step plus the broadening. A region
-    that reaches the edge of the grid has no states on one side to bound it and is not a candidate.
-    There is none without E_F or when no such region lies near it (a metal, or E_F deep in a band).
-    """
-    if fermi is None or len(energy) < 3:
-        return None
+def _empty_runs(energy: np.ndarray, total: Channel) -> list[tuple[int, int]]:
+    """The runs ``[start, stop)`` of empty points (``GAP_DOS_REL_TOL`` of the maximum or less) of
+    the total DOS (both spin channels summed), each bounded by states on both sides: a run that
+    reaches the edge of the grid has nothing to bound it and is left out."""
+    if len(energy) < 3:
+        return []
     dos = total.up if total.down is None else total.up + total.down
     peak = float(dos.max())
     if peak <= 0:
-        return None
+        return []
     padded = np.concatenate(([False], dos <= GAP_DOS_REL_TOL * peak, [False]))
-    changes = np.flatnonzero(padded[1:] != padded[:-1])  # runs of empty points: [start, stop)
-    best: tuple[float, float, int, int] | None = None  # (width, -away, start, stop)
-    for start, stop in zip(changes[::2], changes[1::2], strict=True):
-        if start == 0 or stop == len(energy):
-            continue
+    changes = np.flatnonzero(padded[1:] != padded[:-1])
+    return [
+        (int(start), int(stop))
+        for start, stop in zip(changes[::2], changes[1::2], strict=True)
+        if start != 0 and stop != len(energy)
+    ]
+
+
+def dos_gap(energy: np.ndarray, total: Channel, fermi: float | None) -> float | None:
+    """The energy gap around ``fermi`` read off the total DOS (both spin channels summed), or None.
+
+    The gap is the widest empty region (``_empty_runs``) at most ``GAP_SEARCH_EV`` from E_F (nearest
+    on a tie), measured from the last point above the threshold below it to the first above it: the
+    error is about the grid step plus the broadening. There is none without E_F or when no such
+    region lies near it (a metal, or E_F deep in a band).
+    """
+    if fermi is None:
+        return None
+    best: tuple[float, float] | None = None  # (width, -away)
+    for start, stop in _empty_runs(energy, total):
         away = max(float(energy[start]) - fermi, fermi - float(energy[stop - 1]), 0.0)
         if away > GAP_SEARCH_EV:
             continue
-        candidate = (float(energy[stop] - energy[start - 1]), -away, int(start), int(stop))
-        if best is None or candidate[:2] > best[:2]:
+        candidate = (float(energy[stop] - energy[start - 1]), -away)
+        if best is None or candidate > best:
             best = candidate
-    if best is None:
-        return None
-    _, _, start, stop = best
-    return float(energy[stop] - energy[start - 1])
+    return None if best is None else best[0]
+
+
+def dos_gap_window(
+    energy: np.ndarray, total: Channel, low: float, high: float, min_width: float
+) -> float | None:
+    """The widest empty region of the total DOS whose two bounding points (the last one with
+    states below it, the first one above) lie in ``[low, high]`` (absolute energies: the plot's
+    window), measured as ``dos_gap`` measures; None when none is ``min_width`` wide."""
+    low, high = sorted((low, high))
+    widths = [
+        float(energy[stop] - energy[start - 1])
+        for start, stop in _empty_runs(energy, total)
+        if low <= energy[start - 1] and energy[stop] <= high
+    ]
+    best = max(widths, default=None)
+    return best if best is not None and best >= min_width else None

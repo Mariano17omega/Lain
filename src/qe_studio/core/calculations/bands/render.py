@@ -12,16 +12,18 @@ from matplotlib.ticker import AutoMinorLocator
 from ...plotting.draw import finish, finish_side, new_axes, side_axes
 from ...plotting.style import PlotStyle
 from ...qe.pw_input import format_kpoint_label
-from ..params import RenderInfo
+from ..params import RenderInfo, gap_method_in_force
 from ..readout import nearest_tick_label, signed
 from .data import BandsDataset, valence_mask
-from .gap import gap_entries, gap_handles, legend_gap_notes
+from .gap import GapEntry, gap_entries, gap_handles, legend_gap_notes
 from .params import ENERGY_NAMES, Y_LABELS, BandsParams
 
 SYMBOL = {"up": "↑", "down": "↓"}
 FERMI_DASH = (0, (5, 3))
 DOWN_DASH = (0, (4, 2))  # the ↓ channel, when both share an axes
 ON_PATH = "(no caminho)"  # every band gap is the one along the k path (spec 27-6)
+# Where the footer says each gap method measured it (spec 34).
+GAP_WHERE = {"auto": ON_PATH, "homo_lumo": "(HOMO/LUMO)", "janela": "(na janela)"}
 
 
 def render_bands(
@@ -77,8 +79,8 @@ def _render_plain(
     handles += gap_handles(dataset, params)
     finish(figure, ax, params, handles)
     xlim = band_xlim(dataset, params)
-    found = (*notes(dataset), *legend_gap_notes(dataset, params))
-    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset), found)
+    found = (*notes(dataset, params), *legend_gap_notes(dataset, params))
+    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset, params), found)
 
 
 def draw_plain(
@@ -163,8 +165,8 @@ def _render_spin(
         finish_side(figure, axes, params, handles)
     else:
         finish(figure, axes[0], params, handles)
-    found = (*notes(dataset), *legend_gap_notes(dataset, params))
-    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset), found)
+    found = (*notes(dataset, params), *legend_gap_notes(dataset, params))
+    return RenderInfo(xlim, (params.emin, params.emax), summary(dataset, params), found)
 
 
 def _draw_panel(
@@ -303,7 +305,8 @@ def tick_labels(dataset: BandsDataset, params: BandsParams) -> list[str]:
     return [format_kpoint_label(label) for label in raw]
 
 
-def summary(dataset: BandsDataset) -> str:
+def summary(dataset: BandsDataset, params: BandsParams | None = None) -> str:
+    """E_F, the gap by the method in force (``params`` None: ``auto``) and the size of the data."""
     parts = []
     if dataset.fermi is not None:
         if dataset.fermi_up_down is not None and dataset.spin:
@@ -312,39 +315,59 @@ def summary(dataset: BandsDataset) -> str:
         else:
             name = "E_F" if dataset.fermi_kind in ("fermi", "spin_fermi") else "HOMO"
             parts.append(f"{name} = {dataset.fermi:.4f} eV")
+    method = "auto" if params is None else gap_method_in_force(params)
+    gaps = gap_entries(dataset, params)
     if dataset.spin:
         parts.append("spin polarizado")
-        parts += _spin_gaps(dataset)
+        parts += _gap_parts(dataset, gaps, method)
         if dataset.magnetization is not None:
             parts.append(f"M = {dataset.magnetization:.2f} μB/célula")
-    elif dataset.edges:  # spin run with the ↑ channel only: not a verdict on the whole system
-        parts += _spin_gaps(dataset)
-    elif gaps := gap_entries(dataset):
-        parts.append(f"E_gap {ON_PATH} = {gaps[0].value:.3f} eV")
-    elif dataset.fermi is not None and dataset.gap_note is None:  # the note says "indeterminado"
-        parts.append("metálico")
+    else:
+        parts += _gap_parts(dataset, gaps, method)
     parts.append(f"{dataset.bands.n_bands} bandas × {dataset.bands.n_kpoints} pontos k")
     return " · ".join(parts)
 
 
-def notes(dataset: BandsDataset) -> tuple[str, ...]:
+def notes(dataset: BandsDataset, params: BandsParams | None = None) -> tuple[str, ...]:
     """What the readout warns about (spec 27-6): a gap the electron count gives but E_F does not
-    back, or one counted without E_F. Never drawn on the figure."""
-    return (dataset.gap_note,) if dataset.gap_note else ()
+    back, or one counted without E_F; only about the ``auto`` gap. Never drawn on the figure."""
+    method = "auto" if params is None else gap_method_in_force(params)
+    return (dataset.gap_note,) if dataset.gap_note and method == "auto" else ()
 
 
-def _spin_gaps(dataset: BandsDataset) -> list[str]:
+def _gap_parts(dataset: BandsDataset, gaps: list[GapEntry], method: str) -> list[str]:
+    """The footer's gap words. ``auto`` says "metálico" (a spin run per channel, and no verdict
+    when ``gap_note`` doubts the count); the other methods say where they found none."""
+    if method != "auto":
+        where = GAP_WHERE[method]
+        return [_gap_text(entry, where) for entry in gaps] or [f"sem gap {where}"]
+    if dataset.spin or dataset.edges:  # a spin run, or one with the ↑ channel only
+        return _spin_gaps(dataset, gaps)
+    if gaps:
+        return [_gap_text(gaps[0], ON_PATH)]
+    return ["metálico"] if dataset.fermi is not None and dataset.gap_note is None else []
+
+
+def _gap_text(entry: GapEntry, where: str) -> str:
+    """``E_gap (no caminho) = 1.234 eV``, ``gap ↑ (no caminho) 1.234 eV``, ``gap global …``."""
+    if entry.channel is None:
+        return f"E_gap {where} = {entry.value:.3f} eV"
+    name = "global" if entry.channel == "global" else SYMBOL[entry.channel]
+    return f"gap {name} {where} {entry.value:.3f} eV"
+
+
+def _spin_gaps(dataset: BandsDataset, gaps: list[GapEntry]) -> list[str]:
     """``gap ↑ (no caminho) 1.234 eV``, ``↓ metálico`` per channel, and the global gap when both
-    have one."""
+    have one (``auto``)."""
     parts = []
-    gaps = {entry.channel: entry.value for entry in gap_entries(dataset)}
+    by_channel = {entry.channel: entry for entry in gaps}
     for channel, edges in dataset.edges.items():
-        if channel in gaps:
-            parts.append(f"gap {SYMBOL[channel]} {ON_PATH} {gaps[channel]:.3f} eV")
+        if channel in by_channel:
+            parts.append(_gap_text(by_channel[channel], ON_PATH))
         elif edges.metallic:
             parts.append(f"{SYMBOL[channel]} metálico")
-    if "global" in gaps:
-        parts.append(f"gap global {ON_PATH} {gaps['global']:.3f} eV")
+    if "global" in by_channel:
+        parts.append(_gap_text(by_channel["global"], ON_PATH))
     return parts
 
 

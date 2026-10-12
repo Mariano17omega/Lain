@@ -108,6 +108,7 @@ class BandsDataset:
     fermi_up_down: tuple[float, float] | None = None  # fixed magnetization: one E_F per channel
     magnetization: float | None = None  # total, μB/cell
     gap_note: str | None = None  # why the gap is missing or in doubt (a RenderInfo note)
+    homo_lumo: tuple[float, float] | None = None  # the pair the SCF printed (gap method homo_lumo)
 
     @property
     def spin(self) -> bool:
@@ -162,6 +163,7 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> BandsDataset:
         bands_down=bands_down,
         fermi_up_down=pw.fermi_up_down if pw else None,
         magnetization=pw.total_magnetization if pw else None,
+        homo_lumo=pw.homo_lumo if pw else None,
     )
     if pw is not None:
         band_edges(dataset, pw)

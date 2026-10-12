@@ -61,7 +61,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 31 | [spec_31-projetos.md](Archived/spec_31-projetos.md) | Pastas de 1º nível de `local_root` = Projetos; dropdown "Projeto" filtra árvore, grade, breadcrumb e paleta; "Criar projeto…"; sync do projeto selecionado | 16, 17, 18, 26, 27 | M/G | Opus 5.5 |
 | 32 | [spec_32-exportacao-nomes-csv-e-ajustes.md](Archived/spec_32-exportacao-nomes-csv-e-ajustes.md) | Figuras exportadas como `<projeto>-<pastas>-<tipo>.png`; CSV (`;`, vírgula decimal, nomes das colunas) ao lado das figuras de bandas, PDOS e bandas + DOS; a roda do mouse não mexe nos campos do painel de ajustes; corrige o botão "Átomos…" da PDOS (`WA_DeleteOnClose` + `exec`) | 15, 21, 22, 31 | G | Opus 5.5 |
 | 33 | [spec_33-pequenos-defeitos-resumo-reveal-e-barra.md](Archived/spec_33-pequenos-defeitos-resumo-reveal-e-barra.md) | Resumo: "k-pontos irredutíveis" e "Malha k" (do input de mesmo nome); "Abrir local de origem" lê a resposta D-Bus com `QDBusPendingReply` (hoje falha em toda chamada); barra superior só com o LED (o `usuario@host` vai para o tooltip) | 5, 11, 12 | P | Sonnet 5.5 |
-| 34 | [spec_34-gap-metodo-de-calculo.md](spec_34-gap-metodo-de-calculo.md) | Parâmetro `gap_method` (automático, HOMO/LUMO do SCF, maior intervalo na janela) em bandas, PDOS e bandas + DOS; legenda e rodapé seguem o método; reproduz o "metálico" da pasta real (já corrigido em `f5492fb`, mas com 0,07 eV) | 13, 20, 21, 22, 27-6 | M | Opus 5.5 |
+| 34 | [spec_34-gap-metodo-de-calculo.md](Archived/spec_34-gap-metodo-de-calculo.md) | Parâmetro `gap_method` (automático, HOMO/LUMO do SCF, maior intervalo na janela) em bandas, PDOS e bandas + DOS; legenda e rodapé seguem o método; reproduz o "metálico" da pasta real (já corrigido em `f5492fb`, mas com 0,07 eV) | 13, 20, 21, 22, 27-6 | M | Opus 5.5 |
 | 35 | [spec_35-plotar-saida-de-relax-pelo-menu.md](spec_35-plotar-saida-de-relax-pelo-menu.md) | "Plotar" no menu das saídas de relax/vc-relax: aba por saída, input pareado por nome (hoje casa o de outra corrida), aviso de várias saídas, rótulo do botão por módulo | 6, 9, 27-7 | M | Sonnet 5.5 |
 | 36 | [spec_36-deslocamento-da-legenda.md](spec_36-deslocamento-da-legenda.md) | Campos `dx` e `dy` na seção "Legenda" (fração do painel; `best` com deslocamento = `upper right`), para todos os módulos | 8, 20, 22, 23 | P | Sonnet 5.5 |
 | 37 | [spec_37-grade-nomes-completos-e-arvore-com-arquivos.md](spec_37-grade-nomes-completos-e-arvore-com-arquivos.md) | Nome do arquivo quebra linha no cartão da grade (altura única por pasta, até 6 linhas); árvore só de pastas por padrão, com `ui.tree_show_files` | 5, 16, 19, 31 | M | Sonnet 5.5 |
@@ -102,8 +102,8 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–33, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (`spec_end` e as specs 34–39) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–34, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (`spec_end` e as specs 35–39) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
@@ -384,6 +384,8 @@ Decisões de 12/10/2026 (quinta rodada, specs 33–39):
 - **NSCF (ideia 11):** retirada pelo usuário; a saída do NSCF não tem iterações de SCF.
 - **Gap (34):** o padrão continua `auto` (o comportamento de hoje); o método "Maior intervalo na janela" é do código do script do usuário
   (maior espaçamento entre vizinhas na faixa visível), não da contagem de bandas, que já é o `auto`. Depende da janela de energia.
+  Na implementação: o método só vale com "Gap de energia na legenda" ligado (senão `auto`, rodapé incluído), e o rodapé da PDOS
+  ganha o gap só em `homo_lumo` / `janela` (em `auto` segue sem gap).
 - **"Diferença de carga" (39, R1):** não reproduzida com o `scf.in` real do usuário, variantes dele e 24 inputs de fixtures; sem causa
   conhecida, a spec só torna a falha visível e monta a rede de testes. Falta o SCF que falhou.
 - **Visualizador (38):** Markdown renderizado por padrão com botão para o texto; HTML cru e links locais não abrem; o script é verificado

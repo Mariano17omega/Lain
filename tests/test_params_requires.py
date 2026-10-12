@@ -4,7 +4,7 @@ is off, and says what to turn on: the gap in the legend needs the legend."""
 import shutil
 
 import pytest
-from PyQt6.QtWidgets import QCheckBox
+from PyQt6.QtWidgets import QCheckBox, QComboBox
 
 from qe_studio.core.calculations.bands.gap import NO_GAP_NOTE
 from test_plot_workflow_unit import rig  # noqa: F401
@@ -12,10 +12,16 @@ from test_plot_workflow_unit import rig  # noqa: F401
 from conftest import FIXTURES
 
 GAP_LABEL = "Gap de energia na legenda"
+METHOD_LABEL = "Método do gap"
 
 
 def checkbox(body, label):
     (box,) = [c for c in body.findChildren(QCheckBox) if c.accessibleName() == label]
+    return box
+
+
+def combo(body, label):
+    (box,) = [c for c in body.findChildren(QComboBox) if c.accessibleName() == label]
     return box
 
 
@@ -71,3 +77,17 @@ def test_a_metal_with_the_gap_asked_shows_the_note_in_the_panel(qtbot, rig, tmp_
     checkbox(body, GAP_LABEL).setChecked(True)
     qtbot.waitUntil(lambda: NO_GAP_NOTE in body.notes.text(), timeout=5_000)
     assert body.notes.isVisible() or not body.isVisible()  # shown as a ⚠ line under the readout
+
+
+def test_the_gap_method_needs_the_gap_in_the_legend(qtbot, rig, body):  # noqa: F811
+    """Spec 34: the method is disabled, and does nothing, while the gap is not in the legend."""
+    method = combo(body, METHOD_LABEL)
+    assert not method.isEnabled()
+    assert "Ligue “Gap de energia na legenda”" in method.toolTip()
+    assert "Maior intervalo na janela" in method.toolTip()  # the field's own tooltip stays
+    checkbox(body, "Mostrar legenda").setChecked(True)
+    checkbox(body, GAP_LABEL).setChecked(True)
+    assert method.isEnabled()
+    method.setCurrentIndex(method.findText("HOMO/LUMO do SCF"))
+    assert body.session.params.gap_method == "homo_lumo"
+    qtbot.waitUntil(lambda: "E_gap (HOMO/LUMO) = 0.504 eV" in body.readout.text(), timeout=5_000)

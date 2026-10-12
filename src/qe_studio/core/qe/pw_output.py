@@ -66,6 +66,14 @@ class PwOutput:
     geometry_converged: bool | None = None
 
     @property
+    def homo_lumo(self) -> tuple[float, float] | None:
+        """The ``highest occupied, lowest unoccupied level`` pair pw.x printed (fixed occupations
+        and more bands than the occupied ones), else None."""
+        if self.fermi_kind != "homo_lumo" or self.fermi is None or self.lumo is None:
+            return None
+        return (self.fermi, self.lumo)
+
+    @property
     def warnings(self) -> list[str]:
         out = []
         if not self.job_done:

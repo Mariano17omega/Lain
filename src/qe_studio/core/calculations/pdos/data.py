@@ -10,7 +10,7 @@ from ...qe import projwfc
 from ...qe.pw_output import PwOutput
 from ...qe.structure import Site, read_sites
 from ..base import DetectionResult, LoadError, SniffFn
-from .gap import GapInfo, pdos_gap
+from .gap import GapInfo, pdos_gap, printed_pair
 
 
 @dataclass
@@ -25,6 +25,7 @@ class PdosDataset:
     channels_nscf: tuple[float, float] | None = None
     magnetization: float | None = None  # total, μB/cell
     gap: GapInfo | None = None  # of the system, not of what is drawn
+    homo_lumo: tuple[float, float] | None = None  # printed by the NSCF, else SCF (gap method)
     sites: tuple[
         Site, ...
     ] = ()  # atoms of the SCF / NSCF header, in input order (empty: unreadable)
@@ -77,6 +78,7 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
         channels_nscf=nscf.fermi_up_down if nscf else None,
         magnetization=magnetization,
         gap=pdos_gap(scf, nscf, data),
+        homo_lumo=printed_pair(scf, nscf),
         sites=sites,
         compound=compound_of(sites),
     )

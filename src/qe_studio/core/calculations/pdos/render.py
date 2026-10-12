@@ -15,10 +15,11 @@ from ...plotting.draw import finish, new_axes
 from ...plotting.gap_label import gap_handle, gap_label
 from ...plotting.style import PlotStyle
 from ...qe import projwfc
-from ..params import RenderInfo
+from ..params import RenderInfo, gap_method_in_force
 from ..readout import signed
 from .atoms import notes
 from .data import PdosDataset
+from .gap import gap_for, gap_notes
 from .params import PdosParams
 
 
@@ -92,14 +93,15 @@ def render_pdos(
     handles = None
     if dataset.data.spin_polarized and spin_mode(dataset, params) == "overlay":
         handles = ax.get_legend_handles_labels()[0] + line_styles(params, style)
-    if params.legend_gap and dataset.gap is not None:
+    if params.legend_gap and (gap := gap_for(dataset, params)) is not None:
         if handles is None:
             handles = ax.get_legend_handles_labels()[0]
-        handles.append(gap_handle(gap_label(dataset.gap.value, approx=dataset.gap.source == "dos")))
+        handles.append(gap_handle(gap_label(gap.value, approx=gap.source == "dos")))
     finish(figure, ax, params, handles)
     e_lim = (params.emin, params.emax)
     xlim, ylim = (dos_lim, e_lim) if params.orientation == "vertical" else (e_lim, dos_lim)
-    return RenderInfo(xlim, ylim, summary(dataset, params), notes(dataset))
+    found = (*notes(dataset), *gap_notes(dataset, params))
+    return RenderInfo(xlim, ylim, summary(dataset, params), found)
 
 
 def draw_pdos(
@@ -271,6 +273,7 @@ def summary(dataset: PdosDataset, params: PdosParams) -> str:
         parts.append(f"E_F↑ = {pair[0]:.4f} eV · E_F↓ = {pair[1]:.4f} eV ({source})")
     elif fermi is not None:
         parts.append(f"E_F = {fermi:.4f} eV ({source})")
+    parts += _gap_parts(dataset, params)
     data = dataset.data
     parts.append(f"{len(data.series)} projeções · {len(data.species)} espécies")
     if params.atoms is not None:
@@ -281,3 +284,21 @@ def summary(dataset: PdosDataset, params: PdosParams) -> str:
         if dataset.magnetization is not None:
             parts.append(f"M = {dataset.magnetization:.2f} μB/célula")
     return " · ".join(parts)
+
+
+# Where the footer says the gap of each method was found; ``auto`` adds nothing (spec 34).
+GAP_WHERE = {"homo_lumo": "(HOMO/LUMO)", "janela": "(na janela)"}
+
+
+def _gap_parts(dataset: PdosDataset, params: PdosParams) -> list[str]:
+    """``E_gap (HOMO/LUMO) = 1.234 eV``, ``E_gap (na janela) ≈ 1.23 eV`` or ``sem gap (…)``; nothing
+    in ``auto``, whose footer never had the gap."""
+    method = gap_method_in_force(params)
+    if method not in GAP_WHERE:
+        return []
+    where, gap = GAP_WHERE[method], gap_for(dataset, params)
+    if gap is None:
+        return [f"sem gap {where}"]
+    if gap.source == "dos":
+        return [f"E_gap {where} ≈ {gap.value:.2f} eV"]
+    return [f"E_gap {where} = {gap.value:.3f} eV"]

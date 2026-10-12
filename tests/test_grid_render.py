@@ -210,3 +210,23 @@ def test_the_grid_is_exported_into_the_project_plots(tmp_path):
     plan = plan_export(grid)
     assert plan.folder == tmp_path and plan.stem == "grid_Al"
     assert plan.existing == written and plan.new_stem == "grid_Al_2"
+
+
+def gap_texts_of(axes) -> list[str]:
+    legend = axes.get_legend()
+    return (
+        [] if legend is None else [t.get_text() for t in legend.texts if "E_{gap}" in t.get_text()]
+    )
+
+
+def test_a_bands_cell_with_the_window_gap_draws_the_open_plots_legend(tmp_path):
+    """Spec 34 R5: ``gap_method`` goes with the session into the cell, no code of its own."""
+    grid = grid_of([(0, 0, BANDS, "")], tmp_path, cols=1)
+    cell = grid.dataset.cells[0].session
+    cell.params.show_legend, cell.params.legend_gap, cell.params.gap_method = True, True, "janela"
+    open_plot = Figure(figsize=cell.params.figure_size)
+    FigureCanvasAgg(open_plot)
+    cell.render(open_plot, LIGHT)
+    expected = gap_texts_of(open_plot.axes[0])
+    assert expected  # Al is a metal: only the window method has a gap to draw
+    assert gap_texts_of(draw(grid).axes[0]) == expected

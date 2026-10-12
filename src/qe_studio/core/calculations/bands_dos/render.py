@@ -56,7 +56,7 @@ def render_bands_dos(
     handles += gap_handles(bands, bands_params)  # once: the axis is the same for both panels
     finish_joined(figure, ax_dos if dos_handles else ax_bands, params, handles)
     xlim = bands_render.band_xlim(bands, bands_params, channels[0])
-    found = (*notes(dataset), *legend_gap_notes(bands, bands_params))
+    found = (*notes(dataset, params), *legend_gap_notes(bands, bands_params))
     return RenderInfo(xlim, (params.emin, params.emax), summary(dataset, params), found)
 
 
@@ -64,10 +64,10 @@ def _labels(handles: list) -> set[str]:
     return {h.get_label() for h in handles}
 
 
-def notes(dataset: BandsDosDataset) -> tuple[str, ...]:
+def notes(dataset: BandsDosDataset, params: BandsDosParams) -> tuple[str, ...]:
     """What the user should know: the notes of each part (the bands' gap, the DOS atom selection)
     and about pairing these two runs."""
-    found = [*bands_render.notes(dataset.bands), *pdos_atoms.notes(dataset.dos)]
+    found = [*bands_render.notes(dataset.bands, bands_view(params)), *pdos_atoms.notes(dataset.dos)]
     bands_fermi, dos_fermi = dataset.bands.fermi, dataset.dos.fermi("scf")
     delta = None if bands_fermi is None or dos_fermi is None else abs(dos_fermi - bands_fermi)
     if delta is not None and delta > FERMI_TOLERANCE:
@@ -84,7 +84,8 @@ def notes(dataset: BandsDosDataset) -> tuple[str, ...]:
 def summary(dataset: BandsDosDataset, params: BandsDosParams) -> str:
     """The bands' summary (E_F, gap, size) and what the DOS projects."""
     data = dataset.dos.data
-    parts = [bands_render.summary(dataset.bands), f"DOS: {len(data.series)} projeções"]
+    bands = bands_render.summary(dataset.bands, bands_view(params))
+    parts = [bands, f"DOS: {len(data.series)} projeções"]
     if params.atoms is not None:
         every = {s.atom for s in data.series}
         parts.append(f"{len(every & set(params.atoms))} de {len(every)} átomos")

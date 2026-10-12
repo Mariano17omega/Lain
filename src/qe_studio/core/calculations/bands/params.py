@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..params import (
     COMMON_FIELDS,
+    GAP_METHOD_FIELD,
     LEGEND_GAP_FIELD,
     CommonParams,
     ParamField,
@@ -63,6 +64,7 @@ class BandsParams(CommonParams):
     conduction_color: str = "#00d2ff"
     fermi_color: str = "#f43f5e"
     legend_gap: bool = False  # the energy gap as a legend entry (needs show_legend)
+    gap_method: str = "auto"  # how that gap is found (needs legend_gap): GAP_METHODS
     # Spin (only offered when the dataset has two channels). No schema field without spin, so the
     # colors say how to validate a stored value.
     spin_channels: str = "both"
@@ -165,6 +167,7 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
         *(_spin_fields() if dataset.spin else []),
         *COMMON_FIELDS,
         BANDS_LEGEND_GAP_FIELD,
+        GAP_METHOD_FIELD,
     ]
 
 

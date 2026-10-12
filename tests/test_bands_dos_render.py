@@ -7,7 +7,14 @@ import numpy as np
 import pytest
 from matplotlib.ticker import MaxNLocator
 
-from qe_studio.core.calculations.bands.gap import NO_GAP_NOTE
+from qe_studio.core.calculations.bands.gap import (
+    NO_GAP_NOTE,
+    NO_HOMO_LUMO_NOTE,
+    GapEntry,
+    gap_entries,
+    window_gap,
+)
+from qe_studio.core.calculations.bands_dos.params import bands_view
 from qe_studio.core.calculations.bands_dos.render import JOIN_CLEARANCE, ClearOfJoin
 from qe_studio.core.calculations.params import ordered_sections
 from qe_studio.core.calculations.pdos.gap import GapInfo
@@ -256,3 +263,55 @@ def test_the_pair_saved_in_the_bands_folder(demo_project):
     pdos.rename(demo_project / "04_moved")
     with pytest.raises(Exception, match="Pasta da DOS não encontrada"):
         target.build()
+
+
+# -- spec 34: the gap method is the bands' one ---------------------------------------------------
+def gap_entries_drawn(figure) -> list[str]:
+    return [t for t in legend_texts(figure) if "E_{gap}" in t]
+
+
+def test_auto_is_the_bands_count_as_before():
+    module, dataset, params = combined(legend_gap=True, gap_method="auto")
+    figure, info = render(module, dataset, params)
+    assert gap_entries_drawn(figure) == [] and NO_GAP_NOTE in info.notes  # Al: a metal
+
+
+def test_homo_lumo_reads_the_pair_of_the_bands_scf():
+    module, dataset, params = combined(legend_gap=True, gap_method="homo_lumo")
+    figure, info = render(module, dataset, params)
+    assert dataset.bands.homo_lumo is None  # Al: smearing
+    assert gap_entries_drawn(figure) == [] and NO_HOMO_LUMO_NOTE in info.notes
+    assert "sem gap (HOMO/LUMO)" in info.summary
+    paired = with_parts(dataset, bands={"homo_lumo": (AL_FERMI, AL_FERMI + 0.8)})
+    figure, info = render(module, paired, params)
+    assert gap_entries_drawn(figure) == [gap_label(0.8)]
+    assert "E_gap (HOMO/LUMO) = 0.800 eV" in info.summary and NO_HOMO_LUMO_NOTE not in info.notes
+
+
+def test_janela_uses_the_shared_window_and_reference():
+    module, dataset, params = combined(legend_gap=True, gap_method="janela")
+    ref = dataset.bands.reference(params.reference)
+    found = window_gap(dataset.bands.bands.energies, ref, params.emin, params.emax)
+    assert found is not None
+    value = found[1] - found[0]
+    assert gap_entries(dataset.bands, bands_view(params)) == [GapEntry(None, pytest.approx(value))]
+    figure, info = render(module, dataset, params)
+    assert gap_entries_drawn(figure) == [gap_label(value)]
+    assert f"E_gap (na janela) = {value:.3f} eV" in info.summary
+
+    params.emax = (found[0] + found[1]) / 2  # the figure's window cuts the void
+    cut = window_gap(dataset.bands.bands.energies, ref, params.emin, params.emax)
+    entries = gap_entries(dataset.bands, bands_view(params))
+    assert entries == ([] if cut is None else [GapEntry(None, pytest.approx(cut[1] - cut[0]))])
+    assert gap_entries_drawn(render(module, dataset, params)[0]) != [gap_label(value)]
+
+
+def test_the_method_is_kept_in_bands_dos_plot(tmp_path):
+    module, dataset, params = combined(legend_gap=True, gap_method="janela")
+    write_plot_file(tmp_path, "bands_dos", params)
+    values, _warnings = read_plot_file(tmp_path, "bands_dos")
+    assert values is not None and values["gap_method"] == "janela"
+    fresh = module.default_params(CONFIG, dataset)
+    assert fresh.gap_method == "auto"
+    apply_stored(fresh, values, module.param_schema(dataset))
+    assert fresh.gap_method == "janela"

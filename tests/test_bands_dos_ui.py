@@ -92,7 +92,7 @@ def test_render_notes_show_in_the_panel(qtbot, main_window, project, menus, monk
     body = main_window.params.body
     assert body.notes.isHidden()
     monkeypatch.setattr(
-        "qe_studio.core.calculations.bands_dos.render.notes", lambda dataset: ("a note",)
+        "qe_studio.core.calculations.bands_dos.render.notes", lambda dataset, params: ("a note",)
     )
     view = main_window.current_plot()
     assert view is not None

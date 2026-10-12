@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from ...config import DEFAULT_ATOMOS_COLORS, DEFAULT_ORBITAL_COLORS
 from ..params import (
     COMMON_FIELDS,
+    GAP_METHOD_FIELD,
     LEGEND_GAP_FIELD,
     CommonParams,
     ParamField,
@@ -60,6 +61,7 @@ class PdosParams(CommonParams):
     )
     show_legend: bool = True
     legend_gap: bool = False  # the energy gap as a legend entry
+    gap_method: str = "auto"  # how that gap is found (needs legend_gap): GAP_METHODS
     spin_mode: str = "mirror"  # only offered (and used) when the PDOS has two channels
 
 
@@ -152,6 +154,7 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
         ParamField("fermi_color", "Fermi", "Estilo", "color"),
         *COMMON_FIELDS,
         LEGEND_GAP_FIELD,
+        GAP_METHOD_FIELD,
     ]
 
 

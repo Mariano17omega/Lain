@@ -168,5 +168,5 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
         return render_mod.tick_labels(dataset, params)
 
     @staticmethod
-    def summary(dataset: BandsDataset) -> str:
-        return render_mod.summary(dataset)
+    def summary(dataset: BandsDataset, params: BandsParams | None = None) -> str:
+        return render_mod.summary(dataset, params)

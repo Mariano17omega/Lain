@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from ...config import DEFAULT_ATOMOS_COLORS, DEFAULT_ORBITAL_COLORS
 from ..bands import params as bands_params
 from ..bands.params import BandsParams
-from ..params import COMMON_FIELDS, CommonParams, ParamField
+from ..params import COMMON_FIELDS, GAP_METHOD_FIELD, CommonParams, ParamField
 from ..pdos import params as pdos_params
 from ..pdos.params import PdosParams
 
@@ -73,6 +73,7 @@ class BandsDosParams(CommonParams):
     spin_mode: str = "overlay"  # mirrored makes the DOS axis symmetric, odd next to the bands
     show_legend: bool = True
     legend_gap: bool = False
+    gap_method: str = "auto"  # of the bands' gap, the one this figure shows
     # The DOS folder relative to the bands folder, for whoever reads bands_dos.plot (reopening the
     # figure from it): set from the data, never read back (plot_file.derived_fields).
     dos_folder: str = field(default="", metadata={"kind": "text", "derived": True})
@@ -144,6 +145,7 @@ def param_schema(dataset: BandsDosDataset) -> list[ParamField]:
         *take(bands, ("fermi_color",), "Estilo"),
         *COMMON_FIELDS,
         bands_params.BANDS_LEGEND_GAP_FIELD,  # the gap is the bands' one
+        GAP_METHOD_FIELD,
     ]
 
 
