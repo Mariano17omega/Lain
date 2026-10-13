@@ -1,6 +1,6 @@
 {% extends "qsub/_base.qsub.j2" %}
 {% block programs %}
-PROJWFCCOMMAND="{{ qe_bin }}/projwfc.x"
+PROJWFCCOMMAND="/opt/espresso-7.1/bin/projwfc.x"
 {% endblock %}
 {% block body %}
 {% for input, output in pw_runs %}

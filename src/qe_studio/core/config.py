@@ -205,22 +205,12 @@ class UiConfig(_Section):
     paranoid_refresh: bool = False
 
 
-DEFAULT_ENV_LINES = [
-    "export I_MPI_SHM=bdw_avx2",
-    ". /opt/intel/oneapi/mkl/latest/env/vars.sh",
-    ". /opt/intel/oneapi/mpi/latest/env/vars.sh",
-]
-
-
 class JobsConfig(_Section):
-    """The cluster side of the ``.qsub`` scripts "Criar cálculo" writes (spec 25 R6.3). The
-    defaults are the reference scripts' (``Documentation/Referencia_de_scripts_QSUB``)."""
+    """What "Criar cálculo" takes from the config: the defaults of NP and the pools of its ``.qsub``
+    scripts and the cluster's pseudopotentials. The rest of the cluster side (QE and MPI paths,
+    parallel environment, OpenMP and Intel MPI environment) is fixed in the script templates, as in
+    the reference scripts (``Documentation/Referencia_de_scripts_QSUB``)."""
 
-    qe_bin: str = "/opt/espresso-7.1/bin"  # on the cluster (POSIX), like remote_root
-    mpi_command: str = "/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
-    parallel_env: str = "physica"  # #$ -pe <parallel_env> NP
-    omp_threads: int = Field(default=1, ge=1)
-    env_lines: list[str] = Field(default_factory=lambda: list(DEFAULT_ENV_LINES))
     cores: int = Field(default=64, ge=1)  # default of the NP field
     nk: int = Field(default=4, ge=1)  # default of the pools field (pw.x -nk), spec 28 R2.3
     # The pseudopotentials on the cluster (POSIX), written into every generated pw.x input; None keeps
@@ -231,19 +221,6 @@ class JobsConfig(_Section):
     @classmethod
     def _blank_is_none(cls, value: str | None) -> str | None:
         return value.strip() or None if value is not None else None
-
-    @field_validator("qe_bin")
-    @classmethod
-    def _strip_slash(cls, value: str) -> str:
-        value = value.strip()
-        return value.rstrip("/") if value not in ("", "/") else value
-
-    @field_validator("parallel_env", "mpi_command")
-    @classmethod
-    def _not_blank(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("não pode ficar vazio")
-        return value.strip()
 
 
 class AppConfig(_Section):
@@ -318,7 +295,15 @@ def _format_validation(exc: ValidationError) -> list[str]:
 
 
 # Keys that no longer exist: dropped before validation (with a warning) so old files still load.
-REMOVED_KEYS = (("plot", "export", "theme"),)
+REMOVED_KEYS = (
+    ("plot", "export", "theme"),
+    # The cluster side of the .qsub scripts, now fixed in their templates.
+    ("jobs", "qe_bin"),
+    ("jobs", "mpi_command"),
+    ("jobs", "parallel_env"),
+    ("jobs", "omp_threads"),
+    ("jobs", "env_lines"),
+)
 
 
 def _drop_removed_keys(data: dict, warnings: list[str]) -> dict:

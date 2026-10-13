@@ -1,6 +1,6 @@
 {% extends "qsub/_base.qsub.j2" %}
 {% block programs %}
-BANDSCOMMAND="{{ qe_bin }}/bands.x"
+BANDSCOMMAND="/opt/espresso-7.1/bin/bands.x"
 {% endblock %}
 {% block body %}
 {% for input, output in pw_runs %}

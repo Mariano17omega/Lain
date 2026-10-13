@@ -758,9 +758,11 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
 - **Templates** (`resources/templates/`, `render.py`: `FunctionLoader` over `importlib.resources`, `StrictUndefined`,
   `trim_blocks`/`lstrip_blocks`, filters `fstr`/`fnum`): `qsub/_base.qsub.j2` is the reference header once
   (`Documentation/Referencia_de_scripts_QSUB`), each `qsub/<type>.qsub.j2` (`bands.qsub.j2` for Bandas) extends it
-  with its commands; `qe/bandas/bands_pp.in.j2`, `qe/pdos/projwfc.in.j2`. The cluster side comes from `config.yaml`
-  `jobs:` (`JobsConfig`: `qe_bin`, `mpi_command`, `parallel_env`, `omp_threads`, `env_lines`, `cores`, `nk`,
-  `pseudo_dir`), never from the form.
+  with its commands; `qe/bandas/bands_pp.in.j2`, `qe/pdos/projwfc.in.j2`. The cluster side is fixed in the templates,
+  not configurable: QE and MPI paths, `-pe physica`, `OMP_NUM_THREADS` and the Intel MPI lines in `_base.qsub.j2`, the
+  `*COMMAND=` line of bands.x / projwfc.x / pp.x in its type's. `config.yaml` `jobs:` (`JobsConfig`: `cores`, `nk`,
+  `pseudo_dir`) gives only the NP and pools defaults and the pseudopotentials; the old keys are `REMOVED_KEYS` (ignored
+  with a warning).
 - **K-points** (`kpath.py`): `KMesh` (`K_POINTS automatic`), `KPoint(label, frac, npts)`, `KPath(points, breaks,
   warnings)`, `to_card` (`crystal_b`; weight `npts`, 1 at a break and at the end, `! Gamma` labels). The band path is
   typed by the user (spec 27-2: nothing suggests it). Two checks use `Crystal.cell` (Å) and never raise:

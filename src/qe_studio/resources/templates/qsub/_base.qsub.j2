@@ -2,21 +2,21 @@
 ####################################################
 ########       Configuração do pw.x         ########
 ####################################################
-PWCOMMAND="{{ qe_bin }}/pw.x -nk {{ nk }}"
+PWCOMMAND="/opt/espresso-7.1/bin/pw.x -nk {{ nk }}"
 {% block programs %}{% endblock %}
 #
 ###       Grid Set Up                   ###
 #$ -N "{{ job_name }}"
-#$ -pe {{ parallel_env }} {{ np }}
+#$ -pe physica {{ np }}
 #$ -cwd
 #$ -j y
 #
 ###        Intel MPI Set Up             ###
-export OMP_NUM_THREADS={{ omp_threads }}
-{% for line in env_lines %}
-{{ line }}
-{% endfor %}
-MPICOMMAND="{{ mpi_command }}"
+export OMP_NUM_THREADS=1
+export I_MPI_SHM=bdw_avx2
+. /opt/intel/oneapi/mkl/latest/env/vars.sh
+. /opt/intel/oneapi/mpi/latest/env/vars.sh
+MPICOMMAND="/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
 ####################################################
 ########        Executa as Simulacao        ########
 ####################################################

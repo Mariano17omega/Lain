@@ -267,6 +267,7 @@ def test_a_bad_name_is_marked_like_any_other_file_name():
 
 
 def test_the_cluster_settings_come_from_the_config():
-    jobs = JobsConfig(qe_bin="/sw/qe-7.3/bin", cores=32, nk=2)
+    jobs = JobsConfig(cores=32, nk=2)
     text = CHARGE.plan(AL_UPPER, {}, jobs, "padrao", "Al").files[0].text
-    assert 'PPCOMMAND="/sw/qe-7.3/bin/pp.x"' in text and "#$ -pe physica 32" in text
+    assert 'PPCOMMAND="/opt/espresso-7.1/bin/pp.x"' in text and "#$ -pe physica 32" in text
+    assert 'PWCOMMAND="/opt/espresso-7.1/bin/pw.x -nk 2"' in text

@@ -1,6 +1,6 @@
 {% extends "qsub/_base.qsub.j2" %}
 {% block programs %}
-PPCOMMAND="{{ qe_bin }}/pp.x"
+PPCOMMAND="/opt/espresso-7.1/bin/pp.x"
 {% endblock %}
 {% block body %}
 {% if fileout_dir %}

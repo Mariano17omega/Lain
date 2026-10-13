@@ -1,8 +1,9 @@
 """The ``.qsub`` script every type writes first (spec 25 R6): its three fields and its checks.
 
-The cluster side (QE and MPI paths, parallel environment, environment lines) comes from the
-``jobs:`` section of ``config.yaml``, as do the defaults of NP and the pools; the form (``avancado``
-mode only) asks for the job name, NP and the pools. The runs are the inputs' names, chosen or not.
+The cluster side (QE and MPI paths, parallel environment, environment lines) is fixed in
+``qsub/_base.qsub.j2`` and each type's template; the defaults of NP and the pools come from the
+``jobs:`` section of ``config.yaml``. The form (``avancado`` mode only) asks for the job name, NP and
+the pools. The runs are the inputs' names, chosen or not.
 """
 
 from __future__ import annotations
@@ -91,11 +92,6 @@ def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
             "job_name": name,
             "np": np_,
             "nk": nk,
-            "qe_bin": jobs.qe_bin,
-            "mpi_command": jobs.mpi_command,
-            "parallel_env": jobs.parallel_env,
-            "omp_threads": jobs.omp_threads,
-            "env_lines": list(jobs.env_lines),
             **type_.script_values(work),
         },
     )

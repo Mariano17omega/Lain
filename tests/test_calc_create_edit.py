@@ -109,7 +109,7 @@ def test_a_field_change_keeps_the_edit_and_restore_brings_the_fields_back(qtbot,
     tabs.edit_bars["script"].restore_button.click()
     assert not tabs.has_edits and tabs.edit_bars["script"].isHidden()
     lines = script.toPlainText().splitlines()
-    assert "# meu" not in lines and f"#$ -pe {JOBS.parallel_env} 8" in lines  # the fields again
+    assert "# meu" not in lines and "#$ -pe physica 8" in lines  # the fields again
     assert tabs.plan.by_key("script").text == script.toPlainText()
     assert EDITED_MARK not in "".join(tabs.tab_labels())
 

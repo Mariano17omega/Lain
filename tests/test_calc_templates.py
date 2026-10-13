@@ -16,6 +16,7 @@ from qe_studio.core.calc_create.render import (
     template_names,
 )
 from qe_studio.core.calc_create.types import REGISTRY, by_id
+from qe_studio.core.config import JobsConfig
 
 from calc_helpers import AL_PATH, JOBS, al, ni, runs
 
@@ -46,7 +47,7 @@ def test_the_common_header_exists_once():
 
 
 def test_a_missing_variable_names_itself():
-    with pytest.raises(TemplateFailure, match="qe_bin"):
+    with pytest.raises(TemplateFailure, match="'nk' is undefined"):
         render("qsub/scf.qsub.j2", {})
     with pytest.raises(TemplateFailure, match="não encontrado"):
         render("qsub/nada.qsub.j2", {})
@@ -188,21 +189,15 @@ def test_no_script_template_names_an_input():
         assert not re.search(r"[\w.-]+\.(in|out)\b", text), name
 
 
-def test_cluster_settings_come_from_the_config():
-    jobs = JOBS.model_copy(
-        update={
-            "qe_bin": "/sw/qe-7.3/bin",
-            "mpi_command": "mpirun",
-            "parallel_env": "mpi",
-            "omp_threads": 2,
-            "env_lines": ["module load qe"],
-        }
-    )
-    text = by_id("scf").plan(al(), {"np": 32, "nk": 2}, jobs, "avancado").files[0].text
+def test_only_np_and_nk_come_from_the_config():
+    """The rest of the cluster side is fixed in the templates, as in the reference scripts."""
+    jobs = JobsConfig(cores=32, nk=2)
+    text = by_id("scf").plan(al(), {}, jobs, "avancado").files[0].text
     for line in (
-        'PWCOMMAND="/sw/qe-7.3/bin/pw.x -nk 2"',
-        "#$ -pe mpi 32",
-        "export OMP_NUM_THREADS=2\nmodule load qe\n",
-        'MPICOMMAND="mpirun"',
+        'PWCOMMAND="/opt/espresso-7.1/bin/pw.x -nk 2"',
+        "#$ -pe physica 32",
+        "export OMP_NUM_THREADS=1\nexport I_MPI_SHM=bdw_avx2\n"
+        ". /opt/intel/oneapi/mkl/latest/env/vars.sh\n. /opt/intel/oneapi/mpi/latest/env/vars.sh\n",
+        'MPICOMMAND="/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"',
     ):
         assert line in text
