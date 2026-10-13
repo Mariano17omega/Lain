@@ -3,12 +3,16 @@ non-modal dialog, like the sync window's pages.
 
 Nothing is written here: "Criar" asks the controller (``create_requested``), which writes in a
 worker and closes the window on success. Esc, the close button and "Cancelar" never create
-anything; with fields edited or notes written they ask first. The "Padrão / Avançado" switch of
-step 2 (spec 28) is remembered in QSettings ``calc_create/mode``.
+anything; with fields edited, files edited or notes written they ask first. The "Padrão / Avançado"
+switch of step 2 (spec 28) is remembered in QSettings ``calc_create/mode``.
+
+"Continuar" is never silent (spec 39 R1): step 1 shows why it does not go on, and a step 2 that
+cannot be built is logged and said in a message, with the window left on step 1.
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import NamedTuple
 
@@ -33,8 +37,10 @@ from ...busy import BusyTracker
 from ...theme.manager import ThemeManager
 from ...widgets.common import set_variant
 from .mode_switch import ModeSwitch
-from .setup_page import SetupPage
+from .setup_page import CHOOSE_SCF, SetupPage
 from .tabs_page import DEBOUNCE_MS, TabsPage
+
+log = logging.getLogger(__name__)
 
 TITLE = "Criar cálculo"
 STEP_SETUP = "1 · Configuração"
@@ -59,6 +65,16 @@ def ask_discard(parent: QWidget) -> bool:
         QMessageBox.StandardButton.No,
     )
     return answer == QMessageBox.StandardButton.Yes
+
+
+def ask_failed(parent: QWidget, exc: BaseException) -> None:
+    """Step 2 could not be built (spec 39 R1.2); the log has the traceback."""
+    QMessageBox.warning(
+        parent,
+        TITLE,
+        f"Não foi possível montar os arquivos deste cálculo: {str(exc) or type(exc).__name__}. "
+        "O log tem o detalhe (Ajuda ▸ Abrir log).",
+    )
 
 
 class CalcCreateDialog(QDialog):
@@ -150,11 +166,12 @@ class CalcCreateDialog(QDialog):
     def continue_(self) -> None:
         """Step 2, built again only when the type or the SCF changed (R2.3), or the folder's name
         for a type whose file names take it (spec 29)."""
-        wanted = self._wanted()
-        if self.setup.problems() or wanted is None:
+        wanted, problems = self._wanted(), self.setup.problems()
+        if problems or wanted is None:
+            self.setup.show_reason(problems[0] if problems else CHOOSE_SCF)
             return
-        if self._stale(wanted):
-            self._build_tabs(*wanted)
+        if self._stale(wanted) and not self._build_tabs(*wanted):
+            return
         assert self.tabs is not None
         self.tabs.set_target(self.setup.location, self.setup.suffix, self.setup.location_warnings())
         self._show_page(self.tabs)
@@ -175,23 +192,34 @@ class CalcCreateDialog(QDialog):
             or built[2] != wanted[2]
         )
 
-    def _build_tabs(self, calc_type: CalcType, scf: ScfInfo, suffix: str) -> None:
+    def _build_tabs(self, calc_type: CalcType, scf: ScfInfo, suffix: str) -> bool:
+        """A new step 2 (the old one and its edits are dropped). False when it could not be built:
+        logged, said in a message, and the window stays on step 1 with no step 2."""
         if self.tabs is not None:
             self.pages.removeWidget(self.tabs)
             self.tabs.deleteLater()
-        self.tabs = TabsPage(
-            self.theme,
-            calc_type,
-            scf,
-            self.jobs,
-            self.mode,
-            debounce_ms=self.debounce_ms,
-            name=suffix,
-        )
+            self.tabs, self._built = None, None
+        try:
+            self.tabs = TabsPage(
+                self.theme,
+                calc_type,
+                scf,
+                self.jobs,
+                self.mode,
+                debounce_ms=self.debounce_ms,
+                name=suffix,
+            )
+        except Exception as exc:  # noqa: BLE001 - shown and logged, never a silent click
+            log.exception("building step 2 of a new %s calculation failed", calc_type.id)
+            self.setup.show_rebuild_note(False)
+            ask_failed(self, exc)
+            self._update()
+            return False
         self.tabs.planned.connect(self._update)
         self.pages.addWidget(self.tabs)
         self._built = (calc_type, scf, suffix)
         self.setup.show_rebuild_note(False)
+        return True
 
     def back(self) -> None:
         self._show_page(self.setup)
@@ -225,7 +253,8 @@ class CalcCreateDialog(QDialog):
         self.continue_button.setToolTip(problems[0] if problems else "")
         wanted = self._wanted()
         self.setup.show_rebuild_note(
-            self._built is not None and wanted is not None and self._stale(wanted)
+            self._built is not None and wanted is not None and self._stale(wanted),
+            lose_edits=self.tabs is not None and self.tabs.has_edits,
         )
         blocking = self.tabs.blocking() if self.tabs is not None else ""
         self.create_button.setEnabled(self.tabs is not None and not blocking and not self._busy)

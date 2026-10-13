@@ -777,7 +777,7 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   (`test_calc_types.py` plans in `avancado`; `test_calc_standard.py` holds spec 28's names, modes and unit; `test_calc_charge.py` spec 29's Carga type;
   `test_calc_roundtrip.py` fills generated folders with fixture outputs under the new names and detects them).
 
-### "Criar cálculo" window (spec 26, spec 28 R5)
+### "Criar cálculo" window (spec 26, spec 28 R5, spec 39)
 
 `ui/calc_create_controller.py:CalcCreateController.for_window` connects `ActivityBar.create_requested` (button
 `new_calc`, "Criar") and the `calc.create` action (Ferramentas); both are disabled while `local_root` is not a
@@ -792,7 +792,8 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
   `calc_create/mode`, `padrao` the first time: the controller passes `window.settings`), `mode_switch.ModeSwitch`
   (two exclusive `toggle` `QToolButton`s right of the step title, step 2 only; `set_mode` never emits),
   `setup_page.SetupPage` (type combo, SCF via `looks_like_input` then `read_scf` in a `TaskGroup` → `scf_ready`,
-  `choose_scf` / `choose_folder` module functions, "Nome da pasta" optional, `problems()` gate "Continuar"),
+  `choose_scf` / `choose_folder` module functions, "Nome da pasta" optional, `problems()` gate "Continuar" and the
+  first one is on the page too, the `reason` line, not only in the button's tooltip),
   `tabs_page.TabsPage` (a tab per `CalcPlan.files` entry, keyed by `PlannedFile.key` (`previews[key]`, labels
   refreshed by every plan: a renamed file renames its tab): `FieldForm` | `FilePreview` in a `QSplitter`, then
   "Arquivos" and "Descrição"; a `FormField` whose `group` is no file's key (spec 30: "Átomos") has a form-only tab named
@@ -802,8 +803,27 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
   `blocking()` = first plan error, the "Criar" tooltip), `form.FieldForm` (widget per `FormField.kind`, `rows` per
   field for `set_visible(ids)` / `shown(id)`, `mark(plan.problems)` sets the `invalid` property; kind `atoms`: an
   `AtomTable` fed by `FormField.data` (`AtomRows`) under the label and `FormField.hint`, value = the marked atom numbers),
-  `kmesh.KMeshEditor`, `preview.FilePreview` (read-only `CodeView`, `InputHighlighter` / `ShellHighlighter`, changed
-  lines in `diff_change_bg`) and `FilesView`.
+  `kmesh.KMeshEditor`, `preview.FilePreview` (`CodeView`, `InputHighlighter` / `ShellHighlighter`, changed
+  lines in `diff_change_bg`; editable in `avancado` only, below) and `FilesView`.
+- **"Continuar" is never silent (spec 39 R1).** A click that cannot go on puts the reason in the `reason` line;
+  `_build_tabs` builds the `TabsPage` under `try`: an exception is `log.exception`, drops `tabs` / `_built`, and
+  `dialog.ask_failed(parent, exc)` (a module function, patched in tests like `ask_discard`) says it, with the window
+  left on step 1. The "Diferença de carga" report that asked for it was never reproduced: `test_calc_create_matrix.py`
+  takes every `REGISTRY` type × every SCF input of the fixtures (+ `SMALL`, `slab_scf()`) to step 2 in both modes.
+- **Editing the files (spec 39 R2).** In `avancado` every file preview (inputs and script) is editable
+  (`CodeView.set_read_only`; `padrao` is read-only, "Arquivos" always). **The edit wins**: `TabsPage._edits` (key →
+  typed text) is applied over the fields' plan (`_base`) by `core/calc_create/overrides.py` (Qt-free: `apply_overrides`,
+  `edits_in_force`, `is_edit`, `normalized`: `\n` line ends and a final newline; a text equal to the generated one,
+  line ends aside, is no edit), so `self.plan` and the `CreateRequest` hold it and `writer` knows nothing. A field
+  change replans names, errors and the other files but never rewrites an edited preview; a renamed file keeps its edit
+  (by key). An edited file says " (editado)" (`preview.EDITED_MARK`) in its tab and in "Arquivos", and
+  `edit_bar.EditBar` over its preview offers "Restaurar do formulário" (`TabsPage.restore`), in both modes; edits stay
+  across modes and Back / Continuar, and a rebuild (type, SCF, name of a `uses_name` type) drops them
+  (`REBUILD_EDITS_NOTE` on step 1). `FilePreview.edited` fires only for the user's text: `set_text` is guarded, and a
+  re-highlight (new issues, theme) ends in an edit block whose `textChanged` carries the same text, ignored by
+  comparing with `_known` (else checking the issues recursed). After `debounce_ms` an edited file is checked
+  (`overrides.edit_issues`: `lint` / `lint_script`, none above `INPUT_READ_LIMIT`) into its underline and margin
+  (`FilePreview.show_issues`) and its changed rows are repainted; the issues never block "Criar". `dirty` counts edits.
 - `ui/widgets/atom_table.py:AtomTable(rows, selected, unit, count_format)` (spec 30, extracted from the PDOS atom window):
   checkbox, #, element and three coordinates as text (`AtomRow`), "Marcar todos" / "Desmarcar todos" / "Inverter" /
   "Só espécie ▸" and the count; `changed` fires once per click or button, `value()` / `checked()` the marked numbers.
@@ -816,8 +836,9 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
   comprimento" (density field, 25 points/Å⁻¹) rewrites only the points column and is disabled without a `cell`. The
   bands plan carries the same notes (`types/bandas.py`), never as errors.
 - Tests: `test_calc_create_preview.py` (core), `test_kpath_editor.py`, `test_calc_create_dialog.py` (window alone,
-  `make_dialog(mode="avancado", settings=None)`; `calc_dialog_helpers.py`: `pick_scf`, `fill_setup`, `to_files`),
-  `test_calc_create_ui.py` (main window),
+  `make_dialog(mode="avancado", settings=None)`; `calc_dialog_helpers.py`: `pick_scf`, `fill_setup`, `to_files`,
+  `type_in_preview`; `qtbot.keyClicks` with `"\n"` aborts the process), `test_calc_create_edit.py` and
+  `test_calc_overrides.py` (spec 39 R2), `test_calc_create_matrix.py` (R1), `test_calc_create_ui.py` (main window),
   `test_shell_highlighter.py`. Patch `dialog.ask_discard` in every test that leaves a dirty window: a real
   question blocks, even at teardown; and do not `qtbot.addWidget` the dialog (delete-on-close).
 
@@ -1137,7 +1158,9 @@ Only `summarize(path)` has it (`summarize_lines` keeps its signature and has no 
   on screen `PlotView.render` and `ScaledFigureCanvas.draw` only *try* it and retry after 50 ms, so
   the GUI never waits for an export.
 - Connect long-lived signals (e.g. `ThemeManager.theme_changed`) to bound methods, not lambdas,
-  so they disconnect when the widget is deleted. Dialogs use delete-on-close, **except a modal run with `exec()`**
+  so they disconnect when the widget is deleted. Never connect a `partial` or lambda to an object's *own* `destroyed`:
+  PyQt may call it after freeing it (the old intermittent segfault of `test_calc_create_ui.py`, spec 39; end such state
+  in an explicit shutdown, like `SetupPage.shutdown`). Dialogs use delete-on-close, **except a modal run with `exec()`**
   whose answer is read afterwards (`ask_atoms`, `ask_rename`…): `exec` deletes a `WA_DeleteOnClose` dialog before it
   returns, and reading the answer then raises "wrapped C/C++ object … has been deleted" (spec 32 R1). Read the answer,
   then `deleteLater()`.

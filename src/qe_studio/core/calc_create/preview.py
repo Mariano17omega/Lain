@@ -5,7 +5,7 @@ folder is created. The window only lays these out."""
 from __future__ import annotations
 
 import difflib
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -17,6 +17,7 @@ from .writer import Created, folder_name, preview_name
 
 __all__ = [
     "AT_ROOT",
+    "EDITED_MARK",
     "FILE_KINDS",
     "OUTSIDE_PROJECT",
     "FileRow",
@@ -39,6 +40,8 @@ FILE_KINDS = {
 }
 OUTSIDE_PROJECT = "Fora da pasta raiz: a detecção e a sincronização só enxergam pastas dentro dela"
 AT_ROOT = "A pasta será criada fora de um projeto e aparecerá como um projeto novo."  # spec 31 R6.2
+# After the tab label and the kind of a file edited by hand (spec 39 R2.4).
+EDITED_MARK = " (editado)"
 
 
 @dataclass(frozen=True)
@@ -78,9 +81,14 @@ def mesh_summary(mesh: KMesh | None) -> str:
     return f"{n1}×{n2}×{n3} = {mesh.count} k-points na rede (o pw.x reduz pela simetria)"
 
 
-def file_rows(files: Sequence[PlannedFile]) -> list[FileRow]:
+def file_rows(files: Sequence[PlannedFile], edited: Collection[str] = ()) -> list[FileRow]:
+    """The rows of the "Arquivos" tab; the files whose key is in ``edited`` say so in their kind."""
     return [
-        FileRow(f.name, FILE_KINDS.get(f.kind, f.kind), human_size(len(f.text.encode("utf-8"))))
+        FileRow(
+            f.name,
+            FILE_KINDS.get(f.kind, f.kind) + (EDITED_MARK if f.key and f.key in edited else ""),
+            human_size(len(f.text.encode("utf-8"))),
+        )
         for f in files
     ]
 

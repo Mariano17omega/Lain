@@ -15,7 +15,7 @@ from ...widgets.common import set_variant
 LABELS: dict[Mode, str] = {"padrao": "Padrão", "avancado": "Avançado"}
 TIPS: dict[Mode, str] = {
     "padrao": "Só os campos do padrão do tipo; o resto segue o SCF e o config.yaml",
-    "avancado": "Todos os campos, inclusive os nomes dos arquivos",
+    "avancado": "Todos os campos, os nomes dos arquivos e a prévia editável",
 }
 
 

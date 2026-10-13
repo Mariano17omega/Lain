@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PyQt6.QtGui import QTextCursor
+
 from qe_studio.ui.dialogs.calc_create import CalcCreateDialog
 from qe_studio.ui.dialogs.calc_create.tabs_page import TabsPage
 
@@ -40,6 +42,14 @@ def to_files(qtbot, dialog: CalcCreateDialog, type_id: str = "bandas", **setup) 
     dialog.continue_button.click()
     assert dialog.tabs is not None and dialog.on_files_step()
     return dialog.tabs
+
+
+def type_in_preview(qtbot, tabs: TabsPage, key: str, text: str) -> None:
+    """Type ``text`` at the end of the preview of file ``key``, its tab shown (spec 39 R2)."""
+    tabs.tabs.setCurrentWidget(tabs._tab_of[key])
+    preview = tabs.previews[key]
+    preview.moveCursor(QTextCursor.MoveOperation.End)
+    qtbot.keyClicks(preview, text)
 
 
 def tree(root: Path) -> list[str]:

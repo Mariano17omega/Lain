@@ -9,17 +9,24 @@ previews, the marks on the fields, the tab labels (a file name can be edited) an
 follow. The mode only shows or hides rows (``visible_fields``, from the core) and plans again; a tab
 with no field shown is its preview alone. The tabs come from the type's plan in order, keyed by
 ``PlannedFile.key``; the page knows no type.
+
+In the ``avancado`` mode the previews can be edited (spec 39 R2): the typed text *wins*
+(``core/calc_create/overrides``), so a field no longer changes that file, which says "editado" and
+gets a bar with "Restaurar do formulário"; edits are kept by key across modes and checked as typed
+(never blocking "Criar").
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
+from functools import partial
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QPlainTextEdit, QScrollArea, QSplitter, QTabWidget, QVBoxLayout, QWidget
 
-from ....core.calc_create.preview import changed_lines
+from ....core.calc_create.overrides import apply_overrides, edit_issues, edits_in_force, is_edit
+from ....core.calc_create.preview import EDITED_MARK
 from ....core.calc_create.scf_info import ScfInfo
 from ....core.calc_create.types import (
     DEFAULT_MODE,
@@ -33,6 +40,7 @@ from ....core.calc_create.types import (
 from ....core.calc_create.writer import files_to_write, folder_name, preview_name
 from ....core.config import JobsConfig
 from ...theme.manager import ThemeManager
+from .edit_bar import EditBar
 from .form import FieldForm
 from .preview import FilePreview, FilesView
 
@@ -63,13 +71,18 @@ class TabsPage(QWidget):
         self.debounce_ms = debounce_ms
         self.name = name
         self.fields = calc_type.fields(scf, jobs, name)
-        self.plan: CalcPlan = calc_type.plan(scf, {}, jobs, mode, name)
+        self._base: CalcPlan = calc_type.plan(scf, {}, jobs, mode, name)  # the fields' alone
+        self.plan: CalcPlan = self._base  # with the edits: what "Criar" writes
+        self._edits: dict[str, str] = {}  # file key → the text typed in its preview
         self._edited = False
         self._target: tuple[Path, str] | None = None  # where the folder goes (step 1)
         self._extra_warnings: tuple[str, ...] = ()
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self.flush)
+        self._check_timer = QTimer(self)
+        self._check_timer.setSingleShot(True)
+        self._check_timer.timeout.connect(self._check)
 
         self.tabs = QTabWidget()
         self.tabs.setObjectName("calcTabs")
@@ -81,6 +94,7 @@ class TabsPage(QWidget):
         ] = {}  # file key → the form's side of the splitter; group → its tab
         self._group_tabs: set[str] = set()  # the groups that are tabs of their own
         self.previews: dict[str, FilePreview] = {}  # by file key
+        self.edit_bars: dict[str, EditBar] = {}  # by file key
         self._keys: list[str] = []  # the file tabs, in order
         self._tab_of: dict[str, QWidget] = {}  # file key → its tab
         files, groups = self._groups()
@@ -147,10 +161,20 @@ class TabsPage(QWidget):
             self._form_of[planned.key] = form
             scroll.setWidget(form)
         preview = FilePreview(theme, planned.kind)
+        preview.edited.connect(partial(self._on_text_edited, planned.key))
         self.previews[planned.key] = preview
+        bar = EditBar()
+        bar.restore_requested.connect(partial(self.restore, planned.key))
+        self.edit_bars[planned.key] = bar
         self._panes[planned.key] = scroll
+        side = QWidget()
+        column = QVBoxLayout(side)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        column.addWidget(bar)
+        column.addWidget(preview, 1)
         splitter.addWidget(scroll)
-        splitter.addWidget(preview)
+        splitter.addWidget(side)
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 3)
         splitter.setSizes([400, 560])  # the window's 960 px: the band path table needs room
@@ -158,8 +182,11 @@ class TabsPage(QWidget):
 
     # -- mode ------------------------------------------------------------------------------------
     def set_mode(self, mode: Mode) -> None:
-        """Show the fields of ``mode`` (what was typed in a hidden field stays) and plan again."""
+        """Show the fields of ``mode`` (what was typed in a hidden field stays) and plan again; the
+        previews are editable in ``avancado`` only (the edits stay in either mode)."""
         self.mode = mode
+        for preview in self.previews.values():
+            preview.set_editable(mode == "avancado")
         shown = {form_field.id for form_field in visible_fields(self.fields, mode)}
         for key, pane in self._panes.items():
             form = self._form_of.get(key)
@@ -195,28 +222,89 @@ class TabsPage(QWidget):
         return out
 
     def flush(self) -> None:
-        """Plan now with what the fields hold, and show it."""
+        """Plan now with what the fields hold, and show it; an edited file keeps its text."""
         self._timer.stop()
-        self.plan = self.calc_type.plan(self.scf, self.values(), self.jobs, self.mode, self.name)
+        self._base = self.calc_type.plan(self.scf, self.values(), self.jobs, self.mode, self.name)
+        self._edits = edits_in_force(self._base, self._edits)
+        self.plan = apply_overrides(self._base, self._edits)
         for form in self.forms:
             form.mark(dict(self.plan.problems))
-        original = self.scf.text
         for key in self._keys:
-            index = self.tabs.indexOf(self._tab_of[key])
-            planned = self.plan.by_key(key)
-            text = planned.text if planned is not None else ""
-            derived = planned is not None and planned.kind == "pw_input" and text != original
-            self.previews[key].set_text(text, changed_lines(original, text) if derived else ())
-            if planned is not None:
-                self.tabs.setTabText(index, planned.tab_label)
+            if key not in self._edits:
+                self._show_generated(key)
+            self._mark(key)
         self._show_files()
         self.planned.emit()
+
+    def _show_generated(self, key: str) -> None:
+        planned, preview = self._base.by_key(key), self.previews[key]
+        if preview.diagnostics:  # of an edit that is gone
+            preview.show_issues([])
+        preview.show_derived(planned.text if planned is not None else "", self.scf.text)
+
+    def _mark(self, key: str) -> None:
+        """The tab label (the file's name can be edited) and the bar of an edited file."""
+        planned = self.plan.by_key(key)
+        edited = key in self._edits
+        if planned is not None:
+            label = planned.tab_label + (EDITED_MARK if edited else "")
+            self.tabs.setTabText(self.tabs.indexOf(self._tab_of[key]), label)
+        self.edit_bars[key].set_edited(edited)
+
+    # -- files edited by hand (spec 39 R2) -------------------------------------------------------
+    def _on_text_edited(self, key: str, text: str) -> None:
+        generated = self._base.by_key(key)
+        if generated is not None and is_edit(text, generated.text):
+            self._edits[key] = text
+        else:
+            self._edits.pop(key, None)  # typed back to what the fields give: no edit
+        self.plan = apply_overrides(self._base, self._edits)
+        self._mark(key)
+        self._show_files()
+        self.planned.emit()
+        if self.debounce_ms <= 0:
+            self._check()
+        else:
+            self._check_timer.start(self.debounce_ms)
+
+    def _check(self) -> None:
+        """The write problems of every edited file (they only warn) and, for a pw.x input, the rows
+        that differ from the SCF, now of the typed text."""
+        self._check_timer.stop()
+        for key in self._keys:
+            preview = self.previews[key]
+            text = self._edits.get(key)
+            if text is None:
+                if preview.diagnostics:
+                    preview.show_issues([])
+                continue
+            preview.show_issues(edit_issues(preview.kind, text))
+            preview.paint_changes(self.scf.text)
+
+    def restore(self, key: str) -> None:
+        """Drop the edit of ``key``: its preview shows what the fields give again."""
+        if self._edits.pop(key, None) is None:
+            return
+        self.plan = apply_overrides(self._base, self._edits)
+        self._show_generated(key)
+        self._mark(key)
+        self._show_files()
+        self.planned.emit()
+
+    @property
+    def has_edits(self) -> bool:
+        return bool(self._edits)
+
+    def edited_keys(self) -> list[str]:
+        """The files edited by hand, in tab order."""
+        return [key for key in self._keys if key in self._edits]
 
     # -- state -----------------------------------------------------------------------------------
     @property
     def dirty(self) -> bool:
-        """Something the user would lose on closing: an edited field (in any mode) or notes."""
-        return self._edited or bool(self.notes.toPlainText().strip())
+        """Something the user would lose on closing: an edited field (in any mode), a file edited by
+        hand or notes."""
+        return self._edited or self.has_edits or bool(self.notes.toPlainText().strip())
 
     def notes_text(self) -> str:
         return self.notes.toPlainText()
@@ -244,6 +332,7 @@ class TabsPage(QWidget):
             files_to_write(self.plan, self.notes_text()),
             self.warnings(),
             self.plan.errors,
+            self._edits.keys(),
         )
 
     def tab_labels(self) -> list[str]:

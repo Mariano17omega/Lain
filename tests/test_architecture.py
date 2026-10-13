@@ -128,6 +128,7 @@ QT_FREE = [
     "qe_studio.core.calc_create.types.charge_diff",
     "qe_studio.core.calc_create.fragments",
     "qe_studio.core.calc_create.species_keys",
+    "qe_studio.core.calc_create.overrides",
     "qe_studio.core.cancel",
     "qe_studio.core.sizing",
     "qe_studio.core.calculations.load_cache",

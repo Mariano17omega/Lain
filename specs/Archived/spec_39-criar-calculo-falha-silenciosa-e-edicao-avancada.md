@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 39 (R1 é um defeito, não reproduzido; R2 é a maior das ideias e vem depois do verificador de script da spec 38) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (12/10/2026); ver "Decisões na implementação". R1.5 (o SCF que falhou) segue com o usuário |
 | **Depende de** | spec 26 (a janela), spec 28 (modos Padrão / Avançado), spec 30 (Diferença de carga), spec 24 (`InputEditor`), spec 38 (R2: `lint_script`, para a verificação do script editado; sem ela o script fica sem verificação) |
 | **Usada por** | nenhuma |
 | **Esforço** | M (R1: P; R2: M) |
@@ -121,11 +121,42 @@
   `overrides.py` e a regra "a edição vence"; e a regra de R1.2 (falha ao montar a etapa 2 nunca é muda).
 
 ## Critérios de aceite e testes
-- [ ] "Continuar" desabilitado mostra a razão na tela, não só no tooltip; nenhum caminho do clique termina sem efeito visível.
-- [ ] Falha forçada na montagem da etapa 2: mensagem + log, janela utilizável (`test_calc_create_matrix.py`).
-- [ ] Todo tipo × todo SCF válido das fixtures chega à etapa 2.
-- [ ] Avançado: prévia editável; Padrão: somente leitura. O texto editado vai para o `CreateRequest` e para o arquivo criado.
-- [ ] Campo alterado depois da edição não apaga a edição; "Restaurar do formulário" volta ao gerado; trocar tipo/SCF descarta.
-- [ ] Lint ao digitar (input e, com a spec 38, script) marca sem bloquear "Criar".
+- [x] "Continuar" desabilitado mostra a razão na tela, não só no tooltip; nenhum caminho do clique termina sem efeito visível.
+- [x] Falha forçada na montagem da etapa 2: mensagem + log, janela utilizável (`test_calc_create_matrix.py`).
+- [x] Todo tipo × todo SCF válido das fixtures chega à etapa 2.
+- [x] Avançado: prévia editável; Padrão: somente leitura. O texto editado vai para o `CreateRequest` e para o arquivo criado.
+- [x] Campo alterado depois da edição não apaga a edição; "Restaurar do formulário" volta ao gerado; trocar tipo/SCF descarta.
+- [x] Lint ao digitar (input e, com a spec 38, script) marca sem bloquear "Criar".
 - [ ] **Conferência manual (usuário):** "Diferença de carga" com o SCF que falhou.
-- [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+- [x] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+
+## Decisões na implementação
+
+1. As decisões assumidas 1–6 ficaram como estavam: sem causa de R1 inventada, a edição vence o formulário, as edições ficam na
+   troca de modo, a verificação não bloqueia "Criar", o `writer` não sabe de edição, e o script é verificado com o `lint_script`
+   da spec 38 (já existia).
+2. **R1 continua sem causa.** A rede de `test_calc_create_matrix.py` (7 tipos × 8 SCFs: os 6 SCFs de `tests/fixtures/`, o `SMALL`,
+   que tem o card `HUBBARD` e spin, e `slab_scf()`; nos dois modos) passou de primeira. Não existe uma constante `HUBBARD` em
+   `fragment_helpers.py`: o card está dentro do `SMALL`. O passo R1.5 (o SCF do usuário) fica em aberto.
+3. **A linha da razão repete o texto do campo** quando o problema já tem a linha dele (SCF, nome, local): a spec pede
+   `problems()[0]` abaixo do formulário, e a linha fica no estilo "hint" para não parecer um segundo erro.
+4. **Uma montagem que falha descarta também a etapa 2 antiga** (já obsoleta: o tipo ou o SCF mudou), então a nota "Esta mudança
+   refaz…" some e "Criar" fica desabilitado até uma montagem dar certo.
+5. **Defeito que os testes acharam:** o `rehighlight` do `QSyntaxHighlighter` (ao marcar os problemas, ou na troca de tema) termina
+   num bloco de edição, e o `textChanged` dispara com o texto igual; marcar os problemas de uma edição gerava outra "edição" e a
+   verificação recursava. `FilePreview` compara com o último texto mostrado ou digitado (`_known`) e só então emite `edited`.
+6. **O texto editado é gravado com `\n`** (o que o editor guarda) e com o `\n` final (`overrides.normalized`); um texto igual ao
+   gerado com outro fim de linha ou sem o `\n` final não é edição. Esvaziar o arquivo é uma edição (um arquivo vazio).
+7. **Também repintados ao digitar:** as linhas de um input pw.x que diferem do SCF (`FilePreview.paint_changes`) seguem o texto
+   digitado, junto com a verificação, depois do `debounce_ms`.
+8. **Sem verificação acima de `INPUT_READ_LIMIT`** (2 MB), como no visualizador; a verificação roda na thread da GUI sobre o texto
+   em memória, depois do debounce.
+9. O tooltip de "Avançado" diz que a prévia fica editável. `tabs_page.py` ficou com 345 linhas (a verificação mora em
+   `core/calc_create/overrides.edit_issues` e a marcação em `FilePreview.show_issues`), `dialog.py` 316, `preview.py` 158.
+10. `qtbot.keyClicks` com `"\n"` derruba o processo (abort): os testes digitam sem quebra de linha.
+11. **O segfault "intermitente" de `test_calc_create_ui.py` tinha causa aqui.** `SetupPage` ligava
+    `partial(busy.end, key)` ao próprio `destroyed`; quando o fixture apagava a janela principal com uma janela "Criar
+    cálculo" ainda filha dela, o PyQt chamava o `partial` já liberado (`gdb`: `partial_vectorcall` ←
+    `QObject::destroyed` ← `~QWidget` da `SetupPage`). O teste novo da janela principal o fazia cair em 3 de 5 rodadas;
+    agora o spinner termina em `SetupPage.shutdown` (o `done` da janela), sem ligação ao `destroyed`, e 6 de 6 rodadas
+    passaram.

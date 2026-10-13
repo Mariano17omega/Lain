@@ -1,4 +1,5 @@
-"""Read-only text view with a line number margin, search highlights and diagnostics (specs 10, 11).
+"""Text view with a line number margin, search highlights and diagnostics (specs 10, 11); read-only
+unless ``set_read_only(False)`` (the "Criar cálculo" preview, spec 39).
 
 The margin follows the Qt "Code Editor" example. Numbers come from a ``LineMap`` so a truncated
 file keeps its real line numbers after the omitted stretch. Diagnostics (the write errors of an
@@ -58,12 +59,7 @@ class CodeView(QPlainTextEdit):
         super().__init__(parent)
         self.theme = theme
         self.setObjectName("textViewer")
-        self.setReadOnly(True)
-        # Read-only keeps the mouse selection only: the keyboard (caret, Ctrl+Home/End) is wanted too.
-        self.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-            | Qt.TextInteractionFlag.TextSelectableByKeyboard
-        )
+        self.set_read_only(True)
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.setPlaceholderText("Carregando…")
         self.text_document().setDocumentMargin(8)
@@ -79,6 +75,16 @@ class CodeView(QPlainTextEdit):
         self.cursorPositionChanged.connect(self._on_cursor_moved)
         theme.theme_changed.connect(self._on_theme)
         self._update_margin()
+
+    def set_read_only(self, read_only: bool) -> None:
+        """Read-only (the default) or editable, like ``setReadOnly``, but a read-only view keeps the
+        keyboard selection too (caret, Ctrl+Home/End), not only the mouse one."""
+        self.setReadOnly(read_only)  # editable: Qt's TextEditorInteraction
+        if read_only:
+            self.setTextInteractionFlags(
+                Qt.TextInteractionFlag.TextSelectableByMouse
+                | Qt.TextInteractionFlag.TextSelectableByKeyboard
+            )
 
     def text_document(self) -> QTextDocument:
         """``document()`` without the ``None`` its stub allows: a view always has one."""

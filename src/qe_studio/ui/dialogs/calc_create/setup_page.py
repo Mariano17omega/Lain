@@ -8,7 +8,6 @@ The SCF is checked on the GUI thread only by its head (``looks_like_input``) and
 from __future__ import annotations
 
 import logging
-from functools import partial
 from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal
@@ -40,6 +39,7 @@ READING = "Lendo SCF…"
 CHOOSE_TYPE = "Escolha o tipo de cálculo"
 CHOOSE_SCF = "Escolha o input de SCF"
 REBUILD_NOTE = "Esta mudança refaz a próxima etapa: os campos voltam aos padrões"
+REBUILD_EDITS_NOTE = f"{REBUILD_NOTE} e as edições dos arquivos se perdem"  # spec 39 R2.5
 INPUT_FILTER = "Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)"
 
 
@@ -74,9 +74,9 @@ class SetupPage(QWidget):
         self._reading = False
         self._location = start
         self._tasks = TaskGroup()
+        # Ended by ``shutdown`` (the window's ``done``), never from our own ``destroyed``: PyQt may
+        # call a plain callable on it after freeing it, which crashed the test run.
         self._busy_key = f"calc:scf:{id(self)}"
-        if busy is not None:
-            self.destroyed.connect(partial(busy.end, self._busy_key))
 
         self.type_combo = QComboBox()
         self.type_combo.setAccessibleName("Tipo de cálculo")
@@ -103,6 +103,7 @@ class SetupPage(QWidget):
         self.location_button = QPushButton("Escolher…")
         self.location_button.clicked.connect(self._pick_location)
         self.location_message = message_label("warning")
+        self.reason = message_label()  # why "Continuar" is disabled (spec 39 R1.1)
         self.name_preview = set_variant(message_label(), "mono")
         self.rebuild_note = message_label("warning")
         for button in (self.scf_button, self.location_button):
@@ -132,6 +133,7 @@ class SetupPage(QWidget):
         layout = QVBoxLayout(self)
         layout.addLayout(grid)
         layout.addSpacing(8)
+        layout.addWidget(self.reason)
         layout.addWidget(self.name_preview)
         layout.addWidget(self.rebuild_note)
         layout.addStretch(1)
@@ -169,12 +171,15 @@ class SetupPage(QWidget):
 
     def problems(self) -> list[str]:
         """What keeps "Continuar" disabled, in the order of the rows ([] = nothing)."""
+        return self._problems(validate_suffix(self.suffix), validate_parent(self._location))
+
+    def _problems(self, named: list[str], place: list[str]) -> list[str]:
         problems = []
         if self.calc_type is None:
             problems.append(CHOOSE_TYPE)
         if self._scf is None:
             problems.append(self._scf_problem or (READING if self._reading else CHOOSE_SCF))
-        return problems + validate_suffix(self.suffix) + validate_parent(self._location)
+        return problems + named + place
 
     def location_warnings(self) -> tuple[str, ...]:
         return location_warnings(self._location, self.root)
@@ -236,8 +241,14 @@ class SetupPage(QWidget):
         self.location_edit.setText(str(path))
         self._update()
 
-    def show_rebuild_note(self, shown: bool) -> None:
-        show_message(self.rebuild_note, REBUILD_NOTE if shown else "")
+    def show_rebuild_note(self, shown: bool, lose_edits: bool = False) -> None:
+        note = REBUILD_EDITS_NOTE if lose_edits else REBUILD_NOTE
+        show_message(self.rebuild_note, note if shown else "")
+
+    def show_reason(self, text: str) -> None:
+        """The line that says why "Continuar" does not go on (empty: it does): on the page, not
+        only in the button's tooltip, which a disabled button rarely shows."""
+        show_message(self.reason, text)
 
     def _update(self, *_args) -> None:
         suffix = self.suffix
@@ -254,7 +265,13 @@ class SetupPage(QWidget):
         if calc_type is not None and not named and not place:
             preview = target_text(self._location, calc_type, suffix)
         show_message(self.name_preview, preview)
+        problems = self._problems(named, place)
+        self.show_reason(problems[0] if problems else "")
         self.changed.emit()
 
     def shutdown(self) -> None:
+        """The window is done: a SCF still being read is dropped, and so is its spinner."""
         self._tasks.shutdown(0)
+        self._reading = False
+        if self.busy is not None:
+            self.busy.end(self._busy_key)

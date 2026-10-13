@@ -66,7 +66,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 36 | [spec_36-deslocamento-da-legenda.md](Archived/spec_36-deslocamento-da-legenda.md) | Campos `dx` e `dy` na seção "Legenda" (fração do painel; `best` com deslocamento = `upper right`), para todos os módulos | 8, 20, 22, 23 | P | Sonnet 5.5 |
 | 37 | [spec_37-grade-nomes-completos-e-arvore-com-arquivos.md](Archived/spec_37-grade-nomes-completos-e-arvore-com-arquivos.md) | Nome do arquivo quebra linha no cartão da grade (altura única por pasta, até 6 linhas); árvore só de pastas por padrão, com `ui.tree_show_files` | 5, 16, 19, 31 | M | Sonnet 5.5 |
 | 38 | [spec_38-visualizador-markdown-e-qsub.md](Archived/spec_38-visualizador-markdown-e-qsub.md) | `.md` renderizado (alterna para o texto, sem HTML cru, links locais não abrem); `.qsub` com `ShellHighlighter` e verificação de escrita em `core/qsub_lint.py` | 10, 11, 19, 26 | G | Sonnet 5.5 |
-| 39 | [spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md](spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md) | "Continuar" nunca mudo e rede de testes tipo × SCF (a Diferença de carga **não foi reproduzida**); prévia editável só no Avançado, a edição vence o formulário | 24, 26, 28, 30, 38 | M | Opus 5.5 |
+| 39 | [spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md](Archived/spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md) | "Continuar" nunca mudo e rede de testes tipo × SCF (a Diferença de carga **não foi reproduzida**); prévia editável só no Avançado, a edição vence o formulário | 24, 26, 28, 30, 38 | M | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -102,8 +102,8 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–37, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (`spec_end` e as specs 38–39) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–39, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**

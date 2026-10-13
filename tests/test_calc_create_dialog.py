@@ -162,7 +162,7 @@ def test_fields_open_with_the_scf_values(qtbot, dialog):
 def test_editing_a_field_plans_again(qtbot, dialog):
     tabs = to_files(qtbot, dialog, "pdos")
     nscf = tabs.previews["nscf"]
-    assert nscf.isReadOnly()
+    assert not nscf.isReadOnly()  # "avancado": the previews can be edited (spec 39 R2.1)
     tabs.widget_of("nbnd").setText("")
     qtbot.keyClicks(tabs.widget_of("nbnd"), "42")
     assert "nbnd = 42" in nscf.toPlainText()
@@ -425,6 +425,7 @@ def test_the_standard_mode_shows_only_its_fields(qtbot, make_dialog):
     ]
     assert dialog.create_button.isEnabled()
     assert "degauss = 0.000735" in tabs.previews["projwfc"].toPlainText()
+    assert all(preview.isReadOnly() for preview in tabs.previews.values())  # spec 39 R2.1
 
 
 def test_switching_modes_keeps_the_tabs_and_the_edits(qtbot, make_dialog):

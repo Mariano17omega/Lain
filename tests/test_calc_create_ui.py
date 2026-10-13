@@ -10,7 +10,7 @@ from qe_studio.ui import calc_create_controller
 from qe_studio.ui.calc_create_controller import AVAILABLE_TIP, MISSING_ROOT_TIP
 from qe_studio.ui.dialogs.calc_create import dialog as dialog_module
 
-from calc_dialog_helpers import to_files, tree
+from calc_dialog_helpers import to_files, tree, type_in_preview
 from calc_helpers import AL_PATH
 
 
@@ -111,6 +111,22 @@ def test_the_same_name_twice_gets_a_number(qtbot, main_window, demo_project):
     assert second.renamed_from == "SCF_Al"
     assert "descricao.md" not in [p.name for p in second.files]  # no notes, no file
     assert [p.name for p in second.files] == [f.name for f in tabs.plan.files]
+
+
+def test_a_file_edited_in_the_preview_is_written_as_typed(qtbot, main_window, demo_project):
+    """Spec 39 R2.3: the text typed in the "avancado" mode is what lands in the folder."""
+    window = main_window
+    dialog = open_dialog(window)
+    dialog.set_mode("avancado")
+    tabs = to_files(qtbot, dialog, "scf", location=demo_project)
+    type_in_preview(qtbot, tabs, "scf", "! editado no Lain")
+    typed = tabs.previews["scf"].toPlainText()
+    with qtbot.waitSignal(window.calc_create.created, timeout=10_000) as blocker:
+        dialog.create_button.click()
+    folder = blocker.args[0].folder
+    assert (folder / "scf_al.in").read_text() == typed + "\n"
+    script = (folder / "scf.qsub").read_text()
+    assert script == tabs.previews["script"].toPlainText()  # not edited: the fields' text
 
 
 def test_the_mode_lives_in_the_window_settings(qtbot, main_window, window_factory, demo_project):
