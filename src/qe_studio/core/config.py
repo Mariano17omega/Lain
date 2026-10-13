@@ -83,6 +83,9 @@ class _Section(BaseModel):
 class PathsConfig(_Section):
     local_root: Path = Path("~/qe_simulations")
     remote_root: str = ""
+    # Where XCrySDen is installed: its folder or the ``xcrysden`` script itself. None (blank):
+    # "Abrir com XCrysDen" is disabled (spec 45). Existence is not checked here: the menu says why.
+    xcrysden_path: str | None = None
 
     @field_validator("local_root")
     @classmethod
@@ -94,6 +97,13 @@ class PathsConfig(_Section):
     def _strip_slash(cls, value: str) -> str:
         value = value.strip()
         return value.rstrip("/") if value not in ("", "/") else value
+
+    @field_validator("xcrysden_path")
+    @classmethod
+    def _expand_program(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        return str(Path(os.path.expandvars(value.strip())).expanduser())
 
 
 class ClusterConfig(_Section):

@@ -7,6 +7,10 @@ paths:
   local_root: ~/qe_simulations
   # Matching folder on the cluster (POSIX path). Sync mirrors local_root/<sub> <- remote_root/<sub>.
   remote_root: /home/seu_usuario/qe_simulations
+  # Where XCrySDen is installed: its folder (the one holding the `xcrysden` script) or the script
+  # itself. Empty: "Abrir com XCrysDen" in the right-click menu stays disabled.
+  # Reload with "Recarregar config.yaml".
+  xcrysden_path: ""
 
 cluster:
   host: cluster.example.org

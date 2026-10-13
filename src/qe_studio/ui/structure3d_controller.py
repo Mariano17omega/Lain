@@ -5,6 +5,9 @@ The input is read in a worker (``core/structure3d/source.read_structure``: the G
 the footer spinner "Lendo estrutura…"; then a ``StructureWindow`` opens. A file that cannot be shown gives
 a warning toast and no window. The open windows are kept here and dropped by their own ``closed`` signal;
 closing the main window closes them all (they have nothing to save).
+
+The second viewer, the external XCrySDen ("Abrir com XCrysDen", spec 45), is launched by ``ItemActions``;
+``for_window`` only tells it where the program is (``paths.xcrysden_path``).
 """
 
 from __future__ import annotations
@@ -54,6 +57,8 @@ class Structure3DController(QObject):
         busy = window.plot_workflow.busy
         controller = cls(window.theme, busy, window.toast, window.settings, window)
         window.item_actions.structure_requested.connect(controller.open)
+        # Read at every menu, so "Recarregar config.yaml" applies without a restart (spec 45).
+        window.item_actions.xcrysden_path = lambda: window.config.paths.xcrysden_path
         return controller
 
     def open(self, path: Path) -> None:

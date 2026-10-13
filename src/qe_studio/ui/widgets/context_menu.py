@@ -4,9 +4,10 @@ Four actions: Abrir local de origem, Abrir com ▸, Copiar, Renomear. A file one
 its own (spec 9) also gets "Plotar" on top, a QE output "Resumo" (spec 12) and a converged relax /
 vc-relax output "Gerar SCF convergido" (spec 24; disabled, with the reason as tooltip, when its
 input is missing). A folder gets "Enviar ao cluster" under "Abrir com" (spec 27; disabled, with the
-reason, when sync is off or it is the project root). Renaming, plotting, generating and pushing
-touch global state (tabs, plot settings, folder memory, the file panels, the cluster), so they are
-handed to the main window and its controllers.
+reason, when sync is off or it is the project root). A pw.x input or output also gets "Abrir com
+XCrysDen" (spec 45; disabled, with the reason, when ``paths.xcrysden_path`` is empty or wrong).
+Renaming, plotting, generating and pushing touch global state (tabs, plot settings, folder memory,
+the file panels, the cluster), so they are handed to the main window and its controllers.
 
 With several items selected in the grid (spec 16 R5) the menu is shorter: the item count, Abrir local
 de origem, Copiar and, for exactly two QE inputs, Comparar; for a folder of bands and one of PDOS,
@@ -31,6 +32,7 @@ from ...core.calculations.bands_dos import bands_dos_pair
 from ...core.desktop_apps import DesktopApp, catalog, expand_exec
 from ...core.qe.scf_from_relax import scf_availability
 from ...core.sniff import FileKind, looks_like_input
+from ...core.xcrysden import command, locate, option_for
 from ..dialogs.open_with import ask_command
 from ..services import DetectionService
 from .workspace_tabs import add_action
@@ -40,6 +42,7 @@ log = logging.getLogger(__name__)
 IS_WINDOWS = sys.platform == "win32"
 FILE_MANAGER = "org.freedesktop.FileManager1"
 FILE_MANAGER_PATH = "/org/freedesktop/FileManager1"
+XCRYSDEN_TEXT = "Abrir com XCrysDen"  # the user's spelling (spec 45); the program's is XCrySDen
 
 
 def mime_types_for(path: Path) -> list[str]:
@@ -56,6 +59,7 @@ class FileActions(NamedTuple):
     plot_kind: str | None  # the module that plots it alone (spec 9)
     is_output: bool  # a QE output: "Resumo" (spec 12)
     structure: bool  # a pw.x input: "Visualização 3D" (spec 43)
+    xcrysden: str | None = None  # the XCrySDen option that opens it (--pwi / --pwo, spec 45)
 
 
 def app_icon(app: DesktopApp) -> QIcon:
@@ -89,6 +93,9 @@ class ItemActions(QObject):
         # "Enviar ao cluster" of a path: None hides it, "" enables it, else why it is disabled.
         # The sync coordinator sets it (SyncCoordinator.bind_menu); without it there is no item.
         self.push_state: Callable[[Path], str | None] = lambda path: None
+        # ``paths.xcrysden_path`` as it is now, read at every menu so a config reload applies at
+        # once (spec 45). ``Structure3DController.for_window`` sets it: ``main_window.py`` is full.
+        self.xcrysden_path: Callable[[], str | None] = lambda: None
         self._reveals: dict[QObject, list[Path]] = {}  # pending D-Bus calls → items
 
     def show(self, paths: list[Path], pos: QPoint, can_rename: bool = True) -> None:
@@ -107,6 +114,7 @@ class ItemActions(QObject):
                 plot_kind=actions.plot_kind,
                 summary=actions.is_output,
                 structure=actions.structure,
+                xcrysden=actions.xcrysden,
                 favorite=favorite,
                 scf=self.scf_state(path),
                 push=self.push_state(path),
@@ -117,16 +125,20 @@ class ItemActions(QObject):
         menu.deleteLater()
 
     def file_actions_of(self, path: Path) -> FileActions:
-        """Kind of the module that plots ``path`` alone (spec 9), whether it is a QE output (spec 12)
-        and whether it is a pw.x input (spec 43), from the cached sniff only: the GUI thread never
-        reads the file. On a miss detection is requested, so the next menu knows."""
+        """Kind of the module that plots ``path`` alone (spec 9), whether it is a QE output (spec 12),
+        whether it is a pw.x input (spec 43) and the option XCrySDen opens it with (spec 45), from
+        the cached sniff only: the GUI thread never reads the file. On a miss detection is
+        requested, so the next menu knows."""
         sniff = self.service.file_sniff(path)
         if sniff is None:
             self.service.results(path.parent)
-            return FileActions(None, False, False)
+            return FileActions(None, False, False, None)
         module = module_for_file(sniff)
         return FileActions(
-            module.kind if module else None, sniff.is_output, sniff.kind is FileKind.PW_IN
+            module.kind if module else None,
+            sniff.is_output,
+            sniff.kind is FileKind.PW_IN,
+            option_for(sniff.kind),
         )
 
     def scf_state(self, path: Path) -> str | None:
@@ -146,11 +158,14 @@ class ItemActions(QObject):
         scf: str | None = None,
         push: str | None = None,
         structure: bool = False,
+        xcrysden: str | None = None,
     ) -> QMenu:
         """``plot_kind``: the module that plots this file alone (spec 9); ``summary``: it is a QE
-        output (spec 12); ``structure``: a pw.x input, "Visualização 3D" (spec 43); ``scf``: see
-        ``scf_state`` (spec 24). They go on top, apart from the actions every item has. ``favorite``: for a folder, whether it is one already (spec 16
-        R4.1); None for files. ``push``: see ``push_state`` (spec 27)."""
+        output (spec 12); ``structure``: a pw.x input, "Visualização 3D" (spec 43); ``xcrysden``: the
+        option XCrySDen opens it with, None hides the item (spec 45); ``scf``: see ``scf_state``
+        (spec 24). They go on top, apart from the actions every item has. ``favorite``: for a folder,
+        whether it is one already (spec 16 R4.1); None for files. ``push``: see ``push_state``
+        (spec 27)."""
         menu = QMenu(self.window)
         if plot_kind is not None:
             add_action(menu, "Plotar", lambda: self.plot_file_requested.emit(path, plot_kind))
@@ -158,6 +173,16 @@ class ItemActions(QObject):
             add_action(menu, "Resumo", lambda: self.summary_requested.emit(path))
         if structure:
             add_action(menu, "Visualização 3D", lambda: self.structure_requested.emit(path))
+        if xcrysden is not None:
+            found = locate(self.xcrysden_path())
+            add_action(
+                menu,
+                XCRYSDEN_TEXT,
+                lambda: self.open_in_xcrysden(path, xcrysden, found.executable),
+                enabled=found.executable is not None,
+                tooltip=found.problem,
+            )
+            menu.setToolTipsVisible(True)  # the reason of a disabled item
         if scf is not None:
             add_action(
                 menu,
@@ -167,7 +192,7 @@ class ItemActions(QObject):
                 tooltip=scf,
             )
             menu.setToolTipsVisible(True)  # the reason of a disabled item
-        if plot_kind is not None or summary or structure or scf is not None:
+        if plot_kind is not None or summary or structure or xcrysden is not None or scf is not None:
             menu.addSeparator()
         add_action(menu, "Abrir local de origem", lambda: self.reveal(path))
         open_with = menu.addMenu("Abrir com")
@@ -262,6 +287,13 @@ class ItemActions(QObject):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
         else:
             self.open_with(path, app)
+
+    def open_in_xcrysden(self, path: Path, option: str, executable: Path | None) -> None:
+        """ "Abrir com XCrysDen" (spec 45): ``xcrysden <option> <path>``, detached, no shell. A start
+        that fails is the footer's "Não foi possível abrir …"; what XCrySDen does after it starts
+        is not followed."""
+        if executable is not None:
+            self._launch(command(executable, option, path), path, "XCrysDen")
 
     def open_with_other(self, path: Path) -> None:
         argv = ask_command(self.window, path.name)

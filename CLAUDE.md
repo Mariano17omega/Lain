@@ -1299,7 +1299,8 @@ also for the same file.
 - **Controller** `ui/structure3d_controller.py:Structure3DController.for_window` (`window.structure3d`): `TaskGroup` by
   `structure3d:<path>:<n>`, busy "Lendo estrutura…", `opened(window)` / `failed(message)` (a `warning` toast "Visualização
   3D de X: motivo"), `windows` (dropped by `closed`), `close_dialog()` closes them all (last in `close_dialogs`),
-  `cancel()` in the "cancelar" step.
+  `cancel()` in the "cancelar" step. The same `for_window` binds `ItemActions.xcrysden_path`: the **second 3D viewer** is
+  the external XCrySDen ("Abrir com XCrysDen", spec 45, see "Context menu"), which Lain only starts.
 - Frame times (`-m perf -s tests/test_perf_structure3d.py`, stacked graphene, 1000 × 800, ball and stick): 500 atoms ≈ 16 ms,
   2 000 ≈ 50 ms (draft ≈ 28), 5 000 ≈ 105 ms (draft ≈ 65); budget 2 000 ≤ 80 ms full, ≤ 50 ms draft.
 
@@ -1417,8 +1418,20 @@ and never emits `synced`. "Criar cálculo"'s toast reminds of it when sync is on
 (both panels emit `item_menu_requested(paths: list[Path], pos)`, the tree a one-item list →
 `MainWindow._show_item_menu` → `ItemActions.show`, which reads the cached sniff once, in
 `file_actions_of`: "Plotar" for a
-single-file module, "Resumo" for any QE output, "Visualização 3D" for a pw.x input (spec 43), above the four spec-5
-actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
+single-file module, "Resumo" for any QE output, "Visualização 3D" for a pw.x input (spec 43), "Abrir com XCrysDen" for a
+pw.x input or output (spec 45), above the four spec-5 actions). **"Abrir com XCrysDen" (spec 45)** is a first-level item
+after "Visualização 3D" (the second, external viewer of a structure): `FileActions.xcrysden` is the XCrySDen option of the
+cached sniff (`core/xcrysden.py:option_for`: `PW_IN` → `--pwi`, `PW_OUT` → `--pwo`, by content, never by suffix; hidden
+for anything else, a folder and a multi-selection). `ItemActions.xcrysden_path` (a callable, `lambda: None` by default)
+returns `paths.xcrysden_path` as it is now; `Structure3DController.for_window` sets it, because `main_window.py` is full,
+and the menu reads it at every opening, so "Recarregar config.yaml" applies at once. `core/xcrysden.py:locate` (Qt-free,
+never raises) accepts the install folder (`<folder>/xcrysden`) or the script and gives the executable or the reason (the
+item is disabled with it as tooltip, like "Gerar SCF convergido"); `command` is `[exe, option, abspath(file)]` and
+`open_in_xcrysden` runs it through `_launch` (detached, cwd the file's folder, failure = the footer's "Não foi possível
+abrir X com XCrysDen."; what XCrySDen does after it starts is not followed). The key is `paths.xcrysden_path` (`str |
+None`, blank → `None`, `~` and `$VAR` expanded, existence not checked); a top-level `xcrysden_path` is "chave
+desconhecida". Tests: `test_xcrysden.py` (core), `test_xcrysden_menu.py` (a fake `xcrysden` script in `tmp_path` and
+the `launched` fixture). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
 cached `catalog()` per session; `Terminal=true` programs stay in `apps` but are never listed nor the default) and starts them with `QProcess.startDetached(argv)`, never a
 shell. "Abrir local de origem" calls `FileManager1.ShowItems` over D-Bus and reads the answer through
 `QDBusPendingReply(watcher)` (`QDBusPendingCallWatcher` has no `isError`); an error falls back to opening the parent

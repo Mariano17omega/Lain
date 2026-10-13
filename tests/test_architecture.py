@@ -105,6 +105,7 @@ QT_FREE = [
     "qe_studio.core.qe.scf_from_relax",
     "qe_studio.core.qe.summary.mesh",
     "qe_studio.core.unique_names",
+    "qe_studio.core.xcrysden",
     "qe_studio.core.qe.lattice",
     "qe_studio.core.calc_create",
     "qe_studio.core.calc_create.render",

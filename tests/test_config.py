@@ -317,3 +317,31 @@ def test_jobs_validation(tmp_path):
         path.write_text(bad)
         with pytest.raises(ConfigError):
             load_config(path, environ={}, cwd=tmp_path)
+
+
+# -- paths.xcrysden_path (spec 45 R1) --------------------------------------------------------------
+def test_xcrysden_path_is_unset_by_default_and_documented(tmp_path):
+    assert AppConfig().paths.xcrysden_path is None
+    example = ROOT / "config.example.yaml"
+    assert "xcrysden_path" in example.read_text(encoding="utf-8")
+    # The example ships the key empty: the menu item stays disabled until the user fills it.
+    assert load_config(example, environ={}, cwd=tmp_path).config.paths.xcrysden_path is None
+
+
+@pytest.mark.parametrize("value", ["", "   ", None])
+def test_a_blank_xcrysden_path_is_none(value):
+    assert parse_config({"paths": {"xcrysden_path": value}}).paths.xcrysden_path is None
+
+
+def test_xcrysden_path_is_stripped_and_expanded(monkeypatch, tmp_path):
+    monkeypatch.setenv("APPS", str(tmp_path))
+    home = parse_config({"paths": {"xcrysden_path": " ~/xcrysden "}})
+    assert home.paths.xcrysden_path == str(Path.home() / "xcrysden")
+    var = parse_config({"paths": {"xcrysden_path": "$APPS/xcrysden-1.6.2"}})
+    assert var.paths.xcrysden_path == str(tmp_path / "xcrysden-1.6.2")
+
+
+def test_xcrysden_path_only_lives_under_paths():
+    with pytest.raises(ConfigError) as info:
+        parse_config({"xcrysden_path": "/opt/xcrysden"})
+    assert "xcrysden_path: chave desconhecida" in str(info.value)

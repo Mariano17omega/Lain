@@ -11,7 +11,8 @@ do menu e da barra, método do gap, "Plotar" do relax, deslocamento da legenda, 
 e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 40–42 a **sexta** (13/10/2026: os tipos de superfície do
 "Criar cálculo" portados dos scripts de `Documentation/Exemplo-SLAB/`: Slab, Supercélula e Molécula na superfície) e as specs 43–44 a
 **sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
-medidas de distância e ângulo), em grupos de itens
+medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
+pw.x), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
@@ -76,6 +77,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 42 | [spec_42-criar-calculo-molecula-na-superficie.md](Archived/spec_42-criar-calculo-molecula-na-superficie.md) | Tipo "Molécula na superfície": candidatos agrupados por simetria (spglib), monodentado ou bidentado, remoção do H âncora, sítio pela lista ou por coordenadas; SCF de bulk recusado na etapa 1 | 40, 41 | G | Opus 5.5 |
 | 43 | [spec_43-visualizacao-3d-da-estrutura.md](Archived/spec_43-visualizacao-3d-da-estrutura.md) | "Visualização 3D" no menu dos inputs do pw.x: uma janela própria por clique (núcleo e `QPainter` portados da prova de conceito), ligações como cilindros que saem da superfície das esferas, zoom que não se desfaz ao clicar, painel esquerdo com as seções do Lain | 5, 11, 15, 19, 25, 27-5, 32, 40 | G | Opus 5.5 |
 | 44 | [spec_44-visualizacao-3d-medidas.md](Archived/spec_44-visualizacao-3d-medidas.md) | Seção "Medidas" da janela 3D: botões exclusivos "Distância" (2 átomos) e "Ângulos" (3, vértice no 2º), uma linha por medida nas tabelas, copiar e limpar | 43 | M | Sonnet 5.5 |
+| 45 | [spec_45-abrir-com-xcrysden.md](Archived/spec_45-abrir-com-xcrysden.md) | "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do pw.x: `--pwi` / `--pwo` do XCrySDen instalado em `paths.xcrysden_path`; desabilitado (com o motivo) quando a chave está vazia ou errada | 5, 43 | P | Sonnet 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -112,12 +114,14 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
     e traz o spglib. Independentes das specs 33–39, salvo a matriz tipo × SCF e a prévia editável da 39, já implementadas.
 11. **Visualização 3D (43–44, decisão de 13/10/2026):** a 43 primeiro (núcleo, janela, menu, ligações, zoom e painel), a 44 sobre ela
     (as medidas ocupam a seção que a 43 reserva no painel). Independentes das specs 33–42; a 43 deixa `ui/main_window.py` em 449/450.
-12. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
+12. **XCrySDen (45, decisão de 13/10/2026):** pequena e independente; depende só do menu de contexto (5) e do ponto de ligação da 43. Pode
+    sair antes de qualquer outra spec aberta; não toca `ui/main_window.py` (450/450).
+13. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–42, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (43, 44 e `spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–45, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz fica a proposta ainda aberta (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
@@ -367,6 +371,18 @@ prova de conceito `Documentation/Exemplo-visualizador_3d/`; cada spec cita o tre
 | 13 | O zoom se desfaz ao clicar num átomo | spec 43, R3 (reproduzido: o duplo clique reseta a vista; o "Fator de ligação" também reenquadra) |
 | 14 | Melhorar a UI do painel esquerdo | spec 43, R5 (seções sanfona e campos do painel de ajustes do Lain) |
 
+## Rastreabilidade: ideias da oitava rodada (13/10/2026) → specs
+
+As ideias vieram em `Ideias.md` (13/10/2026); a spec cita o trecho de origem.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Uma segunda visualização 3D da estrutura, a partir do SCF | spec 45 (o XCrySDen, programa externo; a primeira é a janela própria da spec 43) |
+| 2 | "Abrir com XCrysDen" no botão direito, `xcrysden --pwi scf.in` | spec 45, R3 (`--pwi` no input; `--pwo` na saída, verificado na 1.6.2) |
+| 3 | O caminho de instalação vem da chave `xcrysden_path` do `config.yaml` | spec 45, R1 (`paths.xcrysden_path`; pasta ou executável, decisões 1 e 2) |
+| 4 | `xcrysden_path` vazio: a opção fica desabilitada | spec 45, R2.2 e R3.4 (e também com o caminho errado, com o motivo no tooltip) |
+| 5 | A opção só aparece para `.in` / `.out` do pw.x | spec 45, R2.1 e R3.1 (pelo conteúdo, o sniff em cache; decisão 4) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -463,3 +479,10 @@ Decisões de 13/10/2026 (sétima rodada, specs 43–44):
 - **Nomes nas medidas:** símbolo + número do átomo no input (`O43`, o de `pdos_atm#43`), não a contagem por elemento.
 - **Desenho:** `QPainter`, como a prova de conceito, com as ligações corrigidas; OpenGL fica fora.
 - **Modelo recomendado:** Opus 5.5 para 43; Sonnet 5.5 para 44.
+
+Decisões de 13/10/2026 (oitava rodada, spec 45):
+- **Chave:** `paths.xcrysden_path`, dentro da seção `paths:` (toda chave do `config.yaml` mora numa seção); aceita a pasta da instalação ou o
+  próprio `xcrysden`. Vazia ou errada: o item fica desabilitado, com o motivo no tooltip.
+- **Arquivos:** inputs (`--pwi`) e saídas (`--pwo`) do pw.x, decididos pelo sniff em cache, não pelo sufixo; fora do menu de seleção múltipla.
+- **Ligação:** em `Structure3DController.for_window`, para `ui/main_window.py` continuar em 450/450.
+- **Modelo recomendado:** Sonnet 5.5 para a 45.

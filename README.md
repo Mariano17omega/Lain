@@ -142,6 +142,10 @@ a pull.
    Under **Medidas**, turn on **Distância** and click two atoms, or **Ângulos** and click three (the
    second is the vertex): each pair or trio adds a row to its table (`O43 - H59  0.965 Å`), in click
    order; **Copiar** puts them on the clipboard for a spreadsheet, **Limpar** and Delete remove them.
+   A pw.x input or output also has **Abrir com XCrysDen**, which starts the external
+   [XCrySDen](http://www.xcrysden.org/) on the file (`xcrysden --pwi scf.in`, `--pwo` for an output).
+   Put its install folder (or the `xcrysden` script) in `config.yaml`, under `paths:`, as
+   `xcrysden_path`; while it is empty or wrong the item is disabled and its tooltip says why.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the

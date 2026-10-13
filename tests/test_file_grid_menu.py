@@ -21,6 +21,7 @@ from qe_studio.ui.widgets.fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
 from conftest import FIXTURES
 
 MENU = ["Abrir local de origem", "Abrir com", "Copiar", "Renomear"]
+XCRYSDEN = "Abrir com XCrysDen"  # spec 45: pw.x inputs and outputs, disabled without the config key
 # Folders also offer "Enviar ao cluster" after "Abrir com" (spec 27; disabled: no cluster here)
 # and the star after "Copiar" (spec 16 R4.1).
 FOLDER_MENU = [
@@ -158,21 +159,26 @@ def test_scf_output_menu_starts_with_plotar(main_window, demo_project, monkeypat
     for folder in ("02_scf", "03_bands"):  # a bands folder also holds an SCF output
         detected(window, demo_project / folder)
         window._show_item_menu([demo_project / folder / "scf.out"], QPoint())
-    assert [menu_texts(menu) for menu in shown] == [["Plotar", "Resumo", *MENU]] * 2
-    assert shown[0].actions()[2].isSeparator() and len(shown[0].actions()) == 7
+    top = ["Plotar", "Resumo", XCRYSDEN]  # spec 45: disabled, no paths.xcrysden_path here
+    assert [menu_texts(menu) for menu in shown] == [[*top, *MENU]] * 2
+    assert shown[0].actions()[3].isSeparator() and len(shown[0].actions()) == 8
 
 
 @pytest.mark.parametrize(
     "folder, name, top",
     [
-        ("03_bands", "bands.out", ["Resumo"]),  # pw.x bands
+        ("03_bands", "bands.out", ["Resumo", XCRYSDEN]),  # pw.x bands (spec 45: XCrysDen)
         ("03_bands", "bands_pp.out", ["Resumo"]),  # bands.x
-        ("03_bands", "bands.in", ["Visualização 3D"]),  # pw.x bands input (spec 43)
+        ("03_bands", "bands.in", ["Visualização 3D", XCRYSDEN]),  # pw.x bands input (spec 43)
         ("03_bands", "bands.dat.gnu", []),
-        ("04_pdos", "nscf.out", ["Resumo"]),
+        ("04_pdos", "nscf.out", ["Resumo", XCRYSDEN]),
         ("04_pdos", "projwfc.out", ["Resumo"]),
-        ("01_relax", "si.rel.out", ["Plotar", "Resumo", "Gerar SCF convergido"]),  # specs 24, 35
-        ("01_relax", "si.rel.in", ["Visualização 3D"]),
+        (
+            "01_relax",
+            "si.rel.out",
+            ["Plotar", "Resumo", XCRYSDEN, "Gerar SCF convergido"],  # specs 24, 35, 45
+        ),
+        ("01_relax", "si.rel.in", ["Visualização 3D", XCRYSDEN]),
     ],
 )
 def test_other_files_have_no_plotar_and_only_outputs_have_resumo(

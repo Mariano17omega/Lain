@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import QMenu
 from conftest import FIXTURES
 
 ITEM = "Visualização 3D"
+XCRYSDEN = "Abrir com XCrysDen"  # spec 45: next to it, disabled without paths.xcrysden_path
 MENU = ["Abrir local de origem", "Abrir com", "Copiar", "Renomear"]
 
 
@@ -53,10 +54,10 @@ def test_the_item_is_only_in_pw_inputs(main_window, si_folder, monkeypatch):
     window = main_window
     window.service.detect_now(si_folder)  # the sniffs the menu reads
     scf = menu_of(window, monkeypatch, si_folder / "si.scf.in")
-    assert texts(scf) == [ITEM, *MENU]
-    assert scf.actions()[1].isSeparator()
+    assert texts(scf) == [ITEM, XCRYSDEN, *MENU]
+    assert scf.actions()[2].isSeparator()
     bands = menu_of(window, monkeypatch, si_folder / "si.band.in")  # pw.x, calculation = 'bands'
-    assert texts(bands) == [ITEM, *MENU]
+    assert texts(bands) == [ITEM, XCRYSDEN, *MENU]
     for path in (si_folder / "si.scf.out", si_folder / "bands.in"):  # an output, a bands.x input
         assert ITEM not in texts(menu_of(window, monkeypatch, path)), path.name
     assert ITEM not in texts(menu_of(window, monkeypatch, si_folder))
