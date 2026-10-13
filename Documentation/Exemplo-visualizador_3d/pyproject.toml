@@ -1,0 +1,43 @@
+[project]
+name = "viewer3d"
+version = "0.1.0"
+description = "Proof-of-concept 3D structure viewer for Quantum ESPRESSO pw.x inputs"
+readme = "README.md"
+authors = [
+    { name = "Mariano", email = "onairam17@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "ase>=3.29.0",
+    "numpy>=2.4.6",
+    "pyqt6>=6.7",
+]
+
+[project.scripts]
+viewer3d = "viewer3d.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-qt>=4.5.0",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["SIM905"]  # element-name table reads better as one string
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not perf'"
+timeout = 60
+markers = ["perf: performance measurements (deselected by default)"]

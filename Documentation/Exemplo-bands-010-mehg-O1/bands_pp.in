@@ -1,0 +1,5 @@
+&bands
+  prefix = 'ilite_010_mehg_o1'
+  outdir = './tmp/'
+  filband = './band'
+/
