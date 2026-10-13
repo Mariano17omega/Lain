@@ -148,7 +148,9 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   relaxed slabs; `pseudo_dir` replaced) and `tests/surface_golden.json` what the user's scripts made of them, captured once outside
   the repository with pymatgen (versions in its `"source"`; the capture script is not kept: it needs pymatgen). `surface_helpers.py`:
   the paths, `golden(case)` / `golden_model`, `model_from_plan(text)`, `same_atoms(a, b, tol)` (same order, minimum image) and
-  `SCRIPT_FIELDS` (the scripts' parameters as the Slab's field values). A type with `writes_report` adds `report` to the keys
+  `SCRIPT_FIELDS` (the scripts' parameters as the Slab's field values). Cases `slab_001` / `slab_010` (spec 40) and
+  `supercell_001` / `supercell_010` (spec 41: `qe_slab_supercell` on the relaxed slab SCFs, `mult` 2 1 1, `vacuum` as the script
+  measures it). A type with `writes_report` adds `report` to the keys
   `test_calc_create_matrix.py` expects.
 - Tests have a 60 s timeout (pytest-timeout).
 
@@ -758,7 +760,7 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   never `ase.io`). `model.Model(cell Å, labels, frac, flags)` (`model_of(scf)` = `ScfInfo.crystal` + the `if_pos` words 5–7 of
   `ATOMIC_POSITIONS`; `species_rows`); `elements` (`element_of`: ASE's `label_to_symbol` rule, `covalent_radius`); `geometry`
   (`pair_images`: images −1…1 over the fractions *as written*, first on a tie, as the scripts; whether a bond crosses an axis is
-  its image there; `vacuum_gaps`, `MIN_SURFACE_GAP` = 5 Å); `molecule.molecule_of(scf, anchor=None)` (unwrapped around the
+  its image there; `vacuum_gaps`, `MIN_SURFACE_GAP` = 5 Å; `skewed(cell)`); `molecule.molecule_of(scf, anchor=None)` (unwrapped around the
   heaviest atom, axis to the first non-H atom, rotated onto +z only below `ALIGNED` = 0.98, `extent` along z); `slab.make_slab(bulk,
   SlabOptions(axis a|b|c, flip, vacuum, heal, complete, metals, bond_scale), species)` → `SlabResult(model, f, axis_map, healed,
   added, cut_bonds, notes)` (heal: an H whose bond to its nearest bonded neighbour crosses the stacked axis moves next to it;
@@ -766,17 +768,33 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   O–H; then `{t0, ±t1, f·s}` turned so t0 is +x and the normal +z, the vacuum axis recentred on 0.5); `fixing.fixed_atoms` (rules
   `FIX_RULES`: "camada inferior" below `min + fraction × thickness`, "espécies e vizinhos" (`<` the bond cutoff), "do SCF",
   "nenhum"; all fixed is an error) + `apply_fix` (`0 0 0` or nothing); `kmesh.rescale_mesh` (each in-plane axis from its bulk
-  axis ÷ the supercell multiple, vacuum 1); `write.put_structure` (`qe/cell_card.set_cell`, shared with `scf_from_relax`:
+  axis ÷ the supercell multiple, vacuum 1; `vacuum_axis=None`: a bulk, every axis divided) and `mesh_text`; `write.put_structure` (`qe/cell_card.set_cell`, shared with `scf_from_relax`:
   `CELL_PARAMETERS angstrom`, `ibrav = 0`, no Bravais keys; positions `crystal` 10 decimals; used species only, species keys
   remapped; `ATOMIC_FORCES`/`VELOCITIES` dropped with a note; `CONSTRAINTS`, Hubbard V and a species without a row refused
   *before* any edit); `report` (`geracao.md`: `report_file(lines)` → `PlannedFile(kind "report", key "report")`, decimal comma,
   atoms 1-based). `types/slab.py:SlabType(VcRelaxType)` (`scf_label` "SCF do bulk", `writes_report`; fields in
-  `types/slab_fields.py`, the ones 41/42 share in `types/surface_fields.py`): tab "Superfície" (Padrão: molecule `scf_file`,
+  `types/slab_fields.py`: `mesh_field(group, hint, of)`, `dofree_field(group, default)`, `non_orthogonal_notes`; the ones 41/42
+  share in `types/surface_fields.py`: `fix_fields`, `fixed_for(work, model, rule, scale)` (the values checked, a `SurfaceError` on
+  `fix_rule`), `fixed_fact`, `bond_scale_field`, `check_positive`, `check_labels`): tab "Superfície" (Padrão: molecule `scf_file`,
   axis, `vacuum_min`, complete), the input tab's empty `kmesh` (`rescale_mesh` of the SCF's) and `cell_dofree` (`2Dxy`), `prefix =
   '<p>-slab-<hkl>'`; vacuum = minimum (+ molecule extent + adsorption distance). The plan always has its three files (script,
   `vc-relax_<prefix>.in`, `geracao.md`): a `SurfaceError` marks its field (`complete`, `molecule`, `fix_rule`…) or the error list
   and the report says "Estrutura não gerada". Tests: `tests/surface_helpers.py`, `test_surface_{geometry,slab,fixing}.py`,
   `test_calc_slab.py`, `test_calc_scf_field.py`.
+- **Supercélula** (spec 41, stage 2 of the scripts). `surface/supercell.make_supercell(model, (n1, n2, n3))`: cell rows `n_i × a_i`,
+  each atom in the SCF's order followed by its copies (`itertools.product`, `i` slowest, the order pymatgen gives), `(frac +
+  shift) / n` never wrapped, flags copied; `repeat_problem` (each `n_i` 1 to `MAX_REPEAT` = 8) and `size_problem` (≤ `MAX_ATOMS` =
+  2000: `plan` runs on the GUI thread, ~0.4 s at 1900 atoms with "espécies e vizinhos") are its `SurfaceError`s and the type's
+  field problems (the size one on every `n_i > 1`). `types/supercell.py:SupercellType(VcRelaxType)` (`supercell.qsub` on the
+  vc-relax template, folder `Supercell`, `scf_label` "SCF da superfície (ou do bulk)", `writes_report`): tab "Supercélula" (Padrão:
+  `n1` `n2` `n3`, 2 1 1; Avançado: the four `FIX_RULES`, fraction, species, neighbours, `bond_scale`, `vacuum_min`, which only
+  checks). `has_vacuum(scf)` (gap ≥ `MIN_SURFACE_GAP` along c) picks the defaults: `cell_dofree` `2Dxy` / `all`, and the fixed atoms
+  "do SCF" when an SCF flag has a 0, else "camada inferior" with vacuum, "nenhum" for a bulk (user's decision); "do SCF" keeps the
+  copied flags. The input: `put_structure`, the vc-relax keys, `prefix = '<p>-<n1>x<n2>x<n3>'`, `nbnd × n1·n2·n3` when the SCF has
+  it, an empty `kmesh` → `rescale_mesh` of the SCF's (with vacuum: a, b divided, c 1; bulk: all three divided), `gamma` kept with a
+  note, another card a `kmesh` problem. Notes: vacuum under `vacuum_min`, `n3 > 1` over vacuum (stacks slabs), "SCF sem vácuo:
+  supercélula de bulk". Goldens `supercell_001` / `supercell_010` of `surface_golden.json` (the `fixed` of the script's rule and of
+  the SCF's flags are the same). Tests: `test_surface_supercell.py`, `test_calc_supercell.py`.
 - **Self-contained folder** (`unit.py`, spec 28 R2): `Work.editor()` is the SCF's text after `apply_unit`
   (`outdir = './tmp/'` always, `jobs.pseudo_dir` when set; `edits.put_text` compares with case), so every pw.x input,
   the SCF copy included, gets it (the copy differs from the SCF only there); bands.x and projwfc.x templates get

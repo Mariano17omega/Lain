@@ -23,6 +23,7 @@ __all__ = [
     "interplanar",
     "min_image",
     "pair_images",
+    "skewed",
     "vacuum_gaps",
 ]
 
@@ -86,3 +87,9 @@ def vacuum_gaps(cell: np.ndarray, frac: np.ndarray) -> tuple[float, float, float
         steps = np.diff(np.append(values, values[0] + 1.0))
         gaps.append(float(steps.max() * spacing[axis]))
     return gaps[0], gaps[1], gaps[2]
+
+
+def skewed(cell: np.ndarray) -> bool:
+    """Whether any two cell vectors are not orthogonal."""
+    unit = cell / np.linalg.norm(cell, axis=1)[:, None]
+    return any(abs(float(unit[i] @ unit[j])) > 1e-6 for i, j in ((0, 1), (0, 2), (1, 2)))

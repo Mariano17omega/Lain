@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 41: depois da 40, de quem usa o pacote `surface/` e o relatório; antes da 42, cujo SCF de entrada costuma ser o desta. |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (13/10/2026); ver "Decisões na implementação" |
 | **Depende de** | spec 40 (`surface/model`, `fixing`, `kmesh`, `write`, `report`, `geometry.vacuum_gaps`, `scf_label`), spec 28 (nomes, modos), spec 24 ("Gerar SCF convergido" do vc-relax do slab) |
 | **Usada por** | spec 42 (o SCF da supercélula relaxada é a entrada típica) |
 | **Esforço** | M |
@@ -63,7 +63,7 @@ o tipo aceita os dois e só muda os padrões (`cell_dofree`) conforme encontra v
    (chave `vc-relax`, rótulo "Supercélula") e `geracao.md` (spec 40 R1.5).
 2. Campos do grupo `"Supercélula"` (aba própria). Padrão: `n1`, `n2`, `n3` "Repetições ao longo de a / b / c" (`int`; padrão 2, 1,
    1, o `SUPERCELL_MULT` do script). Avançado: `fix_rule` (as quatro de `FIX_RULES`; padrão "do SCF" quando o SCF tem alguma
-   flag, senão "camada inferior"), `fix_fraction`, `fix_species`, `fix_neighbors`, `bond_scale` (os mesmos rótulos e padrões da
+   flag com 0, senão "camada inferior" se há vácuo ao longo de c, senão "nenhum": decisão do usuário na revisão), `fix_fraction`, `fix_species`, `fix_neighbors`, `bond_scale` (os mesmos rótulos e padrões da
    spec 40) e `vacuum_min` "Vácuo mínimo (Å)" (10.5; só verifica).
 3. Campos da aba do input: os do VC-Relax, `cell_dofree` (padrão `2Dxy` quando o SCF tem vácuo ≥ `MIN_SURFACE_GAP` ao longo de c,
    senão `all`) e `kmesh` vazio por padrão ("vazio = a do SCF dividida pelas repetições").
@@ -113,3 +113,23 @@ o tipo aceita os dois e só muda os padrões (`cell_dofree`) conforme encontra v
 - [ ] Supercélula de bulk com `cell_dofree = 'all'` e k dividido em todos os eixos.
 - [ ] `nbnd` multiplicado pelas repetições; limites dão erro no campo, sem travar a janela.
 - [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+
+## Decisões na implementação
+
+1. **Fixos de um bulk: "nenhum".** Decisão do usuário (13/10/2026, revisão): sem flag com 0 no SCF, o padrão é "camada inferior"
+   só quando há vácuo ao longo de c; num bulk (sem vácuo) é "nenhum", pois não há camada de baixo a congelar. "Tem alguma flag"
+   lê-se como "alguma flag com 0" (o que "do SCF" fixaria).
+2. **Goldens capturados dos scripts, offline**, no mesmo venv da spec 40 refeito do cache do uv (pymatgen 2026.9.24, ase 3.29.0,
+   spglib 2.8.0): os passos de `generate_supercell` sem gravar arquivos, sobre os SCFs de slab da fixture. O JSON guarda `miller`,
+   `mult`, `cell`, `labels`, `frac`, `fixed`, `kmesh`, `koffset`, `prefix`, `calculation`, `nbnd` e `vacuum`. A ordem do pymatgen
+   é a de R1.1 (cada átomo seguido das réplicas); `fixed` da regra do script e das flags replicadas coincidem índice a índice.
+3. **Erro de tamanho em cada `n_i > 1`** (os campos que fizeram a supercélula crescer); uma repetição fora de 1…8 marca só o seu.
+   Com repetições inválidas o plano mantém os três arquivos, sem estrutura, `prefix`, `nbnd` nem k-points novos.
+4. **Reuso, sem mudar o Slab:** `SlabType._fixed` virou `surface_fields.fixed_for` (+ `fixed_fact`), `mesh_text` foi para
+   `surface/kmesh.py`, `_skewed` para `surface/geometry.skewed`, e o aviso de eixos não ortogonais para
+   `slab_fields.non_orthogonal_notes` (a Supercélula também o dá com `cell_dofree` ≠ `all`). `rescale_mesh` ganhou
+   `vacuum_axis=None` para o bulk.
+5. **"Vácuo medido"** é `vacuum_gaps` ao longo de c da supercélula (o maior vão entre centros, através da borda), igual ao
+   `geometry_checks` do script nos dois casos (15,07 e 15,25 Å); num bulk o relatório diz "sem vácuo (bulk)".
+6. **Custo:** o pior caso permitido (1904 átomos, regra "espécies e vizinhos") planeja em ~0,4 s; "do SCF" e "camada inferior"
+   em ~0,15 s.

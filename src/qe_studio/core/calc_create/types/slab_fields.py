@@ -1,9 +1,12 @@
 """The fields of the Slab type (spec 40 R5.2, R5.3): the "Superfície" tab, with every parameter of the
-user's scripts, and the k-point mesh and ``cell_dofree`` of the input's tab."""
+user's scripts, and the k-point mesh and ``cell_dofree`` of the input's tab (the Supercélula's too, spec 41)."""
 
 from __future__ import annotations
 
+import numpy as np
+
 from ..surface.fixing import BOTTOM, NONE, SPECIES
+from ..surface.geometry import skewed
 from .base import FieldKind, FormField
 from .surface_fields import bond_scale_field, fix_fields, molecule_field
 
@@ -19,6 +22,7 @@ __all__ = [
     "SLAB_FIX_RULES",
     "dofree_field",
     "mesh_field",
+    "non_orthogonal_notes",
     "surface_fields",
 ]
 
@@ -35,6 +39,10 @@ DEFAULT_CELL_DOFREE = "2Dxy"
 COMPLETE_LABEL = "Completar poliedros de borda (O + H)"
 METALS_LABEL = "Metais da borda"
 MESH_HINT = "Vazio = a do SCF reescalada: o eixo do vácuo vale 1"
+NON_ORTHOGONAL = (
+    "cell_dofree = '{}' numa célula de eixos não ortogonais: o INPUT_PW avisa que algumas opções de "
+    "cell_dofree não funcionam com eixos não ortogonais"
+)
 
 
 def _field(
@@ -125,26 +133,31 @@ def surface_fields() -> list[FormField]:
     ]
 
 
-def mesh_field(group: str) -> FormField:
-    """Empty by default: the bulk's mesh would be wrong, the stacked axis changes (R5.3)."""
+def mesh_field(group: str, hint: str = MESH_HINT, of: str = "do slab") -> FormField:
+    """Empty by default: the SCF's mesh would be wrong, the cell changes (R5.3)."""
     return FormField(
         "kmesh",
         "Rede de k-points",
         "kmesh",
         None,
         group=group,
-        tooltip=f"K_POINTS automatic do slab. {MESH_HINT}",
-        hint=MESH_HINT,
+        tooltip=f"K_POINTS automatic {of}. {hint}",
+        hint=hint,
     )
 
 
-def dofree_field(group: str) -> FormField:
+def dofree_field(group: str, default: str = DEFAULT_CELL_DOFREE) -> FormField:
     return FormField(
         "cell_dofree",
         "Graus de liberdade da célula (cell_dofree)",
         "choice",
-        DEFAULT_CELL_DOFREE,
+        default,
         group=group,
         choices=CELL_DOFREE,
         tooltip="&CELL cell_dofree; '2Dxy' relaxa só o plano e a altura do vácuo não encolhe",
     )
+
+
+def non_orthogonal_notes(dofree: str, cell: np.ndarray) -> list[str]:
+    """The INPUT_PW warning when ``dofree`` constrains a cell whose axes are not orthogonal."""
+    return [NON_ORTHOGONAL.format(dofree)] if dofree != "all" and skewed(cell) else []

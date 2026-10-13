@@ -15,7 +15,7 @@ from qe_studio.core.sniff import SniffCache
 
 from calc_helpers import AL_PATH, JOBS, al, from_text, ni
 from conftest import FIXTURES
-from surface_helpers import BULK, read
+from surface_helpers import BULK, SLAB_001, read
 
 
 def results(folder):
@@ -159,3 +159,19 @@ def test_slab_folder_is_detected_as_a_vc_relax(tmp_path):
     assert found["relax"].file("relax_out") == folder / "vc-relax_kaolinite.out"
     assert found["relax"].file("relax_in") == folder / "vc-relax_kaolinite.in"
     assert cache.sniff(folder / "vc-relax_kaolinite.in").calculation == "vc-relax"
+
+
+def test_supercell_folder_is_detected_as_a_vc_relax(tmp_path):
+    """Spec 41: the supercell's input is a pw.x vc-relax too, named by the SCF's prefix."""
+    calc = by_id("supercell")
+    created = create_folder(tmp_path, calc, "kao", calc.plan(read(SLAB_001), {}, JOBS))
+    folder = created.folder
+    assert folder.name == "Supercell_kao"
+    name = "vc-relax_kaolinite-slab-001"
+    assert [p.name for p in created.files] == ["supercell.qsub", f"{name}.in", "geracao.md"]
+    fill(folder, "kao_vc_relax", [("vc-relax.out", f"{name}.out")])
+    found, cache = results(folder)
+    assert set(found) == {"relax"}
+    assert found["relax"].file("relax_out") == folder / f"{name}.out"
+    assert found["relax"].file("relax_in") == folder / f"{name}.in"
+    assert cache.sniff(folder / f"{name}.in").calculation == "vc-relax"

@@ -74,6 +74,7 @@ def test_registry():
         "charge",
         "charge_diff",
         "slab",
+        "supercell",
     ]
     assert [t.label for t in REGISTRY] == [
         "SCF",
@@ -84,6 +85,7 @@ def test_registry():
         "Carga",
         "Diferença de carga",
         "Slab",
+        "Supercélula",
     ]
     assert [t.folder_prefix for t in REGISTRY] == [
         "SCF",
@@ -94,6 +96,7 @@ def test_registry():
         "Charge",
         "Diff_Charge",
         "Slab",
+        "Supercell",
     ]
     assert [t.script_name for t in REGISTRY] == [
         "scf.qsub",
@@ -104,6 +107,7 @@ def test_registry():
         "charge.qsub",
         "charge_diff.qsub",
         "slab.qsub",
+        "supercell.qsub",
     ]
     with pytest.raises(KeyError):
         by_id("dos")

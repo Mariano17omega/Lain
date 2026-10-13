@@ -17,12 +17,11 @@ import numpy as np
 
 from ...qe.input_edit import InputEditor
 from ..edits import put_mesh, put_string, put_text
-from ..kpath import KMesh
 from ..scf_info import ScfInfo
 from ..surface import SurfaceError
-from ..surface.fixing import BOTTOM, SPECIES, FixResult, apply_fix, fixed_atoms
+from ..surface.fixing import BOTTOM, FixResult, apply_fix
 from ..surface.geometry import MIN_SURFACE_GAP, vacuum_gaps
-from ..surface.kmesh import rescale_mesh
+from ..surface.kmesh import mesh_text, rescale_mesh
 from ..surface.model import Model, model_of, species_rows
 from ..surface.molecule import Molecule, molecule_of
 from ..surface.report import decimal, report_file
@@ -36,18 +35,18 @@ from .slab_fields import (
     METALS_LABEL,
     dofree_field,
     mesh_field,
+    non_orthogonal_notes,
     surface_fields,
 )
 from .surface_fields import (
     BOND_SCALE,
-    FIX_FRACTION,
-    FIX_NEIGHBORS,
     FIX_RULE,
-    FIX_SPECIES,
     MOLECULE,
     check_labels,
     check_positive,
     counts,
+    fixed_fact,
+    fixed_for,
     labels_of,
 )
 from .vc_relax import VcRelaxType
@@ -57,10 +56,6 @@ __all__ = ["SlabType"]
 NO_MOLECULE_NOTE = "Sem molécula: o vácuo é o mínimo"
 NO_MESH = "Preencha a rede de k-points: o SCF não tem K_POINTS automatic"
 GAMMA_NOTE = "K_POINTS gamma do SCF mantido: confira se basta para a célula do slab"
-NON_ORTHOGONAL = (
-    "cell_dofree = '{}' numa célula de eixos não ortogonais: o INPUT_PW avisa que algumas opções de "
-    "cell_dofree não funcionam com eixos não ortogonais"
-)
 FIELD_OF_ERROR = {NEED_O_H: "complete", NO_BULK_H: "complete"}  # the field a SurfaceError marks
 Facts = list[tuple[str, str]]  # the lines of geracao.md
 
@@ -175,41 +170,13 @@ class SlabType(VcRelaxType):
         result = make_slab(bulk, options, scf.species)
         work.notes.extend(result.notes)
         rule = work.values[FIX_RULE] or BOTTOM
-        fix = self._fixed(work, result.model, rule, options.bond_scale)
+        fix = fixed_for(work, result.model, rule, options.bond_scale)
         model = apply_fix(result.model, fix, rule) if fix is not None else result.model
         work.notes.extend(put_structure(editor, model, species_rows(scf.text)))
         dofree = work.values["cell_dofree"] or DEFAULT_CELL_DOFREE
-        if dofree != "all" and _skewed(model.cell):
-            work.notes.append(NON_ORTHOGONAL.format(dofree))
+        work.notes.extend(non_orthogonal_notes(dofree, model.cell))
         work.notes.extend(bond_notes(result, options))
         facts += structure_facts(model, result, options, rule, fix)
-
-    def _fixed(self, work: Work, model: Model, rule: str, scale: float) -> FixResult | None:
-        fraction = work.values[FIX_FRACTION]
-        if rule == BOTTOM and fraction is not None and not 0 < fraction <= 1:
-            work.problem(FIX_FRACTION, "A fração fixa da espessura vai de 0 (exclusive) a 1")
-            fraction = None
-        species: tuple[str, ...] = ()
-        neighbors: tuple[str, ...] = ()
-        if rule == SPECIES:
-            species = check_labels(work, work.scf, FIX_SPECIES, "Espécies fixas")
-            neighbors = check_labels(work, work.scf, FIX_NEIGHBORS, "Vizinhos fixos")
-            if not species:
-                work.problem(FIX_SPECIES, "Preencha Espécies fixas")
-        try:
-            fix = fixed_atoms(
-                model,
-                rule,
-                fraction=fraction if fraction is not None else 0.5,
-                species=species,
-                neighbors=neighbors,
-                bond_scale=scale,
-            )
-        except SurfaceError as exc:
-            work.problem(FIX_RULE, str(exc))
-            return None
-        work.notes.extend(fix.notes)
-        return fix
 
     def _kpoints(self, work: Work, editor: InputEditor, axis: str, facts: Facts) -> None:
         scf, typed = work.scf, work.values.get("kmesh")
@@ -268,8 +235,7 @@ def structure_facts(
         ("Vácuo medido", f"{decimal(float(cell[2, 2] - np.ptp(heights)))} Å"),
     ]
     if fix is not None:
-        which = f" ({counts([labels[i] for i in fix.indices])})" if fix.indices else ""
-        facts.append(("Átomos fixos", f"{len(fix.indices)}/{len(labels)}{which}, regra '{rule}'"))
+        facts.append(fixed_fact(labels, fix, rule))
     if result.healed:
         pairs = [
             f"{labels[h.h]}{h.h + 1}–{labels[h.partner]}{h.partner + 1} ({decimal(h.distance, 3)} Å)"
@@ -290,12 +256,3 @@ def structure_facts(
 
 def bond_text(cut: dict[str, int]) -> str:
     return ", ".join(f"{label} {n}" for label, n in cut.items())
-
-
-def mesh_text(mesh: KMesh) -> str:
-    return " ".join(str(v) for v in (*mesh.n, *mesh.shift))
-
-
-def _skewed(cell: np.ndarray) -> bool:
-    unit = cell / np.linalg.norm(cell, axis=1)[:, None]
-    return any(abs(float(unit[i] @ unit[j])) > 1e-6 for i, j in ((0, 1), (0, 2), (1, 2)))

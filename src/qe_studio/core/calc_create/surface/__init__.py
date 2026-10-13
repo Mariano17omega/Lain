@@ -8,6 +8,7 @@ symbols, imported on first use: never ``ase.io``):
 - ``geometry``: minimum images, bonds and the empty gaps of a cell.
 - ``molecule``: a molecule's SCF with its anchor at the origin and its axis along +z.
 - ``slab``: the bulk with one axis stretched to open vacuum (spec 40).
+- ``supercell``: a diagonal supercell, ``n1 × n2 × n3`` (spec 41).
 - ``fixing``: which atoms get ``if_pos = 0 0 0``; ``kmesh``: the mesh of the new cell.
 - ``write``: the structure into an input's text; ``report``: ``geracao.md``.
 

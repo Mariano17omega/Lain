@@ -25,6 +25,7 @@ from .pdos import PdosType
 from .relax import RelaxType
 from .scf import ScfType
 from .slab import SlabType
+from .supercell import SupercellType
 from .vc_relax import VcRelaxType
 
 __all__ = [
@@ -52,6 +53,7 @@ REGISTRY: tuple[CalcType, ...] = (
     ChargeType(),
     ChargeDiffType(),
     SlabType(),
+    SupercellType(),
 )
 
 
