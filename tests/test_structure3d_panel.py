@@ -33,11 +33,17 @@ def windows(qtbot, settings):
 
 def test_sections_in_order_without_tabs_or_sliders(windows):
     panel = windows.open(SI_SCF).panel
-    assert list(panel.sections) == ["Átomo", "Exibição", "Espécies", "Célula"]
+    assert list(panel.sections) == ["Átomo", "Medidas", "Exibição", "Espécies", "Célula"]
     headers = [s.header.text() for s in panel.sections.values()]
-    assert headers == ["ÁTOMO", "EXIBIÇÃO", "ESPÉCIES", "CÉLULA"]
+    assert headers == ["ÁTOMO", "MEDIDAS", "EXIBIÇÃO", "ESPÉCIES", "CÉLULA"]
     opened = {title: s.header.isChecked() for title, s in panel.sections.items()}
-    assert opened == {"Átomo": True, "Exibição": True, "Espécies": False, "Célula": False}
+    assert opened == {
+        "Átomo": True,
+        "Medidas": True,
+        "Exibição": True,
+        "Espécies": False,
+        "Célula": False,
+    }
     assert panel.findChildren(QTabWidget) == [] and panel.findChildren(QSlider) == []
     fields = panel.findChildren(QSpinBox) + panel.findChildren(QDoubleSpinBox)
     fields += panel.findChildren(QComboBox)

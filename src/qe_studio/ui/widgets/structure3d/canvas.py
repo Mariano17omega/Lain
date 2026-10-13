@@ -41,6 +41,8 @@ AXIS_KEYS = {  # key code → view
 class StructureCanvas(QWidget):
     current_changed = pyqtSignal(object)  # AtomRef | None: the atom the panel shows
     hovered = pyqtSignal(object)  # AtomRef | None
+    atom_clicked = pyqtSignal(object)  # AtomRef | None (empty space), every click (spec 44)
+    escape_pressed = pyqtSignal()
     options_changed = pyqtSignal()  # options changed from the view (key P)
 
     def __init__(
@@ -62,6 +64,7 @@ class StructureCanvas(QWidget):
         self.scene: Scene | None = None
         self.current: AtomRef | None = None
         self.hover: AtomRef | None = None
+        self.marks: tuple[AtomRef, ...] = ()  # numbered rings: the atoms of a measure (spec 44)
         self.draft = False
         self._framed = False  # the first frame waits for a real size
         self._built_factor: float | None = None
@@ -93,6 +96,7 @@ class StructureCanvas(QWidget):
             ("Vista ao longo de x, y, z", "X, Y, Z", WHERE),
             ("Alternar perspectiva", "P", WHERE),
             ("Selecionar átomo", "Clique", WHERE),
+            ("Descartar os átomos de uma medida", "Esc", WHERE),
         ]
 
     # -- data --------------------------------------------------------------------------------------
@@ -151,6 +155,11 @@ class StructureCanvas(QWidget):
             self.current_changed.emit(ref)
         self.update()
 
+    def set_marks(self, refs: tuple[AtomRef, ...] | list[AtomRef]) -> None:
+        """Number ``refs`` on the view, in order (the atoms of a measure); the camera does not move."""
+        self.marks = tuple(refs)
+        self.update()
+
     # -- painting ----------------------------------------------------------------------------------
     def _viewport(self) -> tuple[float, float]:
         return float(self.width()), float(self.height())
@@ -169,6 +178,7 @@ class StructureCanvas(QWidget):
             self.current,
             self.hover,
             self.draft,
+            self.marks,
         )
 
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -275,7 +285,9 @@ class StructureCanvas(QWidget):
         self._mode = ""
         if was_click and self.scene is not None:
             pos = event.position()
-            self.select(self.renderer.pick((pos.x(), pos.y())))
+            ref = self.renderer.pick((pos.x(), pos.y()))
+            self.select(ref)
+            self.atom_clicked.emit(ref)
 
     def wheelEvent(self, event: QWheelEvent | None) -> None:  # noqa: N802
         if event is None:
@@ -310,6 +322,8 @@ class StructureCanvas(QWidget):
             self.reset_view()
         elif key in AXIS_KEYS:
             self.view_along(AXIS_KEYS[key])
+        elif key == Qt.Key.Key_Escape:
+            self.escape_pressed.emit()
         elif key == Qt.Key.Key_P:
             self.options.perspective = not self.options.perspective
             self.options_changed.emit()

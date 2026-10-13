@@ -163,6 +163,7 @@ class PaintRenderer:
         current: AtomRef | None = None,
         hover: AtomRef | None = None,
         draft: bool = False,
+        marks: tuple[AtomRef, ...] = (),
     ) -> FrameStats:
         started = time.perf_counter()
         if self._scene_id != id(scene):
@@ -178,7 +179,7 @@ class PaintRenderer:
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, not draft)
         painter.fillRect(QRectF(0, 0, size[0], size[1]), QColor(*BACKGROUND[options.dark]))
         self._draw(painter, prims, options, draft)
-        self._overlays(painter, size, scene, camera, options, proj, current, hover, draft)
+        self._overlays(painter, size, scene, camera, options, proj, current, hover, draft, marks)
         self._update_pick(scene, proj)
 
         order, kind, ghost = prims["order"], prims["kind"], prims["ghost"]
@@ -344,7 +345,7 @@ class PaintRenderer:
         painter.setOpacity(1.0)
         painter.setBrushOrigin(zero)
 
-    def _overlays(self, painter, size, scene, camera, options, proj, current, hover, draft):
+    def _overlays(self, painter, size, scene, camera, options, proj, current, hover, draft, marks):
         n_real = scene.n_real
         xy, radius_px, visible = proj.xy, proj.radius_px, proj.visible
         labels: list[tuple[float, float, str]] = []
@@ -362,8 +363,15 @@ class PaintRenderer:
         current_spot = None
         if current is not None:
             current_spot = self._locate(current, scene, camera, options, proj, size)
+        marked = [
+            (number, spot)
+            for number, ref in enumerate(marks, start=1)
+            if (spot := self._locate(ref, scene, camera, options, proj, size)) is not None
+        ]
         font = ui_font(LABEL_PX)
-        draw_overlays(painter, font, size, camera, scene, options, labels, hover_spot, current_spot)
+        draw_overlays(
+            painter, font, size, camera, scene, options, labels, hover_spot, current_spot, marked
+        )
 
     def _locate(self, ref, scene, camera, options, proj, size) -> Spot | None:
         """(x, y, radius_px) of any atom copy; None when hidden or behind the eye."""

@@ -1,5 +1,6 @@
 """The left panel of a 3D window (spec 43 R5): "ESTRUTURA" and the accordion sections of the plot
-adjustments panel (``param_widgets.Section``): "Átomo", "Exibição", "Espécies", "Célula".
+adjustments panel (``param_widgets.Section``): "Átomo", "Medidas" (spec 44), "Exibição", "Espécies",
+"Célula".
 
 Every field edits the window's ``DisplayOptions`` and asks the view for a repaint; none moves the camera.
 Numeric and choice fields are the ``NoWheel*`` ones (the wheel scrolls the panel). Whether each section is
@@ -37,11 +38,12 @@ from ..common import PanelHeader, set_variant
 from ..no_wheel import NoWheelComboBox, NoWheelDoubleSpinBox, NoWheelSpinBox
 from ..param_widgets import ColorButton, Section
 from .canvas import StructureCanvas
+from .measures import MeasuresSection
 from .panel_atom import AtomSection, triple
 
 SECTIONS_KEY = "structure3d/sections"  # QSettings: <section title> → open (bool)
-TITLES = ("Átomo", "Exibição", "Espécies", "Célula")
-OPEN_BY_DEFAULT = ("Átomo", "Exibição")
+TITLES = ("Átomo", "Medidas", "Exibição", "Espécies", "Célula")
+OPEN_BY_DEFAULT = ("Átomo", "Medidas", "Exibição")
 MIN_WIDTH = 260
 
 
@@ -103,6 +105,7 @@ class StructurePanel(QWidget):
         self.atom = AtomSection(self.sections["Átomo"], self.structure)
         self.atom.show_atom(canvas.current, canvas.graph)
         self.atom.table.neighbor_clicked.connect(canvas.select)
+        self.measures = MeasuresSection(self.sections["Medidas"], canvas)
         self._build_display(self.sections["Exibição"])
         self._build_species(self.sections["Espécies"])
         self._build_cell(self.sections["Célula"])

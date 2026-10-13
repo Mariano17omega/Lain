@@ -163,6 +163,8 @@ QT_FREE = [
     "qe_studio.core.structure3d.camera",
     "qe_studio.core.structure3d.pick",
     "qe_studio.core.structure3d.options",
+    "qe_studio.core.structure3d.measure",
+    "qe_studio.core.structure3d.measurements",
 ]
 
 

@@ -35,6 +35,7 @@ TITLE = "Visualização 3D"
 PANEL_WIDTH = 320
 SIZE = (1280, 820)
 VIEWS = ("a", "b", "c", "x", "y", "z")
+MESSAGE_MS = 3000  # a status bar notice ("Medidas copiadas")
 
 
 def window_title(structure: Structure) -> str:
@@ -83,6 +84,7 @@ class StructureWindow(QMainWindow):
         self.setCentralWidget(self.splitter)
         self._status()
         self.canvas.hovered.connect(self._show_hover)
+        self.panel.measures.message.connect(self._show_message)
         self.setWindowTitle(window_title(structure))
         self.resize(*SIZE)
         self.canvas.setFocus()
@@ -141,6 +143,11 @@ class StructureWindow(QMainWindow):
             return
         element = element_for_label(self.structure.labels[ref.index])
         self.hover.setText(f"{atom_name(self.structure, ref)} · {element.name}")
+
+    def _show_message(self, text: str) -> None:
+        bar = self.statusBar()
+        if bar is not None:
+            bar.showMessage(text, MESSAGE_MS)
 
     def closeEvent(self, event: QCloseEvent | None) -> None:  # noqa: N802 (Qt naming)
         self.closed.emit(self)

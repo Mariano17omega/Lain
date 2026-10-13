@@ -16,7 +16,6 @@ relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
 ```
-/plan implementar specs/spec_44-visualizacao-3d-medidas.md
 /plan implementar specs/spec_end-internacionalizacao.md
 ```
 
@@ -76,7 +75,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 41 | [spec_41-criar-calculo-supercelula.md](Archived/spec_41-criar-calculo-supercelula.md) | Tipo "Supercélula": réplica n1×n2×n3 de uma superfície (ou de um bulk), fixos "do SCF" ou por regra, k-points e `nbnd` reescalados | 40 | M | Sonnet 5.5 |
 | 42 | [spec_42-criar-calculo-molecula-na-superficie.md](Archived/spec_42-criar-calculo-molecula-na-superficie.md) | Tipo "Molécula na superfície": candidatos agrupados por simetria (spglib), monodentado ou bidentado, remoção do H âncora, sítio pela lista ou por coordenadas; SCF de bulk recusado na etapa 1 | 40, 41 | G | Opus 5.5 |
 | 43 | [spec_43-visualizacao-3d-da-estrutura.md](Archived/spec_43-visualizacao-3d-da-estrutura.md) | "Visualização 3D" no menu dos inputs do pw.x: uma janela própria por clique (núcleo e `QPainter` portados da prova de conceito), ligações como cilindros que saem da superfície das esferas, zoom que não se desfaz ao clicar, painel esquerdo com as seções do Lain | 5, 11, 15, 19, 25, 27-5, 32, 40 | G | Opus 5.5 |
-| 44 | [spec_44-visualizacao-3d-medidas.md](spec_44-visualizacao-3d-medidas.md) | Seção "Medidas" da janela 3D: botões exclusivos "Distância" (2 átomos) e "Ângulos" (3, vértice no 2º), uma linha por medida nas tabelas, copiar e limpar | 43 | M | Sonnet 5.5 |
+| 44 | [spec_44-visualizacao-3d-medidas.md](Archived/spec_44-visualizacao-3d-medidas.md) | Seção "Medidas" da janela 3D: botões exclusivos "Distância" (2 átomos) e "Ângulos" (3, vértice no 2º), uma linha por medida nas tabelas, copiar e limpar | 43 | M | Sonnet 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de

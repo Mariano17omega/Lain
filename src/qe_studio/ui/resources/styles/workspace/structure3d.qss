@@ -1,5 +1,5 @@
-/* "Visualização 3D" window (spec 43): the status bar, the neighbour table and the texts of its
-   panel. The scene itself is painted with its own colors (dark or light background), not tokens. */
+/* "Visualização 3D" window (specs 43, 44): the status bar, the neighbour and measure tables and the
+   texts of its panel. The scene is painted with its own colors (dark or light background), not tokens. */
 #structureStatus {
     background: ${chrome};
     border-top: 1px solid ${border};
@@ -7,13 +7,13 @@
 #structureStatus QLabel {
     padding: 0 6px;
 }
-#structureNeighbors {
+#structureNeighbors, #structureMeasures {
     background: ${panel};
     color: ${text};
     border: 1px solid ${border};
     gridline-color: ${border};
 }
-#structureNeighbors QHeaderView::section {
+#structureNeighbors QHeaderView::section, #structureMeasures QHeaderView::section {
     background: ${chrome};
     color: ${text_muted};
     border: none;
@@ -21,7 +21,7 @@
     padding: 3px 6px;
     font-size: 11px;
 }
-#structureNeighbors::item {
+#structureNeighbors::item, #structureMeasures::item {
     padding: 1px 6px;
 }
 QLabel[variant="meta"] {

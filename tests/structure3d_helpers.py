@@ -134,6 +134,24 @@ def clickable_atom(canvas):
     raise AssertionError("no clickable atom")
 
 
+def clickable_atoms(canvas, count: int, apart: float = 25.0) -> list:
+    """``count`` drawn atoms each frontmost under its center and ``apart`` px from the others."""
+    canvas.grab()
+    renderer = canvas.renderer
+    found, spots = [], []
+    for index in renderer._pick_order.tolist():
+        ref = canvas.scene.refs[index]
+        x, y = renderer.screen_position(ref)
+        inside = 20 < x < canvas.width() - 20 and 20 < y < canvas.height() - 20
+        far = all(np.hypot(x - sx, y - sy) > apart for sx, sy in spots)
+        if inside and far and renderer.pick((round(x), round(y))) == ref:
+            found.append(ref)
+            spots.append((x, y))
+        if len(found) == count:
+            return found
+    raise AssertionError(f"only {len(found)} clickable atoms")
+
+
 def click_atom(qtbot, canvas, ref, modifier=Qt.KeyboardModifier.NoModifier) -> None:
     qtbot.mouseClick(canvas, LEFT, modifier, screen_of(canvas, ref))
 

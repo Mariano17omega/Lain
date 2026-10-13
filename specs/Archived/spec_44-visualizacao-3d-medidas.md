@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 44 (logo depois da 43, que cria a janela) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (13/10/2026); ver "Decisões na implementação" |
 | **Depende de** | spec 43 (`core/structure3d/`: `Structure`, `AtomRef`, `atom_name`; `StructureWindow`, `StructureCanvas`, `StructurePanel` e o lugar da seção "Medidas") |
 | **Usada por** | nenhuma |
 | **Esforço** | M (R1: P; R2: M) |
@@ -132,15 +132,29 @@ Interpretação e decisões do usuário (13/10/2026):
 - Documentação ao implementar: a seção "Visualização 3D" do `CLAUDE.md` (criada pela 43) ganha o parágrafo das medidas (`Measurer`, modos,
   vértice no 2º átomo); `README.md`.
 
+## Decisões na implementação
+
+1. **As decisões assumidas valem como escritas**: vértice no 2º átomo, os dois botões podem ficar desligados (começam assim),
+   duas tabelas, 3 casas na distância e 2 no ângulo, átomo repetido ignorado, um TSV só com a coluna "Medida".
+2. **A vista avisa todo clique** (`StructureCanvas.atom_clicked`, também quando o átomo atual não muda e `None` no vazio) e a
+   tecla Esc (`escape_pressed`, listada na janela de atalhos); as marcas são `StructureCanvas.set_marks(refs)`, desenhadas por
+   `overlay.badge` (anel + selo numerado). Quem mede é a seção (`MeasuresSection`), não a vista.
+3. **Sem `QButtonGroup`**: um grupo exclusivo do Qt não deixa desligar o botão ligado; a seção acerta os dois botões em
+   `set_mode`.
+4. **Um ângulo indefinido** (dois átomos na mesma posição) é "—" na tabela e fica **vazio** no TSV (célula em branco na planilha).
+5. **A tabela rola depois de 8 linhas** (`MAX_ROWS`); seleção estendida, e Delete remove as linhas selecionadas da tabela com foco.
+6. Um teste de pixels confere que as marcas aparecem na vista (`test_the_marks_are_drawn`): na primeira versão o canvas não as
+   passava ao renderer e os testes de fluxo, que leem `canvas.marks`, não viam.
+
 ## Critérios de aceite e testes
 
-- [ ] Os testes da spec 43 continuam verdes, inclusive os de câmera (as medidas não mexem no zoom).
-- [ ] Distância do diamante = `√3/4 · a` e ângulo tetraédrico 109,47° em `si.scf.in` (`test_structure3d_measure.py`, novo).
-- [ ] `Measurer`: pares e trios independentes, átomo repetido ignorado, troca de modo descarta os pendentes (`test_structure3d_measure.py`, novo).
-- [ ] A sequência do pedido gera "O… - O…" linha a linha nas tabelas "Distâncias" e "Ângulos", na ordem dos cliques
+- [x] Os testes da spec 43 continuam verdes, inclusive os de câmera (as medidas não mexem no zoom).
+- [x] Distância do diamante = `√3/4 · a` e ângulo tetraédrico 109,47° em `si.scf.in` (`test_structure3d_measure.py`, novo).
+- [x] `Measurer`: pares e trios independentes, átomo repetido ignorado, troca de modo descarta os pendentes (`test_structure3d_measure.py`, novo).
+- [x] A sequência do pedido gera "O… - O…" linha a linha nas tabelas "Distâncias" e "Ângulos", na ordem dos cliques
       (`test_structure3d_measure_ui.py`, novo).
-- [ ] "Distância" e "Ângulos" são exclusivos e podem ficar os dois desligados; sem modo, nada é medido (`test_structure3d_measure_ui.py`, novo).
-- [ ] "Copiar", "Limpar" e Delete funcionam; janelas diferentes têm medidas independentes (`test_structure3d_measure_ui.py`, novo).
+- [x] "Distância" e "Ângulos" são exclusivos e podem ficar os dois desligados; sem modo, nada é medido (`test_structure3d_measure_ui.py`, novo).
+- [x] "Copiar", "Limpar" e Delete funcionam; janelas diferentes têm medidas independentes (`test_structure3d_measure_ui.py`, novo).
 - [ ] Passo manual de aceite: o usuário mede, numa estrutura real, as distâncias e ângulos que conhece (por exemplo, O–H e H–O–H de uma
       hidroxila) e confere os valores e o vértice.
-- [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+- [x] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.

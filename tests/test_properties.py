@@ -36,6 +36,8 @@ from qe_studio.core.qe.scf import parse_scf
 from qe_studio.core.qe.summary import summarize, summarize_lines
 from qe_studio.core.qsub_lint import lint_script
 from qe_studio.core.structure3d.bonds import compute_bonds
+from qe_studio.core.structure3d.measure import angle, distance
+from qe_studio.core.structure3d.model import AtomRef
 
 from conftest import FIXTURES
 
@@ -712,3 +714,33 @@ def test_bonds_do_not_change_when_atoms_move_by_whole_cells(cell, atoms, data):
     moved = compute_bonds(cell, frac + k, radii)
     assert len(base) == len(moved)
     assert np.sort(base.dist) == pytest.approx(np.sort(moved.dist))
+
+
+# -- 3D viewer measures (spec 44 R1.3) -----------------------------------------------------------
+
+SHIFTS = st.tuples(*[st.integers(-3, 3)] * 3)
+
+
+def _measured_structure(cell, points):
+    from structure3d_helpers import make_structure
+
+    return make_structure(cell, np.array(points), ["C"] * len(points))
+
+
+POINTS = st.lists(st.tuples(*[st.floats(-0.5, 1.5)] * 3), min_size=3, max_size=3)
+
+
+@given(CELLS, POINTS, SHIFTS, SHIFTS, SHIFTS)
+def test_a_distance_does_not_change_when_both_copies_move_by_a_cell(cell, points, sa, sb, k):
+    structure = _measured_structure(cell, points)
+    a, b = AtomRef(0, sa), AtomRef(1, sb)
+    moved_a = AtomRef(0, tuple(x + y for x, y in zip(sa, k, strict=True)))
+    moved_b = AtomRef(1, tuple(x + y for x, y in zip(sb, k, strict=True)))
+    assert distance(structure, moved_a, moved_b) == pytest.approx(distance(structure, a, b))
+
+
+@given(CELLS, POINTS, SHIFTS, SHIFTS, SHIFTS)
+def test_an_angle_is_between_0_and_180_degrees(cell, points, sa, sb, sc):
+    structure = _measured_structure(cell, points)
+    value = angle(structure, AtomRef(0, sa), AtomRef(1, sb), AtomRef(2, sc))
+    assert np.isnan(value) or 0.0 <= value <= 180.0

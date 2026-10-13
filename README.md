@@ -139,6 +139,9 @@ a pull.
    Shift + drag or the middle button moves it, the wheel zooms; **R** or **Resetar vista** goes back to
    the initial view, **A**/**B**/**C** and **X**/**Y**/**Z** look along an axis, **P** toggles the
    perspective. Clicking atoms never changes the zoom. A relax input shows its *input* geometry.
+   Under **Medidas**, turn on **Distância** and click two atoms, or **Ângulos** and click three (the
+   second is the vertex): each pair or trio adds a row to its table (`O43 - H59  0.965 Å`), in click
+   order; **Copiar** puts them on the clipboard for a spreadsheet, **Limpar** and Delete remove them.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the

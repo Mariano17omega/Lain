@@ -163,6 +163,7 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   `QTest.mouseDClick` sends only the double-click event: a real double click is click + `mouseDClick` + release
   (`test_structure3d_canvas.double_click`). `render_image(size)` draws offscreen without showing the view
   (`test_structure3d_render.py`: pixels are B, G, R, A in memory); `test_perf_structure3d.py` (`perf`) times the frame.
+  `clickable_atoms(canvas, n)` gives n atoms apart on screen for the measure tests (`test_structure3d_measure_ui.py`).
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
@@ -1246,7 +1247,7 @@ to `INPUT_READ_LIMIT`, never raises) and uses `input_extract.k_points_text`, the
 Only `summarize(path)` has it (`summarize_lines` keeps its signature and has no "Malha k"); the row has no `line`. Outputs of hundreds of MB take seconds (about 30 MB/s), in a worker, behind
 "Lendo <arquivo>…".
 
-### Visualização 3D (spec 43)
+### Visualização 3D (specs 43, 44)
 
 "Visualização 3D" (context menu of a pw.x input: `ItemActions.file_actions_of` → `FileActions(plot_kind, is_output,
 structure)`, `structure` = the cached sniff is `FileKind.PW_IN`, any `calculation`; after "Resumo", before "Gerar SCF
@@ -1279,7 +1280,17 @@ also for the same file.
   `param_widgets.Section`s "Átomo", "Exibição", "Espécies", "Célula" (open/closed in QSettings
   `structure3d/sections/<título>`, shared; Átomo and Exibição open by default; `Section.add_row` returns its label so a row
   can hide); fields are `NoWheel*` with `QLocale.c()`; every field edits the window's `DisplayOptions` and calls
-  `canvas.refresh_options()`, never the camera. Spec 44 adds "Medidas" after "Átomo".
+  `canvas.refresh_options()`, never the camera.
+- **Measures (spec 44)**: `core/structure3d/measure.py` (`distance`, `angle`: vertex at the 2nd atom, NaN with a zero arm;
+  exact copies, no minimum image) and `measurements.py` (`Measurer(structure)`: `mode` "distancia" | "angulo" | None,
+  `pending`, `click(ref)` → a `Measurement` when a pair / trio completes, then `pending` starts over (clicks 3 and 4 make a
+  second pair); an atom already pending is ignored; `set_mode` / `clear_pending` drop the pending atoms; `row_text` →
+  `("O1 - O2", "1.500 Å")` / `"120.00°"`, `to_tsv` for "Copiar"). `ui/widgets/structure3d/measures.py:MeasuresSection` fills
+  the "Medidas" section (between "Átomo" and "Exibição", open by default): two `toggle` buttons, exclusive but both may be off
+  (no `QButtonGroup`), the hint line, one `MeasureTable` per kind (`#structureMeasures`, hidden while empty, newest row last
+  and selected, Delete removes the selected rows), "Copiar" (`message` → the window's status bar) and "Limpar". The view
+  emits `atom_clicked(ref | None)` on every click and `escape_pressed`; `StructureCanvas.set_marks(refs)` numbers atoms
+  (`overlay.badge`): the pending ones, the measure just made (until the next click) or the selected row's.
 - **Window** `window.StructureWindow(structure, theme, settings)`: no parent, `WA_DeleteOnClose`, `closed(self)` from
   `closeEvent`, title `<arquivo> — <pasta> · Visualização 3D`, 1280 × 820, bar `#plotToolbar` ("Resetar vista", "Vista ▾"
   with `view_actions`), status bar `#structureStatus` (info, hovered atom, "⚠" with the reader's warnings). Its own

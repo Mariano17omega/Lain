@@ -8,8 +8,8 @@ not follow the app theme (spec 43 R4.5).
 from __future__ import annotations
 
 import numpy as np
-from PyQt6.QtCore import QLineF, QPointF, Qt
-from PyQt6.QtGui import QColor, QFont, QPainter, QPen
+from PyQt6.QtCore import QLineF, QPointF, QRectF, Qt
+from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 
 from ....core.structure3d.camera import Camera
 from ....core.structure3d.options import DisplayOptions
@@ -20,6 +20,7 @@ HIGHLIGHT = (255, 196, 40)
 ABC_COLORS = ((235, 90, 90), (90, 205, 100), (110, 140, 255))
 TEXT = {True: (225, 228, 235), False: (30, 30, 36)}  # by dark background
 HOVER = {True: (255, 255, 255, 210), False: (20, 20, 24, 200)}
+BADGE_RADIUS = 8.0  # px, the numbered badge of a measured atom
 
 Spot = tuple[float, float, float]  # x, y, radius in px
 
@@ -43,6 +44,20 @@ def ring(painter: QPainter, spot: Spot, color: QColor, width: float) -> None:
     painter.setPen(QPen(color, width))
     r = max(r, MIN_PICK_RADIUS) + 3.0
     painter.drawEllipse(QPointF(x, y), r, r)
+
+
+def badge(painter: QPainter, spot: Spot, number: int) -> None:
+    """The click order of a measured atom, in a disc above and right of its ring."""
+    x, y, r = spot
+    r = max(r, MIN_PICK_RADIUS)
+    cx, cy = x + r + 5, y - r - 5
+    painter.setPen(QPen(QColor(20, 20, 20), 1.0))
+    painter.setBrush(QBrush(QColor(*HIGHLIGHT)))
+    painter.drawEllipse(QPointF(cx, cy), BADGE_RADIUS, BADGE_RADIUS)
+    size = 2 * BADGE_RADIUS
+    rect = QRectF(cx - BADGE_RADIUS, cy - BADGE_RADIUS, size, size)
+    painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(number))
+    painter.setBrush(Qt.BrushStyle.NoBrush)
 
 
 def _triad(painter: QPainter, camera: Camera, height: float, text: QColor) -> None:
@@ -69,6 +84,7 @@ def draw_overlays(
     labels: list[tuple[float, float, str]],
     hover_spot: Spot | None,
     current_spot: Spot | None,
+    marked: list[tuple[int, Spot]] | None = None,
 ) -> None:
     text = QColor(*TEXT[options.dark])
     painter.setFont(font)
@@ -81,6 +97,9 @@ def draw_overlays(
         ring(painter, hover_spot, QColor(*HOVER[options.dark]), 1.5)
     if current_spot is not None:
         ring(painter, current_spot, QColor(*HIGHLIGHT), 2.4)
+    for number, spot in marked or []:  # the atoms of a measure, in click order (spec 44)
+        ring(painter, spot, QColor(*HIGHLIGHT), 2.4)
+        badge(painter, spot, number)
     if options.show_axes:
         tips, _, _ = camera.project(np.vstack([np.zeros((1, 3)), scene.cell]), size)
         for k, name in enumerate("abc"):
