@@ -24,6 +24,7 @@ from .files import InputFile
 from .pdos import PdosType
 from .relax import RelaxType
 from .scf import ScfType
+from .slab import SlabType
 from .vc_relax import VcRelaxType
 
 __all__ = [
@@ -50,6 +51,7 @@ REGISTRY: tuple[CalcType, ...] = (
     PdosType(),
     ChargeType(),
     ChargeDiffType(),
+    SlabType(),
 )
 
 

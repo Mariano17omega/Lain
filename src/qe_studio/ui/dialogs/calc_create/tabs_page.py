@@ -135,8 +135,12 @@ class TabsPage(QWidget):
         files = [(planned, by_group.get(planned.key, [])) for planned in self.plan.files]
         return files, list(own.items())
 
+    def _start(self) -> Path:
+        """Where a field that picks a file opens its dialog: the SCF's folder."""
+        return self.scf.path.parent if self.scf.path is not None else Path.home()
+
     def _group_tab(self, theme: ThemeManager, group: str, fields: list[FormField]) -> QWidget:
-        form = FieldForm(theme, fields, self.scf.crystal)
+        form = FieldForm(theme, fields, self.scf.crystal, start=self._start())
         form.changed.connect(self._on_changed)
         self.forms.append(form)
         self._form_of[group] = form
@@ -155,7 +159,7 @@ class TabsPage(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         if fields:
-            form = FieldForm(theme, fields, self.scf.crystal)
+            form = FieldForm(theme, fields, self.scf.crystal, start=self._start())
             form.changed.connect(self._on_changed)
             self.forms.append(form)
             self._form_of[planned.key] = form
@@ -337,6 +341,13 @@ class TabsPage(QWidget):
 
     def tab_labels(self) -> list[str]:
         return [self.tabs.tabText(index) for index in range(self.tabs.count())]
+
+    def shutdown(self) -> None:
+        """The window is done (or builds another step 2): pending plans and file reads are dropped."""
+        self._timer.stop()
+        self._check_timer.stop()
+        for form in self.forms:
+            form.shutdown()
 
     def form_of(self, field_id: str) -> FieldForm:
         return next(form for form in self.forms if field_id in form.widgets)

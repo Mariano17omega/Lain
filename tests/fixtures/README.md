@@ -25,6 +25,7 @@ and add a `Run` row. `git add` the folder: `test_fixtures_untouched.py` fails on
 | `kao_vc_relax/` | user's kaolinite bulk vc-relax (QE 7.1) | 25 BFGS steps in the run; keeps steps 0–2 and 23–24, `bfgs converged`, `Final scf calculation` and its SCF, `JOB DONE`. A `restart_mode='restart'` run: the header `unit-cell volume` is the input cell, not the first SCF's. Its volume / `CELL_PARAMETERS` follow the step that ran on them, so the trim leaves step 3 (BFGS 23) without them (`test_relax.py`) |
 | `kao_slab_relax/` | user's kaolinite (001) slab relax (QE 7.1) | 42 steps in the run; keeps steps 0–2 and 40–41 |
 | `kao_supercell_relax/` | user's kaolinite 2×1×1 slab relax (QE 7.1) | a single step: `bfgs converged in 1 scf cycles and 0 bfgs steps` |
+| `kao_surface_inputs/` | user's own inputs, not outputs: the reference SCFs of the surface types (specs 40–42) | copies of `Documentation/Exemplo-SLAB/scfs/` with `pseudo_dir = '/home/seu_usuario/PSEUDO/'` (the only change): bulk `scf-kaolinite.in` (ibrav 0, 34 atoms, `6 4 4`), molecule `scf-H3CHg.in` (ibrav 14 box of 40 Bohr, angstrom positions, `gamma`), the relaxed slabs `scf-kaolinite-slab-001.in` / `-010.in` and `-001-2x1x1.in`. `tests/surface_golden.json` holds what the user's scripts make of them |
 
 The `kao_*` outputs were trimmed by removing whole BFGS steps between complete steps and the
 per-k-point eigenvalue listings of every SCF (everything the relax parser reads is untouched).

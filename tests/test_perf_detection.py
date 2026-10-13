@@ -169,11 +169,15 @@ def test_main_window_import_skips_ase():
 
 
 def test_calc_create_import_skips_ase_and_jinja2():
-    """The window of spec 26 imports the registry and the writer: neither loads them."""
+    """The window of spec 26 imports the registry and the writer: neither loads them; nor do the
+    surface modules of spec 40 (``ase.data`` loads on first use)."""
     code = (
         "import sys, qe_studio.core.calc_create.types, qe_studio.core.calc_create.writer, "
         "qe_studio.core.calc_create.kpath, qe_studio.core.calc_create.scf_info, "
-        "qe_studio.core.calc_create.preview; "
+        "qe_studio.core.calc_create.preview, qe_studio.core.calc_create.surface.slab, "
+        "qe_studio.core.calc_create.surface.fixing, qe_studio.core.calc_create.surface.molecule, "
+        "qe_studio.core.calc_create.surface.write, qe_studio.core.calc_create.surface.report, "
+        "qe_studio.core.calc_create.surface.kmesh; "
         "print(sorted(m for m in ('ase', 'jinja2') if m in sys.modules))"
     )
     run = subprocess.run(

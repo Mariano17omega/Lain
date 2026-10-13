@@ -100,6 +100,17 @@ def test_continue_waits_for_everything(qtbot, dialog, place):
     assert "não existe" in setup.location_message.text()
 
 
+def test_the_scf_row_is_named_by_the_type(dialog):
+    """Spec 40 R1.4: ``CalcType.scf_label``; today's types keep "Input de SCF"."""
+    setup = dialog.setup
+    assert setup.scf_label.text() == "Input de SCF *"
+    setup.set_type("slab")
+    assert setup.scf_label.text() == "SCF do bulk *"
+    assert setup.scf_edit.accessibleName() == "SCF do bulk"
+    setup.set_type("pdos")
+    assert setup.scf_label.text() == "Input de SCF *"
+
+
 def test_an_input_that_is_not_an_scf_is_refused(qtbot, dialog, tmp_path):
     dialog.setup.set_type("pdos")
     assert pick_scf(qtbot, dialog, relax_input(tmp_path)) is None

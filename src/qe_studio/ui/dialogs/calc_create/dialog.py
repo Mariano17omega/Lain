@@ -196,6 +196,7 @@ class CalcCreateDialog(QDialog):
         """A new step 2 (the old one and its edits are dropped). False when it could not be built:
         logged, said in a message, and the window stays on step 1 with no step 2."""
         if self.tabs is not None:
+            self.tabs.shutdown()
             self.pages.removeWidget(self.tabs)
             self.tabs.deleteLater()
             self.tabs, self._built = None, None
@@ -312,5 +313,7 @@ class CalcCreateDialog(QDialog):
         super().closeEvent(event)
 
     def done(self, result: int) -> None:
-        self.setup.shutdown()  # a SCF still being read is dropped
+        self.setup.shutdown()  # a SCF still being read is dropped, and the fields' files
+        if self.tabs is not None:
+            self.tabs.shutdown()
         super().done(result)

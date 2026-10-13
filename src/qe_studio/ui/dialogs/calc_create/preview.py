@@ -16,7 +16,12 @@ from ....core.qe.input_lexer import LintIssue
 from ...theme.manager import ThemeManager
 from ...widgets.code_view import CodeView
 from ...widgets.common import set_variant
-from ...widgets.highlighters import InputHighlighter, ShellHighlighter
+from ...widgets.highlighters import (
+    InputHighlighter,
+    PlainHighlighter,
+    ShellHighlighter,
+    ThemedHighlighter,
+)
 from .labels import message_label, show_message
 
 CHANGED_ROW = "diff_change_bg"  # lines that differ from the SCF: the input diff's color
@@ -39,9 +44,9 @@ class FilePreview(CodeView):
         self._known = ""
         document = self.text_document()
         if kind == "qsub":
-            self.highlighter: ShellHighlighter | InputHighlighter = ShellHighlighter(
-                document, theme
-            )
+            self.highlighter: ThemedHighlighter = ShellHighlighter(document, theme)
+        elif kind == "report":  # Markdown, never linted: no colors
+            self.highlighter = PlainHighlighter(document, theme)
         else:
             self.highlighter = InputHighlighter(document, theme)
         self.textChanged.connect(self._on_text_changed)

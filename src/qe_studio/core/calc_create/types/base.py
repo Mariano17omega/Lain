@@ -44,8 +44,8 @@ __all__ = [
     "visible_fields",
 ]
 
-FieldKind = Literal["int", "float", "text", "choice", "bool", "kpath", "kmesh", "atoms"]
-FileKind = Literal["pw_input", "qe_input", "qsub", "notes"]
+FieldKind = Literal["int", "float", "text", "choice", "bool", "kpath", "kmesh", "atoms", "scf_file"]
+FileKind = Literal["pw_input", "qe_input", "qsub", "notes", "report"]
 Mode = Literal["padrao", "avancado"]
 MODES: tuple[Mode, ...] = ("padrao", "avancado")
 DEFAULT_MODE: Mode = "padrao"  # the window's on its first opening (spec 28 R5.2)
@@ -155,6 +155,11 @@ def _coerce(form_field: FormField, value: Any) -> Any:
         if any(isinstance(n, bool) or not isinstance(n, int) for n in value):
             raise ValueError
         return tuple(sorted(set(value)))
+    if kind == "scf_file":
+        # Another SCF, read by the window in a worker (spec 40 R1.1): the ``ScfInfo`` itself.
+        if not isinstance(value, ScfInfo):
+            raise ValueError
+        return value
     return str(value).strip()
 
 
@@ -261,6 +266,8 @@ class CalcType:
     script_template: ClassVar[str]  # under templates/
     input_templates: ClassVar[tuple[str, ...]] = ()  # the other templates it renders
     uses_name: ClassVar[bool] = False  # a standard file name takes the folder's name (spec 29)
+    scf_label: ClassVar[str] = "Input de SCF"  # what step 1 calls the SCF (spec 40 R1.4)
+    writes_report: ClassVar[bool] = False  # ``geracao.md`` after the inputs (spec 40 R1.5)
 
     @property
     def script_name(self) -> str:

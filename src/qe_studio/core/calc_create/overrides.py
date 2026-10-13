@@ -59,8 +59,9 @@ def apply_overrides(plan: CalcPlan, texts: Mapping[str, str]) -> CalcPlan:
 
 def edit_issues(kind: str, text: str) -> list[LintIssue]:
     """The write problems of an edited file: ``lint_script`` for the script, the input linter for
-    the rest. None above the text viewer's limit (``INPUT_READ_LIMIT``). They never block "Criar"."""
-    if len(text) > INPUT_READ_LIMIT:
+    the inputs, none for the report (Markdown). None above the text viewer's limit
+    (``INPUT_READ_LIMIT``). They never block "Criar"."""
+    if len(text) > INPUT_READ_LIMIT or kind == "report":
         return []
     if kind == "qsub":
         return lint_script(text)

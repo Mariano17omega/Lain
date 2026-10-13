@@ -3,7 +3,8 @@
 ``scf_info`` reads the text with ``InputEditor`` (the derived inputs are edits of that same text) and
 the crystal with ``qe.lattice`` (ASE refuses ``ibrav != 0``). Missing values are None: each
 calculation type falls back to its own default. ``read_scf`` reads the file and, when the SCF has
-already run next to it, the number of bands pw.x used. Workers only.
+already run next to it, the number of bands pw.x used; ``read_other_scf`` is the same for a second
+SCF a form field picks (spec 40 R1.2), its head checked too. Workers only.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from ..qe.lattice import Crystal, StructureError, crystal_from_editor
 from ..qe.pw_input import fortran_float
 from .kpath import KMesh
 
-__all__ = ["DEFAULT_PREFIX", "ScfInfo", "ScfInputError", "read_scf", "scf_info"]
+__all__ = ["DEFAULT_PREFIX", "ScfInfo", "ScfInputError", "read_other_scf", "read_scf", "scf_info"]
 
 DEFAULT_PREFIX = "pwscf"  # pw.x's when the input sets none
 
@@ -149,3 +150,13 @@ def read_scf(path: Path) -> ScfInfo:
         raise ScfInputError(f"Não foi possível ler {path.name}: {exc.strerror or exc}") from exc
     info = scf_info(text, path)
     return dataclasses.replace(info, scf_bands=_bands_of_output(path))
+
+
+def read_other_scf(path: Path) -> ScfInfo:
+    """``read_scf`` of a file a field picks, which must look like a QE input (the check step 1 makes
+    on the GUI thread, here in the worker). Raises ``ScfInputError``. Workers only."""
+    from ..sniff import looks_like_input
+
+    if not looks_like_input(path):
+        raise ScfInputError(f"{path.name} não parece um input do Quantum ESPRESSO")
+    return read_scf(path)

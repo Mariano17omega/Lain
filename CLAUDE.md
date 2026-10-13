@@ -144,6 +144,12 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   (`cancelled_midway`), `test_parser_memory.py` measures peaks with `tracemalloc` on `synthetic.make_gnu` /
   `make_filband` and compares with the old readers, which live only there, and `test_tab_close_loads.py` closes tabs
   mid-load. `conftest.py` empties the process-wide dataset cache around every test (`drop_cached()`).
+- Surface types (specs 40–42): `tests/fixtures/kao_surface_inputs/` holds the user's reference *inputs* (bulk, molecule, the
+  relaxed slabs; `pseudo_dir` replaced) and `tests/surface_golden.json` what the user's scripts made of them, captured once outside
+  the repository with pymatgen (versions in its `"source"`; the capture script is not kept: it needs pymatgen). `surface_helpers.py`:
+  the paths, `golden(case)` / `golden_model`, `model_from_plan(text)`, `same_atoms(a, b, tol)` (same order, minimum image) and
+  `SCRIPT_FIELDS` (the scripts' parameters as the Slab's field values). A type with `writes_report` adds `report` to the keys
+  `test_calc_create_matrix.py` expects.
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
@@ -747,6 +753,30 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   - Tests: `tests/fragment_helpers.py` (`SMALL`: Fe / O / H with spin, `HUBBARD`, `if_pos`, comments; `slab_scf()`),
     `test_fragments.py`, `test_calc_charge_diff.py`, `test_input_edit.py` / `test_properties.py` (the new editor operations
     and `split_input` on random selections and texts), a row in `test_calc_roundtrip.py`.
+- **Slab and the surface package** (spec 40; specs 41–42 build on it). `core/calc_create/surface/` (Qt-free) ports the
+  user's scripts (`Documentation/Exemplo-SLAB/lib`) on numpy and `ase.data` (radii and symbols, imported inside the functions:
+  never `ase.io`). `model.Model(cell Å, labels, frac, flags)` (`model_of(scf)` = `ScfInfo.crystal` + the `if_pos` words 5–7 of
+  `ATOMIC_POSITIONS`; `species_rows`); `elements` (`element_of`: ASE's `label_to_symbol` rule, `covalent_radius`); `geometry`
+  (`pair_images`: images −1…1 over the fractions *as written*, first on a tie, as the scripts; whether a bond crosses an axis is
+  its image there; `vacuum_gaps`, `MIN_SURFACE_GAP` = 5 Å); `molecule.molecule_of(scf, anchor=None)` (unwrapped around the
+  heaviest atom, axis to the first non-H atom, rotated onto +z only below `ALIGNED` = 0.98, `extent` along z); `slab.make_slab(bulk,
+  SlabOptions(axis a|b|c, flip, vacuum, heal, complete, metals, bond_scale), species)` → `SlabResult(model, f, axis_map, healed,
+  added, cut_bonds, notes)` (heal: an H whose bond to its nearest bonded neighbour crosses the stacked axis moves next to it;
+  complete: each `metals` atom–O bond crossing it gets an O at the vertex, labelled as the partner O, and an H at the bulk's mean
+  O–H; then `{t0, ±t1, f·s}` turned so t0 is +x and the normal +z, the vacuum axis recentred on 0.5); `fixing.fixed_atoms` (rules
+  `FIX_RULES`: "camada inferior" below `min + fraction × thickness`, "espécies e vizinhos" (`<` the bond cutoff), "do SCF",
+  "nenhum"; all fixed is an error) + `apply_fix` (`0 0 0` or nothing); `kmesh.rescale_mesh` (each in-plane axis from its bulk
+  axis ÷ the supercell multiple, vacuum 1); `write.put_structure` (`qe/cell_card.set_cell`, shared with `scf_from_relax`:
+  `CELL_PARAMETERS angstrom`, `ibrav = 0`, no Bravais keys; positions `crystal` 10 decimals; used species only, species keys
+  remapped; `ATOMIC_FORCES`/`VELOCITIES` dropped with a note; `CONSTRAINTS`, Hubbard V and a species without a row refused
+  *before* any edit); `report` (`geracao.md`: `report_file(lines)` → `PlannedFile(kind "report", key "report")`, decimal comma,
+  atoms 1-based). `types/slab.py:SlabType(VcRelaxType)` (`scf_label` "SCF do bulk", `writes_report`; fields in
+  `types/slab_fields.py`, the ones 41/42 share in `types/surface_fields.py`): tab "Superfície" (Padrão: molecule `scf_file`,
+  axis, `vacuum_min`, complete), the input tab's empty `kmesh` (`rescale_mesh` of the SCF's) and `cell_dofree` (`2Dxy`), `prefix =
+  '<p>-slab-<hkl>'`; vacuum = minimum (+ molecule extent + adsorption distance). The plan always has its three files (script,
+  `vc-relax_<prefix>.in`, `geracao.md`): a `SurfaceError` marks its field (`complete`, `molecule`, `fix_rule`…) or the error list
+  and the report says "Estrutura não gerada". Tests: `tests/surface_helpers.py`, `test_surface_{geometry,slab,fixing}.py`,
+  `test_calc_slab.py`, `test_calc_scf_field.py`.
 - **Self-contained folder** (`unit.py`, spec 28 R2): `Work.editor()` is the SCF's text after `apply_unit`
   (`outdir = './tmp/'` always, `jobs.pseudo_dir` when set; `edits.put_text` compares with case), so every pw.x input,
   the SCF copy included, gets it (the copy differs from the SCF only there); bands.x and projwfc.x templates get
@@ -826,6 +856,14 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
   comparing with `_known` (else checking the issues recursed). After `debounce_ms` an edited file is checked
   (`overrides.edit_issues`: `lint` / `lint_script`, none above `INPUT_READ_LIMIT`) into its underline and margin
   (`FilePreview.show_issues`) and its changed rows are repainted; the issues never block "Criar". `dirty` counts edits.
+- **A second SCF and the report (spec 40 R1).** `FormField` kind `scf_file` (value: an `ScfInfo` or None) is
+  `ui/dialogs/calc_create/scf_field.py:ScfFileField`: "Escolher…" calls `setup_page.choose_scf` through its module (tests patch it
+  there), `TaskGroup` reads `scf_info.read_other_scf` (head check + `read_scf`, all in the worker: no `FS_ALLOWED` entry), "Lendo
+  SCF…" / the error on its line, "Limpar" for an optional field, `changed` when a reading ends or it is cleared, `shutdown()`
+  (`FieldForm.shutdown` ← `TabsPage.shutdown` ← `CalcCreateDialog.done` and `_build_tabs`; never `destroyed`). `FieldForm(start=)`
+  is the SCF's folder. Step 1 names the SCF row `CalcType.scf_label` ("Input de SCF" by default). A `PlannedFile` of kind
+  `report` (`geracao.md`, `CalcType.writes_report`) is a tab like the inputs, without colors (`PlainHighlighter`), editable in
+  `avancado` and never linted (`overrides.edit_issues`). `KMeshEditor(empty=)` takes the field's `hint` for an empty mesh.
 - `ui/widgets/atom_table.py:AtomTable(rows, selected, unit, count_format)` (spec 30, extracted from the PDOS atom window):
   checkbox, #, element and three coordinates as text (`AtomRow`), "Marcar todos" / "Desmarcar todos" / "Inverter" /
   "Só espécie ▸" and the count; `changed` fires once per click or button, `value()` / `checked()` the marked numbers.

@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import QMessageBox
 
 from fragment_helpers import SMALL, slab_scf
 from qe_studio.core.calc_create.scf_info import ScfInputError, scf_info
+from qe_studio.core.calc_create.surface.report import REPORT_KEY
 from qe_studio.core.calc_create.types import REGISTRY, CalcType, by_id
 from qe_studio.core.calc_create.writer import validate_suffix
 from qe_studio.core.sniff import looks_like_input
@@ -97,7 +98,9 @@ def test_every_type_reaches_step_2_with_every_scf(qtbot, make_dialog, tmp_path, 
     tabs = to_files(qtbot, dialog, type_id, scf=scf_path(source, tmp_path), suffix=NAME)
     scf = dialog.setup.scf
     assert scf is not None
-    keys = ["script", *(f.key for f in by_id(type_id).input_files(scf, NAME))]
+    calc_type = by_id(type_id)
+    keys = ["script", *(f.key for f in calc_type.input_files(scf, NAME))]
+    keys += [REPORT_KEY] if calc_type.writes_report else []  # geracao.md (spec 40)
     assert [planned.key for planned in tabs.plan.files] == keys
     assert tabs.tab_labels()[-2:] == ["Arquivos", "Descrição"]
     dialog.set_mode("padrao")  # the other mode plans the same files

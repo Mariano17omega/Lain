@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from ..sniff import FileKind, FileSniff
 from ..unique_names import write_new
+from .cell_card import set_cell
 from .final_structure import FinalStructure, read_final_structure
 from .input_edit import InputEditor, read_input_text
 from .pairing import same_name_input
@@ -39,10 +40,6 @@ VC_RELAX_CELL = (
     "tolerância numérica da célula final."
 )
 NO_INPUT = "Input do relax não encontrado na pasta"
-# The cell's geometry, which CELL_PARAMETERS replaces once ibrav = 0 (an ``alat`` cell keeps
-# celldm(1): it is the unit of its rows).
-_CELL_KEYS = frozenset({"a", "b", "c", "cosab", "cosac", "cosbc"})
-_CELLDM = re.compile(r"celldm\((\d)\)")
 _UNSAFE = re.compile(r"[\\/\0]")
 
 
@@ -177,20 +174,10 @@ def _final_cell(editor: InputEditor, final: FinalStructure, warnings: list[str])
         )
     if cell.unit == "alat" and cell.alat is None:
         raise ScfError("CELL_PARAMETERS (alat) sem o valor de alat na saída")
-    ibrav = editor.get("system", "ibrav")
-    editor.replace_card("CELL_PARAMETERS", cell.unit, list(cell.rows))
-    editor.set("system", "ibrav", "0")
-    if ibrav is not None and ibrav.strip() != "0":
-        warnings.append(
-            f"ibrav = {ibrav.strip()} trocado por 0: a célula final vai em CELL_PARAMETERS"
-        )
+    note = set_cell(editor, cell.unit, cell.rows, cell.alat, cell="a célula final")
+    if note is not None:
+        warnings.append(note)
     warnings.append(VC_RELAX_CELL)
-    for key in editor.keys("system"):
-        celldm = _CELLDM.fullmatch(key)
-        if key in _CELL_KEYS or (celldm and not (cell.unit == "alat" and celldm.group(1) == "1")):
-            editor.remove("system", key)
-    if cell.unit == "alat" and cell.alat is not None:
-        editor.set("system", "celldm(1)", cell.alat)  # the unit of the rows, as printed
 
 
 def scf_name(prefix: str | None) -> str:

@@ -10,6 +10,7 @@ here.
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
+from pathlib import Path
 from typing import Any
 
 from PyQt6.QtCore import pyqtSignal
@@ -26,6 +27,7 @@ from ...widgets.kpath_editor import KPathEditor
 from ...widgets.param_widgets import Section
 from .kmesh import KMeshEditor
 from .labels import repolish
+from .scf_field import ScfFileField
 
 TITLE = "Parâmetros"
 UNIT_LABELS = {"angstrom": "Å"}  # the card's unit as a column head
@@ -48,11 +50,14 @@ class FieldForm(QWidget):
         fields: Sequence[FormField],
         crystal: Crystal | None = None,
         parent: QWidget | None = None,
+        start: Path | None = None,
     ):
-        """``crystal``: the SCF's structure, for the band path checks (None: they are off)."""
+        """``crystal``: the SCF's structure, for the band path checks (None: they are off);
+        ``start``: where a field that picks a file opens its dialog (the SCF's folder)."""
         super().__init__(parent)
         self.theme = theme
         self.crystal = crystal
+        self.start = start if start is not None else Path.home()
         self.fields = list(fields)
         self.widgets: dict[str, QWidget] = {}
         self.rows: dict[str, tuple[QWidget, ...]] = {}  # what shows a field: label and widget
@@ -134,9 +139,15 @@ class FieldForm(QWidget):
             return check
         if kind == "kmesh":
             mesh = default if isinstance(default, KMesh) else None
-            editor = KMeshEditor(mesh, mesh)
+            editor = KMeshEditor(mesh, mesh, empty=form_field.hint)
             editor.changed.connect(self._edited)
             return editor
+        if kind == "scf_file":
+            field = ScfFileField(
+                self.start, not form_field.required, form_field.label, form_field.hint
+            )
+            field.changed.connect(self._edited)
+            return field
         edit = QLineEdit(field_text(default))
         edit.setPlaceholderText(placeholder(form_field))
         edit.textEdited.connect(self._edited)
@@ -166,15 +177,23 @@ class FieldForm(QWidget):
                 out[field_id] = widget.currentText() or None
             elif isinstance(widget, QCheckBox):
                 out[field_id] = widget.isChecked()
-            elif isinstance(widget, KMeshEditor | KPathEditor | AtomTable):
+            elif isinstance(widget, KMeshEditor | KPathEditor | AtomTable | ScfFileField):
                 out[field_id] = widget.value()
         return out
+
+    def shutdown(self) -> None:
+        """The window is done: the fields that read files in a worker drop them."""
+        for widget in self.widgets.values():
+            if isinstance(widget, ScfFileField):
+                widget.shutdown()
 
     def mark(self, problems: dict[str, str]) -> None:
         """Mark the fields with a problem (border and tooltip); the rest go back to normal."""
         for form_field in self.fields:
             widget = self.widgets[form_field.id]
             target = widget.table if isinstance(widget, KPathEditor | AtomTable) else widget
+            if isinstance(widget, ScfFileField):
+                target = widget.edit
             problem = problems.get(form_field.id)
             if bool(target.property("invalid")) != bool(problem):
                 target.setProperty("invalid", bool(problem))

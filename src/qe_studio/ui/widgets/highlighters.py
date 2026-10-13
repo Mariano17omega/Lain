@@ -65,6 +65,13 @@ class ThemedHighlighter(QSyntaxHighlighter):
         self.rehighlight()
 
 
+class PlainHighlighter(ThemedHighlighter):
+    """No syntax colors (the report of "Criar cálculo", Markdown): only the issues' underline."""
+
+    def highlightBlock(self, text: str | None) -> None:
+        self.underline_issues(text or "", self.currentBlock().blockNumber())
+
+
 class Rule(NamedTuple):
     pattern: re.Pattern[str]
     token: str

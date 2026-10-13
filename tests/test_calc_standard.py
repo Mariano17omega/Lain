@@ -123,6 +123,7 @@ def test_fields_of_the_standard_mode():
         "pdos": ["e_min", "e_max"],
         "charge": [],
         "charge_diff": ["atoms"],
+        "slab": ["molecule", "axis", "vacuum_min", "complete"],
     }
     assert shown("bandas", without_output) == ["nbnd", "kpath"]  # required, no default
     assert shown("pdos", without_output) == ["nbnd", "e_min", "e_max"]

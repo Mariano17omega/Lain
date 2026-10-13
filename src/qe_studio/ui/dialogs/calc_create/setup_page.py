@@ -88,7 +88,8 @@ class SetupPage(QWidget):
         self.scf_edit = set_variant(QLineEdit(), "mono")
         self.scf_edit.setReadOnly(True)
         self.scf_edit.setPlaceholderText("Nenhum arquivo escolhido")
-        self.scf_edit.setAccessibleName("Input de SCF")
+        self.scf_edit.setAccessibleName(CalcType.scf_label)
+        self.scf_label = set_variant(QLabel(), "fieldLabel")  # the type's name for it (spec 40)
         self.scf_button = QPushButton("Escolher…")
         self.scf_button.clicked.connect(self._pick_scf)
         self.scf_message = message_label("error")
@@ -114,7 +115,7 @@ class SetupPage(QWidget):
         grid.setVerticalSpacing(6)
         rows = [
             ("Tipo de cálculo", self.type_combo, None),
-            ("Input de SCF *", self._with_button(self.scf_edit, self.scf_button), self.scf_message),
+            (self.scf_label, self._with_button(self.scf_edit, self.scf_button), self.scf_message),
             ("Nome da pasta", self.suffix_edit, self.suffix_message),
             (
                 "Local",
@@ -124,7 +125,9 @@ class SetupPage(QWidget):
         ]
         row = 0
         for label, widget, message in rows:
-            grid.addWidget(set_variant(QLabel(label), "fieldLabel"), row, 0)
+            if isinstance(label, str):
+                label = set_variant(QLabel(label), "fieldLabel")
+            grid.addWidget(label, row, 0)
             grid.addWidget(widget, row, 1)
             row += 1
             if message is not None:
@@ -261,6 +264,9 @@ class SetupPage(QWidget):
             "error" if place else "warning",
         )
         calc_type = self.calc_type
+        scf_label = calc_type.scf_label if calc_type is not None else CalcType.scf_label
+        self.scf_label.setText(f"{scf_label} *")
+        self.scf_edit.setAccessibleName(scf_label)
         preview = ""
         if calc_type is not None and not named and not place:
             preview = target_text(self._location, calc_type, suffix)

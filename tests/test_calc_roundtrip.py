@@ -15,6 +15,7 @@ from qe_studio.core.sniff import SniffCache
 
 from calc_helpers import AL_PATH, JOBS, al, from_text, ni
 from conftest import FIXTURES
+from surface_helpers import BULK, read
 
 
 def results(folder):
@@ -142,3 +143,19 @@ def test_charge_diff_folder_is_written_whole_and_gets_the_scf_badge(tmp_path):
     found, _ = results(folder)
     assert set(found) == {"scf"} and found["scf"].badge == "SCF"
     assert found["scf"].file("scf_out") == folder / "scf_ilita.out"
+
+
+def test_slab_folder_is_detected_as_a_vc_relax(tmp_path):
+    """Spec 40: the slab's input is a pw.x vc-relax; with its output next to it, the folder is a relax
+    whose input is that file (``geracao.md`` is taken for nothing)."""
+    calc = by_id("slab")
+    created = create_folder(tmp_path, calc, "kao", calc.plan(read(BULK), {}, JOBS))
+    folder = created.folder
+    assert folder.name == "Slab_kao"
+    assert [p.name for p in created.files] == ["slab.qsub", "vc-relax_kaolinite.in", "geracao.md"]
+    fill(folder, "kao_vc_relax", [("vc-relax.out", "vc-relax_kaolinite.out")])
+    found, cache = results(folder)
+    assert set(found) == {"relax"}
+    assert found["relax"].file("relax_out") == folder / "vc-relax_kaolinite.out"
+    assert found["relax"].file("relax_in") == folder / "vc-relax_kaolinite.in"
+    assert cache.sniff(folder / "vc-relax_kaolinite.in").calculation == "vc-relax"

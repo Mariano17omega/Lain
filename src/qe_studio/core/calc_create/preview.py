@@ -37,6 +37,7 @@ FILE_KINDS = {
     "pw_input": "Input do pw.x",
     "qe_input": "Input do QE",
     "notes": "Anotações",
+    "report": "Relatório",
 }
 OUTSIDE_PROJECT = "Fora da pasta raiz: a detecção e a sincronização só enxergam pastas dentro dela"
 AT_ROOT = "A pasta será criada fora de um projeto e aparecerá como um projeto novo."  # spec 31 R6.2

@@ -1,0 +1,47 @@
+ &control
+   calculation = 'scf'
+   prefix='silicon',
+   pseudo_dir='/home/seu_usuario/PSEUDO/'
+   outdir='./tmp'
+   nstep = 100
+   forc_conv_thr = 1.0D-6
+/
+&system
+  ibrav = 14, 
+  celldm(1) = 40.0,
+  celldm(2) = 1.0,
+  celldm(3) = 1.0, 
+  celldm(4) = 0.0,
+  celldm(5) = 0.0,
+  celldm(6) = 0.0, 
+  nat  = 5,
+  ntyp = 3,
+  ecutwfc = 90.0,
+  
+  vdw_corr='grimme-d2'
+
+  occupations ='smearing',
+  smearing ='gauss',
+  degauss = 0.01, 
+
+/
+&electrons
+  conv_thr =  1.0d-12
+  mixing_beta=0.3
+/
+ATOMIC_SPECIES
+Hg  200.59    Hg.pbe-spn-kjpaw_psl.1.0.0.UPF
+ C  12.011    C.pbe-n-kjpaw_psl.1.0.0.UPF
+ H  1.00794   H.pbe-kjpaw_psl.1.0.0.UPF
+
+ATOMIC_POSITIONS (angstrom)
+
+Hg            0.0000000000       -0.0003231852       -0.1400020799
+C             0.0000000000        0.0001734786        2.1763925830
+H             0.0000000000        1.0579050981        2.4579796997
+H             0.9160061468       -0.5288776958        2.4578148986
+H            -0.9160061468       -0.5288776958        2.4578148986
+
+K_POINTS gamma
+
+

@@ -8,7 +8,9 @@ organizam a **terceira rodada** (05/10/2026: padrões de unidade de simulação,
 de carga e Projetos) e a spec 32 a **quarta** (06/10/2026: nomes de exportação com o caminho do projeto, CSV dos dados, roda do
 mouse no painel de ajustes e o botão "Átomos…" da PDOS) e as specs 33–39 a **quinta** (12/10/2026: pequenos defeitos do Resumo,
 do menu e da barra, método do gap, "Plotar" do relax, deslocamento da legenda, grade e árvore, Markdown e `.qsub` no visualizador,
-e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado), em grupos de itens relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
+e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 40–42 a **sexta** (13/10/2026: os tipos de superfície do
+"Criar cálculo" portados dos scripts de `Documentation/Exemplo-SLAB/`: Slab, Supercélula e Molécula na superfície), em grupos de itens
+relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
 ```
@@ -67,6 +69,9 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 37 | [spec_37-grade-nomes-completos-e-arvore-com-arquivos.md](Archived/spec_37-grade-nomes-completos-e-arvore-com-arquivos.md) | Nome do arquivo quebra linha no cartão da grade (altura única por pasta, até 6 linhas); árvore só de pastas por padrão, com `ui.tree_show_files` | 5, 16, 19, 31 | M | Sonnet 5.5 |
 | 38 | [spec_38-visualizador-markdown-e-qsub.md](Archived/spec_38-visualizador-markdown-e-qsub.md) | `.md` renderizado (alterna para o texto, sem HTML cru, links locais não abrem); `.qsub` com `ShellHighlighter` e verificação de escrita em `core/qsub_lint.py` | 10, 11, 19, 26 | G | Sonnet 5.5 |
 | 39 | [spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md](Archived/spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md) | "Continuar" nunca mudo e rede de testes tipo × SCF (a Diferença de carga **não foi reproduzida**); prévia editável só no Avançado, a edição vence o formulário | 24, 26, 28, 30, 38 | M | Opus 5.5 |
+| 40 | [spec_40-criar-calculo-slab.md](Archived/spec_40-criar-calculo-slab.md) | Tipo "Slab": a célula do bulk esticada num eixo para abrir vácuo (porta do Estágio 1 dos scripts, sem pymatgen), H reconectados, poliedros de borda, átomos fixos, SCF da molécula opcional para o vácuo; campo de "outro SCF" e relatório `geracao.md` | 24, 25, 26, 28, 30, 39 | G | Opus 5.5 |
+| 41 | [spec_41-criar-calculo-supercelula.md](spec_41-criar-calculo-supercelula.md) | Tipo "Supercélula": réplica n1×n2×n3 de uma superfície (ou de um bulk), fixos "do SCF" ou por regra, k-points e `nbnd` reescalados | 40 | M | Sonnet 5.5 |
+| 42 | [spec_42-criar-calculo-molecula-na-superficie.md](spec_42-criar-calculo-molecula-na-superficie.md) | Tipo "Molécula na superfície": candidatos agrupados por simetria (spglib), monodentado ou bidentado, remoção do H âncora, sítio pela lista ou por coordenadas; SCF de bulk recusado na etapa 1 | 40, 41 | G | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -98,11 +103,14 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
    do gap (34, a queixa mais antiga da lista), os ganhos pequenos e independentes (35 relax, 36 legenda), os dois ajustes de painel (37),
    o visualizador (38) e, por último, o "Criar cálculo" (39), que usa o `lint_script` da 38 para o script editado. A 33 (R2) pode
    sair antes de tudo; nenhuma depende das outras do grupo, só a 39 da 38 (e só para verificar o script).
-10. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
+10. **Superfícies (40–42, decisão de 13/10/2026):** em cadeia, na ordem do fluxo dos scripts. A 40 abre o pacote
+    `core/calc_create/surface/`, o campo de "outro SCF" e o relatório `geracao.md`; a 41 é pequena e segue o caminho; a 42 usa as duas
+    e traz o spglib. Independentes das specs 33–39, salvo a matriz tipo × SCF e a prévia editável da 39, já implementadas.
+11. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–39, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+Specs já implementadas (1–40, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
 raiz ficam as propostas ainda abertas (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
@@ -313,6 +321,22 @@ As ideias vieram em `Ideias.md` (escritas em 06/10/2026, tratadas em 12/10/2026)
 | 13 | Nome completo do arquivo na grade, quebrando linha em vez de `...` | spec 37, R1 |
 | 14 | Árvore só com pastas por padrão, com parâmetro no `config.yaml` para mostrar arquivos | spec 37, R2 |
 
+## Rastreabilidade: ideias da sexta rodada (13/10/2026) → specs
+
+As ideias vieram em `Ideias.md` (13/10/2026), sobre os scripts de `Documentation/Exemplo-SLAB/`; cada spec cita o trecho de origem.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Tipo "Slab": estrutura SLAB a partir do SCF do bulk | spec 40 (Estágio 1 dos scripts: um eixo da célula esticado; `(hkl)` arbitrário fora) |
+| 2 | Tipo "Supercélula" a partir do SCF do slab relaxado; pode não depender do slab | spec 41 (aceita superfície ou bulk) |
+| 3 | Tipo "Molécula na superfície" sobre a supercélula relaxada | spec 42 |
+| 4 | Validar o SCF de bulk escolhido por engano na molécula na superfície | spec 42, R1 (recusado na etapa 1, com o motivo) |
+| 5 | SCF da molécula opcional no slab, só para a altura do vácuo | spec 40, R2.6 e R5 |
+| 6a | Monodentado e bidentado | spec 42, R3 e R5 |
+| 6b | Remover o H da superfície para adicionar a molécula | spec 42, R3.2 (desligado por padrão) |
+| 6c | Sítio por coordenadas ou por uma lista de candidatos | spec 42, R2–R3 (coordenadas escolhem o átomo mais próximo, como nos scripts; posição livre fora) |
+| 6d | Todos os parâmetros dos scripts configuráveis nas janelas | specs 40 R5, 41 R2, 42 R5; exceções: `LABELS`/`PAIRS` (uma pasta por criação, decisão do usuário), `ASF_HEIGHT` = `HEIGHT_WINDOW` num campo só, caminhos e pastas de saída (a janela já escolhe) e `get_surface_sites` (só rotulava) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -394,3 +418,11 @@ Decisões de 12/10/2026 (quinta rodada, specs 33–39):
 - **Grade e árvore (37):** cartão de altura única por pasta, com limite de 6 linhas; a árvore deixa de mostrar arquivos por padrão
   (`ui.tree_show_files`).
 - **Modelo recomendado:** Opus 5.5 para 34 e 39; Sonnet 5.5 para 33, 35, 36, 37 e 38.
+
+Decisões de 13/10/2026 (sexta rodada, specs 40–42):
+- **Sítios da molécula na superfície:** uma pasta por criação (um sítio, ou um par no bidentado); os vários `LABELS`/`PAIRS` dos
+  scripts viram criações repetidas. O writer e a janela continuam fazendo uma pasta.
+- **Simetria dos candidatos:** `spglib` entra como dependência, com import tardio como o ASE. Medido: nos 2×1×1 (001) e (010) o grupo é
+  P1 e o agrupamento só por translações daria os mesmos grupos, mas o usuário escolheu a simetria completa. O pymatgen continua fora
+  (spec 27-2): a geometria dos scripts é portada para `core/` com numpy e `ase.data`.
+- **Modelo recomendado:** Opus 5.5 para 40 e 42; Sonnet 5.5 para 41.

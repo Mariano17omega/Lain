@@ -18,9 +18,17 @@ class KMeshEditor(QWidget):
 
     changed = pyqtSignal()  # the user edited it
 
-    def __init__(self, value: KMesh | None, default: KMesh | None, parent: QWidget | None = None):
+    def __init__(
+        self,
+        value: KMesh | None,
+        default: KMesh | None,
+        parent: QWidget | None = None,
+        empty: str = "",
+    ):
+        """``empty``: what an empty field means when there is no default (the type's words)."""
         super().__init__(parent)
         self._default = default
+        self._empty = empty
         self.counts = []
         self.shifts = []
         grid = QGridLayout(self)
@@ -72,4 +80,6 @@ class KMeshEditor(QWidget):
         text = mesh_summary(value or self._default)
         if value is None and self._default is not None:
             text = f"Vazio = padrão: {text}"
+        elif value is None and self._empty:
+            text = self._empty
         show_message(self.summary, text)
