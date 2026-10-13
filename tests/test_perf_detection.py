@@ -162,10 +162,10 @@ def import_main_window() -> tuple[float, set[str]]:
 
 def test_main_window_import_skips_ase():
     """R2: ASE (and the scipy it pulls) loads on first use, not before the window shows; so do
-    jinja2 (spec 25 R1.2) and spglib (spec 42 R2.1)."""
+    jinja2 (spec 25 R1.2), spglib (spec 42 R2.1) and scipy, now a dependency of its own (spec 43)."""
     _seconds, packages = import_main_window()
     assert "qe_studio" in packages
-    assert not packages & {"ase", "jinja2", "spglib"}
+    assert not packages & {"ase", "jinja2", "spglib", "scipy"}
 
 
 def test_calc_create_import_skips_ase_and_jinja2():

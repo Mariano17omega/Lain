@@ -130,6 +130,15 @@ a pull.
    strip of chips shows `calculation`, cutoffs, the `K_POINTS` grid and other key parameters (click
    one to go to its line). **Comparar com…** opens a tab that lists the parameters that differ
    (`1d-8` and `1.0e-8` are the same number) or shows the two files side by side.
+   Any pw.x input (scf, nscf, bands, relax, vc-relax…) also has **Visualização 3D**: each click opens
+   a window of its own (two clicks on the same file give two windows, each with its own settings) with
+   the structure in 3D and, on the left, the panel of the clicked atom (named as QE numbers it, `O43`,
+   with its species, mass, pseudopotential, positions, `if_pos`, starting magnetization and bonded
+   neighbours), the display options (style, radius, bonds, repetition, labels, cell, axes,
+   perspective, background), the species (colour, visibility) and the cell. Drag turns the view,
+   Shift + drag or the middle button moves it, the wheel zooms; **R** or **Resetar vista** goes back to
+   the initial view, **A**/**B**/**C** and **X**/**Y**/**Z** look along an axis, **P** toggles the
+   perspective. Clicking atoms never changes the zoom. A relax input shows its *input* geometry.
 2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the

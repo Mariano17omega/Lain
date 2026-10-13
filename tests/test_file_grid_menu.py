@@ -137,7 +137,9 @@ def test_menu_has_exactly_the_expected_actions(main_window, demo_project, monkey
         QMenu, "exec", lambda menu, pos: shown.append([(a.text(), a.isEnabled()) for a in menu.actions()])
     )  # fmt: skip
     window = main_window
-    window.files.item_menu_requested.emit([demo_project / "03_bands" / "bands.in"], QPoint(5, 5))
+    window.files.item_menu_requested.emit(
+        [demo_project / "03_bands" / "bands.dat.gnu"], QPoint(5, 5)
+    )
     window.explorer.item_menu_requested.emit([demo_project / "04_pdos"], QPoint(5, 5))
     window._show_item_menu([demo_project], QPoint())
     assert [[text for text, _ in menu] for menu in shown] == [MENU, FOLDER_MENU, FOLDER_MENU]
@@ -165,12 +167,12 @@ def test_scf_output_menu_starts_with_plotar(main_window, demo_project, monkeypat
     [
         ("03_bands", "bands.out", ["Resumo"]),  # pw.x bands
         ("03_bands", "bands_pp.out", ["Resumo"]),  # bands.x
-        ("03_bands", "bands.in", []),
+        ("03_bands", "bands.in", ["Visualização 3D"]),  # pw.x bands input (spec 43)
         ("03_bands", "bands.dat.gnu", []),
         ("04_pdos", "nscf.out", ["Resumo"]),
         ("04_pdos", "projwfc.out", ["Resumo"]),
         ("01_relax", "si.rel.out", ["Plotar", "Resumo", "Gerar SCF convergido"]),  # specs 24, 35
-        ("01_relax", "si.rel.in", []),
+        ("01_relax", "si.rel.in", ["Visualização 3D"]),
     ],
 )
 def test_other_files_have_no_plotar_and_only_outputs_have_resumo(

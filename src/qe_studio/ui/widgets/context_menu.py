@@ -20,6 +20,7 @@ import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 from PyQt6.QtCore import QMimeData, QMimeDatabase, QObject, QPoint, QProcess, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QIcon
@@ -29,7 +30,7 @@ from ...core.calculations import module_for_file
 from ...core.calculations.bands_dos import bands_dos_pair
 from ...core.desktop_apps import DesktopApp, catalog, expand_exec
 from ...core.qe.scf_from_relax import scf_availability
-from ...core.sniff import looks_like_input
+from ...core.sniff import FileKind, looks_like_input
 from ..dialogs.open_with import ask_command
 from ..services import DetectionService
 from .workspace_tabs import add_action
@@ -49,6 +50,14 @@ def mime_types_for(path: Path) -> list[str]:
     return [mime.name(), *parents]
 
 
+class FileActions(NamedTuple):
+    """What the cached sniff of a file offers at the top of its menu."""
+
+    plot_kind: str | None  # the module that plots it alone (spec 9)
+    is_output: bool  # a QE output: "Resumo" (spec 12)
+    structure: bool  # a pw.x input: "Visualização 3D" (spec 43)
+
+
 def app_icon(app: DesktopApp) -> QIcon:
     if not app.icon:
         return QIcon()
@@ -65,6 +74,7 @@ class ItemActions(QObject):
     scf_from_relax_requested = pyqtSignal(Path)  # "Gerar SCF convergido" of an output (spec 24)
     favorite_toggled = pyqtSignal(Path, bool)  # folder, now a favorite (spec 16 R4.1)
     push_requested = pyqtSignal(Path)  # "Enviar ao cluster" of a folder (spec 27)
+    structure_requested = pyqtSignal(Path)  # "Visualização 3D" of a pw.x input (spec 43)
 
     def __init__(
         self,
@@ -89,13 +99,14 @@ class ItemActions(QObject):
         """
         if len(paths) == 1:
             path = paths[0]
-            plot_kind, is_output = self.file_actions_of(path)
+            actions = self.file_actions_of(path)
             favorite = self.is_favorite(path) if path.is_dir() else None
             menu = self.menu(
                 path,
                 can_rename=can_rename,
-                plot_kind=plot_kind,
-                summary=is_output,
+                plot_kind=actions.plot_kind,
+                summary=actions.is_output,
+                structure=actions.structure,
                 favorite=favorite,
                 scf=self.scf_state(path),
                 push=self.push_state(path),
@@ -105,16 +116,18 @@ class ItemActions(QObject):
         menu.exec(pos)
         menu.deleteLater()
 
-    def file_actions_of(self, path: Path) -> tuple[str | None, bool]:
-        """Kind of the module that plots ``path`` alone (spec 9) and whether it is a QE output
-        (spec 12), from the cached sniff only: the GUI thread never reads the file. On a miss
-        detection is requested, so the next menu knows."""
+    def file_actions_of(self, path: Path) -> FileActions:
+        """Kind of the module that plots ``path`` alone (spec 9), whether it is a QE output (spec 12)
+        and whether it is a pw.x input (spec 43), from the cached sniff only: the GUI thread never
+        reads the file. On a miss detection is requested, so the next menu knows."""
         sniff = self.service.file_sniff(path)
         if sniff is None:
             self.service.results(path.parent)
-            return None, False
+            return FileActions(None, False, False)
         module = module_for_file(sniff)
-        return (module.kind if module else None), sniff.is_output
+        return FileActions(
+            module.kind if module else None, sniff.is_output, sniff.kind is FileKind.PW_IN
+        )
 
     def scf_state(self, path: Path) -> str | None:
         """The "Gerar SCF convergido" item (spec 24): None hides it, "" enables it, any other
@@ -132,16 +145,19 @@ class ItemActions(QObject):
         favorite: bool | None = None,
         scf: str | None = None,
         push: str | None = None,
+        structure: bool = False,
     ) -> QMenu:
         """``plot_kind``: the module that plots this file alone (spec 9); ``summary``: it is a QE
-        output (spec 12); ``scf``: see ``scf_state`` (spec 24). They go on top, apart from the
-        actions every item has. ``favorite``: for a folder, whether it is one already (spec 16
+        output (spec 12); ``structure``: a pw.x input, "Visualização 3D" (spec 43); ``scf``: see
+        ``scf_state`` (spec 24). They go on top, apart from the actions every item has. ``favorite``: for a folder, whether it is one already (spec 16
         R4.1); None for files. ``push``: see ``push_state`` (spec 27)."""
         menu = QMenu(self.window)
         if plot_kind is not None:
             add_action(menu, "Plotar", lambda: self.plot_file_requested.emit(path, plot_kind))
         if summary:
             add_action(menu, "Resumo", lambda: self.summary_requested.emit(path))
+        if structure:
+            add_action(menu, "Visualização 3D", lambda: self.structure_requested.emit(path))
         if scf is not None:
             add_action(
                 menu,
@@ -151,7 +167,7 @@ class ItemActions(QObject):
                 tooltip=scf,
             )
             menu.setToolTipsVisible(True)  # the reason of a disabled item
-        if plot_kind is not None or summary or scf is not None:
+        if plot_kind is not None or summary or structure or scf is not None:
             menu.addSeparator()
         add_action(menu, "Abrir local de origem", lambda: self.reveal(path))
         open_with = menu.addMenu("Abrir com")

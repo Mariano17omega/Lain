@@ -48,6 +48,7 @@ from .project_controller import ProjectController
 from .rename_controller import RenameController
 from .services import DetectionService
 from .shutdown import ShutdownReport, close_dialogs, run_shutdown
+from .structure3d_controller import Structure3DController
 from .sync_coordinator import SyncCoordinator
 from .theme.manager import ThemeManager
 from .widgets.bars import ActivityBar, StatusBar, TopBar
@@ -204,6 +205,7 @@ class MainWindow(QMainWindow):
         self.derive = DeriveController.for_window(self)  # "Gerar SCF convergido" (spec 24)
         self.calc_create = CalcCreateController.for_window(self)  # "Criar cálculo" (spec 26)
         self.renamer = RenameController.for_window(self)  # "Renomear", after what it asks (27-3)
+        self.structure3d = Structure3DController.for_window(self)  # spec 43
 
     def _build_menus(self) -> None:
         self._actions = build_menus(self)

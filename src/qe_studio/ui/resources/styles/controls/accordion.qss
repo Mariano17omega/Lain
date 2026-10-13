@@ -1,5 +1,6 @@
 /* Plot parameters panel: collapsible sections with a 40/60 label/field grid. */
-#paramsPanel, #paramsScroll, #paramsBody {
+#paramsPanel, #paramsScroll, #paramsBody,
+#structurePanel, #structureScroll, #structureBody {
     background: ${panel};
     border: none;
 }

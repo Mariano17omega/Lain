@@ -11,6 +11,7 @@ from qe_studio.ui.dialogs import about as about_module
 from qe_studio.ui.dialogs.shortcuts import pretty_keys
 from qe_studio.ui.widgets.explorer import ExplorerPanel
 from qe_studio.ui.widgets.file_grid import FilePanel
+from qe_studio.ui.widgets.structure3d.canvas import StructureCanvas
 from qe_studio.ui.widgets.text_viewer import TextViewer
 from qe_studio.ui.widgets.workspace import Workspace
 
@@ -56,6 +57,7 @@ def test_shortcut_rows_cover_actions_and_widgets(main_window):
     assert ("Ctrl+F", "Grade de arquivos") in flat
     assert ("Ctrl+F", "Visualizador de texto") in flat
     assert ("Ctrl+F", "Árvore de pastas") in flat
+    assert ("R", "Visualização 3D") in flat  # the 3D view's gestures (spec 43)
     # Each shortcut once per place: the registry's Alt+←/→ and Ctrl+W are not repeated by widgets.
     assert len(rows_of(main_window)) == len(set(rows_of(main_window)))
     assert sum(1 for _a, k, _w in rows_of(main_window) if k == "Ctrl+W") == 1
@@ -68,6 +70,7 @@ def test_the_widgets_declare_their_own_shortcuts(main_window):
         TextViewer.shortcut_help,
         Workspace.shortcut_help,
         main_window.navigation.shortcut_help,
+        StructureCanvas.shortcut_help,
     ):
         rows = provider()
         assert rows and all(

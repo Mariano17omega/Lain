@@ -793,6 +793,8 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyqt6" },
     { name = "pyyaml" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "spglib" },
 ]
 
@@ -816,6 +818,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pyqt6", specifier = ">=6.7" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "scipy", specifier = ">=1.17" },
     { name = "spglib", specifier = ">=2.8" },
 ]
 

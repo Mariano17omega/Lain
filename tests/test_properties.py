@@ -35,6 +35,7 @@ from qe_studio.core.qe.relax import parse_relax
 from qe_studio.core.qe.scf import parse_scf
 from qe_studio.core.qe.summary import summarize, summarize_lines
 from qe_studio.core.qsub_lint import lint_script
+from qe_studio.core.structure3d.bonds import compute_bonds
 
 from conftest import FIXTURES
 
@@ -676,3 +677,38 @@ def test_lint_script_of_a_big_script_is_quick():
     elapsed = time.perf_counter() - start
     print(f"lint_script: {len(text) / 1e6:.1f} MB in {elapsed:.2f} s")
     assert issues == [] and elapsed < 3.0
+
+
+# -- 3D viewer bonds (spec 43 R1.3) -------------------------------------------------------------
+
+CELLS = st.sampled_from(
+    [
+        np.diag([4.0, 4.5, 5.0]),
+        np.array([[4.0, 0.0, 0.0], [1.7, 3.5, 0.0], [-1.9, 1.1, 3.8]]),
+        np.array([[3.0, 0.0, 0.0], [-1.5, 2.6, 0.0], [0.0, 0.0, 6.0]]),
+    ]
+)
+
+
+@given(
+    CELLS,
+    st.lists(
+        st.tuples(*[st.floats(-0.5, 1.5) for _ in range(3)], st.sampled_from([0.31, 0.76, 1.11])),
+        min_size=1,
+        max_size=8,
+    ),
+    st.data(),
+)
+def test_bonds_do_not_change_when_atoms_move_by_whole_cells(cell, atoms, data):
+    """``frac + k`` (one integer vector per atom) is the same crystal: the same bond lengths."""
+    frac = np.array([atom[:3] for atom in atoms])
+    radii = np.array([atom[3] for atom in atoms])
+    k = np.array(
+        data.draw(
+            st.lists(st.tuples(*[st.integers(-2, 2)] * 3), min_size=len(atoms), max_size=len(atoms))
+        )
+    )
+    base = compute_bonds(cell, frac, radii)
+    moved = compute_bonds(cell, frac + k, radii)
+    assert len(base) == len(moved)
+    assert np.sort(base.dist) == pytest.approx(np.sort(moved.dist))

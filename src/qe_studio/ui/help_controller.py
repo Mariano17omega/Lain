@@ -20,6 +20,7 @@ from ..core.config import LoadedConfig
 from .actions import ACTIONS
 from .dialogs.about import AboutDialog
 from .dialogs.shortcuts import ShortcutsDialog
+from .widgets.structure3d.canvas import StructureCanvas
 from .widgets.text_viewer import TextViewer
 
 ShortcutRows = list[tuple[str, str, str]]
@@ -52,6 +53,7 @@ class HelpController(QObject):
             TextViewer.shortcut_help,
             window.workspace.shortcut_help,
             window.navigation.shortcut_help,
+            StructureCanvas.shortcut_help,
         ]
         return cls(
             window,

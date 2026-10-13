@@ -154,6 +154,15 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   and H3CHg, H removed; `surface_helpers.ADSORBED` gives their sites 1-based, `with_structure(source, model)` an SCF reshaped).
   A type with `writes_report` adds `report` to the keys `test_calc_create_matrix.py` expects; a pair `check_scf` refuses expects
   the reason on step 1 instead.
+- 3D viewer (spec 43): `tests/structure3d_helpers.py` has the fixture inputs (`PW_INPUTS`: every pw.x input; `SI_SCF`,
+  `SLAB_2X1`, `NI_SCF`…), `WATER` (O + two H in the xy plane of a cube) and `make_structure`, plus `Windows(qtbot, settings)`:
+  `open(path)` shows a `StructureWindow` and paints one frame with `canvas.grab()` (the picking data comes from the last
+  frame; `repaint()` right after the show paints nothing offscreen), `close_all()` at teardown (delete-on-close: never
+  `qtbot.addWidget`). Gestures: `clickable_atom`, `click_atom`, `screen_of`, `empty_spot`, `wheel`, `move_to` (a move event
+  sent to the view: `QTest.mouseMove` does not reach it), `drag`, `zoom_pan_turn`, `camera_state` / `same_camera`.
+  `QTest.mouseDClick` sends only the double-click event: a real double click is click + `mouseDClick` + release
+  (`test_structure3d_canvas.double_click`). `render_image(size)` draws offscreen without showing the view
+  (`test_structure3d_render.py`: pixels are B, G, R, A in memory); `test_perf_structure3d.py` (`perf`) times the frame.
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
@@ -1237,6 +1246,52 @@ to `INPUT_READ_LIMIT`, never raises) and uses `input_extract.k_points_text`, the
 Only `summarize(path)` has it (`summarize_lines` keeps its signature and has no "Malha k"); the row has no `line`. Outputs of hundreds of MB take seconds (about 30 MB/s), in a worker, behind
 "Lendo <arquivo>…".
 
+### Visualização 3D (spec 43)
+
+"Visualização 3D" (context menu of a pw.x input: `ItemActions.file_actions_of` → `FileActions(plot_kind, is_output,
+structure)`, `structure` = the cached sniff is `FileKind.PW_IN`, any `calculation`; after "Resumo", before "Gerar SCF
+convergido"; not on folders, outputs, other programs' inputs or a selection) opens a **new top-level window per click**,
+also for the same file.
+
+- **Core** `core/structure3d/` (Qt-free, ported from `Documentation/Exemplo-visualizador_3d`; numpy only, `ase.data` and
+  `scipy` (`KDTree`, from `bonds.KDTREE_THRESHOLD` = 1 000 atoms; a declared dependency) imported on first use):
+  `model` (`Structure(cell Å, labels, frac, flags, species, source)`, `AtomRef(index, shift)`, `atom_name` → `O43`,
+  `O43(1,0,0)`: QE's number, like `pdos_atm#43`; `as_shift`), `source` (`read_structure(path)` in a worker /
+  `structure_of_text`: `InputEditor`, `crystal_from_editor`, `surface/model.flags_of`; `StructureReadError` in Portuguese:
+  no `&SYSTEM`, "Estrutura de X ilegível: …", over `INPUT_READ_LIMIT`; a position label without an `ATOMIC_SPECIES` row and
+  a label without element go to `SourceInfo.warnings`), `elements` (`element_for_label`: `surface/elements.element_of`'s
+  rule but never raises, gray 1.0 Å; Portuguese names, Jmol colors), `bonds` (`compute_bonds` over periodic images,
+  `BondGraph.neighbors`), `replicate` (`build_scene`: copies and ghost atoms), `geometry` (the drawn radius of each style,
+  `half_bonds`: a half starts where the stick of radius ρ meets its sphere, `√(r² − ρ²)` from the center, ends at the
+  middle; omitted when the spheres overlap past it; `fio` does not cut), `camera`, `pick`, `options` (`DisplayOptions`,
+  `background` "escuro" | "claro").
+- **View** `ui/widgets/structure3d/`: `renderer.PaintRenderer` (painter's algorithm: spheres by center, halves by the 3D
+  middle of the half; in "vareta" every atom gets the 1.3 ρ ball that covers the joints), `bonds_paint` (`half_quads`: a
+  half is a quadrilateral widened `±ρ·zoom·scale` at each end, the nearer end wider; `BondShader`: one `QLinearGradient`
+  per species moved to each half's edges, lit from the spheres' side; flat in draft mode), `overlay` (labels, hover and
+  current rings, a/b/c, triad; scene colors are constants per background, not tokens), `canvas.StructureCanvas`.
+  **The camera changes only by a gesture**: drag (turn), middle button / Shift + drag (move), wheel and `+`/`-`, R and
+  "Resetar vista", A/B/C/X/Y/Z, and a new repetition (framed again keeping the rotation). A double click is two clicks
+  (`mouseDoubleClickEvent` → `mousePressEvent`); a new bond factor rebuilds the scene without framing; the first frame
+  waits for a real size (`_framed`). One current atom (`current_changed`), a click selects (Ctrl too), empty space clears.
+  `StructureCanvas.shortcut_help` is a provider of `HelpController.for_window`.
+- **Panel** `panel.StructurePanel` + `panel_atom.AtomSection` / `NeighborTable`: `PanelHeader` "ESTRUTURA" and the
+  `param_widgets.Section`s "Átomo", "Exibição", "Espécies", "Célula" (open/closed in QSettings
+  `structure3d/sections/<título>`, shared; Átomo and Exibição open by default; `Section.add_row` returns its label so a row
+  can hide); fields are `NoWheel*` with `QLocale.c()`; every field edits the window's `DisplayOptions` and calls
+  `canvas.refresh_options()`, never the camera. Spec 44 adds "Medidas" after "Átomo".
+- **Window** `window.StructureWindow(structure, theme, settings)`: no parent, `WA_DeleteOnClose`, `closed(self)` from
+  `closeEvent`, title `<arquivo> — <pasta> · Visualização 3D`, 1280 × 820, bar `#plotToolbar` ("Resetar vista", "Vista ▾"
+  with `view_actions`), status bar `#structureStatus` (info, hovered atom, "⚠" with the reader's warnings). Its own
+  options, camera and selection; the background follows `theme.name` when it opens, nothing is saved. QSS:
+  `workspace/structure3d.qss` and the panel's ids in `controls/accordion.qss`.
+- **Controller** `ui/structure3d_controller.py:Structure3DController.for_window` (`window.structure3d`): `TaskGroup` by
+  `structure3d:<path>:<n>`, busy "Lendo estrutura…", `opened(window)` / `failed(message)` (a `warning` toast "Visualização
+  3D de X: motivo"), `windows` (dropped by `closed`), `close_dialog()` closes them all (last in `close_dialogs`),
+  `cancel()` in the "cancelar" step.
+- Frame times (`-m perf -s tests/test_perf_structure3d.py`, stacked graphene, 1000 × 800, ball and stick): 500 atoms ≈ 16 ms,
+  2 000 ≈ 50 ms (draft ≈ 28), 5 000 ≈ 105 ms (draft ≈ 65); budget 2 000 ≤ 80 ms full, ≤ 50 ms draft.
+
 ### Threading rules (GUI thread must never parse files)
 
 - One helper runs every background task (spec 15 R1): `core/tasks.py`. `run_task(fn, *args,
@@ -1351,7 +1406,8 @@ and never emits `synced`. "Criar cálculo"'s toast reminds of it when sync is on
 (both panels emit `item_menu_requested(paths: list[Path], pos)`, the tree a one-item list →
 `MainWindow._show_item_menu` → `ItemActions.show`, which reads the cached sniff once, in
 `file_actions_of`: "Plotar" for a
-single-file module, "Resumo" for any QE output, both above the four spec-5 actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
+single-file module, "Resumo" for any QE output, "Visualização 3D" for a pw.x input (spec 43), above the four spec-5
+actions). "Abrir com" lists programs from `core/desktop_apps.py` (Qt-free `.desktop`/`mimeapps.list` reader, one
 cached `catalog()` per session; `Terminal=true` programs stay in `apps` but are never listed nor the default) and starts them with `QProcess.startDetached(argv)`, never a
 shell. "Abrir local de origem" calls `FileManager1.ShowItems` over D-Bus and reads the answer through
 `QDBusPendingReply(watcher)` (`QDBusPendingCallWatcher` has no `isError`); an error falls back to opening the parent

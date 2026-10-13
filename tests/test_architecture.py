@@ -153,6 +153,16 @@ QT_FREE = [
     "qe_studio.core.cancel",
     "qe_studio.core.sizing",
     "qe_studio.core.calculations.load_cache",
+    "qe_studio.core.structure3d",
+    "qe_studio.core.structure3d.model",
+    "qe_studio.core.structure3d.source",
+    "qe_studio.core.structure3d.elements",
+    "qe_studio.core.structure3d.bonds",
+    "qe_studio.core.structure3d.replicate",
+    "qe_studio.core.structure3d.geometry",
+    "qe_studio.core.structure3d.camera",
+    "qe_studio.core.structure3d.pick",
+    "qe_studio.core.structure3d.options",
 ]
 
 

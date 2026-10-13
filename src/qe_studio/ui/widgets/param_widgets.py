@@ -79,7 +79,8 @@ class Section(QWidget):
         theme.theme_changed.connect(self._refresh_icon)
         self._refresh_icon()
 
-    def add_row(self, label: str, widget: QWidget, tooltip: str = "") -> None:
+    def add_row(self, label: str, widget: QWidget, tooltip: str = "") -> QLabel:
+        """A label / field row; returns the label (a row that comes and goes hides both)."""
         row = self.grid.rowCount()
         text = set_variant(QLabel(label), "fieldLabel")
         text.setToolTip(tooltip)
@@ -92,6 +93,7 @@ class Section(QWidget):
             widget.setAccessibleName(label)
         self.grid.addWidget(text, row, 0)
         self.grid.addWidget(widget, row, 1)
+        return text
 
     def add_full(self, widget: QWidget) -> None:
         self.grid.addWidget(widget, self.grid.rowCount(), 0, 1, 2)

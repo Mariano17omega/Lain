@@ -9,11 +9,14 @@ de carga e Projetos) e a spec 32 a **quarta** (06/10/2026: nomes de exportação
 mouse no painel de ajustes e o botão "Átomos…" da PDOS) e as specs 33–39 a **quinta** (12/10/2026: pequenos defeitos do Resumo,
 do menu e da barra, método do gap, "Plotar" do relax, deslocamento da legenda, grade e árvore, Markdown e `.qsub` no visualizador,
 e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 40–42 a **sexta** (13/10/2026: os tipos de superfície do
-"Criar cálculo" portados dos scripts de `Documentation/Exemplo-SLAB/`: Slab, Supercélula e Molécula na superfície), em grupos de itens
+"Criar cálculo" portados dos scripts de `Documentation/Exemplo-SLAB/`: Slab, Supercélula e Molécula na superfície) e as specs 43–44 a
+**sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
+medidas de distância e ângulo), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
 ```
+/plan implementar specs/spec_44-visualizacao-3d-medidas.md
 /plan implementar specs/spec_end-internacionalizacao.md
 ```
 
@@ -72,6 +75,8 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 40 | [spec_40-criar-calculo-slab.md](Archived/spec_40-criar-calculo-slab.md) | Tipo "Slab": a célula do bulk esticada num eixo para abrir vácuo (porta do Estágio 1 dos scripts, sem pymatgen), H reconectados, poliedros de borda, átomos fixos, SCF da molécula opcional para o vácuo; campo de "outro SCF" e relatório `geracao.md` | 24, 25, 26, 28, 30, 39 | G | Opus 5.5 |
 | 41 | [spec_41-criar-calculo-supercelula.md](Archived/spec_41-criar-calculo-supercelula.md) | Tipo "Supercélula": réplica n1×n2×n3 de uma superfície (ou de um bulk), fixos "do SCF" ou por regra, k-points e `nbnd` reescalados | 40 | M | Sonnet 5.5 |
 | 42 | [spec_42-criar-calculo-molecula-na-superficie.md](Archived/spec_42-criar-calculo-molecula-na-superficie.md) | Tipo "Molécula na superfície": candidatos agrupados por simetria (spglib), monodentado ou bidentado, remoção do H âncora, sítio pela lista ou por coordenadas; SCF de bulk recusado na etapa 1 | 40, 41 | G | Opus 5.5 |
+| 43 | [spec_43-visualizacao-3d-da-estrutura.md](Archived/spec_43-visualizacao-3d-da-estrutura.md) | "Visualização 3D" no menu dos inputs do pw.x: uma janela própria por clique (núcleo e `QPainter` portados da prova de conceito), ligações como cilindros que saem da superfície das esferas, zoom que não se desfaz ao clicar, painel esquerdo com as seções do Lain | 5, 11, 15, 19, 25, 27-5, 32, 40 | G | Opus 5.5 |
+| 44 | [spec_44-visualizacao-3d-medidas.md](spec_44-visualizacao-3d-medidas.md) | Seção "Medidas" da janela 3D: botões exclusivos "Distância" (2 átomos) e "Ângulos" (3, vértice no 2º), uma linha por medida nas tabelas, copiar e limpar | 43 | M | Sonnet 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -106,12 +111,14 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 10. **Superfícies (40–42, decisão de 13/10/2026):** em cadeia, na ordem do fluxo dos scripts. A 40 abre o pacote
     `core/calc_create/surface/`, o campo de "outro SCF" e o relatório `geracao.md`; a 41 é pequena e segue o caminho; a 42 usa as duas
     e traz o spglib. Independentes das specs 33–39, salvo a matriz tipo × SCF e a prévia editável da 39, já implementadas.
-11. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
+11. **Visualização 3D (43–44, decisão de 13/10/2026):** a 43 primeiro (núcleo, janela, menu, ligações, zoom e painel), a 44 sobre ela
+    (as medidas ocupam a seção que a 43 reserva no painel). Independentes das specs 33–42; a 43 deixa `ui/main_window.py` em 449/450.
+12. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
 Specs já implementadas (1–42, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+raiz ficam as propostas ainda abertas (43, 44 e `spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
@@ -337,6 +344,30 @@ As ideias vieram em `Ideias.md` (13/10/2026), sobre os scripts de `Documentation
 | 6c | Sítio por coordenadas ou por uma lista de candidatos | spec 42, R2–R3 (coordenadas escolhem o átomo mais próximo, como nos scripts; posição livre fora) |
 | 6d | Todos os parâmetros dos scripts configuráveis nas janelas | specs 40 R5, 41 R2, 42 R5; exceções: `LABELS`/`PAIRS` (uma pasta por criação, decisão do usuário), `ASF_HEIGHT` = `HEIGHT_WINDOW` num campo só, caminhos e pastas de saída (a janela já escolhe) e `get_surface_sites` (só rotulava) |
 
+## Rastreabilidade: ideias da sétima rodada (13/10/2026) → specs
+
+As ideias vieram em `Ideias.md` (13/10/2026), depois do relatório `Documentation/Relatorios/Relatorio_visualizacao_3D_da_estrutura.md` e da
+prova de conceito `Documentation/Exemplo-visualizador_3d/`; cada spec cita o trecho de origem.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| — | Relatório das formas de implementar e o programa de teste isolado | contexto, sem spec: a 43 porta o `core/` da prova de conceito e o renderer `QPainter` que ela validou |
+| 1 | "Visualização 3D" no menu do botão direito | spec 43, R4.1 (inputs do pw.x de qualquer `calculation`; saídas fora, decisão do usuário) |
+| 2 | Abre uma janela nova, independente da principal | spec 43, R4.2–R4.3 (janela sem pai; fechar a principal fecha todas) |
+| 3 | Quantas janelas quiser, uma por SCF, cada uma com zoom, cores etc. próprios | spec 43, R4.2 e R4.4 (uma janela por clique, mesmo arquivo incluso; nada gravado) |
+| 4 | Painel esquerdo e painel direito como no exemplo | spec 43, R4.3 e R5 (painel \| vista 3D; as medidas são seção do painel esquerdo, decisão do usuário) |
+| 5 | Botões "Distância" e "Ângulos" para escolher o cálculo | spec 44, R2.1 |
+| 6 | Com "Distância", dois átomos dão a distância | spec 44, R1.2 e R2.2 |
+| 7 | Com "Ângulos", três átomos dão o ângulo, como no XCrySDen | spec 44, R1 e R2 (vértice no 2º átomo; a documentação do XCrySDen consultada não diz qual, não verificado) |
+| 8 | Os dois botões mutuamente exclusivos | spec 44, R2.1 (podem ficar os dois desligados: sem modo, nada é medido) |
+| 9 | A distância é sempre de um par | spec 44, R1.2 (cada par fecha uma medida e recomeça) |
+| 10 | Tabela de distâncias, uma linha por par ("O1 - O2 1.5 Å") | spec 44, R2.1 (número do QE no nome, decisão do usuário) |
+| 11 | Tabela de ângulos, uma linha por trio | spec 44, R2.1 |
+| 12a | As ligações entram nas esferas | spec 43, R2.1 (medido: o centro da esfera muda de cor com as ligações) |
+| 12b | As ligações parecem retângulos, não cilindros | spec 43, R2.2 (medido: a vareta é uma faixa de cor única) |
+| 13 | O zoom se desfaz ao clicar num átomo | spec 43, R3 (reproduzido: o duplo clique reseta a vista; o "Fator de ligação" também reenquadra) |
+| 14 | Melhorar a UI do painel esquerdo | spec 43, R5 (seções sanfona e campos do painel de ajustes do Lain) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -426,3 +457,10 @@ Decisões de 13/10/2026 (sexta rodada, specs 40–42):
   P1 e o agrupamento só por translações daria os mesmos grupos, mas o usuário escolheu a simetria completa. O pymatgen continua fora
   (spec 27-2): a geometria dos scripts é portada para `core/` com numpy e `ase.data`.
 - **Modelo recomendado:** Opus 5.5 para 40 e 42; Sonnet 5.5 para 41.
+
+Decisões de 13/10/2026 (sétima rodada, specs 43–44):
+- **Arquivos:** "Visualização 3D" em todo input do pw.x (scf, nscf, bands, relax, vc-relax…); as saídas ficam para outra spec.
+- **Medidas:** seção do painel esquerdo da janela 3D (duas colunas, como a prova de conceito), não um painel à direita.
+- **Nomes nas medidas:** símbolo + número do átomo no input (`O43`, o de `pdos_atm#43`), não a contagem por elemento.
+- **Desenho:** `QPainter`, como a prova de conceito, com as ligações corrigidas; OpenGL fica fora.
+- **Modelo recomendado:** Opus 5.5 para 43; Sonnet 5.5 para 44.

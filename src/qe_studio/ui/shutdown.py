@@ -92,6 +92,7 @@ def steps_for(window: MainWindow) -> list[Step]:
         window.derive.cancel()
         window.command_palette.cancel()
         window.project.cancel()
+        window.structure3d.cancel()
 
     def save_state(_ms: int) -> None:
         window.navigation.shutdown()
@@ -115,9 +116,11 @@ def steps_for(window: MainWindow) -> list[Step]:
 def close_dialogs(window: MainWindow) -> bool:
     """Close the non-modal dialogs before anything is shut down; False when one stays open.
 
-    The one that can refuse comes first: when the user keeps it, the others are not touched.
+    The one that can refuse comes first: when the user keeps it, the others are not touched; the 3D
+    windows (spec 43) last.
     """
-    return all(c.close_dialog() for c in (window.calc_create, window.grids, window.help))
+    dialogs = (window.calc_create, window.grids, window.help, window.structure3d)
+    return all(c.close_dialog() for c in dialogs)
 
 
 def run_shutdown(window: MainWindow) -> ShutdownReport:
