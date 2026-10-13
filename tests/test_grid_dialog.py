@@ -1,6 +1,7 @@
 """Spec 23 R3.3, R4: the "Grids" window."""
 
 import pytest
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QMessageBox
 
 from qe_studio.core.plotting.grid import GridCell, GridSpec, PlotRef
@@ -149,3 +150,13 @@ def test_preview_shows_the_layout(qtbot, two_plots):
     left, right = dialog.preview.cell_rect(0, 0), dialog.preview.cell_rect(0, 1)
     assert left.right() < right.left() and left.top() == right.top()
     dialog.preview.grab()  # paints without error
+
+
+def test_the_table_header_is_not_a_black_bar(qtbot, two_plots):
+    window = two_plots[0]
+    dialog = open_dialog(qtbot, window)
+    header = dialog.table.horizontalHeader()
+    assert header is not None
+    pixel = header.grab().toImage().pixelColor(2, 2)  # the padding of the first section
+    assert pixel.rgb() == window.theme.color("chrome").rgb()
+    assert pixel.rgb() != QColor("black").rgb()

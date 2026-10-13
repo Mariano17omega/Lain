@@ -59,7 +59,7 @@ QDialog QLabel[variant="dialogWarning"] {
     border: 1px solid ${border};
     gridline-color: ${border};
 }
-#atomsTable QHeaderView::section {
+#atomsTable QHeaderView::section, #gridCellsTable QHeaderView::section {
     background: ${chrome};
     color: ${text_muted};
     border: none;
