@@ -161,24 +161,26 @@ def import_main_window() -> tuple[float, set[str]]:
 
 
 def test_main_window_import_skips_ase():
-    """R2: ASE (and the scipy it pulls) loads on first use, not before the window shows; so does
-    jinja2 (spec 25 R1.2)."""
+    """R2: ASE (and the scipy it pulls) loads on first use, not before the window shows; so do
+    jinja2 (spec 25 R1.2) and spglib (spec 42 R2.1)."""
     _seconds, packages = import_main_window()
     assert "qe_studio" in packages
-    assert not packages & {"ase", "jinja2"}
+    assert not packages & {"ase", "jinja2", "spglib"}
 
 
 def test_calc_create_import_skips_ase_and_jinja2():
     """The window of spec 26 imports the registry and the writer: neither loads them; nor do the
-    surface modules of spec 40 (``ase.data`` loads on first use)."""
+    surface modules of specs 40–42 (``ase.data`` and spglib load on first use)."""
     code = (
         "import sys, qe_studio.core.calc_create.types, qe_studio.core.calc_create.writer, "
         "qe_studio.core.calc_create.kpath, qe_studio.core.calc_create.scf_info, "
         "qe_studio.core.calc_create.preview, qe_studio.core.calc_create.surface.slab, "
         "qe_studio.core.calc_create.surface.fixing, qe_studio.core.calc_create.surface.molecule, "
         "qe_studio.core.calc_create.surface.write, qe_studio.core.calc_create.surface.report, "
-        "qe_studio.core.calc_create.surface.kmesh; "
-        "print(sorted(m for m in ('ase', 'jinja2') if m in sys.modules))"
+        "qe_studio.core.calc_create.surface.kmesh, qe_studio.core.calc_create.surface.candidates, "
+        "qe_studio.core.calc_create.surface.adsorb, qe_studio.core.calc_create.surface.merge, "
+        "qe_studio.core.calc_create.types.adsorption; "
+        "print(sorted(m for m in ('ase', 'jinja2', 'spglib') if m in sys.modules))"
     )
     run = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, timeout=60, check=True

@@ -71,7 +71,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 39 | [spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md](Archived/spec_39-criar-calculo-falha-silenciosa-e-edicao-avancada.md) | "Continuar" nunca mudo e rede de testes tipo × SCF (a Diferença de carga **não foi reproduzida**); prévia editável só no Avançado, a edição vence o formulário | 24, 26, 28, 30, 38 | M | Opus 5.5 |
 | 40 | [spec_40-criar-calculo-slab.md](Archived/spec_40-criar-calculo-slab.md) | Tipo "Slab": a célula do bulk esticada num eixo para abrir vácuo (porta do Estágio 1 dos scripts, sem pymatgen), H reconectados, poliedros de borda, átomos fixos, SCF da molécula opcional para o vácuo; campo de "outro SCF" e relatório `geracao.md` | 24, 25, 26, 28, 30, 39 | G | Opus 5.5 |
 | 41 | [spec_41-criar-calculo-supercelula.md](Archived/spec_41-criar-calculo-supercelula.md) | Tipo "Supercélula": réplica n1×n2×n3 de uma superfície (ou de um bulk), fixos "do SCF" ou por regra, k-points e `nbnd` reescalados | 40 | M | Sonnet 5.5 |
-| 42 | [spec_42-criar-calculo-molecula-na-superficie.md](spec_42-criar-calculo-molecula-na-superficie.md) | Tipo "Molécula na superfície": candidatos agrupados por simetria (spglib), monodentado ou bidentado, remoção do H âncora, sítio pela lista ou por coordenadas; SCF de bulk recusado na etapa 1 | 40, 41 | G | Opus 5.5 |
+| 42 | [spec_42-criar-calculo-molecula-na-superficie.md](Archived/spec_42-criar-calculo-molecula-na-superficie.md) | Tipo "Molécula na superfície": candidatos agrupados por simetria (spglib), monodentado ou bidentado, remoção do H âncora, sítio pela lista ou por coordenadas; SCF de bulk recusado na etapa 1 | 40, 41 | G | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -110,7 +110,7 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–41, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+Specs já implementadas (1–42, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
 raiz ficam as propostas ainda abertas (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 

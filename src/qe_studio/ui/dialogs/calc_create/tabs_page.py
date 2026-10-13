@@ -71,6 +71,9 @@ class TabsPage(QWidget):
         self.debounce_ms = debounce_ms
         self.name = name
         self.fields = calc_type.fields(scf, jobs, name)
+        # Fields whose data follow others (spec 42 R2.4): field id → (fields it depends on, last values)
+        self._depends = {f.id: f.depends_on for f in self.fields if f.depends_on}
+        self._depended: dict[str, tuple] = {}
         self._base: CalcPlan = calc_type.plan(scf, {}, jobs, mode, name)  # the fields' alone
         self.plan: CalcPlan = self._base  # with the edits: what "Criar" writes
         self._edits: dict[str, str] = {}  # file key → the text typed in its preview
@@ -239,6 +242,24 @@ class TabsPage(QWidget):
             self._mark(key)
         self._show_files()
         self.planned.emit()
+        self._refresh_data()
+
+    def _refresh_data(self) -> None:
+        """Ask the type for the data of a field again when a field it depends on changed, with the
+        values ``plan`` sees (the fields of the mode): the candidates follow the window, and the
+        defaults in ``padrao``."""
+        if not self._depends:
+            return
+        shown = {form_field.id for form_field in visible_fields(self.fields, self.mode)}
+        values = {key: value for key, value in self.values().items() if key in shown}
+        for field_id, depends in self._depends.items():
+            now = tuple(values.get(key) for key in depends)
+            last = self._depended.setdefault(field_id, now)
+            if last == now:
+                continue
+            self._depended[field_id] = now
+            data = self.calc_type.field_data(field_id, self.scf, values)
+            self.form_of(field_id).set_data(field_id, data)
 
     def _show_generated(self, key: str) -> None:
         planned, preview = self._base.by_key(key), self.previews[key]

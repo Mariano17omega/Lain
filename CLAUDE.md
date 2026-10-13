@@ -150,8 +150,10 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   the paths, `golden(case)` / `golden_model`, `model_from_plan(text)`, `same_atoms(a, b, tol)` (same order, minimum image) and
   `SCRIPT_FIELDS` (the scripts' parameters as the Slab's field values). Cases `slab_001` / `slab_010` (spec 40) and
   `supercell_001` / `supercell_010` (spec 41: `qe_slab_supercell` on the relaxed slab SCFs, `mult` 2 1 1, `vacuum` as the script
-  measures it). A type with `writes_report` adds `report` to the keys
-  `test_calc_create_matrix.py` expects.
+  measures it), and spec 42's `candidates_001` and `ads_*` (`qe_slab_candidates` / `qe_slab_adsorb` on the relaxed 2×1×1 (001)
+  and H3CHg, H removed; `surface_helpers.ADSORBED` gives their sites 1-based, `with_structure(source, model)` an SCF reshaped).
+  A type with `writes_report` adds `report` to the keys `test_calc_create_matrix.py` expects; a pair `check_scf` refuses expects
+  the reason on step 1 instead.
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
@@ -678,8 +680,9 @@ each drawn by its own module (vector export, pan/zoom per cell).
 ### "Criar cálculo" backend (spec 25, spec 28)
 
 `core/calc_create/` (Qt-free; the window is spec 26) turns the user's SCF input into a new folder with the inputs and the
-SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside functions only
-(`test_perf_detection.py` checks neither it nor `ase` loads with `main_window` nor with the package's modules).
+SGE `.qsub` of a calculation. `jinja2` and `spglib` (spec 42, only in `surface/candidates.py`) are runtime dependencies
+imported inside functions only (`test_perf_detection.py` checks none of them nor `ase` loads with `main_window` nor with the
+package's modules).
 
 - **Structure without ASE.** ASE's `read_espresso_in` refuses `ibrav != 0`, so `core/qe/lattice.py` ports QE 7.1's
   `latgen` (every ibrav, QE's own vectors and its 13-digit `sqrt(2)`/`sqrt(3)`) and `abc2celldm`; `crystal_from_editor`
@@ -795,6 +798,52 @@ SGE `.qsub` of a calculation. `jinja2` is a runtime dependency imported inside f
   note, another card a `kmesh` problem. Notes: vacuum under `vacuum_min`, `n3 > 1` over vacuum (stacks slabs), "SCF sem vácuo:
   supercélula de bulk". Goldens `supercell_001` / `supercell_010` of `surface_golden.json` (the `fixed` of the script's rule and of
   the SCF's flags are the same). Tests: `test_surface_supercell.py`, `test_calc_supercell.py`.
+- **Molécula na superfície** (spec 42, stage 3 of the scripts: `qe_slab_adsorb` + `qe_slab_candidates`). One site per folder.
+  `CalcType.check_scf(scf)` (default None) lets step 1 refuse an SCF: this type's is `surface/geometry.surface_problem` (a bulk:
+  no gap ≥ `MIN_SURFACE_GAP` along c, "parece o SCF de um bulk … maior intervalo vazio: 1,85 Å"; vacuum only along a or b, its own
+  sentence; the molecule's box passes, and simply has no O candidate).
+  - `surface/candidates.py`: `surface_frame(model)` (`Frame`: normal = unit a1 × a2 on the side of a3, c fractions unwrapped from
+    the middle of the widest gap so a slab across the edge is contiguous, the bottom kept in [0, 1): a normal slab stays as
+    written; `heights = cart · normal`), `top_atoms(model, window)` / `top_indices(heights, window)` (≥ max − window: the scripts'
+    surface, never `get_surface_sites`), `candidates(model, species, window, symprec, bond_scale)` → `Candidate(index 1-based,
+    label, frac, group, multiplicity, neighbors)`: the window's atoms whose label or element (`matches_species`) is in `species`,
+    groups from `spglib.get_symmetry_dataset(...).equivalent_atoms` over the whole structure with types by *label* (letters A, B…
+    by the smallest index; spglib's `None` / `SpglibError` = each atom its own group; its `DeprecationWarning` silenced),
+    `multiplicity` the group's atoms in the window, neighbours by minimum image `<` the bond cutoff. `candidates_for(scf, …)` is
+    `lru_cache`d by the SCF's text and the parameters (`plan` runs per edit); `candidate_note` ("A (4) · H 0,97 · Al 1,91").
+  - `surface/adsorb.py`: `SiteRequest(bidentate, marked, coords, tol, window, species)` → `site_atoms` (1-based; by the table's
+    marks, or each "x y z" of `parse_coords` (decimal comma and `;` taken) → the nearest atom by minimum image within `tol`; every
+    atom checked in the window and species of the *original* surface, the table's); `remove_bonded_h` (the one H `<` the cutoff of
+    each anchor; 0 or 2+ H, or a shared H, refused); `adsorb(...)` → `Adsorbed` (`model` with the surface as written then the
+    molecule in its SCF's order, free; `unwrapped` the same atoms in the frame, for the fixed atoms; `numbers` the SCF's number of
+    each surface atom kept; `removed`, `lift`, `site_distances`, clearances, `vacuum` = |a3·n| − span, `notes`). Placement: `P`
+    the atom, or the middle of atom 1 and the image of atom 2 nearest to it over the 3 × 3 in-plane images (3D norm, as the
+    script); height `t = max(h_P + d | h_P, h_j + √(d² − r_j²))` over the in-plane images with `r_j < d` (= the ontop site of
+    `AdsorbateSiteFinder` for one atom); the molecule (`molecule_of`, anchor at the origin) turned by `molecule.rotation_from_z(n)`.
+    Anchor closer than `MIN_CONTACT` = 1.5 Å is an error; clearance under `h_clearance` and vacuum under `vacuum_min` are notes.
+    Errors are `SiteError(text, role)`: `selection`, `first`, `second`, `deprotonation`, `distance` (the core knows no field id;
+    the type's `FIELD_OF_ROLE` does, plus `molecule` / `anchor` for `molecule_of`).
+  - `surface/merge.py`: `merge_species` (the surface's rows, then the molecule's missing labels in its order, stripped; a label in
+    both keeps the surface's pseudo, with a note; `SpeciesMerge.added`), `merge_namelists(editor, molecule | None)` (every `&CELL`
+    and `nbnd` go always; the molecule's `occupations` and the `smearing` / `degauss` it has; `mixing_beta` the smaller of two),
+    `difference_notes` (larger cutoffs in the molecule, `ecutrho` default 4 × `ecutwfc`; `vdw_corr`, `input_dft`, `nspin`; a
+    different `pseudo_dir` when the molecule adds species and `jobs.pseudo_dir` is unset), `formula` (`HgCH3`: elements in order of
+    appearance) and `adsorbed_prefix` (`<surface prefix>-<formula>-O43` or `-O43-O46`, 1-based ascending).
+  - `types/adsorption.py:AdsorptionType(RelaxType)` (`relax.qsub.j2`, `adsorption.qsub`, folder `Adsorption`, `scf_label` "SCF da
+    superfície", `writes_report`): `relax_<surface prefix>.in` + `geracao.md`, always the three files. `inputs`: `adsorb` →
+    `fixed_for(…, unwrapped, n_slab=)` (the rule on the surface atoms only; `fixed_for` takes `n_slab` now) → `apply_fix` →
+    `structure_problem` checked *before* the species card is replaced → merged `ATOMIC_SPECIES` → `put_structure` → notes;
+    `merge_namelists`, `RelaxType.edit`, `etot_conv_thr`, the prefix. Fields in `types/adsorption_fields.py`: tab "Molécula"
+    (`molecule` required and Padrão; `anchor` "vazio = o mais pesado", `ads_distance` 2.0, `h_clearance` 1.9, `vacuum_min` 10.5),
+    tab "Sítio" (Padrão: `mode` monodentado | bidentado, `site` the candidates' `atoms` table with `depends_on` = species, window,
+    symprec, bond scale, `remove_h` off; Avançado: `site_from`, `coords_1` / `coords_2`, `site_tol`, `site_species` "O",
+    `height_window` 1.5, `symprec` 0.001, `bond_scale`), and the input tab (`kmesh_field` of the SCF, `nstep` 50, `forc_conv_thr`
+    1e-3, `ion_dynamics` bfgs: the scripts' values, never the SCF's; `etot_conv_thr` 1e-4; `fix_fields` with "do SCF" when the
+    surface fixes some atom, else "camada inferior"). `site_rows(scf, values)` never raises (a bad value or no candidate is the
+    table's message). Goldens `candidates_001` (with `variants`) and `ads_mono_O42` / `_O49`, `ads_bi_O42-O45` / `O42-O49` /
+    `O43-O45` / `O43-O49` (the scripts' 0-based names: atom 43 is their O42; `surface_helpers.ADSORBED` maps them). Tests:
+    `test_surface_check.py`, `test_surface_candidates.py`, `test_surface_adsorb.py`, `test_calc_adsorption.py` (a `perf` plan
+    under 100 ms once cached, ~25 ms).
 - **Self-contained folder** (`unit.py`, spec 28 R2): `Work.editor()` is the SCF's text after `apply_unit`
   (`outdir = './tmp/'` always, `jobs.pseudo_dir` when set; `edits.put_text` compares with case), so every pw.x input,
   the SCF copy included, gets it (the copy differs from the SCF only there); bands.x and projwfc.x templates get
@@ -882,9 +931,19 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
   is the SCF's folder. Step 1 names the SCF row `CalcType.scf_label` ("Input de SCF" by default). A `PlannedFile` of kind
   `report` (`geracao.md`, `CalcType.writes_report`) is a tab like the inputs, without colors (`PlainHighlighter`), editable in
   `avancado` and never linted (`overrides.edit_issues`). `KMeshEditor(empty=)` takes the field's `hint` for an empty mesh.
+- **Refused SCF and data that follow fields (spec 42).** `SetupPage._refused()` is `calc_type.check_scf(scf)`: a problem of
+  `problems()` right after the SCF's and the SCF row's message (not while "Lendo SCF…"); a type change runs `_update` again.
+  `FormField.depends_on` names fields whose values change `data`: `TabsPage._refresh_data` (end of `flush`) compares them, with
+  the values of the fields the mode shows (as `plan`: the Padrão uses the defaults), and on a change calls
+  `CalcType.field_data(field_id, scf, values)` (default: the field's `data`) → `FieldForm.set_data`, which for `atoms` swaps the
+  legend / warning (`_legends`, hidden while empty) and calls `AtomTable.set_rows` with the table's signal blocked, then emits
+  `changed(False)` if the marks moved (no user edit, so not `dirty`). `placeholder()` is the field's `hint` when it has one.
 - `ui/widgets/atom_table.py:AtomTable(rows, selected, unit, count_format)` (spec 30, extracted from the PDOS atom window):
   checkbox, #, element and three coordinates as text (`AtomRow`), "Marcar todos" / "Desmarcar todos" / "Inverter" /
   "Só espécie ▸" and the count; `changed` fires once per click or button, `value()` / `checked()` the marked numbers.
+  `AtomRow.note` (and `fragments.AtomRow.note`) fills a "Sítio" column shown only when some row has one (spec 42: the PDOS
+  window keeps its 6 columns); `set_rows(rows)` rebuilds rows and the species menu, keeps the marks still listed and emits
+  `changed` once when they moved.
   `ui/dialogs/atoms.py:AtomsDialog` builds one and keeps its old attributes (`checks`, `table`, `mark_all`, …) pointing at it.
 - `ui/widgets/kpath_editor.py:KPathEditor(theme, cell)`: the `crystal_b` table, empty on open (`FieldForm` passes
   `scf.crystal.cell`, None without a readable structure); `set_path` shows a path without `changed(True)`. Cells take

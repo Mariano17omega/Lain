@@ -15,7 +15,7 @@ from qe_studio.core.sniff import SniffCache
 
 from calc_helpers import AL_PATH, JOBS, al, from_text, ni
 from conftest import FIXTURES
-from surface_helpers import BULK, SLAB_001, read
+from surface_helpers import BULK, MOLECULE, SLAB_001, SUPERCELL_001, read
 
 
 def results(folder):
@@ -175,3 +175,20 @@ def test_supercell_folder_is_detected_as_a_vc_relax(tmp_path):
     assert found["relax"].file("relax_out") == folder / f"{name}.out"
     assert found["relax"].file("relax_in") == folder / f"{name}.in"
     assert cache.sniff(folder / f"{name}.in").calculation == "vc-relax"
+
+
+def test_adsorption_folder_is_detected_as_a_relax(tmp_path):
+    """Spec 42: the molecule on the surface is a pw.x relax, named by the surface SCF's prefix."""
+    calc = by_id("adsorption")
+    values = {"molecule": read(MOLECULE), "site": (43,), "remove_h": True}
+    created = create_folder(tmp_path, calc, "HgCH3", calc.plan(read(SUPERCELL_001), values, JOBS))
+    folder = created.folder
+    assert folder.name == "Adsorption_HgCH3"
+    name = "relax_kaolinite-slab-001-2x1x1"
+    assert [p.name for p in created.files] == ["adsorption.qsub", f"{name}.in", "geracao.md"]
+    fill(folder, "kao_supercell_relax", [("relax-kaolinite-slab-001-2x1x.out", f"{name}.out")])
+    found, cache = results(folder)
+    assert set(found) == {"relax"}
+    assert found["relax"].file("relax_out") == folder / f"{name}.out"
+    assert found["relax"].file("relax_in") == folder / f"{name}.in"
+    assert cache.sniff(folder / f"{name}.in").calculation == "relax"

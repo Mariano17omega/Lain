@@ -94,11 +94,22 @@ def scf_path(source: str, tmp_path):
 @pytest.mark.parametrize("source", SOURCES)
 @pytest.mark.parametrize("type_id", [calc_type.id for calc_type in REGISTRY])
 def test_every_type_reaches_step_2_with_every_scf(qtbot, make_dialog, tmp_path, type_id, source):
+    """Every pair reaches step 2, but one whose SCF the type refuses (spec 42 R1: a bulk's SCF for a
+    molecule on a surface), which says why on step 1."""
     dialog = make_dialog()
-    tabs = to_files(qtbot, dialog, type_id, scf=scf_path(source, tmp_path), suffix=NAME)
+    calc_type = by_id(type_id)
+    path = scf_path(source, tmp_path)
+    refused = calc_type.check_scf(scf_info(path.read_text(errors="replace"), path))
+    if refused:
+        dialog.debounce_ms = 0
+        fill_setup(qtbot, dialog, type_id, scf=path, suffix=NAME)
+        assert not dialog.continue_button.isEnabled()
+        assert dialog.setup.reason.text() == refused and not dialog.setup.reason.isHidden()
+        assert dialog.setup.scf_message.text() == refused
+        return
+    tabs = to_files(qtbot, dialog, type_id, scf=path, suffix=NAME)
     scf = dialog.setup.scf
     assert scf is not None
-    calc_type = by_id(type_id)
     keys = ["script", *(f.key for f in calc_type.input_files(scf, NAME))]
     keys += [REPORT_KEY] if calc_type.writes_report else []  # geracao.md (spec 40)
     assert [planned.key for planned in tabs.plan.files] == keys

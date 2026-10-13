@@ -64,6 +64,9 @@ class FormField:
     standard: bool = False  # shown in the ``padrao`` mode too (spec 28 R3.1)
     hint: str = ""  # a short legend the window shows with the field (``atoms``)
     data: Any = None  # what a kind needs to be drawn (``atoms``: the ``AtomRows`` to pick from)
+    depends_on: tuple[
+        str, ...
+    ] = ()  # fields whose values change ``data`` (``CalcType.field_data``)
 
 
 def is_visible(form_field: FormField, mode: Mode) -> bool:
@@ -292,6 +295,16 @@ class CalcType:
     def inputs(self, work: Work) -> list[PlannedFile]:
         """The files after the script, in tab order (``work.names`` holds their names)."""
         raise NotImplementedError
+
+    def check_scf(self, scf: ScfInfo) -> str | None:
+        """Why step 1 refuses ``scf`` for this type (None: it does not), e.g. a bulk's SCF for a type
+        that puts a molecule on a surface (spec 42 R1)."""
+        return None
+
+    def field_data(self, field_id: str, scf: ScfInfo, values: Mapping[str, Any]) -> Any:
+        """The ``data`` of field ``field_id`` for the window's ``values`` (those of the fields shown):
+        asked again when a field of its ``depends_on`` changes (spec 42 R2.4)."""
+        return next((f.data for f in self.input_fields(scf) if f.id == field_id), None)
 
     def script_values(self, work: Work) -> dict[str, Any]:
         """Template variables of the script besides the common ones: the runs, by name."""

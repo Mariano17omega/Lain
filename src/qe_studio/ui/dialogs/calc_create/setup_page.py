@@ -182,7 +182,18 @@ class SetupPage(QWidget):
             problems.append(CHOOSE_TYPE)
         if self._scf is None:
             problems.append(self._scf_problem or (READING if self._reading else CHOOSE_SCF))
+        refused = self._refused()
+        if refused:
+            problems.append(refused)
         return problems + named + place
+
+    def _refused(self) -> str:
+        """Why the type refuses the SCF read ("" = it does not: spec 42 R1, a bulk's SCF for a
+        molecule on a surface)."""
+        calc_type, scf = self.calc_type, self._scf
+        if calc_type is None or scf is None:
+            return ""
+        return calc_type.check_scf(scf) or ""
 
     def location_warnings(self) -> tuple[str, ...]:
         return location_warnings(self._location, self.root)
@@ -271,6 +282,8 @@ class SetupPage(QWidget):
         if calc_type is not None and not named and not place:
             preview = target_text(self._location, calc_type, suffix)
         show_message(self.name_preview, preview)
+        if not self._reading:  # the type's refusal is the SCF's message too
+            show_message(self.scf_message, self._scf_problem or self._refused(), "error")
         problems = self._problems(named, place)
         self.show_reason(problems[0] if problems else "")
         self.changed.emit()

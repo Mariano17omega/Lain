@@ -19,7 +19,7 @@ from .elements import atomic_number, element_of
 from .geometry import pair_images
 from .model import model_of
 
-__all__ = ["ALIGNED", "Molecule", "molecule_of"]
+__all__ = ["ALIGNED", "Molecule", "molecule_of", "rotation_from_z"]
 
 ALIGNED = 0.98  # the z component of the unit axis above which it is left alone (the script's limit)
 
@@ -42,6 +42,12 @@ def _rotation_onto_z(axis: np.ndarray) -> np.ndarray:
         return np.eye(3) if cos > 0 else np.diag([1.0, -1.0, -1.0])
     k = np.array([[0, -cross[2], cross[1]], [cross[2], 0, -cross[0]], [-cross[1], cross[0], 0]])
     return np.eye(3) + k + k @ k * ((1 - cos) / sin**2)
+
+
+def rotation_from_z(normal: np.ndarray) -> np.ndarray:
+    """The smallest rotation taking +z onto the unit vector ``normal`` (a molecule along +z stands
+    on a surface whose normal is ``normal``); the identity for +z."""
+    return _rotation_onto_z(np.asarray(normal, float)).T
 
 
 def _axis(labels: tuple[str, ...], coords: np.ndarray, anchor: int) -> np.ndarray | None:

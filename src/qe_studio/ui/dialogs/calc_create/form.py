@@ -35,10 +35,21 @@ ATOMS_MIN_HEIGHT = 320  # the atoms tab has the room: show a dozen rows
 
 
 def placeholder(form_field: FormField) -> str:
+    """What an empty field means: its ``hint`` when the type gives one ("vazio = o mais pesado")."""
+    if form_field.hint:
+        return form_field.hint
     default = field_text(form_field.default)
     if default:
         return f"vazio = {default}"
     return "obrigatório" if form_field.required else "vazio = não escrever"
+
+
+def atom_rows(atoms: Any) -> list[AtomRow]:
+    """The table's rows of an ``AtomRows`` (``fragments``), note included."""
+    return [
+        AtomRow(a.index, a.label, a.x, a.y, a.z, getattr(a, "note", ""))
+        for a in getattr(atoms, "rows", ())
+    ]
 
 
 class FieldForm(QWidget):
@@ -61,6 +72,7 @@ class FieldForm(QWidget):
         self.fields = list(fields)
         self.widgets: dict[str, QWidget] = {}
         self.rows: dict[str, tuple[QWidget, ...]] = {}  # what shows a field: label and widget
+        self._legends: dict[str, QLabel] = {}  # an ``atoms`` field's legend, or why it has no rows
         self.kpath_editor: KPathEditor | None = None
         self.section = Section(theme, TITLE)
         layout = QVBoxLayout(self)
@@ -102,27 +114,52 @@ class FieldForm(QWidget):
     def _add_atoms(self, form_field: FormField, label: str) -> None:
         """The table of atoms (``FormField.data``: ``AtomRows``) under the label and the legend."""
         atoms = form_field.data
-        rows = [AtomRow(a.index, a.label, a.x, a.y, a.z) for a in getattr(atoms, "rows", ())]
         selected = form_field.default if isinstance(form_field.default, tuple) else ()
         unit = getattr(atoms, "unit", "") or "angstrom"
-        table = AtomTable(rows, selected, UNIT_LABELS.get(unit, unit))
+        table = AtomTable(atom_rows(atoms), selected, UNIT_LABELS.get(unit, unit))
         table.table.setMinimumHeight(ATOMS_MIN_HEIGHT)
         table.setAccessibleName(form_field.label)
         table.setToolTip(form_field.tooltip)
         table.changed.connect(self._edited)
-        shown: list[QWidget] = [set_variant(QLabel(label), "fieldLabel")]
-        shown[0].setToolTip(form_field.tooltip)
-        legend = form_field.hint
-        error = getattr(atoms, "error", "")
-        if legend or error:
-            text = set_variant(QLabel(error or legend), "warning" if error else "dialogText")
-            text.setWordWrap(True)
-            shown.append(text)
-        shown.append(table)
+        title = set_variant(QLabel(label), "fieldLabel")
+        title.setToolTip(form_field.tooltip)
+        legend = QLabel()
+        legend.setWordWrap(True)
+        self._legends[form_field.id] = legend
+        self._show_legend(form_field, atoms)
+        shown: tuple[QWidget, ...] = (title, legend, table)
         for widget in shown:
             self.section.add_full(widget)
         self.widgets[form_field.id] = table
-        self.rows[form_field.id] = tuple(shown)
+        self.rows[form_field.id] = shown
+
+    def _show_legend(self, form_field: FormField, atoms: Any) -> None:
+        """The field's hint, or the reason it has no rows (a warning)."""
+        legend = self._legends[form_field.id]
+        error = getattr(atoms, "error", "")
+        legend.setText(error or form_field.hint)
+        variant = "warning" if error else "dialogText"
+        if legend.property("variant") != variant:
+            set_variant(legend, variant)
+            repolish(legend)
+
+    def set_data(self, field_id: str, data: Any) -> None:
+        """New ``data`` for field ``field_id`` (spec 42 R2.4): an ``atoms`` table gets its rows again,
+        keeping the marks of the atoms still listed. A change of marks is no user edit."""
+        form_field = next(f for f in self.fields if f.id == field_id)
+        table = self.widgets[field_id]
+        if not isinstance(table, AtomTable):
+            return
+        self._show_legend(form_field, data)
+        legend = self._legends[field_id]
+        legend.setVisible(not table.isHidden() and bool(legend.text()))
+        table.blockSignals(True)
+        try:
+            moved = table.set_rows(atom_rows(data))
+        finally:
+            table.blockSignals(False)
+        if moved:
+            self.changed.emit(False)
 
     def _widget(self, form_field: FormField) -> QWidget:
         kind, default = form_field.kind, form_field.default
@@ -157,10 +194,13 @@ class FieldForm(QWidget):
         self.changed.emit(True)
 
     def set_visible(self, ids: Collection[str]) -> bool:
-        """Show the rows of the fields ``ids`` and hide the rest; whether any row is shown."""
+        """Show the rows of the fields ``ids`` and hide the rest; whether any row is shown. An empty
+        legend stays hidden."""
         for field_id, row in self.rows.items():
+            legend = self._legends.get(field_id)
             for widget in row:
-                widget.setVisible(field_id in ids)
+                empty = legend is not None and widget is legend and not legend.text()
+                widget.setVisible(field_id in ids and not empty)
         return any(field_id in ids for field_id in self.rows)
 
     def shown(self, field_id: str) -> bool:

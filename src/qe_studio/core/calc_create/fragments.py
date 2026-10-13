@@ -47,6 +47,7 @@ class AtomRow:
     x: str  # the coordinates as written
     y: str
     z: str
+    note: str = ""  # what the table's "Sítio" column says (spec 42: a surface candidate)
 
 
 @dataclass(frozen=True)

@@ -9,6 +9,7 @@ from qe_studio.core.calc_create.types import REGISTRY
 from qe_studio.core.qsub_lint import SGE_OPTIONS, lint_script
 
 from calc_helpers import AL_PATH, JOBS, al, from_text
+from surface_helpers import MOLECULE, SUPERCELL_001, read
 
 REFERENCE = Path(__file__).parents[1] / "Documentation" / "Referencia_de_scripts_QSUB"
 HEAD = "#!/bin/bash\n"
@@ -30,6 +31,8 @@ def generated_scripts():
             values = {"kpath": AL_PATH}
         elif calc_type.id == "charge_diff":
             scf, values = from_text(SMALL), {"atoms": (5, 6)}
+        elif calc_type.id == "adsorption":  # a surface and a molecule (spec 42)
+            scf, values = read(SUPERCELL_001), {"molecule": read(MOLECULE), "site": (43,)}
         plan = calc_type.plan(scf, values, JOBS, "avancado")
         assert not plan.errors, (calc_type.id, plan.errors)
         yield calc_type.id, plan.files[0].text
@@ -45,7 +48,7 @@ def test_the_reference_scripts_have_no_problem():
 
 def test_every_generated_script_has_no_problem():
     scripts = dict(generated_scripts())
-    assert len(scripts) == len(REGISTRY) == 9
+    assert len(scripts) == len(REGISTRY) == 10
     for type_id, text in scripts.items():
         assert lint_script(text) == [], type_id
 

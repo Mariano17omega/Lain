@@ -70,6 +70,7 @@ def test_without_a_name_the_folder_is_the_prefix(tmp_path):
         "Diff_Charge",
         "Slab",
         "Supercell",
+        "Adsorption",
     ]
 
 

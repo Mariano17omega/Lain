@@ -75,3 +75,33 @@ def test_no_rows_is_an_empty_table(qtbot):
     assert widget.count.text() == "0 de 0 átomos"
     widget.mark_all.click()  # nothing to mark, nothing raised
     assert widget.value() == ()
+
+
+NOTED = [
+    AtomRow(41, "O", "0.1", "0.2", "0.5", "A (4) · H 0,97"),
+    AtomRow(45, "O", "0.3", "0.4", "0.5", "B (4) · H 0,97"),
+]
+
+
+def test_the_site_column_shows_only_with_notes(qtbot, table):
+    assert table.table.columnCount() == 6 and "Sítio" not in table.headers()
+    noted = AtomTable(NOTED, (), "crystal")
+    qtbot.addWidget(noted)
+    assert noted.headers()[-1] == "Sítio" and noted.table.columnCount() == 7
+    assert noted.table.item(1, 6).text() == "B (4) · H 0,97"
+    assert noted.headers()[3] == "x (crystal)"
+
+
+def test_set_rows_keeps_the_marks_still_listed(qtbot, table):
+    heard = []
+    table.changed.connect(lambda: heard.append(table.value()))
+    table.checks[3].click()  # 2 and 3 marked
+    heard.clear()
+    moved = table.set_rows([AtomRow(3, "O", "0", "0", "0"), AtomRow(5, "H", "1", "1", "1")])
+    assert moved and heard == [(3,)]  # 2 left the list: one change
+    assert table.value() == (3,) and table.count.text() == "1 de 2 átomos"
+    assert [a.text() for a in table.species_menu.actions()] == ["O", "H"]
+    assert not table.set_rows([AtomRow(3, "O", "0", "0", "0", "A (2)")])  # same marks: silent
+    assert heard == [(3,)] and table.table.columnCount() == 7
+    table.checks[3].click()  # the new checks are wired
+    assert heard[-1] == ()

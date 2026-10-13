@@ -12,8 +12,10 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from ..scf_info import ScfInfo
 from .elements import covalent_radius
 from .model import Model
+from .report import decimal
 
 __all__ = [
     "IMAGES",
@@ -24,6 +26,7 @@ __all__ = [
     "min_image",
     "pair_images",
     "skewed",
+    "surface_problem",
     "vacuum_gaps",
 ]
 
@@ -93,3 +96,25 @@ def skewed(cell: np.ndarray) -> bool:
     """Whether any two cell vectors are not orthogonal."""
     unit = cell / np.linalg.norm(cell, axis=1)[:, None]
     return any(abs(float(unit[i] @ unit[j])) > 1e-6 for i, j in ((0, 1), (0, 2), (1, 2)))
+
+
+def surface_problem(scf: ScfInfo, name: str) -> str | None:
+    """Why ``scf`` is no surface with its vacuum along c, as the Slab makes it (None: it is one); for
+    a type that puts a molecule on a surface and must refuse a bulk's SCF (spec 42 R1)."""
+    crystal = scf.crystal
+    if crystal is None:
+        return f"Estrutura de {name} ilegível: {scf.structure_problem or 'sem estrutura'}"
+    gaps = vacuum_gaps(crystal.cell, crystal.frac)
+    if gaps[2] >= MIN_SURFACE_GAP:
+        return None
+    open_axes = [axis for axis, gap in zip("ab", gaps[:2], strict=True) if gap >= MIN_SURFACE_GAP]
+    other = open_axes[0] if open_axes else None
+    if other is not None:
+        return (
+            f"O vácuo de {name} está ao longo de {other}; o Lain espera a superfície com o vácuo "
+            "ao longo de c, como o Slab gera."
+        )
+    return (
+        f"{name} parece o SCF de um bulk: não há vácuo ao longo de c (maior intervalo vazio: "
+        f"{decimal(gaps[2])} Å). Escolha o SCF de uma superfície relaxada (Slab ou Supercélula)."
+    )

@@ -149,9 +149,12 @@ def check_labels(work: Work, scf: ScfInfo, field_id: str, label: str) -> tuple[s
     return labels
 
 
-def fixed_for(work: Work, model: Model, rule: str, scale: float) -> FixResult | None:
-    """The atoms ``rule`` fixes in ``model``, from the fields' values; a bad value is marked on its
-    field and a rule that cannot apply on ``fix_rule`` (None then)."""
+def fixed_for(
+    work: Work, model: Model, rule: str, scale: float, n_slab: int | None = None
+) -> FixResult | None:
+    """The atoms ``rule`` fixes in ``model`` (only its first ``n_slab``: a molecule added after the
+    surface stays free), from the fields' values; a bad value is marked on its field and a rule that
+    cannot apply on ``fix_rule`` (None then)."""
     fraction = work.values[FIX_FRACTION]
     if rule == BOTTOM and fraction is not None and not 0 < fraction <= 1:
         work.problem(FIX_FRACTION, "A fração fixa da espessura vai de 0 (exclusive) a 1")
@@ -171,6 +174,7 @@ def fixed_for(work: Work, model: Model, rule: str, scale: float) -> FixResult | 
             species=species,
             neighbors=neighbors,
             bond_scale=scale,
+            n_slab=n_slab,
         )
     except SurfaceError as exc:
         work.problem(FIX_RULE, str(exc))

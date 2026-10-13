@@ -5,6 +5,7 @@ A new type is a module with a ``CalcType`` subclass (and its templates) register
 
 from __future__ import annotations
 
+from .adsorption import AdsorptionType
 from .bandas import BandasType
 from .base import (
     DEFAULT_MODE,
@@ -54,6 +55,7 @@ REGISTRY: tuple[CalcType, ...] = (
     ChargeDiffType(),
     SlabType(),
     SupercellType(),
+    AdsorptionType(),
 )
 
 

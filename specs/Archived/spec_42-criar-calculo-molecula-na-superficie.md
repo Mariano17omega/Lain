@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 42: a última das três de superfície; usa tudo o que a 40 abre e costuma partir do SCF da supercélula (41) relaxada. |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (13/10/2026); ver "Decisões na implementação" |
 | **Depende de** | spec 40 (`surface/` inteiro, campo `scf_file`, `molecule_of`, `fixed_atoms`, `put_structure`, `geracao.md`), spec 41 (ordem de uso: o SCF da supercélula relaxada), spec 30 (campo `atoms` e `AtomTable`), spec 21 (`AtomTable` também serve à janela de átomos da PDOS), spec 39 (matriz tipo × SCF, prévia editável) |
 | **Usada por** | nenhuma |
 | **Esforço** | G (R1: P; R2: M; R3: M; R4: P; R5: M) |
@@ -220,11 +220,35 @@ agrupar os candidatos equivalentes.
 
 ## Critérios de aceite e testes
 
-- [ ] Os tipos de hoje, Slab e Supercélula não mudam; a janela de átomos da PDOS não mostra coluna nova (`test_atom_table.py`,
+- [x] Os tipos de hoje, Slab e Supercélula não mudam; a janela de átomos da PDOS não mostra coluna nova (`test_atom_table.py`,
       `test_atoms_dialog.py`).
-- [ ] O SCF de um bulk é recusado na etapa 1 com o motivo na página (`test_surface_check.py`, `test_calc_create_dialog.py`).
-- [ ] Lista de candidatos com os grupos do spglib, refeita quando muda a janela, as espécies, a simetria ou a ligação.
-- [ ] Mono e bidentado iguais aos goldens dos scripts, com remoção de H (`test_surface_adsorb.py`, `test_calc_adsorption.py`).
-- [ ] Por coordenadas, mesmo resultado que pela lista; fora da tolerância, erro no campo.
-- [ ] `spglib` e `ase` não carregam com `main_window` nem com o registro (`test_perf_detection.py`).
-- [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+- [x] O SCF de um bulk é recusado na etapa 1 com o motivo na página (`test_surface_check.py`, `test_calc_create_dialog.py`).
+- [x] Lista de candidatos com os grupos do spglib, refeita quando muda a janela, as espécies, a simetria ou a ligação.
+- [x] Mono e bidentado iguais aos goldens dos scripts, com remoção de H (`test_surface_adsorb.py`, `test_calc_adsorption.py`).
+- [x] Por coordenadas, mesmo resultado que pela lista; fora da tolerância, erro no campo.
+- [x] `spglib` e `ase` não carregam com `main_window` nem com o registro (`test_perf_detection.py`).
+- [x] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+
+## Decisões na implementação
+
+1. **Goldens capturados dos scripts, offline**, num venv temporário do cache do uv (pymatgen 2026.9.24 com pymatgen-core
+   2026.10.2, ase 3.29.0, spglib 2.8.0), com `ROOT` dos scripts trocado por `/` (os caminhos da fixture ficam fora dele) e
+   `write_qe_input` / `anchor_hydrogen` espiados para guardar a estrutura, os fixos e os H removidos. `candidates_001` traz
+   `variants`: janelas de 0,5, 0,8 e 1,0 Å e espécies `O H`. Na janela de 0,5 Å o script para ("no surface O atoms"): só os H das
+   hidroxilas estão no topo; o Lain lista vazio com "Nenhum átomo de O a até 0,5 Å do topo". Os índices do JSON são 0-based, como
+   o `"source"` diz; os testes os passam a 1-based (`surface_helpers.ADSORBED`). Posições iguais aos goldens a ~1e-14 Å.
+2. **`site_atoms(model, request)`**, não `site_atoms(model, values)`: o núcleo recebe um `SiteRequest` e não conhece ids de campos;
+   os erros são `SiteError(texto, papel)` e o tipo mapeia o papel para o campo (`FIELD_OF_ROLE`).
+3. **Janela e espécies conferidas na superfície original** (a da tabela), antes de tirar o H: o script confere depois; só difere
+   quando o H removido é o átomo mais alto e a janela cairia.
+4. **O frame mantém um slab normal como está escrito** (o fundo em [0, 1) depois de desdobrar c): as frações da molécula ficam ao
+   lado das da superfície, não uma célula acima.
+5. **Fixos sobre os átomos da superfície no frame desdobrado** (`fixed_for(..., n_slab=)`, parâmetro novo, os outros tipos passam
+   `None`): "camada inferior" de um slab escrito através da borda de c fica certa.
+6. **`&CELL` e `nbnd` saem sempre**, mesmo sem molécula (um relax não lê `&CELL`); o card de espécies só muda depois de
+   `structure_problem` passar, para um erro (CONSTRAINTS, Hubbard V) deixar o texto do SCF.
+7. **Nota do `pseudo_dir`** (acréscimo): quando a molécula traz espécies novas, `jobs.pseudo_dir` não está definido e o
+   `pseudo_dir` dos dois SCFs difere, os pseudopotenciais delas precisam estar no da superfície.
+8. **Placeholder pela dica:** um campo de texto com `hint` mostra a dica vazio ("vazio = o mais pesado", "x y z").
+9. **README sem mudança:** ele não lista dependências (o `pyproject.toml` lista; `uv sync` instala o spglib).
+10. **Custo:** `plan` no 2×1×1 (68 átomos), com os candidatos em cache, ~25 ms (orçamento de 100 ms no teste `perf`).

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QComboBox, QLabel, QLineEdit
 
 from fragment_helpers import SMALL
 from qe_studio.core.calc_create.types import by_id
-from qe_studio.ui.dialogs.calc_create import CalcCreateDialog
+from qe_studio.ui.dialogs.calc_create import CalcCreateDialog, setup_page
 from qe_studio.ui.dialogs.calc_create import dialog as dialog_module
 from qe_studio.ui.dialogs.calc_create.kmesh import KMeshEditor
 from qe_studio.ui.theme.manager import ThemeManager
@@ -20,6 +20,7 @@ from qe_studio.ui.widgets.kpath_editor import KPathEditor
 
 from calc_dialog_helpers import fill_setup, pick_scf, to_files, tree
 from calc_helpers import AL_PATH, AL_SCF, JOBS, al, hex_path, hex_scf_text
+from surface_helpers import BULK, MOLECULE, SUPERCELL_001
 
 
 @pytest.fixture
@@ -623,3 +624,68 @@ def test_an_scf_the_split_cannot_read_still_lists_the_error(qtbot, dialog, tmp_p
     assert table.table.rowCount() == 0
     assert not dialog.create_button.isEnabled()
     assert dialog.create_button.toolTip() == "Posições em crystal_sg não são suportadas"
+
+
+# -- molecule on a surface (spec 42) ---------------------------------------------------------------
+def test_a_bulk_is_refused_for_a_molecule_on_a_surface(qtbot, dialog):
+    """R1: the reason is on the page and in the SCF's row; the Slab takes the same SCF."""
+    fill_setup(qtbot, dialog, "adsorption", scf=BULK, suffix="kao")
+    refused = by_id("adsorption").check_scf(dialog.setup.scf)
+    assert refused and refused.startswith("scf-kaolinite.in parece o SCF de um bulk")
+    assert not dialog.continue_button.isEnabled()
+    assert dialog.setup.reason.text() == refused and not dialog.setup.reason.isHidden()
+    assert dialog.setup.scf_message.text() == refused
+    assert dialog.setup.scf_label.text() == "SCF da superfície *"
+    dialog.setup.set_type("slab")
+    assert dialog.continue_button.isEnabled()
+    assert dialog.setup.reason.isHidden() and dialog.setup.scf_message.isHidden()
+
+
+def type_into(qtbot, edit: QLineEdit, text: str) -> None:
+    edit.clear()
+    qtbot.keyClicks(edit, text)
+
+
+def test_the_site_table_follows_its_fields(qtbot, dialog):
+    """R2.4: species, window, symmetry and bond tolerance remake the candidates' rows; the marks of
+    the atoms still listed stay, and the Padrão mode lists with the defaults."""
+    tabs = to_files(qtbot, dialog, "adsorption", scf=SUPERCELL_001, suffix="kao")
+    assert tabs.tab_labels()[:2] == ["Molécula", "Sítio"]
+    table = tabs.widget_of("site")
+    assert isinstance(table, AtomTable)
+    assert table.table.rowCount() == 12 and table.headers()[-1] == "Sítio"
+    table.checks[43].click()
+    type_into(qtbot, tabs.widget_of("site_species"), "O H")
+    assert table.table.rowCount() == 24 and table.value() == (43,)
+    type_into(qtbot, tabs.widget_of("height_window"), "0.5")
+    species = {table.table.item(row, 2).text() for row in range(table.table.rowCount())}
+    assert species == {"H"} and table.value() == ()  # only hydroxyl H on top: O 43 left
+    legend = tabs.form_of("site").rows["site"][1]
+    assert isinstance(legend, QLabel) and legend.text().startswith("Monodentado: marque")
+    type_into(qtbot, tabs.widget_of("site_species"), "O")
+    assert table.table.rowCount() == 0 and not legend.isHidden()
+    assert legend.text() == "Nenhum átomo de O a até 0,5 Å do topo"
+    dialog.set_mode("padrao")  # the hidden window and species take their defaults
+    assert table.table.rowCount() == 12
+    assert legend.text().startswith("Monodentado: marque")
+
+
+def test_a_molecule_on_a_surface_from_the_window(qtbot, dialog, monkeypatch, place):
+    monkeypatch.setattr(setup_page, "choose_scf", lambda parent, start: MOLECULE)
+    tabs = to_files(qtbot, dialog, "adsorption", scf=SUPERCELL_001, suffix="kao")
+    assert not dialog.create_button.isEnabled()
+    field = tabs.widget_of("molecule")
+    with qtbot.waitSignal(field.changed, timeout=10_000):
+        field.choose_button.click()
+    assert dialog.create_button.toolTip() == "Monodentado: marque um átomo da lista (marcados: 0)"
+    assert tabs.widget_of("site").table.property("invalid") is True
+    tabs.widget_of("site").checks[43].click()
+    tabs.widget_of("remove_h").click()
+    assert dialog.create_button.isEnabled(), dialog.create_button.toolTip()
+    text = tabs.plan.by_key("relax").text
+    assert "prefix           = 'kaolinite-slab-001-2x1x1-HgCH3-O43'" in text
+    assert "nat              = 72" in text
+    with qtbot.waitSignal(dialog.create_requested) as blocker:
+        dialog.create_button.click()
+    names = [f.name for f in blocker.args[0].plan.files]
+    assert names == ["adsorption.qsub", "relax_kaolinite-slab-001-2x1x1.in", "geracao.md"]

@@ -71,3 +71,26 @@ def same_atoms(a: Model, b: Model, tol: float = 1e-5) -> bool:
 def fixed_of(model: Model) -> list[int]:
     """The atoms written with ``0 0 0``."""
     return [i for i in range(len(model)) if model.flag(i) == (0, 0, 0)]
+
+
+# Spec 42: the user's adsorbed cases (stage 3), by golden name → the site atoms in the SCF's numbering
+# (1-based; the golden's names keep the scripts' 0-based labels, so O42 there is atom 43 here).
+ADSORBED = {
+    "ads_mono_O42": (43,),
+    "ads_mono_O49": (50,),
+    "ads_bi_O42-O45": (43, 46),
+    "ads_bi_O42-O49": (43, 50),
+    "ads_bi_O43-O45": (44, 46),
+    "ads_bi_O43-O49": (44, 50),
+}
+
+
+def with_structure(source: Path, model: Model) -> ScfInfo:
+    """The SCF of ``source`` with ``model``'s cell and positions instead (an SCF the tests reshape)."""
+    from qe_studio.core.calc_create.surface.model import species_rows
+    from qe_studio.core.calc_create.surface.write import put_structure
+
+    text = source.read_text()
+    editor = InputEditor.from_text(text)
+    put_structure(editor, model, species_rows(text))
+    return scf_info(editor.text(), source)
