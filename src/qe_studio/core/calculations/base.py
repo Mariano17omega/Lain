@@ -83,11 +83,18 @@ def feeds_parent(folder: Path) -> bool:
 
 @dataclass(frozen=True)
 class Stores:
-    """The per-user stores a module may read and write (``CalculationModule.stored_params`` /
-    ``save_stored``). They live in the app data dir, never in the (synced) simulation folder."""
+    """The user stores a module may read and write (``CalculationModule.stored_params`` /
+    ``save_stored``). They live in the root's settings folder (spec 48), never in the (synced)
+    simulation folder: ``set_root`` before using them."""
 
     compounds: CompoundStore
     grids: GridStore | None = None  # the saved grids and their settings (spec 23)
+
+    def set_root(self, root: Path) -> None:
+        """The project root in force: the stores read and write its files (a no-op when unchanged)."""
+        self.compounds.set_root(root)
+        if self.grids is not None:
+            self.grids.set_root(root)
 
     def pop_warnings(self) -> list[str]:
         """Messages about stores that were corrupt, once each."""

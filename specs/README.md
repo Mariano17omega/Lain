@@ -81,7 +81,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 45 | [spec_45-abrir-com-xcrysden.md](Archived/spec_45-abrir-com-xcrysden.md) | "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do pw.x: `--pwi` / `--pwo` do XCrySDen instalado em `paths.xcrysden_path`; desabilitado (com o motivo) quando a chave está vazia ou errada | 5, 43 | P | Sonnet 5.5 |
 | 46 | [spec_46-visualizacao-3d-ajustes-da-janela.md](Archived/spec_46-visualizacao-3d-ajustes-da-janela.md) | Janela 3D: a barra só com as vistas x, y, z (A, B, C seguem como teclas); "Eixos" dividido em x, y, z e a, b, c, cada um com a sua espessura; tamanho dos rótulos; caixas de "Exibição" juntas; seção "Rotação" (45° em x, y, z, ±); "Apagar" a última medida; botão "Print" (PNG em `plots/`); "Restaurar padrões" (opções e câmera, com pergunta) | 43, 44, 24, 32 | M | Sonnet 5.5 |
 | 47 | [spec_47-visualizacao-3d-lembrar-a-vista.md](Archived/spec_47-visualizacao-3d-lembrar-a-vista.md) | `view3d.plot` na pasta do cálculo: opções e câmera da janela 3D gravadas ao fechar (só se algo mudou) e restauradas ao abrir, uma seção por arquivo, espécies por rótulo, nunca recria uma pasta renomeada; "Restaurar padrões" apaga a seção ao fechar | 46, 43, 3, 27-3 | M | Opus 5.5 |
-| 48 | [spec_48-configuracoes-do-projeto-em-pasta-oculta.md](spec_48-configuracoes-do-projeto-em-pasta-oculta.md) | `folders.json`, `grids.json`, `compounds.json` e `navigation.json` (favoritos e recentes) passam a `<local_root>/.lain/` (oculta, fora do dropdown e do sync): copiar a raiz leva as configurações; um arquivo por raiz, migração única do diretório do usuário, fallback se a raiz não é gravável; os `.plot` não mudam | 14, 16, 21, 23, 27-3, 31 | M | Opus 5.5 |
+| 48 | [spec_48-configuracoes-do-projeto-em-pasta-oculta.md](Archived/spec_48-configuracoes-do-projeto-em-pasta-oculta.md) | `folders.json`, `grids.json`, `compounds.json` e `navigation.json` (favoritos e recentes) passam a `<local_root>/.lain/` (oculta, fora do dropdown e do sync): copiar a raiz leva as configurações; um arquivo por raiz, migração única do diretório do usuário, fallback se a raiz não é gravável; os `.plot` não mudam | 14, 16, 21, 23, 27-3, 31 | M | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -129,8 +129,8 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–47, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (48 e `spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–48, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**

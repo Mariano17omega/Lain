@@ -4,8 +4,8 @@ import json
 import shutil
 
 from plot_grid_helpers import settled
-from qe_studio.core.appdirs import data_dir
 from qe_studio.core.plotting.plot_file import plot_file_path, write_plot_file
+from qe_studio.core.project_data import GRIDS_FILE, PROJECT_DATA_DIR
 from qe_studio.ui.widgets.plot_view import PlotView
 
 
@@ -98,7 +98,8 @@ def test_grid_settings_go_to_the_store_not_to_a_plot_file(qtbot, main_window, de
     assert view.session.params.figure_size[0] == 4.0
     main_window.plot_settings.flush_now()
     assert not plot_file_path(demo_project, "grid").exists()
-    saved = json.loads((data_dir() / "grids.json").read_text())
+    # The window's GridStore follows the root: its file is in the root's settings folder (spec 48).
+    saved = json.loads((demo_project / PROJECT_DATA_DIR / GRIDS_FILE).read_text())
     assert saved["grids"]["Al"]["params"]["cell_width"] == 4.0
     main_window.workspace.close_all()
     assert generate(qtbot, main_window, saved=True).session.params.cell_width == 4.0

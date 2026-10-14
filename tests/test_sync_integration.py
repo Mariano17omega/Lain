@@ -13,6 +13,7 @@ import pytest
 from PyQt6.QtCore import QTimer
 
 from qe_studio.core.config import parse_config
+from qe_studio.core.project_data import FOLDERS_FILE, GRIDS_FILE, PROJECT_DATA_DIR
 from qe_studio.core.sync.controller import SyncController, SyncStatus
 from qe_studio.core.sync.planner import Decision, recheck_local
 from qe_studio.core.sync.rsync import Endpoint
@@ -180,6 +181,26 @@ def test_nothing_to_transfer_has_no_preview(qtbot, dirs):
         qtbot, SyncController(make_config()), local, Endpoint(str(remote)), plans=plans
     )
     assert report.status is SyncStatus.UP_TO_DATE and plans == []
+
+
+def test_a_settings_folder_on_the_cluster_is_never_pulled(qtbot, tmp_path):
+    """Spec 48 R5: a root copied to the cluster by hand has a ``.lain``; a pull of the root lists
+    and brings only the simulation files, whatever ``sync.exclude`` says."""
+    remote, local = tmp_path / "cluster", tmp_path / "local"
+    write(remote, "a.out", "a")
+    write(remote, f"{PROJECT_DATA_DIR}/{FOLDERS_FILE}", "the cluster's copy", T0 + 900)
+    write(remote, f"ilita/{PROJECT_DATA_DIR}/{GRIDS_FILE}", "deeper", T0 + 900)
+    mine = write(local, f"{PROJECT_DATA_DIR}/{FOLDERS_FILE}", "mine", T0)
+    plans = []
+    config = parse_config({"sync": {"exclude": []}})
+    report, prompts = run_sync(
+        qtbot, SyncController(config), local, Endpoint(str(remote)), plans=plans
+    )
+    assert report.status is SyncStatus.DONE and prompts == []
+    assert [item.path for plan in plans for item in plan.items] == ["a.out"]
+    assert report.transferred == ["a.out"]
+    assert mine.read_text() == "mine"
+    assert not (local / "ilita").exists()
 
 
 def test_local_newer_folder_blocks_transfer(qtbot, dirs):

@@ -74,7 +74,10 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   `NavigationStore` (`tmp_path` files); it is `window_factory()`, which a test calls again (after
   `window.close()`) to restart the app on the same files (`window_factory(ui={...})` sets keys of the `ui:`
   section; `tree_files_window` is one with `tree_show_files`, spec 37: the tree lists folders only otherwise, so
-  `grid_helpers.tree_names` shows no files in `main_window`). The
+  `grid_helpers.tree_names` shows no files in `main_window`). Its stores have fixed `tmp_path` files, so no test
+  makes a `.lain` by accident, except the window's own `GridStore`, which follows the root (`demo_project/.lain/grids.json`);
+  `window_factory(follow_root=True)` passes no store and the window builds its own, in the root's settings folder, as
+  the app does (spec 48). The
   controllers are tested without it too: `test_plot_workflow_unit.py` (a `Rig` with real workspace,
   params panel, status bar and detection service) and `test_sync_coordinator.py`. Dialogs are patched
   where they are imported: `qe_studio.ui.plot_workflow.{ask_mapping,choose_result}`,
@@ -304,8 +307,8 @@ File names are only hints; everything is identified by content.
 3. `core/detection.py`: `detect_folder()` sniffs each file once (`sniff_once`: a per-call memo that
    also covers neighbour folders and the hooks) and runs every module in `REGISTRY` on those sniffs;
    `fallback` modules (SCF/CALC info badges) apply only when no primary kind matched.
-   `core/folder_memory.py:FolderMemory` stores manual mappings and typed k-point labels in the app
-   data dir (`folders.json`, format version 2), never inside simulation folders (they get synced).
+   `core/folder_memory.py:FolderMemory` stores manual mappings and typed k-point labels in the root's
+   settings folder (`<local_root>/.lain/folders.json`, format version 2, spec 48), never inside simulation folders.
    Keys are folder paths relative to `paths.local_root` (`"."` = the root, `abs:<path>` outside it;
    `MainWindow` calls `set_root` on start and config reload) and mapped files are relative to their
    folder, so a moved or copied project keeps them. Version 1 files (absolute keys) migrate on the
@@ -548,8 +551,8 @@ redraw, so the on-screen `janela` gap follows the window at the next render; exp
 asks the module for `atoms_of(dataset) -> AtomChoices(sites, compound)`, disabled when `sites` is empty). The selection is
 **per compound**, not per folder: `core/compounds.py` has `compound_key` (the species sequence in input order: positions
 never matter, a different order is another compound), `compound_of(sites)`, `normalize_selection` (all or nothing valid
-= `None`) and `CompoundStore` (`compounds.json` in the data dir, like `NavigationStore`: lazy read, atomic write, a corrupt
-file set aside, `save(key, formula, None)` removes the entry). `core/qe/structure.py:read_sites` streams the pw.x header
+= `None`) and `CompoundStore` (`compounds.json` in the root's settings folder, like `NavigationStore`: lazy read, atomic
+write, a corrupt file set aside, `save(key, formula, None)` removes the entry; `set_root` through `Stores.set_root`, spec 48). `core/qe/structure.py:read_sites` streams the pw.x header
 (positions in alat units → Å, no ASE) in the load worker; `PdosDataset.sites` / `.compound`.
 
 Another geometry of the same sequence reuses the selection, so it warns (spec 27-6 R2): `save(key, formula, atoms,
@@ -623,8 +626,8 @@ each drawn by its own module (vector export, pan/zoom per cell).
   the plot shows: a folder, or the output file of a single-file module such as SCF; `partner` the DOS folder of bands +
   DOS), `GridCell(row, col, ref, title)` (0-based), `GridSpec.validate()` (Portuguese sentences).
   `PlotSession.ref` makes the ref of a plot.
-- **Store** (`core/grid_store.py:GridStore`, `grids.json` in the data dir, like `CompoundStore`): grids by name, paths
-  relative to the root in force (`abs:` outside it; another project resolves them there, nothing is deleted), the
+- **Store** (`core/grid_store.py:GridStore`, `grids.json` in the root's settings folder, like `CompoundStore`: each root has
+  its own grids, spec 48): grids by name, paths relative to the root in force (`abs:` outside it; nothing is deleted), the
   grid figure's settings under `params`, `rename(old, new)` (called by `MainWindow.rename_path`).
   `PlotWorkflow` owns it as `Stores.grids`.
 - **Module** (`core/calculations/grid/`, kind `grid`, in `REGISTRY`, no roles, never detected or loaded from files):
@@ -985,8 +988,8 @@ the parent, `select_path`s the folder and shows `preview.created_notice` as a `s
 Backend in `core/` (Qt-free, in `test_architecture`'s `QT_FREE`): `navigation.py` (`NavigationHistory`:
 back stack, current, forward stack, 50 each, no repeat in a row, vanished folders skipped and
 forgotten; `breadcrumb_segments`, `collapse_count`), `nav_store.py` (`NavigationStore`: favorites and
-the last 10 recents per project in `navigation.json`, keyed by the resolved `local_root`, paths
-relative to it, favorites saved at once and recents on `flush`, a corrupt file set aside by
+the last 10 recents in the root's `navigation.json`, where its entry is keyed `"."` (spec 48; a store given a path keys
+it by the resolved `local_root`), paths relative to it, favorites saved at once and recents on `flush`, a corrupt file set aside by
 `appdirs.set_aside_corrupt` like `folders.json`) and `filtering.py` (`name_matcher`: case-insensitive
 substring with `*`/`?`; `CategoryFilter`: badges pick folders, states and visual types pick files, a
 kind with nothing ticked is hidden while the other has something).
@@ -1027,12 +1030,43 @@ with the whole name. List mode is one line per row, as before.
 restart; the file grid is not affected. With files hidden, `select_path(file)` selects the file's folder and emits
 `file_selected(file)`, so the grid still selects the file (the tab menu's "Revelar no explorador" works the same).
 
+### Project settings folder (spec 48)
+
+`FolderMemory`, `NavigationStore`, `GridStore` and `CompoundStore` keep their files (names and formats unchanged) in
+`<local_root>/.lain/`, so copying the root takes mappings, grids, atoms, favorites and recents along, and two roots never
+share an entry. `.plot` files, `config.yaml`, QSettings and `lain.lock` stay where they were.
+
+- **`core/project_data.py`** (Qt-free) is the one module that names the folder (`PROJECT_DATA_DIR`; `test_architecture`
+  checks no other string constant of `src/` holds `.lain`). `locate(root) -> Location(folder, fallback, notice)` never
+  raises nor creates: a writable root gets `<root>/.lain` (made by the first write: `atomic_write_text` makes parents); a
+  read-only root, or a `.lain` that is a file / not writable, gets `fallback_folder(root)` = `data_dir()/roots/<16 hex of
+  sha256(resolved root)>` and a Portuguese `notice`; a root that is not a folder gets the fallback with no notice.
+  `describe(root)` is the "Sobre" row "Configurações do projeto" ("nenhuma" without a root).
+- **`StoreFile(name, path)`**: a store given a `path` is *fixed* (tests, scripts: `set_root` only changes the keys' base).
+  Without one it is `data_dir()/<name>` until `set_root`, then `follow(root)` points it at `locate(root).folder`; when the
+  file changes the store forgets what it read (and `_warning` / `_read_only`), and `NavigationStore.set_root` flushes the
+  pending recents to the old file first. `locate` runs at every `set_root` (2–3 `stat`s), so callers set it freely:
+  `MainWindow` (memory), `NavigationController`, `GridsController.open/rename`, and `Stores.set_root` (compounds + grids)
+  at the start of `PlotWorkflow._load` / `_on_param_changed` and `GridLoader.load`.
+- **Import (R3)**: a following store whose file is missing reads the old per-user file (`StoreFile.read_legacy`, never
+  set aside nor changed) through a pure filter in its module: `legacy_folders` (relative keys whose folder exists under
+  the root, `abs:` keys inside it; version 1 keys become `abs:` and `_rehome` re-keys them), `legacy_grids` (no cells, or a
+  cell under the root that exists), `legacy_navigation` (the resolved root's entry, under `"."`), `legacy_compounds`
+  (all). Importing writes nothing: the first change does. A missing root file imports again next time (accepted).
+- **Read-only root (R4)**: `FolderMemory.load_warning()` returns the corrupt-file warning, else the `notice` (the window
+  shows it at start; logged at every relocation). The choice is made at `set_root`; a write error later goes the usual
+  way (excepthook), and what went to the fallback stays there when the root becomes writable.
+- The leading-dot rule already hides `.lain` from the tree, the grid, the palette's index, `count_entries`,
+  `list_projects`, `FolderListing.scan` and project names; `test_project_data_hidden.py` holds that as a contract. Tests:
+  `test_project_data.py`, `test_project_data_stores.py` (copy, isolation, read-only), `test_project_data_migration.py`.
+
 ### Projetos (spec 31)
 
 A **project** is a first-level folder of `paths.local_root` (the root folder: the texts say "pasta raiz"); the simulation
 units are plain folders inside it at any depth, with no list or mark of their own. The dropdown "Projeto" above the
 explorer tree narrows the window to one project or to "Todos os projetos" (= the root, how it was before). The **data
-stays keyed by `local_root`** (`FolderMemory`, `NavigationStore`, `GridStore`, `CompoundStore`).
+stays keyed by `local_root`** (`FolderMemory`, `NavigationStore`, `GridStore`, `CompoundStore`), in `<local_root>/.lain/`
+(spec 48: one settings folder per root, never per project).
 
 - **`core/projects.py`** (Qt-free): `list_projects(root, hidden_dirs, cancelled)` (first level only, the rules of
   `core/folder_index`: no dotted names, `ui.hidden_dirs`, symlinks, plus `plots`, the grids' exports; sorted without case or
@@ -1418,7 +1452,8 @@ also for the same file.
 - `app.main()` waits on the global pool before exit (`finish`: `POOL_WAIT_MS`, then `os._exit`; see `ui/shutdown.py`).
 - Data files are written whole by `core/appdirs.py:atomic_write_text` (unique temp `.<name>.<pid>.<token>.tmp`
   made with `O_EXCL` and mode `0o666` so the umask applies, `fsync`, `os.replace`, folder `fsync`; any error
-  removes the temp). Two instances would still lose each other's stores (last writer wins, no merge), so
+  removes the temp). Two instances would still lose each other's stores (last writer wins, no merge; a root shared by two
+  users or machines too: `lain.lock` is the user's, not the root's, spec 48), so
   `ui/app.py:claim_instance` takes a `QLockFile` (`appdirs.lock_path()`, `lain.lock` in the data dir,
   `setStaleLockTime(0)`: only a dead owner makes it stale, not its age) and a second instance asks "Abrir mesmo
   assim?" (yes goes on without a lock, no exits 0); an unwritable data dir never asks.
@@ -1426,7 +1461,8 @@ also for the same file.
 ### Sync (PRD §5, pull; push of new files only, spec 27)
 
 `core/sync/rsync.py` builds commands/env and parses output (children run with `LC_ALL=C.UTF-8`,
-`TZ=UTC`, `--no-h` because rsync output is locale-dependent). `planner.py` is pure: dry-run
+`TZ=UTC`, `--no-h` because rsync output is locale-dependent). Both dry runs start with
+`--exclude=.lain/` (`project_data.PROJECT_DATA_EXCLUDE`), whatever `sync.exclude` / `push_exclude` say (spec 48). `planner.py` is pure: dry-run
 records + local stats → per-file NEW / UPDATE / LOCAL_NEWER; files only present locally (like
 `plots/`) never block a pull; `LARGE_FILE_BYTES` (100 MB) gives `PlanItem.is_large` /
 `SyncPlan.large`. `request.py:prepare_sync` (and `prepare_push`, `push_availability`, `sync_scope`: `resolved_root=` is the root the

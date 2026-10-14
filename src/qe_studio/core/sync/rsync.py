@@ -21,6 +21,7 @@ from pathlib import Path, PurePosixPath
 
 from ..appdirs import cache_dir
 from ..config import AppConfig, ClusterConfig
+from ..project_data import PROJECT_DATA_EXCLUDE
 from .askpass import SECRET_ENV
 
 OUT_FORMAT = "%i|%l|%M|%n"
@@ -149,8 +150,9 @@ def dry_run_command(
     version: tuple[int, ...] | None = None,
     extra: list[str] | None = None,
 ) -> list[str]:
-    """List files that differ (new, size or time) without transferring anything."""
-    excludes = [f"--exclude={pattern}" for pattern in config.sync.exclude]
+    """List files that differ (new, size or time) without transferring anything. The root's
+    settings folder is never listed, whatever ``sync.exclude`` says (spec 48 R5)."""
+    excludes = [f"--exclude={pattern}" for pattern in [PROJECT_DATA_EXCLUDE, *config.sync.exclude]]
     return [
         *shlex.split(config.sync.rsync_binary),
         "-n",
@@ -196,7 +198,7 @@ def push_dry_run_command(
 ) -> list[str]:
     """List the local files missing or different on the cluster (spec 27 R1.1). No
     ``--ignore-existing``: files the cluster already has are listed too, so the preview says so."""
-    patterns = [*config.sync.exclude, *config.sync.push_exclude]
+    patterns = [PROJECT_DATA_EXCLUDE, *config.sync.exclude, *config.sync.push_exclude]
     return [
         *shlex.split(config.sync.rsync_binary),
         "-n",

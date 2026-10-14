@@ -1,9 +1,10 @@
 """User decisions per simulation folder: manual file mappings and typed k-point labels (PRD §3.2).
 
-Stored in the app data dir (``folders.json``), never inside simulation folders (they get synced).
-Folders are keyed by their path relative to ``paths.local_root`` and mapped files by their path
-relative to the folder (spec 14 R7), so moving the project, or opening a copy of it on another
-machine, keeps them. Folders outside the root keep their absolute path, prefixed ``abs:``.
+Stored in the root's settings folder (``folders.json``, spec 48: ``core/project_data.py``), never
+inside a simulation folder. Folders are keyed by their path relative to ``paths.local_root`` and mapped
+files by their path relative to the folder (spec 14 R7), so moving the project, or copying it with its
+settings to another machine, keeps them. Folders outside the root keep their absolute path, prefixed
+``abs:``. A memory given a path keeps that file whatever the root (the tests).
 """
 
 from __future__ import annotations
@@ -12,9 +13,11 @@ import json
 import logging
 import os
 import threading
+from collections.abc import Callable
 from pathlib import Path
 
-from .appdirs import atomic_write_text, data_dir, set_aside_corrupt
+from .appdirs import atomic_write_text, set_aside_corrupt
+from .project_data import FOLDERS_FILE, StoreFile
 
 log = logging.getLogger(__name__)
 
@@ -26,14 +29,50 @@ def _resolved(path: Path | None) -> Path | None:
     return Path(path).expanduser().resolve() if path is not None else None
 
 
+def _empty() -> dict:
+    return {"version": FORMAT_VERSION, "folders": {}}
+
+
+def legacy_folders(data: object, root: Path, is_dir: Callable[[Path], bool]) -> dict:
+    """What an old per-user ``folders.json`` holds for ``root`` (resolved), in the current format
+    (spec 48 R3): relative keys whose folder ``is_dir`` under the root (``"."`` is the root) and
+    ``abs:`` keys inside it. A version 1 file (absolute keys) keeps the keys inside the root as
+    ``abs:`` ones, which ``_rehome`` turns relative like any other. Anything else: nothing."""
+    if not isinstance(data, dict):
+        return _empty()
+    if "version" not in data:
+        old = {OUTSIDE + key: entry for key, entry in data.items()}
+    elif data.get("version") == FORMAT_VERSION and isinstance(data.get("folders"), dict):
+        old = data["folders"]
+    else:
+        return _empty()
+    kept = {}
+    for key, entry in old.items():
+        if not isinstance(key, str) or not isinstance(entry, dict):
+            continue
+        if key.startswith(OUTSIDE):
+            keep = Path(key.removeprefix(OUTSIDE)).is_relative_to(root)
+        else:
+            keep = is_dir(root / key)
+        if keep:
+            kept[key] = entry
+    return {"version": FORMAT_VERSION, "folders": kept}
+
+
 class FolderMemory:
     def __init__(self, path: Path | None = None, root: Path | None = None):
-        self.path = path or data_dir() / "folders.json"
-        self._root = _resolved(root)
+        self._file = StoreFile(FOLDERS_FILE, path)
+        self._root: Path | None = None
         self._lock = threading.Lock()
         self._folders: dict[str, dict] | None = None
         self._warning: str | None = None
         self._read_only = False  # the file could neither be read nor set aside: never overwrite it
+        if root is not None:
+            self.set_root(root)
+
+    @property
+    def path(self) -> Path:
+        return self._file.path
 
     # -- keys and stored file names ----------------------------------------------------------------
     def _key(self, folder: Path) -> str:
@@ -80,10 +119,11 @@ class FolderMemory:
     def _load(self) -> dict[str, dict]:
         if self._folders is not None:
             return self._folders
+        imported = False
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            data = {"version": FORMAT_VERSION, "folders": {}}
+            data, imported = self._imported(), True
         except (OSError, ValueError) as exc:
             data = self._set_aside(exc)
         if not isinstance(data, dict):
@@ -99,9 +139,18 @@ class FolderMemory:
             folders = {}
         self._folders = folders
         rehomed = self._rehome()
-        if migrated or rehomed:
+        if (migrated or rehomed) and not imported:  # an import is written by the first change
             self._save()
         return folders
+
+    def _imported(self) -> dict:
+        """The entries of this root in the old per-user file (spec 48 R3); nothing is written."""
+        legacy = self._file.read_legacy()
+        if legacy is None or self._root is None:
+            return _empty()
+        data = legacy_folders(legacy, self._root, os.path.isdir)
+        self._file.log_import(len(data["folders"]))
+        return data
 
     def _migrate(self, data: dict) -> dict[str, dict]:
         folders: dict[str, dict] = {}
@@ -151,17 +200,24 @@ class FolderMemory:
     # -- public --------------------------------------------------------------------------------------
     def set_root(self, root: Path | None) -> None:
         """The project root (``paths.local_root``) keys are relative to; set again on a config
-        reload. Relative keys stay as they are, so a copy of the project keeps its entries."""
+        reload. Relative keys stay as they are, so a copy of the project keeps its entries. Without
+        a fixed path the file is the root's (spec 48): another root reads its own file next."""
         with self._lock:
+            moved = self._file.follow(root)
             self._root = _resolved(root)
-            if self._folders is not None and self._rehome():
+            if moved:
+                self._folders, self._warning, self._read_only = None, None, False
+                if self._file.notice:
+                    log.warning(self._file.notice)
+            elif self._folders is not None and self._rehome():
                 self._save()
 
     def load_warning(self) -> str | None:
-        """Read the file now; the message to show if it was corrupt (and set aside)."""
+        """Read the file now; the message to show if it was corrupt (and set aside), else why the
+        settings are not in the root's own folder (spec 48 R4)."""
         with self._lock:
             self._load()
-            return self._warning
+            return self._warning or self._file.notice
 
     def mappings(self, folder: Path) -> dict[str, dict[str, list[Path]]]:
         """The mapping of every kind for ``folder`` (one lookup: detection asks for all kinds)."""

@@ -278,6 +278,7 @@ class PlotWorkflow(QObject):
         """Load the plot of ``target``. A request for a plot already loading replaces the running
         one (a "Remapear" meanwhile must win): both of its stages are cancelled, so only the newest
         reaches the tab, and an export asked by the first request is kept."""
+        self.stores.set_root(self._config().paths.local_root)  # the atoms read by build_session
         key = target_key(target)
         previous = self._loading.get(key)
         if previous is not None:
@@ -398,6 +399,7 @@ class PlotWorkflow(QObject):
 
     def _on_param_changed(self, name: str) -> None:
         self._render_timer.start()
+        self.stores.set_root(self._config().paths.local_root)
         session = self.params.session
         # What a user store keeps (the atoms of a compound) is saved there, not in the .plot.
         if session is not None and not session.persist(name, self.stores):

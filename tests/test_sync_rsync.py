@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from qe_studio.core.config import parse_config
+from qe_studio.core.project_data import PROJECT_DATA_EXCLUDE
 from qe_studio.core.sync import askpass
 from qe_studio.core.sync.rsync import (
     Endpoint,
@@ -241,12 +242,32 @@ def test_push_dry_run_goes_from_the_local_folder_and_lists_existing_files_too():
     assert not any(a.startswith("--rsync-path") for a in argv)  # nothing made before "Enviar"
     excludes = [a for a in argv if a.startswith("--exclude=")]
     assert excludes == [
+        "--exclude=.lain/",  # the root's settings folder, always first (spec 48 R5)
         "--exclude=tmp/",
         "--exclude=*.wfc*",
         "--exclude=plots/",
         "--exclude=*.plot",
     ]
     assert no_forbidden(argv)
+
+
+def test_the_settings_folder_is_excluded_even_with_empty_lists():
+    """``sync.exclude`` and ``push_exclude`` are replaced whole when edited: the settings folder of
+    the root is excluded by the code, not by the lists (spec 48 R5.2)."""
+    cfg = parse_config(
+        {
+            "paths": {"local_root": "/data/sims", "remote_root": "/scratch/me/sims"},
+            "cluster": {"host": "10.0.0.1", "user": "me"},
+            "sync": {"exclude": [], "push_exclude": []},
+        }
+    )
+    remote = Endpoint("/scratch/me/sims", "10.0.0.1", "me")
+    for command in (dry_run_command, push_dry_run_command):
+        argv = command(cfg, remote, Path("/data/sims"), (3, 2, 7))
+        assert [a for a in argv if a.startswith("--exclude")] == [
+            f"--exclude={PROJECT_DATA_EXCLUDE}"
+        ]
+    assert PROJECT_DATA_EXCLUDE == ".lain/"
 
 
 def test_push_transfer_only_adds_files():

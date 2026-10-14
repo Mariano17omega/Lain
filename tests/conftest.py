@@ -119,7 +119,9 @@ def demo_project(tmp_path) -> Path:
 def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
     """``make(**stores)`` builds a ``MainWindow`` on ``demo_project`` with isolated QSettings and
     stores. Called again with the same ``tmp_path`` files it is a restart of the app: whatever the
-    first window saved is read back. Every window made is closed at teardown."""
+    first window saved is read back. Every window made is closed at teardown. The stores get fixed
+    ``tmp_path`` files, so no test makes a ``.lain`` folder in its root by accident (spec 48), except
+    the window's ``GridStore``, which the window builds itself and follows the root."""
     from PyQt6.QtCore import QSettings
     from PyQt6.QtWidgets import QMenu
 
@@ -138,11 +140,14 @@ def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
 
     windows = []
 
-    def make(loaded=None, ui=None, **kwargs):
+    def make(loaded=None, ui=None, follow_root=False, **kwargs):
         """``loaded``: a ``LoadedConfig`` of its own (first run, missing root…) instead of one
-        whose ``local_root`` is ``demo_project``; ``ui``: keys of its ``ui:`` section."""
-        kwargs.setdefault("navigation", NavigationStore(tmp_path / "navigation.json"))
-        kwargs.setdefault("compounds", CompoundStore(tmp_path / "compounds.json"))
+        whose ``local_root`` is ``demo_project``; ``ui``: keys of its ``ui:`` section;
+        ``follow_root``: the window builds its own stores, kept in the root's settings folder
+        (spec 48), as the app does."""
+        if not follow_root:
+            kwargs.setdefault("navigation", NavigationStore(tmp_path / "navigation.json"))
+            kwargs.setdefault("compounds", CompoundStore(tmp_path / "compounds.json"))
         config = parse_config({"paths": {"local_root": str(demo_project)}, "ui": ui or {}})
         theme = ThemeManager("dark")
         theme.apply()
@@ -151,7 +156,7 @@ def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
             loaded or LoadedConfig(config, None),
             theme,
             settings,
-            FolderMemory(tmp_path / "memory.json"),
+            None if follow_root else FolderMemory(tmp_path / "memory.json"),
             **kwargs,
         )
         qtbot.addWidget(window)

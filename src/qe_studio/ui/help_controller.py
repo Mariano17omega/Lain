@@ -17,6 +17,7 @@ from .. import APP_NAME, __version__
 from ..core.about import package_versions
 from ..core.appdirs import data_dir, log_path
 from ..core.config import LoadedConfig
+from ..core.project_data import describe
 from .actions import ACTIONS
 from .dialogs.about import AboutDialog
 from .dialogs.shortcuts import ShortcutsDialog
@@ -117,7 +118,8 @@ class HelpController(QObject):
 
     # -- about --------------------------------------------------------------------------------
     def about_rows(self) -> list[tuple[str, str]]:
-        config_path = self._loaded().path
+        loaded = self._loaded()
+        config_path = loaded.path
         stack = package_versions()
         rows = [(APP_NAME, __version__), stack[0]]
         rows += [("Qt", QT_VERSION_STR), ("PyQt", PYQT_VERSION_STR), *stack[1:]]
@@ -125,6 +127,7 @@ class HelpController(QObject):
             ("Config", str(config_path) if config_path else "nenhum"),
             ("Log", str(log_path())),
             ("Dados", str(data_dir())),
+            ("Configurações do projeto", describe(loaded.config.paths.local_root)),  # spec 48
         ]
         return rows
 

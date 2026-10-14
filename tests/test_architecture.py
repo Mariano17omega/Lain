@@ -87,6 +87,7 @@ QT_FREE = [
     "qe_studio.core.colors",
     "qe_studio.core.fontscale",
     "qe_studio.core.compounds",
+    "qe_studio.core.project_data",
     "qe_studio.core.qe.structure",
     "qe_studio.core.plotting.grid",
     "qe_studio.core.plotting.cell_layout",
@@ -304,6 +305,35 @@ def test_pymatgen_is_not_mentioned():
     text_files.append(PACKAGE.parents[1] / "pyproject.toml")
     named = [str(path) for path in text_files if "pymatgen" in path.read_text("utf-8").lower()]
     assert named == []
+
+
+def strings_in_code(path: Path) -> list[str]:
+    """The string constants of ``path``, docstrings left out (they may say where things live)."""
+    tree = ast.parse(path.read_text("utf-8"))
+    docstrings = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+    }
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and id(node) not in docstrings
+    ]
+
+
+def test_the_settings_folder_is_named_in_one_module():
+    """Spec 48 R1.1: ``core/project_data.py`` is the one source of the root's settings folder name;
+    every other module imports ``PROJECT_DATA_DIR`` / ``PROJECT_DATA_EXCLUDE``."""
+    naming = [
+        name_of(path) for path in sources() if any(".lain" in s for s in strings_in_code(path))
+    ]
+    assert naming == ["core/project_data.py"]
 
 
 def test_the_import_checker_resolves_relative_imports():

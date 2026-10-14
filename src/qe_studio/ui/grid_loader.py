@@ -81,6 +81,7 @@ class GridLoader(QObject):
         """Gather the cells of ``spec``; ``ready`` carries the grid's session when all are in.
         Asking again for the same grid drops what the previous request still loads."""
         self.cancel(spec.name)
+        self.stores.set_root(self._root())  # the atoms and grid settings its cells read
         state = _GridLoad(spec)
         self._loads[spec.name] = state
         generation = next(self._generation)

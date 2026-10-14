@@ -4,7 +4,8 @@ A project is a first-level folder of ``paths.local_root`` (``core/projects``). W
 window behaves as if its root were that folder: the tree, the grid's ``..``, the breadcrumb, the
 favorite / recent sections, the palette's folder rows, the scope of "Sincronizar projeto" and the
 default place of "Criar cálculo". The data (``FolderMemory``, ``NavigationStore``, ``GridStore``…)
-stays keyed by ``local_root``. "Todos os projetos" is the root, as before the dropdown.
+stays keyed by ``local_root``, in its settings folder (spec 48). "Todos os projetos" is the root, as
+before the dropdown.
 
 The widgets get small calls (``set_scope`` and the like) and know nothing of "projeto". The one
 entrance to everything is ``ExplorerPanel.select_path``: a path outside the tree's root (history,

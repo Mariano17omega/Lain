@@ -46,8 +46,10 @@ def setup_logging(verbose: bool = False) -> None:
 def acquire_instance_lock(path: Path) -> QLockFile | None:
     """Lock ``path`` for this running app (spec 27-3 R4.3). ``None``: another instance holds it.
 
-    The stores in the data dir are written whole by whoever saves last, so two instances would lose
-    each other's changes; this lets the second one say so (it only warns: see ``main``). A lock left
+    The stores (in the root's settings folder since spec 48) are written whole by whoever saves last,
+    so two instances would lose each other's changes; this lets the second one say so (it only warns:
+    see ``main``). The lock is the user's, not the root's: another user or machine sharing the root
+    is not seen (spec 48, accepted). A lock left
     by a process that is gone is taken over by ``QLockFile`` itself. Its age must not count
     (``setStaleLockTime(0)``): by default a lock held for 30 s is "stale" even though its owner is
     alive, and a second instance started later would steal it.

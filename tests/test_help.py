@@ -1,5 +1,7 @@
 """Spec 18 R1: the Ajuda menu, the shortcuts dialog, "Sobre o Lain", the log and the data folder."""
 
+import os
+
 import pytest
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
@@ -7,6 +9,7 @@ from PyQt6.QtWidgets import QApplication, QMenu
 
 from qe_studio import APP_NAME, __version__
 from qe_studio.core.appdirs import data_dir, log_path
+from qe_studio.core.project_data import PROJECT_DATA_DIR, fallback_folder
 from qe_studio.ui.dialogs import about as about_module
 from qe_studio.ui.dialogs.shortcuts import pretty_keys
 from qe_studio.ui.widgets.explorer import ExplorerPanel
@@ -134,6 +137,24 @@ def test_about_rows_have_versions_and_paths(main_window):
         assert rows[name] and rows[name] != "não instalado", name
     assert rows["Config"] == "nenhum"
     assert rows["Log"] == str(log_path())
+    assert rows["Dados"] == str(data_dir())
+
+
+def test_about_says_where_the_project_settings_are(main_window, demo_project):
+    """Spec 48 R6: the root's settings folder, or the data dir's one when the root is read-only."""
+    rows = dict(main_window.help.about_rows())
+    assert rows["Configurações do projeto"] == str(demo_project / PROJECT_DATA_DIR)
+    assert not (demo_project / PROJECT_DATA_DIR).exists()  # telling where it would be makes nothing
+
+
+@pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root ignores modes")
+def test_about_points_at_the_fallback_of_a_read_only_root(main_window, demo_project):
+    demo_project.chmod(0o555)
+    try:
+        rows = dict(main_window.help.about_rows())
+    finally:
+        demo_project.chmod(0o755)
+    assert rows["Configurações do projeto"] == str(fallback_folder(demo_project))
     assert rows["Dados"] == str(data_dir())
 
 

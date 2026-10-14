@@ -1,10 +1,10 @@
 """The saved grids of plots (spec 23), by name, with the settings of each grid figure.
 
-Stored in the app data dir (``grids.json``), never inside a simulation folder (they get synced), like
-``FolderMemory`` and ``CompoundStore``. Plot paths are kept relative to ``paths.local_root`` (outside
-it: absolute, prefixed ``abs:``) and resolved against the root in force when a grid is read, so a
-moved project keeps its grids and another project shows them with its own folders; a grid whose
-folders do not exist there is only unavailable, never removed.
+Stored in the root's settings folder (``grids.json``, spec 48: ``core/project_data.py``), never inside a
+simulation folder, like ``FolderMemory`` and ``CompoundStore``: each root has its own grids. Plot paths
+are kept relative to ``paths.local_root`` (outside it: absolute, prefixed ``abs:``) and resolved against
+the root in force when a grid is read, so a moved or copied root keeps its grids; a grid whose folders
+do not exist there is only unavailable, never removed. A store given a path keeps that file (the tests).
 """
 
 from __future__ import annotations
@@ -13,11 +13,13 @@ import json
 import logging
 import os
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from .appdirs import atomic_write_text, data_dir, set_aside_corrupt
+from .appdirs import atomic_write_text, set_aside_corrupt
 from .plotting.grid import GridCell, GridSpec, PlotRef
+from .project_data import GRIDS_FILE, StoreFile
 
 log = logging.getLogger(__name__)
 
@@ -27,13 +29,42 @@ FORMAT_VERSION = 1
 OUTSIDE = "abs:"  # a path outside the root
 
 
+def legacy_grids(data: object, root: Path, exists: Callable[[Path], bool]) -> dict:
+    """The grids of an old per-user ``grids.json`` that are ``root``'s (spec 48 R3): one without
+    cells, or with a cell whose path lies under the root and ``exists``. A grid of ``abs:`` cells
+    outside the root belongs to no root: it stays in the old file. Nothing for another format."""
+    if not isinstance(data, dict) or data.get("version") != FORMAT_VERSION:
+        return {}
+    grids = data.get("grids")
+    if not isinstance(grids, dict):
+        return {}
+
+    def ours(value: object) -> bool:
+        if not isinstance(value, str):
+            return False
+        if value.startswith(OUTSIDE):
+            path = Path(value.removeprefix(OUTSIDE))
+        else:
+            path = Path(os.path.normpath(root / value))
+        return path.is_relative_to(root) and exists(path)
+
+    kept = {}
+    for name, entry in grids.items():
+        cells = entry.get("cells") if isinstance(entry, dict) else None
+        if not isinstance(cells, list):
+            continue
+        if not cells or any(isinstance(c, dict) and ours(c.get("path")) for c in cells):
+            kept[name] = entry
+    return {"version": FORMAT_VERSION, "grids": kept}
+
+
 class GridStore:
     """The file is read once, on first use, and written on every change (atomically). An unreadable
     file is renamed ``grids.json.corrompido-<date>`` and never overwritten; if it cannot be renamed
     the store keeps working in memory and writes nothing."""
 
     def __init__(self, path: Path | None = None, root: Path | None = None):
-        self.path = path or data_dir() / "grids.json"
+        self._file = StoreFile(GRIDS_FILE, path)
         self._lock = threading.RLock()
         self._grids: dict[str, dict] | None = None
         self._root: Path | None = None  # as given: the paths the app shows are under it
@@ -43,10 +74,17 @@ class GridStore:
         if root is not None:
             self.set_root(root)
 
+    @property
+    def path(self) -> Path:
+        return self._file.path
+
     # -- paths -----------------------------------------------------------------------------------
     def set_root(self, root: Path | None) -> None:
-        """The project root stored paths are relative to (set again when the project changes)."""
+        """The project root stored paths are relative to (set again when the project changes).
+        Without a fixed path the file is the root's (spec 48): another root reads its own."""
         with self._lock:
+            if self._file.follow(root):
+                self._grids, self._warning, self._read_only = None, None, False
             self._root = Path(os.path.abspath(Path(root).expanduser())) if root else None
             self._real_root = self._root.resolve() if self._root is not None else None
 
@@ -186,7 +224,7 @@ class GridStore:
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            data = {}
+            data = self._imported()
         except (OSError, ValueError) as exc:
             data = self._set_aside(exc)
         if not isinstance(data, dict):
@@ -197,6 +235,15 @@ class GridStore:
             grids = None
         self._grids = grids if isinstance(grids, dict) else {}
         return self._grids
+
+    def _imported(self) -> dict:
+        """This root's grids in the old per-user file (spec 48 R3); written by the first change."""
+        legacy = self._file.read_legacy()
+        if legacy is None or self._root is None:
+            return {}
+        data = legacy_grids(legacy, self._root, os.path.exists)
+        self._file.log_import(len(data.get("grids", {})))
+        return data
 
     def _set_aside(self, problem: object) -> dict:
         try:

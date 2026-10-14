@@ -3,8 +3,9 @@
 A compound is identified by the **sequence of species in the order of the input** (``Al Al O O O``):
 atom numbers (the ``N`` of ``pdos_atm#N``) follow that order, so the same sequence means the same
 atoms. Positions never enter the key (a relax moves atoms, not the compound); the formula is only a
-label. The selection is kept in the app data dir (``compounds.json``), never inside a simulation
-folder (they get synced), like ``NavigationStore`` and ``FolderMemory``.
+label. The selection is kept in the root's settings folder (``compounds.json``, spec 48:
+``core/project_data.py``), never inside a simulation folder, like ``NavigationStore`` and
+``FolderMemory``; a store given a path keeps that file (the tests).
 
 Since the key ignores positions, a selection saved with one geometry is reused by another (a dopant
 in another site, a different relax) of the same sequence. The positions seen when it was saved go
@@ -24,7 +25,8 @@ from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 
-from .appdirs import atomic_write_text, data_dir, set_aside_corrupt
+from .appdirs import atomic_write_text, set_aside_corrupt
+from .project_data import COMPOUNDS_FILE, StoreFile
 from .qe.structure import Site, format_formula
 
 log = logging.getLogger(__name__)
@@ -118,6 +120,14 @@ def atoms_summary(selected: Sequence[int] | None, total: int) -> str:
     return "todos" if selected is None else f"{len(selected)} de {total}"
 
 
+def legacy_compounds(data: object) -> dict:
+    """An old per-user ``compounds.json``, whole (spec 48 R3): a compound is a species sequence,
+    nothing ties it to a root. Nothing for another format."""
+    if not isinstance(data, dict) or data.get("version") != FORMAT_VERSION:
+        return {}
+    return data if isinstance(data.get("compounds"), dict) else {}
+
+
 class CompoundStore:
     """``selection(key)`` is None when nothing was saved for the compound (= every atom).
 
@@ -127,11 +137,22 @@ class CompoundStore:
     """
 
     def __init__(self, path: Path | None = None):
-        self.path = path or data_dir() / "compounds.json"
+        self._file = StoreFile(COMPOUNDS_FILE, path)
         self._lock = threading.RLock()
         self._compounds: dict[str, dict] | None = None
         self._warning: str | None = None
         self._read_only = False
+
+    @property
+    def path(self) -> Path:
+        return self._file.path
+
+    def set_root(self, root: Path | None) -> None:
+        """Keep the selections in the settings folder of ``root`` (spec 48); nothing with a fixed
+        path. Another root reads its own file next."""
+        with self._lock:
+            if self._file.follow(root):
+                self._compounds, self._warning, self._read_only = None, None, False
 
     # -- queries ---------------------------------------------------------------------------------
     def selection(self, key: str) -> list[int] | None:
@@ -200,7 +221,9 @@ class CompoundStore:
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            data = {}
+            data = legacy_compounds(self._file.read_legacy())
+            if data:
+                self._file.log_import(len(data["compounds"]))
         except (OSError, ValueError) as exc:
             data = self._set_aside(exc)
         if not isinstance(data, dict):

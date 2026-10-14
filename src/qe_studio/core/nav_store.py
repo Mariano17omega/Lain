@@ -1,9 +1,10 @@
 """Favorite and recent folders of each project (spec 16 R4).
 
-Stored in the app data dir (``navigation.json``), never inside simulation folders (they get
-synced). A project is keyed by its resolved ``paths.local_root`` and its folders by their path
-relative to that root, like ``FolderMemory`` (spec 14 R7), so a moved or copied project keeps its
-favorites. Folders outside the root are not kept (Lain never shows one).
+Stored in the root's settings folder (``navigation.json``, spec 48: ``core/project_data.py``), where
+the root's entry is keyed ``"."``, so the file is right wherever the root is copied to. A store given a
+path (the tests) keeps one file for every root, keyed by the resolved ``paths.local_root``. Folders are
+kept by their path relative to the root, like ``FolderMemory`` (spec 14 R7); folders outside it are
+not kept (Lain never shows one).
 
 The store never touches the disk about folders (existence checks are passed in); it reads the
 JSON once and writes it on a change: favorites at once, recents when ``flush`` is called (every
@@ -18,21 +19,35 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
-from .appdirs import atomic_write_text, data_dir, set_aside_corrupt
+from .appdirs import atomic_write_text, set_aside_corrupt
+from .project_data import NAVIGATION_FILE, StoreFile
 
 log = logging.getLogger(__name__)
 
 FORMAT_VERSION = 1  # {"version": 1, "projects": {root: {"favorites": [rel], "recents": [rel]}}}
 RECENT_LIMIT = 10
+ROOT_KEY = "."  # the root's entry in its own file (spec 48)
 
 
 def _strings(value: object) -> list[str]:
     return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
 
 
+def legacy_navigation(data: object, key: str) -> dict:
+    """The entry of the root ``key`` (its resolved path) in an old per-user ``navigation.json``, as
+    the root's own file holds it: under ``"."`` (spec 48 R3). Nothing for another format."""
+    if not isinstance(data, dict) or data.get("version") != FORMAT_VERSION:
+        return {}
+    projects = data.get("projects")
+    entry = projects.get(key) if isinstance(projects, dict) else None
+    if not isinstance(entry, dict):
+        return {}
+    return {"version": FORMAT_VERSION, "projects": {ROOT_KEY: entry}}
+
+
 class NavigationStore:
     def __init__(self, path: Path | None = None, root: Path | None = None):
-        self.path = path or data_dir() / "navigation.json"
+        self._file = StoreFile(NAVIGATION_FILE, path)
         self._root: Path | None = None  # as given: what the visited folders are under
         self._key = ""  # its resolved path: the project's key in the file
         self._projects: dict[str, dict] | None = None
@@ -42,12 +57,19 @@ class NavigationStore:
         if root is not None:
             self.set_root(root)
 
+    @property
+    def path(self) -> Path:
+        return self._file.path
+
     # -- project ---------------------------------------------------------------------------------
     def set_root(self, root: Path) -> None:
-        """The project whose favorites and recents are asked for (set again on a config reload)."""
+        """The project whose favorites and recents are asked for (set again on a config reload).
+        What is pending goes to the old file first; another file is read afresh (spec 48 R2.3)."""
         self.flush()
+        if self._file.follow(root):
+            self._projects, self._warning, self._read_only = None, None, False
         self._root = Path(os.path.abspath(Path(root).expanduser()))
-        self._key = str(self._root.resolve())
+        self._key = str(self._root.resolve()) if self._file.fixed else ROOT_KEY
 
     def load_warning(self) -> str | None:
         """Read the file now; the message to show if it was corrupt (and set aside)."""
@@ -74,7 +96,7 @@ class NavigationStore:
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            data = {}
+            data = self._imported()
         except (OSError, ValueError) as exc:
             data = self._set_aside(exc)
         if not isinstance(data, dict):
@@ -85,6 +107,16 @@ class NavigationStore:
             projects = None
         self._projects = projects if isinstance(projects, dict) else {}
         return self._projects
+
+    def _imported(self) -> dict:
+        """This root's favorites and recents in the old per-user file (spec 48 R3); not written
+        until something changes."""
+        legacy = self._file.read_legacy()
+        if legacy is None or self._root is None:
+            return {}
+        data = legacy_navigation(legacy, str(self._root.resolve()))
+        self._file.log_import(len(data.get("projects", {})))
+        return data
 
     def _set_aside(self, problem: object) -> dict:
         try:
