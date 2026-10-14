@@ -169,6 +169,12 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   its input: never open a fixture and press "Print"), wait for `window.image_saved` / `print_failed`, and the panel tests
   patch `qe_studio.ui.widgets.structure3d.panel.ask_restore`. `test_structure3d_render.py` compares `render_image` crops
   (the triad's corner, the rest of the view) for the axes, widths and label size.
+  Spec 47: `test_structure3d_view_file.py` (no Qt: `view_state` round trip and validation, `write_session` /
+  `remove_session` in `tmp_path`) and `test_structure3d_session.py` (a `main_window` on a copy of `si_bands` in
+  `demo_project`; `open_view` waits on `structure3d.opened`, `write_view(folder, sections)` writes a `view3d.plot`). A 3D
+  window opened through the controller writes `view3d.plot` next to its input when closed after a change: open only
+  copies there; the `Windows` helper has no controller and writes nothing. Si2 seen along (1, 1, 1) shows one atom over
+  the other: a test that clicks two atoms opens a copy of `SLAB_2X1`.
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
@@ -1252,7 +1258,7 @@ to `INPUT_READ_LIMIT`, never raises) and uses `input_extract.k_points_text`, the
 Only `summarize(path)` has it (`summarize_lines` keeps its signature and has no "Malha k"); the row has no `line`. Outputs of hundreds of MB take seconds (about 30 MB/s), in a worker, behind
 "Lendo <arquivo>…".
 
-### Visualização 3D (specs 43, 44, 46)
+### Visualização 3D (specs 43, 44, 46, 47)
 
 "Visualização 3D" (context menu of a pw.x input: `ItemActions.file_actions_of` → `FileActions(plot_kind, is_output,
 structure)`, `structure` = the cached sniff is `FileKind.PW_IN`, any `calculation`; after "Resumo", before "Gerar SCF
@@ -1276,7 +1282,7 @@ also for the same file.
   `label_size` 11 (px at font scale 1, 8–32); `background_of_theme(name)`), `image_file` (spec 46 R5: `print_stem(path,
   root)` = the spec 32 prefix + `<file stem>-3d`, `save_png(folder, stem, data)` makes `plots/` without `parents` and
   writes `<stem>.png` / `_2`, `_3`… with `unique_names.write_new_bytes(first=2)`; `PLOTS_DIR` lives in
-  `core/plotting/names.py` so this module drags no matplotlib).
+  `core/plotting/names.py` so this module drags no matplotlib), `view_state` and `view_file` (spec 47, below).
 - **View** `ui/widgets/structure3d/`: `renderer.PaintRenderer` (painter's algorithm: spheres by center, halves by the 3D
   middle of the half; in "vareta" every atom gets the 1.3 ρ ball that covers the joints), `bonds_paint` (`half_quads`: a
   half is a quadrilateral widened `±ρ·zoom·scale` at each end, the nearer end wider; `BondShader`: one `QLinearGradient`
@@ -1288,8 +1294,12 @@ also for the same file.
   "Resetar vista", A/B/C/X/Y/Z, the "Rotação" buttons (`rotate_structure`: no framing, selection and measures
   untouched) and a new repetition (framed again keeping the rotation). A double click is two clicks
   (`mouseDoubleClickEvent` → `mousePressEvent`); a new bond factor rebuilds the scene without framing; the first frame
-  waits for a real size (`_framed`). One current atom (`current_changed`), a click selects (Ctrl too), empty space clears.
-  `StructureCanvas.shortcut_help` is a provider of `HelpController.for_window`.
+  waits for a real size (`_framed`; the automatic framing is `_frame`, the user's R / button `reset_view`). One current atom
+  (`current_changed`), a click selects (Ctrl too), empty space clears. `StructureCanvas.shortcut_help` is a provider of
+  `HelpController.for_window`. Spec 47: `restore_camera(CameraState)` (before the first frame: center = the block's,
+  `_framed = True`), `framed`, and `dirty` (False after building and `restore_camera`; True on every `refresh_options`, the
+  P key, `_interacting`, `view_along`, `rotate_structure` and `reset_view`; clicks, hover, measures, sections and resizes
+  leave it; `restore_defaults` ends with it False and `restored` True).
 - **Panel** `panel.StructurePanel` + `panel_atom.AtomSection` / `NeighborTable`: `PanelHeader` "ESTRUTURA" and the
   `param_widgets.Section`s "Átomo", "Medidas", "Exibição", "Rotação", "Espécies", "Célula" (open/closed in QSettings
   `structure3d/sections/<título>`, shared; Átomo, Medidas, Exibição and Rotação open by default; `Section.add_row` returns
@@ -1317,11 +1327,14 @@ also for the same file.
   pending atoms of a measure under way stay). The view
   emits `atom_clicked(ref | None)` on every click and `escape_pressed`; `StructureCanvas.set_marks(refs)` numbers atoms
   (`overlay.badge`): the pending ones, the measure just made (until the next click) or the selected row's.
-- **Window** `window.StructureWindow(structure, theme, settings, *, root=None)`: no parent, `WA_DeleteOnClose`,
+- **Window** `window.StructureWindow(structure, theme, settings, *, options=None, camera=None, root=None)`: no parent,
+  `WA_DeleteOnClose`,
   `closed(self)` from `closeEvent`, title `<arquivo> — <pasta> · Visualização 3D`, 1280 × 820, bar `#plotToolbar`
   ("Resetar vista", "Vista ▾" with `view_actions` = x, y, z only (spec 46 R1: the keys A, B, C still look along a, b, c;
   the tooltip says so), "Print"), status bar `#structureStatus` (info, hovered atom, "⚠" with the reader's warnings). Its
-  own options, camera and selection; the background follows `theme.name` when it opens, nothing is saved. **"Print"
+  own options, camera and selection: `options` / `camera` as given (spec 47), else the defaults and the background of
+  `theme.name` when it opens; `view_session()` gives the section to save (`session_of`, no camera before the first frame).
+  The window never writes `view3d.plot`. **"Print"
   (spec 46 R5)**: `print_button` draws `canvas.render_image(size, dpr=PRINT_SCALE)` (2×, the view as it is: current
   ring and badges in, focus and hover rings out) on the GUI thread, then `run_task(print_image.save_view, image,
   folder, stem)` encodes the PNG and writes `<folder>/plots/<stem>.png` in a worker; no dialog, never over a file
@@ -1333,8 +1346,27 @@ also for the same file.
 - **Controller** `ui/structure3d_controller.py:Structure3DController.for_window` (`window.structure3d`): `TaskGroup` by
   `structure3d:<path>:<n>`, busy "Lendo estrutura…", `opened(window)` / `failed(message)` (a `warning` toast "Visualização
   3D de X: motivo"), `windows` (dropped by `closed`), `close_dialog()` closes them all (last in `close_dialogs`),
-  `cancel()` in the "cancelar" step; `root` (spec 46) is handed to every window. The same `for_window` binds `ItemActions.xcrysden_path`: the **second 3D viewer** is
-  the external XCrySDen ("Abrir com XCrysDen", spec 45, see "Context menu"), which Lain only starts.
+  `cancel()` in the "cancelar" step; `root` (spec 46) is handed to every window. The same `for_window` binds
+  `ItemActions.xcrysden_path`: the **second 3D viewer** is the external XCrySDen ("Abrir com XCrysDen", spec 45, see
+  "Context menu"), which Lain only starts.
+- **The view remembered (spec 47)**: `<input folder>/view3d.plot`, a `<kind>.plot` (`lain_plot: 1`, `kind: view3d`) whose
+  `params` map the **file name** (`scf.in`) to its section `{options, camera}` (a moved folder takes them along; a renamed
+  file starts over; sections are never pruned; `*.plot` never goes up in a push). `core/structure3d/view_state.py`:
+  `CameraState(rotation, zoom px/Å, pan px, focal)` (`of(camera)`, `apply(camera)`; the center is always the block's),
+  `session_of(structure, options, camera | None)` (plain values; species colors `{label: "#rrggbb"}` and hidden `[labels]`,
+  by **label**, so another order of `ATOMIC_SPECIES` keeps them), `apply_options(options, stored, structure) -> ignored`
+  (never raises; each field checked against `options.py`'s choices and ranges, a bool is no number, a dict/list with one
+  bad entry is dropped whole, unknown keys skipped) and `camera_from_stored` (3 × 3 orthonormal within 1e-6 with
+  det > 0, finite zoom / focal > 0, two finite pan numbers; anything wrong → None: framed afresh). `view_file.py`:
+  `read_session`, `load_view(path) -> LoadedView(structure, session, warnings)` (the worker of `open`), `write_session`
+  and `remove_session` (never raise, return the user's warning; a folder that is gone is never created again, unlike
+  `atomic_write_text`; the other sections stay as read, order and unknown keys; an unreadable / other-version file is
+  replaced; removing the last section deletes the file; nothing to remove touches nothing). The controller applies the
+  session in `_on_done` (a saved background beats the theme; file warnings → `warning` toast; dropped fields → log) and
+  saves in `_on_closed` (also through `close_dialog` when the main window closes), synchronously on the GUI thread:
+  `dirty` → `write_session`, else `restored` → `remove_session`, else nothing (an untouched window leaves the file byte
+  for byte); a warning → toast. Two windows of one file: the last to close wins. Measures, the current atom, window
+  size and the panel's scroll are not saved.
 - Frame times (`-m perf -s tests/test_perf_structure3d.py`, stacked graphene, 1000 × 800, ball and stick): 500 atoms ≈ 16 ms,
   2 000 ≈ 50 ms (draft ≈ 28), 5 000 ≈ 105 ms (draft ≈ 65); budget 2 000 ≤ 80 ms full, ≤ 50 ms draft. The frame of "Print"
   (960 × 780 at 2×, 2 000 atoms) ≈ 110 ms, budget 200 ms; the PNG encoding (150–210 ms) runs in a worker.

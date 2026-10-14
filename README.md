@@ -150,6 +150,11 @@ a pull.
    `<folders from the root>-<file>-3d.png` (a name that exists is never overwritten: `_2`, `_3`…).
    **Restaurar padrões**, at the foot of the panel, asks and then puts the options and the camera back
    to a new window's (the measures and the current atom stay).
+   The view is remembered: closing a window whose options or camera you changed saves them in
+   `view3d.plot`, in the calculation's folder, one section per file (two inputs of the same folder keep
+   their own views), and the next window on that file opens as you left it. Opening and closing without
+   a change writes nothing; **Restaurar padrões** followed by closing removes that file's section, and
+   deleting `view3d.plot` brings every file of the folder back to the defaults. The measures are not saved.
    A pw.x input or output also has **Abrir com XCrysDen**, which starts the external
    [XCrySDen](http://www.xcrysden.org/) on the file (`xcrysden --pwi scf.in`, `--pwo` for an output).
    Put its install folder (or the `xcrysden` script) in `config.yaml`, under `paths:`, as

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 47 (depois da 46, cujos campos novos ela grava). Independente das specs 33–42 e 45. |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (14/10/2026). Desvios:<br>- `load_view` / `LoadedView` ficam em `core/structure3d/view_file.py` (Qt-free, a função do worker), com `view_file_path(pasta)`; `CameraState` ganhou `of(camera)` e `apply(camera)`, para o canvas não lidar com numpy.<br>- O enquadramento automático do primeiro quadro é o novo `StructureCanvas._frame(viewport)`; `reset_view()` (tecla R e botão) é o do usuário, sem o argumento `viewport`, e marca `dirty`. O canvas ganhou a propriedade `framed`, que `view_session()` lê.<br>- `apply_options` com algo que não é um dicionário devolve `["options"]`; um `dict`/lista com uma entrada inválida (`species_colors`, `species_hidden`, `reps`) cai inteiro.<br>- Um aviso de gravação vai ao toast e ao log.<br>- O teste "só clicar em átomos e medir" abre uma cópia do slab 2×1×1: os dois Si de `si.scf.in` se sobrepõem na vista isométrica. |
 | **Depende de** | spec 46 (`show_abc`, `show_xyz`, `abc_width`, `xyz_width`, `label_size`, `rotate_structure`, `restore_defaults` e `restored`), spec 43 (`StructureWindow`, `DisplayOptions`, `Camera`, `Structure3DController`), spec 3 (o formato `<kind>.plot`: `core/plotting/plot_file.py`), spec 27-3 (`atomic_write_text`), spec 15 (`run_task`) |
 | **Usada por** | nenhuma |
 | **Esforço** | M (R1: M; R2 e R3: M; R4: P) |

@@ -1,7 +1,10 @@
 """One "Visualização 3D" window (spec 43 R4.3): a top-level window without a parent (its own taskbar
 entry, it may stay behind the main one), one per click, each with its own options, camera and current
-atom. Nothing is saved: it opens with the defaults and the background of the app theme at that moment.
-The one file a window writes is the picture of its "Print" (spec 46 R5), under ``plots/``.
+atom. It opens with the ``options`` and ``camera`` it is given (spec 47: the controller reads them from
+``view3d.plot``), else with the defaults and the background of the app theme at that moment, and
+``view_session()`` gives its view back. The window itself never writes ``view3d.plot`` (the controller
+does, when it closes: a window opened without it, as the tests' helper does on fixtures, saves nothing);
+the one file it writes is the picture of its "Print" (spec 46 R5), under ``plots/``.
 
 The window emits ``closed(self)`` from its ``closeEvent``, so whoever keeps it drops it there (never
 through ``destroyed``).
@@ -29,6 +32,7 @@ from ....core.structure3d.elements import element_for_label
 from ....core.structure3d.image_file import print_stem
 from ....core.structure3d.model import AtomRef, Structure, atom_name
 from ....core.structure3d.options import DisplayOptions, background_of_theme
+from ....core.structure3d.view_state import CameraState, session_of
 from ....core.tasks import run_task
 from ...theme.manager import ThemeManager
 from ..common import IconButton, set_variant
@@ -85,6 +89,8 @@ class StructureWindow(QMainWindow):
         theme: ThemeManager,
         settings: QSettings | None = None,
         *,
+        options: DisplayOptions | None = None,
+        camera: CameraState | None = None,
         root: Callable[[], Path | None] | None = None,
     ):
         super().__init__(None)  # top level on purpose: independent of the main window
@@ -92,9 +98,12 @@ class StructureWindow(QMainWindow):
         self.setObjectName("structureWindow")
         self.structure = structure
         self._root = root  # the project root, asked at every "Print" (names the file, spec 32)
-        options = DisplayOptions(background=background_of_theme(theme.name))
+        if options is None:
+            options = DisplayOptions(background=background_of_theme(theme.name))
         self.canvas = StructureCanvas(theme, structure, options)
-        self.panel = StructurePanel(theme, self.canvas, settings)
+        if camera is not None:
+            self.canvas.restore_camera(camera)  # before the first frame, which then keeps it
+        self.panel = StructurePanel(theme, self.canvas, settings)  # shows the options as given
 
         view = QWidget()
         column = QVBoxLayout(view)
@@ -159,6 +168,13 @@ class StructureWindow(QMainWindow):
 
     def _reset_clicked(self) -> None:
         self.canvas.reset_view()
+
+    def view_session(self) -> dict:
+        """The section of ``view3d.plot`` for this view (spec 47): the options and, once the view has
+        been framed, the camera."""
+        canvas = self.canvas
+        camera = CameraState.of(canvas.camera) if canvas.framed else None
+        return session_of(self.structure, canvas.options, camera)
 
     # -- Print (spec 46 R5) ------------------------------------------------------------------------
     def _print_clicked(self) -> None:

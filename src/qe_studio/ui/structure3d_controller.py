@@ -1,10 +1,14 @@
 """The "Visualização 3D" item of the context menu (spec 43 R4.2): a new window per request, also for
 the same file.
 
-The input is read in a worker (``core/structure3d/source.read_structure``: the GUI never reads it), under
-the footer spinner "Lendo estrutura…"; then a ``StructureWindow`` opens. A file that cannot be shown gives
-a warning toast and no window. The open windows are kept here and dropped by their own ``closed`` signal;
-closing the main window closes them all (they have nothing to save).
+The input and its section of ``view3d.plot`` are read in a worker (``core/structure3d/view_file.load_view``:
+the GUI never reads them), under the footer spinner "Lendo estrutura…"; then a ``StructureWindow`` opens
+with the saved view (spec 47 R2). A file that cannot be shown gives a warning toast and no window. The open
+windows are kept here and dropped by their own ``closed`` signal, which is also when their view is saved
+(R3): written only when the user changed it, its section removed after "Restaurar padrões", nothing for an
+untouched window. Closing the main window closes them all, so they save then too. Only this controller
+writes ``view3d.plot``, on the GUI thread (about 1 KB, like ``PlotSettingsStore.flush_now``): with two
+windows of one file, the last to close wins.
 
 The second viewer, the external XCrySDen ("Abrir com XCrysDen", spec 45), is launched by ``ItemActions``;
 ``for_window`` only tells it where the program is (``paths.xcrysden_path``).
@@ -19,8 +23,10 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, QSettings, pyqtSignal
 
-from ..core.structure3d.model import Structure
-from ..core.structure3d.source import StructureReadError, read_structure
+from ..core.structure3d.options import DisplayOptions, background_of_theme
+from ..core.structure3d.source import StructureReadError
+from ..core.structure3d.view_file import LoadedView, load_view, remove_session, write_session
+from ..core.structure3d.view_state import apply_options, camera_from_stored
 from ..core.tasks import TaskGroup
 from .busy import BusyTracker
 from .theme.manager import ThemeManager
@@ -78,13 +84,27 @@ class Structure3DController(QObject):
         self._paths[key] = Path(path)
         self.busy.begin(key, BUSY_LABEL)
         self._tasks.submit(
-            key, read_structure, Path(path), on_done=self._on_done, on_error=self._on_error
+            key, load_view, Path(path), on_done=self._on_done, on_error=self._on_error
         )
 
-    def _on_done(self, key: str, structure: Structure) -> None:
+    def _on_done(self, key: str, loaded: LoadedView) -> None:
         self.busy.end(key)
         self._paths.pop(key, None)
-        window = StructureWindow(structure, self.theme, self.settings, root=self.root)
+        structure, session = loaded.structure, loaded.session or {}
+        for warning in loaded.warnings:  # an unreadable view3d.plot: the defaults
+            self.toast.show_message(warning, "warning")
+        # a saved background wins over the app theme; without one, the theme as always
+        options = DisplayOptions(background=background_of_theme(self.theme.name))
+        if "options" in session:
+            ignored = apply_options(options, session["options"], structure)
+            if ignored:
+                log.warning("view3d.plot of %s: ignored %s", structure.source.path, ignored)
+        camera = camera_from_stored(session.get("camera"))
+        if "camera" in session and camera is None:
+            log.warning("view3d.plot of %s: camera ignored", structure.source.path)
+        window = StructureWindow(
+            structure, self.theme, self.settings, options=options, camera=camera, root=self.root
+        )
         window.closed.connect(self._on_closed)
         self.windows.append(window)
         window.show()
@@ -105,9 +125,27 @@ class Structure3DController(QObject):
     def _on_closed(self, window: StructureWindow) -> None:
         if window in self.windows:
             self.windows.remove(window)
+        self._save(window)
+
+    def _save(self, window: StructureWindow) -> None:
+        """Spec 47 R3: the view of a window that closes. Changed (also after a restore) → its section is
+        written; restored and left alone → its section goes; untouched → the file is not touched."""
+        source = window.structure.source.path
+        if not source:
+            return
+        path, canvas = Path(source), window.canvas
+        if canvas.dirty:
+            warning = write_session(path.parent, path.name, window.view_session())
+        elif canvas.restored:
+            warning = remove_session(path.parent, path.name)
+        else:
+            return
+        if warning:
+            log.warning("%s", warning)
+            self.toast.show_message(warning, "warning")
 
     def close_dialog(self) -> bool:
-        """The main window is closing: every 3D window closes (nothing to protect)."""
+        """The main window is closing: every 3D window closes (and saves its view: ``_on_closed``)."""
         for window in list(self.windows):
             window.close()
         return True

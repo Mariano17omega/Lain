@@ -6,7 +6,14 @@ bar's menu lists x, y, z only, spec 46 R1), the "Rotação" buttons (a 45° step
 not frame again) and a new repetition (the block changes size: framed again, keeping the rotation).
 Clicks, a double click (two clicks), the neighbour table and every field of the panel leave it alone: a new
 bond factor rebuilds the scene without framing it again. "Restaurar padrões" is the one request that
-replaces the options and frames the view again (``restore_defaults``).
+replaces the options and frames the view again (``restore_defaults``). A saved view (spec 47) comes in
+through ``restore_camera``, before the first frame, which then does not frame it again.
+
+``dirty`` says whether the user changed the view since it opened (spec 47 R3.1), so closing an untouched
+window writes nothing: every edit of the panel and of a species (``refresh_options``), the P key, the
+gestures (``_interacting``), ``view_along``, ``rotate_structure`` and R / "Resetar vista" set it. Clicks,
+hover, the current atom, measures, the panel's sections and a resize do not, nor does the automatic framing
+of the first frame (``_frame``, not ``reset_view``).
 """
 
 from __future__ import annotations
@@ -20,6 +27,7 @@ from ....core.structure3d.camera import ROTATION_STEP_DEG, Camera
 from ....core.structure3d.model import AtomRef, Structure
 from ....core.structure3d.options import DisplayOptions
 from ....core.structure3d.replicate import Scene, build_scene
+from ....core.structure3d.view_state import CameraState
 from ...theme.manager import ThemeManager
 from .render_types import FrameStats
 from .renderer import PaintRenderer
@@ -69,6 +77,7 @@ class StructureCanvas(QWidget):
         self.marks: tuple[AtomRef, ...] = ()  # numbered rings: the atoms of a measure (spec 44)
         self.draft = False
         self.restored = False  # "Restaurar padrões" was used (spec 46 R6; spec 47 reads it)
+        self.dirty = False  # the user changed options or camera (spec 47: written on close)
         self._framed = False  # the first frame waits for a real size
         self._built_factor: float | None = None
         self._built_reps: tuple[int, int, int] | None = None
@@ -86,6 +95,7 @@ class StructureCanvas(QWidget):
         self.setMinimumSize(240, 240)
         self.setAccessibleName("Vista 3D da estrutura")
         self.refresh_options()
+        self.dirty = False  # building is no change
 
     @staticmethod
     def shortcut_help() -> list[tuple[str, str, str]]:
@@ -119,10 +129,31 @@ class StructureCanvas(QWidget):
             self._built_reps = reps
         if new_reps and self._framed:
             self._fit_keep_rotation()  # the block changed size
+        self.dirty = True
         self.update()
 
-    def reset_view(self, viewport: tuple[float, float] | None = None) -> None:
-        """Isometric view of the whole block (R, "Resetar vista")."""
+    @property
+    def framed(self) -> bool:
+        """Whether the camera holds a view yet (framed by the first frame or restored)."""
+        return self._framed
+
+    def reset_view(self) -> None:
+        """Isometric view of the whole block (R, "Resetar vista"): a change of the user's."""
+        self._frame()
+        self.dirty = True
+
+    def restore_camera(self, state: CameraState) -> None:
+        """A saved view (spec 47 R2.3): rotation, zoom, pan and focal as they were, centred on the block
+        like a framed one; the first frame keeps it, and it is no change of the user's."""
+        state.apply(self.camera)
+        if self.scene is not None:
+            self.camera.center = self.scene.box_corners(self.scene.block).mean(axis=0)
+        self._framed = True
+        self.dirty = False
+        self.update()
+
+    def _frame(self, viewport: tuple[float, float] | None = None) -> None:
+        """Isometric view of the whole block, framed in ``viewport`` (the view's size by default)."""
         if self.scene is None:
             return
         corners = self.scene.box_corners(self.scene.block)
@@ -138,23 +169,29 @@ class StructureCanvas(QWidget):
     def view_along(self, name: str) -> None:
         self.camera.view_axis(name, self.structure.cell)
         self._fit_keep_rotation()
+        self.dirty = True
 
     def rotate_structure(self, axis: str, degrees: float = ROTATION_STEP_DEG) -> None:
         """Turn the structure ``degrees`` about the Cartesian ``axis`` (spec 46 R3). Zoom and position
         stay (the center of the block does not move on the screen); selection and measures are not
         touched."""
         self.camera.rotate_world(axis, degrees)
+        self.dirty = True
         self.update()
 
     def restore_defaults(self, background: str) -> None:
         """Options and camera back to a new window's (spec 46 R6): a new ``DisplayOptions`` with
         ``background``, the species colors and visibility included, and the initial view framed. The
-        current atom, the atoms of a measure and the measures belong to the user's work and stay."""
+        current atom, the atoms of a measure and the measures belong to the user's work and stay.
+
+        The view is then the defaults, no change to save: ``dirty`` goes back to False and ``restored``
+        tells the closing window to remove its saved section (spec 47 R3.5)."""
         self.options = DisplayOptions(background=background)
         self.refresh_options()
-        self.reset_view()
+        self._frame()
         self.restored = True
         self.options_changed.emit()  # the panel reads every field again
+        self.dirty = False
 
     def _fit_keep_rotation(self) -> None:
         if self.scene is None:
@@ -188,7 +225,7 @@ class StructureCanvas(QWidget):
         if self.scene is None:
             return None
         if not self._framed:
-            self.reset_view(size)
+            self._frame(size)
         return self.renderer.render(
             painter,
             size,
@@ -204,7 +241,7 @@ class StructureCanvas(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().resizeEvent(event)
         if not self._framed and self.width() > 0 and self.height() > 0:
-            self.reset_view()
+            self._frame()
 
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
@@ -249,6 +286,7 @@ class StructureCanvas(QWidget):
         if self._primitive_estimate() > DRAFT_PRIMITIVES:
             self.draft = True
             self._restore.start()
+        self.dirty = True
         self.update()
 
     def _leave_draft(self) -> None:
@@ -346,6 +384,7 @@ class StructureCanvas(QWidget):
             self.escape_pressed.emit()
         elif key == Qt.Key.Key_P:
             self.options.perspective = not self.options.perspective
+            self.dirty = True
             self.options_changed.emit()
             self.update()
         elif key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):

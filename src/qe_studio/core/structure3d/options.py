@@ -1,4 +1,6 @@
-"""What one 3D window shows and how (spec 43 R4.4, spec 46 R2): each window has its own, nothing is saved."""
+"""What one 3D window shows and how (spec 43 R4.4, spec 46 R2): each window has its own. A changed view is
+saved per file in its folder's ``view3d.plot`` when the window closes (spec 47: ``view_state``,
+``view_file``)."""
 
 from __future__ import annotations
 

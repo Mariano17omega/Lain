@@ -10,7 +10,9 @@ cut down to one point at x = 0 cannot be split back into bands.
 
 import contextlib
 import io
+import math
 import tempfile
+from dataclasses import fields
 from pathlib import Path
 
 import numpy as np
@@ -35,9 +37,13 @@ from qe_studio.core.qe.relax import parse_relax
 from qe_studio.core.qe.scf import parse_scf
 from qe_studio.core.qe.summary import summarize, summarize_lines
 from qe_studio.core.qsub_lint import lint_script
+from qe_studio.core.structure3d import options as view_options
 from qe_studio.core.structure3d.bonds import compute_bonds
+from qe_studio.core.structure3d.camera import frame_from
 from qe_studio.core.structure3d.measure import angle, distance
 from qe_studio.core.structure3d.model import AtomRef
+from qe_studio.core.structure3d.options import DisplayOptions
+from qe_studio.core.structure3d.view_state import apply_options, camera_from_stored
 
 from conftest import FIXTURES
 
@@ -744,3 +750,97 @@ def test_an_angle_is_between_0_and_180_degrees(cell, points, sa, sb, sc):
     structure = _measured_structure(cell, points)
     value = angle(structure, AtomRef(0, sa), AtomRef(1, sb), AtomRef(2, sc))
     assert np.isnan(value) or 0.0 <= value <= 180.0
+
+
+# -- 3D view state (spec 47 R1.4) ----------------------------------------------------------------
+
+JSON = st.recursive(
+    st.none() | st.booleans() | st.integers() | st.floats() | st.text(max_size=8),
+    lambda children: (
+        st.lists(children, max_size=4) | st.dictionaries(st.text(max_size=6), children, max_size=4)
+    ),
+    max_leaves=12,
+)
+OPTION_NAMES = [f.name for f in fields(DisplayOptions)]
+LABELS = st.sampled_from(["O", "H", "Zz", ""])
+OPTION_VALUES = st.one_of(
+    JSON,
+    st.sampled_from(["fio", "claro", "simbolo", "#ff00ff", "nenhum"]),
+    st.floats(0.0, 10.0),
+    st.integers(-2, 40),
+    st.lists(st.integers(-1, 7), min_size=3, max_size=3),
+    st.dictionaries(LABELS, st.sampled_from(["#00ff00", "#ABCDEF", "verde", "#12345"])),
+    st.lists(LABELS, max_size=3),
+)
+STORED_OPTIONS = st.dictionaries(
+    st.sampled_from([*OPTION_NAMES, "futuro"]) | st.text(max_size=5), OPTION_VALUES, max_size=10
+)
+
+
+def _view_structure():
+    from qe_studio.core.structure3d.source import structure_of_text
+
+    return structure_of_text(
+        "&CONTROL\n/\n&SYSTEM\n  ibrav = 1, celldm(1) = 20.0, nat = 2, ntyp = 2\n/\n"
+        "ATOMIC_SPECIES\nO 15.999 O.UPF\nH 1.008 H.UPF\n"
+        "ATOMIC_POSITIONS angstrom\nO 1.0 1.0 1.0\nH 1.96 1.0 1.0\n"
+    )
+
+
+def _in(value, low, high, kind) -> bool:
+    return type(value) is kind and low <= value <= high
+
+
+@given(STORED_OPTIONS)
+def test_apply_options_never_raises_and_leaves_every_field_valid(stored):
+    o = view_options
+    structure = _view_structure()
+    options = DisplayOptions()
+    ignored = apply_options(options, stored, structure)
+    assert set(ignored) <= set(stored)
+    assert options.style in o.STYLES and options.labels in o.LABEL_MODES
+    assert options.background in o.BACKGROUNDS
+    assert _in(options.radius_scale, o.MIN_RADIUS, o.MAX_RADIUS, float)
+    assert _in(options.bond_factor, o.MIN_FACTOR, o.MAX_FACTOR, float)
+    for width in (options.abc_width, options.xyz_width):
+        assert _in(width, o.MIN_AXIS_WIDTH, o.MAX_AXIS_WIDTH, float)
+    assert _in(options.label_size, o.MIN_LABEL_SIZE, o.MAX_LABEL_SIZE, int)
+    assert isinstance(options.reps, tuple) and len(options.reps) == 3
+    assert all(_in(n, o.MIN_REPEAT, o.MAX_REPEAT, int) for n in options.reps)
+    for flag in ("show_bonds", "show_cell", "show_abc", "show_xyz", "perspective"):
+        assert type(getattr(options, flag)) is bool
+    species = range(len(structure.species))
+    assert set(options.species_colors) <= set(species)
+    assert all(
+        len(rgb) == 3 and all(_in(c, 0, 255, int) for c in rgb)
+        for rgb in options.species_colors.values()
+    )
+    assert options.species_hidden <= set(species)
+
+
+ROTATIONS = st.builds(
+    lambda d, u: frame_from(np.array(d), np.array(u)).tolist(),
+    st.tuples(*[st.floats(0.1, 1.0)] * 3),
+    st.tuples(*[st.floats(-1.0, 1.0)] * 3),
+)
+PANS = st.lists(st.floats(), min_size=2, max_size=2)
+CAMERA_VALUES = st.one_of(JSON, ROTATIONS, st.floats(), PANS)
+CAMERAS = st.one_of(
+    st.fixed_dictionaries(  # mostly valid: every key, with some odd numbers
+        {"rotation": ROTATIONS | JSON, "zoom": st.floats(), "pan": PANS, "focal": st.floats()}
+    ),
+    st.dictionaries(st.sampled_from(["rotation", "zoom", "pan", "focal"]), CAMERA_VALUES),
+    JSON,
+)
+
+
+@given(CAMERAS)
+def test_camera_from_stored_never_raises_and_gives_a_valid_camera_or_none(data):
+    state = camera_from_stored(data)
+    if state is None:
+        return
+    rotation = np.array(state.rotation)
+    assert np.allclose(rotation @ rotation.T, np.eye(3), atol=1e-6) and np.linalg.det(rotation) > 0
+    assert math.isfinite(state.zoom) and state.zoom > 0
+    assert math.isfinite(state.focal) and state.focal > 0
+    assert all(math.isfinite(v) for v in state.pan) and len(state.pan) == 2
