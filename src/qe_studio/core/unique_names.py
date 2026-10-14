@@ -8,6 +8,7 @@ The figure export keeps its own ``_2``-first versions (``plotting.export.next_fr
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from itertools import count
 from pathlib import Path
 
@@ -34,25 +35,47 @@ def next_free(path: Path, first: int = 1) -> Path:
     return next(candidate for n in count(first) if not _taken(candidate := suffixed(path, n)))
 
 
+def _create(path: Path, first: int, fill: Callable[[int], None]) -> Path:
+    """The loop of ``write_new`` and ``write_new_bytes``: create the first free version of ``path``
+    exclusively (``O_EXCL``, what ``open(…, "x")`` does) and let ``fill`` write to its descriptor.
+    A write that fails removes the file it created."""
+    while True:
+        target = next_free(path, first)
+        try:
+            fd = os.open(target, _EXCLUSIVE, 0o666)
+        except FileExistsError:
+            continue
+        try:
+            fill(fd)
+        except BaseException:
+            target.unlink(missing_ok=True)
+            raise
+        return target
+
+
 def write_new(path: Path, text: str) -> Path:
     """Write ``text`` to ``path`` or its first free ``_N`` version and return where it went.
 
     The file is created exclusively (``O_EXCL``, what ``open(…, "x")`` does), so a name taken in
     the meantime moves on to the next one instead of being overwritten. Line ends are written as
     they are in ``text``. A write that fails removes the file it created."""
-    while True:
-        target = next_free(path)
-        try:
-            fd = os.open(target, _EXCLUSIVE, 0o666)
-        except FileExistsError:
-            continue
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
-                handle.write(text)
-        except BaseException:
-            target.unlink(missing_ok=True)
-            raise
-        return target
+
+    def fill(fd: int) -> None:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+
+    return _create(path, 1, fill)
+
+
+def write_new_bytes(path: Path, data: bytes, first: int = 1) -> Path:
+    """``write_new`` for bytes (an image). The numbered versions start at ``_<first>``: the figures
+    of the plots use ``first=2`` (``name``, ``name_2``, ``name_3``…)."""
+
+    def fill(fd: int) -> None:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+
+    return _create(path, first, fill)
 
 
 def next_free_dir(path: Path) -> Path:

@@ -1,10 +1,12 @@
 """The left panel of a 3D window (spec 43 R5): "ESTRUTURA" and the accordion sections of the plot
-adjustments panel (``param_widgets.Section``): "Átomo", "Medidas" (spec 44), "Exibição", "Espécies",
-"Célula".
+adjustments panel (``param_widgets.Section``): "Átomo", "Medidas" (spec 44), "Exibição", "Rotação" (spec 46),
+"Espécies", "Célula", and under them a fixed footer with "Restaurar padrões" (spec 46 R6).
 
 Every field edits the window's ``DisplayOptions`` and asks the view for a repaint; none moves the camera.
 Numeric and choice fields are the ``NoWheel*`` ones (the wheel scrolls the panel). Whether each section is
-open is QSettings ``structure3d/sections/<título>``, shared by every window.
+open is QSettings ``structure3d/sections/<título>``, shared by every window. "Restaurar padrões" makes the
+canvas replace its options object: nothing here keeps a reference to it, every use reads
+``canvas.options``.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -25,13 +28,18 @@ from ....core.structure3d.elements import element_for_label
 from ....core.structure3d.options import (
     BACKGROUNDS,
     LABEL_MODES,
+    MAX_AXIS_WIDTH,
     MAX_FACTOR,
+    MAX_LABEL_SIZE,
     MAX_RADIUS,
     MAX_REPEAT,
+    MIN_AXIS_WIDTH,
     MIN_FACTOR,
+    MIN_LABEL_SIZE,
     MIN_RADIUS,
     MIN_REPEAT,
     STYLES,
+    background_of_theme,
 )
 from ...theme.manager import ThemeManager
 from ..common import PanelHeader, set_variant
@@ -40,11 +48,26 @@ from ..param_widgets import ColorButton, Section
 from .canvas import StructureCanvas
 from .measures import MeasuresSection
 from .panel_atom import AtomSection, triple
+from .rotation import RotationSection
 
 SECTIONS_KEY = "structure3d/sections"  # QSettings: <section title> → open (bool)
-TITLES = ("Átomo", "Medidas", "Exibição", "Espécies", "Célula")
-OPEN_BY_DEFAULT = ("Átomo", "Medidas", "Exibição")
+TITLES = ("Átomo", "Medidas", "Exibição", "Rotação", "Espécies", "Célula")
+OPEN_BY_DEFAULT = ("Átomo", "Medidas", "Exibição", "Rotação")
 MIN_WIDTH = 260
+RESTORE_TITLE = "Restaurar padrões"
+RESTORE_QUESTION = "Voltar todas as opções e a câmera desta janela ao padrão?"
+
+
+def ask_restore(parent: QWidget | None) -> bool:
+    """The question of "Restaurar padrões", like the plots' (a module function so tests replace it)."""
+    answer = QMessageBox.question(
+        parent,
+        RESTORE_TITLE,
+        RESTORE_QUESTION,
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        QMessageBox.StandardButton.No,
+    )
+    return answer == QMessageBox.StandardButton.Yes
 
 
 def _combo(choices: dict[str, str]) -> NoWheelComboBox:
@@ -101,12 +124,23 @@ class StructurePanel(QWidget):
         self.column.addStretch(1)
         self.scroll_area.setWidget(body)
         layout.addWidget(self.scroll_area, 1)
+        self.restore_button = QPushButton(RESTORE_TITLE)
+        self.restore_button.setObjectName("structureRestore")
+        self.restore_button.setToolTip("Voltar as opções, a câmera e a rotação ao padrão")
+        self.restore_button.clicked.connect(self._restore_clicked)
+        footer = QWidget()
+        footer.setObjectName("structureFooter")
+        line = QHBoxLayout(footer)
+        line.setContentsMargins(8, 6, 8, 6)
+        line.addWidget(self.restore_button)
+        layout.addWidget(footer)
 
         self.atom = AtomSection(self.sections["Átomo"], self.structure)
         self.atom.show_atom(canvas.current, canvas.graph)
         self.atom.table.neighbor_clicked.connect(canvas.select)
         self.measures = MeasuresSection(self.sections["Medidas"], canvas)
         self._build_display(self.sections["Exibição"])
+        self.rotation = RotationSection(self.sections["Rotação"], canvas)
         self._build_species(self.sections["Espécies"])
         self._build_cell(self.sections["Célula"])
         canvas.current_changed.connect(self._current_changed)
@@ -135,7 +169,6 @@ class StructurePanel(QWidget):
     def _build_display(self, section: Section) -> None:
         self.style_choice = _combo(STYLES)
         self.radius = _decimal(MIN_RADIUS, MAX_RADIUS, 0.05, "×")
-        self.show_bonds = QCheckBox()
         self.bond_factor = _decimal(MIN_FACTOR, MAX_FACTOR, 0.05)
         self.reps: list[NoWheelSpinBox] = []
         reps = QWidget()
@@ -150,28 +183,51 @@ class StructurePanel(QWidget):
             self.reps.append(spin)
             row.addWidget(spin)
         self.labels = _combo(LABEL_MODES)
-        self.show_cell, self.show_axes, self.perspective = QCheckBox(), QCheckBox(), QCheckBox()
+        self.label_size = NoWheelSpinBox()
+        self.label_size.setRange(MIN_LABEL_SIZE, MAX_LABEL_SIZE)
+        self.label_size.setSuffix(" px")
         self.background = _combo(BACKGROUNDS)
+        self.show_bonds, self.show_cell, self.perspective = QCheckBox(), QCheckBox(), QCheckBox()
+        self.show_xyz, self.show_abc = QCheckBox(), QCheckBox()
+        self.xyz_width = _decimal(MIN_AXIS_WIDTH, MAX_AXIS_WIDTH, 0.5, " px")
+        self.abc_width = _decimal(MIN_AXIS_WIDTH, MAX_AXIS_WIDTH, 0.5, " px")
         section.add_row("Estilo", self.style_choice)
         section.add_row("Raio", self.radius, "Escala do raio dos átomos")
-        section.add_row("Ligações", self.show_bonds)
         section.add_row("Fator de ligação", self.bond_factor, "Ligação: d < fator × (r₁ + r₂)")
         section.add_row("Repetição", reps)
         section.add_row("Rótulos", self.labels)
-        section.add_row("Caixa da célula", self.show_cell)
-        section.add_row("Eixos", self.show_axes, "Setas a, b, c e o triedro x, y, z")
-        section.add_row("Perspectiva", self.perspective)
+        section.add_row(
+            "Tamanho dos rótulos",
+            self.label_size,
+            "Tamanho do texto da vista: rótulos dos átomos e nomes dos eixos",
+        )
         section.add_row("Fundo", self.background)
+        # the check boxes together, one after the other (spec 46 R2.3), then the widths they enable
+        section.add_row("Ligações", self.show_bonds)
+        section.add_row("Caixa da célula", self.show_cell)
+        section.add_row("Perspectiva", self.perspective)
+        section.add_row("Eixos x, y, z", self.show_xyz, "Triedro x, y, z do canto da vista")
+        section.add_row("Eixos a, b, c", self.show_abc, "Setas a, b, c da célula")
+        section.add_row("Espessura x, y, z", self.xyz_width, "Espessura do triedro x, y, z")
+        section.add_row("Espessura a, b, c", self.abc_width, "Espessura das setas a, b, c")
 
         for combo in (self.style_choice, self.labels, self.background):
             combo.currentIndexChanged.connect(self._changed)
-        for spin in (self.radius, self.bond_factor, *self.reps):
+        for spin in (self.radius, self.bond_factor, *self.reps, self.label_size):
             spin.valueChanged.connect(self._changed)
-        for box in (self.show_bonds, self.show_cell, self.show_axes, self.perspective):
+        for spin in (self.xyz_width, self.abc_width):
+            spin.valueChanged.connect(self._changed)
+        for box in (
+            self.show_bonds,
+            self.show_cell,
+            self.perspective,
+            self.show_xyz,
+            self.show_abc,
+        ):
             box.toggled.connect(self._changed)
 
     def sync(self) -> None:
-        """Widgets ← options (after a change made in the view: the P key)."""
+        """Widgets ← options (after a change made in the view: the P key, "Restaurar padrões")."""
         o = self.canvas.options
         self._syncing = True
         try:
@@ -183,10 +239,17 @@ class StructurePanel(QWidget):
             for spin, value in zip(self.reps, o.reps, strict=True):
                 spin.setValue(value)
             self.labels.setCurrentIndex(self.labels.findData(o.labels))
+            self.label_size.setValue(o.label_size)
             self.show_cell.setChecked(o.show_cell)
-            self.show_axes.setChecked(o.show_axes)
+            self.show_xyz.setChecked(o.show_xyz)
+            self.show_abc.setChecked(o.show_abc)
+            self.xyz_width.setValue(o.xyz_width)
+            self.abc_width.setValue(o.abc_width)
+            self.xyz_width.setEnabled(o.show_xyz)
+            self.abc_width.setEnabled(o.show_abc)
             self.perspective.setChecked(o.perspective)
             self.background.setCurrentIndex(self.background.findData(o.background))
+            self._sync_species()
         finally:
             self._syncing = False
 
@@ -200,12 +263,24 @@ class StructurePanel(QWidget):
         o.bond_factor = round(self.bond_factor.value(), 2)
         o.reps = (self.reps[0].value(), self.reps[1].value(), self.reps[2].value())
         o.labels = self.labels.currentData()
+        o.label_size = self.label_size.value()
         o.show_cell = self.show_cell.isChecked()
-        o.show_axes = self.show_axes.isChecked()
+        o.show_xyz = self.show_xyz.isChecked()
+        o.show_abc = self.show_abc.isChecked()
+        o.xyz_width = round(self.xyz_width.value(), 2)
+        o.abc_width = round(self.abc_width.value(), 2)
         o.perspective = self.perspective.isChecked()
         o.background = self.background.currentData()
         self.bond_factor.setEnabled(o.show_bonds)
+        self.xyz_width.setEnabled(o.show_xyz)
+        self.abc_width.setEnabled(o.show_abc)
         self.canvas.refresh_options()
+
+    def _restore_clicked(self) -> None:
+        """ "Restaurar padrões": ask, then the options and the camera go back to a new window's, with
+        the background of the app theme *now*."""
+        if ask_restore(self):
+            self.canvas.restore_defaults(background_of_theme(self.theme.name))
 
     # -- Espécies ----------------------------------------------------------------------------------
     def _build_species(self, section: Section) -> None:
@@ -254,9 +329,18 @@ class StructurePanel(QWidget):
 
     def restore_colors(self) -> None:
         self.canvas.options.species_colors.clear()
+        self._sync_species()
+        self.canvas.refresh_options()
+
+    def _sync_species(self) -> None:
+        """Swatches and "Visível" boxes ← options, without a ``set_species_*`` per row."""
+        options = self.canvas.options
         for index, swatch in enumerate(self.swatches):
             swatch.set_color(self._color_of(index))
-        self.canvas.refresh_options()
+        for index, box in enumerate(self.visible):
+            box.blockSignals(True)
+            box.setChecked(index not in options.species_hidden)
+            box.blockSignals(False)
 
     # -- Célula ------------------------------------------------------------------------------------
     def _build_cell(self, section: Section) -> None:

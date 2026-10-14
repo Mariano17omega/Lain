@@ -90,10 +90,13 @@ class Windows:
         self.theme = ThemeManager("dark")
         self.opened: list = []
 
-    def open(self, path: Path = SI_SCF, structure: Structure | None = None):
+    def open(self, path: Path = SI_SCF, structure: Structure | None = None, **options):
+        """``options`` go to ``StructureWindow`` (``root=``, spec 46)."""
         from qe_studio.ui.widgets.structure3d.window import StructureWindow
 
-        window = StructureWindow(structure or read_structure(path), self.theme, self.settings)
+        window = StructureWindow(
+            structure or read_structure(path), self.theme, self.settings, **options
+        )
         window.show()
         self.qtbot.waitExposed(window)
         window.canvas.grab()  # one frame: the picking data exists

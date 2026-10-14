@@ -1,10 +1,12 @@
 """The 3D view of one window: its scene, camera, current atom and the mouse and key gestures.
 
 The camera changes only by a gesture (spec 43 R3): drag (turn; middle button or Shift + drag: move), the
-wheel and ``+`` / ``-`` (zoom), R and "Resetar vista", the views along a, b, c, x, y, z, and a new
-repetition (the block changes size: framed again, keeping the rotation). Clicks, a double click (two
-clicks), the neighbour table and every field of the panel leave it alone: a new bond factor rebuilds the
-scene without framing it again.
+wheel and ``+`` / ``-`` (zoom), R and "Resetar vista", the views along a, b, c, x, y, z (the keys; the
+bar's menu lists x, y, z only, spec 46 R1), the "Rotação" buttons (a 45° step about x, y or z, which does
+not frame again) and a new repetition (the block changes size: framed again, keeping the rotation).
+Clicks, a double click (two clicks), the neighbour table and every field of the panel leave it alone: a new
+bond factor rebuilds the scene without framing it again. "Restaurar padrões" is the one request that
+replaces the options and frames the view again (``restore_defaults``).
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from PyQt6.QtGui import QImage, QKeyEvent, QMouseEvent, QPainter, QPen, QWheelEv
 from PyQt6.QtWidgets import QWidget
 
 from ....core.structure3d.bonds import BondGraph, Bonds, bonds_for
-from ....core.structure3d.camera import Camera
+from ....core.structure3d.camera import ROTATION_STEP_DEG, Camera
 from ....core.structure3d.model import AtomRef, Structure
 from ....core.structure3d.options import DisplayOptions
 from ....core.structure3d.replicate import Scene, build_scene
@@ -66,6 +68,7 @@ class StructureCanvas(QWidget):
         self.hover: AtomRef | None = None
         self.marks: tuple[AtomRef, ...] = ()  # numbered rings: the atoms of a measure (spec 44)
         self.draft = False
+        self.restored = False  # "Restaurar padrões" was used (spec 46 R6; spec 47 reads it)
         self._framed = False  # the first frame waits for a real size
         self._built_factor: float | None = None
         self._built_reps: tuple[int, int, int] | None = None
@@ -135,6 +138,23 @@ class StructureCanvas(QWidget):
     def view_along(self, name: str) -> None:
         self.camera.view_axis(name, self.structure.cell)
         self._fit_keep_rotation()
+
+    def rotate_structure(self, axis: str, degrees: float = ROTATION_STEP_DEG) -> None:
+        """Turn the structure ``degrees`` about the Cartesian ``axis`` (spec 46 R3). Zoom and position
+        stay (the center of the block does not move on the screen); selection and measures are not
+        touched."""
+        self.camera.rotate_world(axis, degrees)
+        self.update()
+
+    def restore_defaults(self, background: str) -> None:
+        """Options and camera back to a new window's (spec 46 R6): a new ``DisplayOptions`` with
+        ``background``, the species colors and visibility included, and the initial view framed. The
+        current atom, the atoms of a measure and the measures belong to the user's work and stay."""
+        self.options = DisplayOptions(background=background)
+        self.refresh_options()
+        self.reset_view()
+        self.restored = True
+        self.options_changed.emit()  # the panel reads every field again
 
     def _fit_keep_rotation(self) -> None:
         if self.scene is None:

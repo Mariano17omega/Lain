@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QSettings, pyqtSignal
@@ -43,9 +44,12 @@ class Structure3DController(QObject):
         toast: Toast,
         settings: QSettings | None = None,
         parent: QObject | None = None,
+        *,
+        root: Callable[[], Path | None] | None = None,
     ):
         super().__init__(parent)
         self.theme, self.busy, self.toast, self.settings = theme, busy, toast, settings
+        self.root = root  # the project root, read at every "Print" (the file's name, spec 46 R5)
         self.windows: list[StructureWindow] = []
         self._tasks = TaskGroup()
         self._paths: dict[str, Path] = {}
@@ -55,7 +59,14 @@ class Structure3DController(QObject):
     def for_window(cls, window) -> Structure3DController:
         """The controller of a ``MainWindow``: its context menu, footer spinner, toast and settings."""
         busy = window.plot_workflow.busy
-        controller = cls(window.theme, busy, window.toast, window.settings, window)
+        controller = cls(
+            window.theme,
+            busy,
+            window.toast,
+            window.settings,
+            window,
+            root=lambda: window.config.paths.local_root,
+        )
         window.item_actions.structure_requested.connect(controller.open)
         # Read at every menu, so "Recarregar config.yaml" applies without a restart (spec 45).
         window.item_actions.xcrysden_path = lambda: window.config.paths.xcrysden_path
@@ -73,7 +84,7 @@ class Structure3DController(QObject):
     def _on_done(self, key: str, structure: Structure) -> None:
         self.busy.end(key)
         self._paths.pop(key, None)
-        window = StructureWindow(structure, self.theme, self.settings)
+        window = StructureWindow(structure, self.theme, self.settings, root=self.root)
         window.closed.connect(self._on_closed)
         self.windows.append(window)
         window.show()

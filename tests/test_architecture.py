@@ -166,6 +166,7 @@ QT_FREE = [
     "qe_studio.core.structure3d.options",
     "qe_studio.core.structure3d.measure",
     "qe_studio.core.structure3d.measurements",
+    "qe_studio.core.structure3d.image_file",
 ]
 
 

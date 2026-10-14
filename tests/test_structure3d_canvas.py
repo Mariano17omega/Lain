@@ -161,6 +161,31 @@ def test_keys_and_view_menu(qtbot, windows):
     assert canvas.camera.zoom > zoom
 
 
+def test_the_bar_menu_has_only_x_y_z_and_the_keys_a_b_c_still_work(qtbot, windows):
+    """Spec 46 R1: the menu drops a, b, c (the lattice views stay on the keys A, B, C)."""
+    window = windows.open(SI_SCF)
+    assert list(window.view_actions) == ["x", "y", "z"]
+    assert [a.text() for a in window.view_actions.values()] == [
+        "Ao longo de x (X)",
+        "Ao longo de y (Y)",
+        "Ao longo de z (Z)",
+    ]
+    assert [a.text() for a in window.view_button.menu().actions()] == [
+        "Ao longo de x (X)",
+        "Ao longo de y (Y)",
+        "Ao longo de z (Z)",
+    ]
+    tip = window.view_button.toolTip()
+    assert "x, y ou z" in tip and "A, B e C" in tip
+    canvas = window.canvas
+    for key, k in ((Qt.Key.Key_A, 0), (Qt.Key.Key_B, 1), (Qt.Key.Key_C, 2)):
+        qtbot.keyClick(canvas, key)
+        vector = canvas.structure.cell[k]
+        assert canvas.camera.rotation[2] @ vector == pytest.approx(np.linalg.norm(vector))
+    shortcuts = {keys for _action, keys, _where in canvas.shortcut_help()}
+    assert {"A, B, C", "X, Y, Z"} <= shortcuts
+
+
 def test_hover_names_the_atom_in_the_status_bar(qtbot, windows):
     window = windows.open(SLAB_2X1)
     canvas = window.canvas

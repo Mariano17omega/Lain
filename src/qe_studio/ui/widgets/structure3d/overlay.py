@@ -1,5 +1,5 @@
 """What is drawn over the sorted primitives and never hidden by an atom: labels, the rings of the hovered
-and the current atom, the a, b, c names and the x, y, z triad.
+and the current atom, the a, b, c names (``show_abc``) and the x, y, z triad (``show_xyz``).
 
 The colors are the scene's (dark or light background), not theme tokens: like the figures, the scene does
 not follow the app theme (spec 43 R4.5).
@@ -12,8 +12,9 @@ from PyQt6.QtCore import QLineF, QPointF, QRectF, Qt
 from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 
 from ....core.structure3d.camera import Camera
-from ....core.structure3d.options import DisplayOptions
+from ....core.structure3d.options import DEFAULT_ABC_WIDTH, DEFAULT_LABEL_SIZE, DisplayOptions
 from ....core.structure3d.replicate import Scene
+from ...painting import ui_font
 
 MIN_PICK_RADIUS = 5.0  # px
 HIGHLIGHT = (255, 196, 40)
@@ -21,11 +22,20 @@ ABC_COLORS = ((235, 90, 90), (90, 205, 100), (110, 140, 255))
 TEXT = {True: (225, 228, 235), False: (30, 30, 36)}  # by dark background
 HOVER = {True: (255, 255, 255, 210), False: (20, 20, 24, 200)}
 BADGE_RADIUS = 8.0  # px, the numbered badge of a measured atom
+ARROW_HEAD_PX = 8.0  # px, the tip of an a, b, c arrow at the default width
 
 Spot = tuple[float, float, float]  # x, y, radius in px
 
 
-def arrow_head(painter: QPainter, x1: float, y1: float, x2: float, y2: float) -> None:
+def head_px(width: float) -> float:
+    """The tip of an arrow drawn with a line of ``width`` px: the default one up to the default width,
+    growing with the line above it."""
+    return ARROW_HEAD_PX * max(1.0, width / DEFAULT_ABC_WIDTH)
+
+
+def arrow_head(
+    painter: QPainter, x1: float, y1: float, x2: float, y2: float, head: float = ARROW_HEAD_PX
+) -> None:
     dx, dy = x2 - x1, y2 - y1
     length = (dx * dx + dy * dy) ** 0.5
     if length < 14:
@@ -33,8 +43,8 @@ def arrow_head(painter: QPainter, x1: float, y1: float, x2: float, y2: float) ->
     ux, uy = dx / length, dy / length
     c, s = 0.9, 0.43  # ~25 degrees
     for sign in (1, -1):
-        hx = -(ux * c - uy * s * sign) * 8.0
-        hy = -(ux * s * sign + uy * c) * 8.0
+        hx = -(ux * c - uy * s * sign) * head
+        hy = -(ux * s * sign + uy * c) * head
         painter.drawLine(QLineF(x2, y2, x2 + hx, y2 + hy))
 
 
@@ -60,13 +70,13 @@ def badge(painter: QPainter, spot: Spot, number: int) -> None:
     painter.setBrush(Qt.BrushStyle.NoBrush)
 
 
-def _triad(painter: QPainter, camera: Camera, height: float, text: QColor) -> None:
+def _triad(painter: QPainter, camera: Camera, height: float, text: QColor, width: float) -> None:
     """x, y, z axes in the lower left corner, turning with the camera."""
     ox, oy = 46.0, height - 46.0
     screen = camera.axes_screen()  # x right, y down, per world axis
     for k in np.argsort(camera.rotation[2]).tolist():  # far axes first
         tx, ty = ox + 30.0 * screen[k, 0], oy + 30.0 * screen[k, 1]
-        pen = QPen(QColor(*ABC_COLORS[k]).darker(115), 2.0)
+        pen = QPen(QColor(*ABC_COLORS[k]).darker(115), width)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)
         painter.drawLine(QLineF(ox, oy, tx, ty))
@@ -97,13 +107,18 @@ def draw_overlays(
         ring(painter, hover_spot, QColor(*HOVER[options.dark]), 1.5)
     if current_spot is not None:
         ring(painter, current_spot, QColor(*HIGHLIGHT), 2.4)
-    for number, spot in marked or []:  # the atoms of a measure, in click order (spec 44)
-        ring(painter, spot, QColor(*HIGHLIGHT), 2.4)
-        badge(painter, spot, number)
-    if options.show_axes:
+    if marked:  # the atoms of a measure, in click order (spec 44)
+        # The badge is a disc of a fixed radius: its number keeps the default size (spec 46 R2.2).
+        painter.setFont(ui_font(DEFAULT_LABEL_SIZE))
+        for number, spot in marked:
+            ring(painter, spot, QColor(*HIGHLIGHT), 2.4)
+            badge(painter, spot, number)
+        painter.setFont(font)
+    if options.show_abc:
         tips, _, _ = camera.project(np.vstack([np.zeros((1, 3)), scene.cell]), size)
         for k, name in enumerate("abc"):
             if np.isfinite(tips[k + 1]).all():
                 painter.setPen(QPen(QColor(*ABC_COLORS[k])))
                 painter.drawText(QPointF(tips[k + 1, 0] + 6, tips[k + 1, 1] - 6), name)
-        _triad(painter, camera, size[1], text)
+    if options.show_xyz:
+        _triad(painter, camera, size[1], text, options.xyz_width)

@@ -2,7 +2,8 @@
 
 Stacked graphene sheets (1.5 bonds per atom, the proof of concept's scene), a 1000 × 800 frame,
 antialiasing, ball and stick, median of 5 frames after a warm-up. Budget: 2 000 atoms ≤ 80 ms, ≤ 50 ms in
-draft mode.
+draft mode. The frame of "Print" (spec 46 R5: 2× the pixels of a 960 × 780 view, on the GUI thread; the
+PNG encoding runs in a worker and is not counted): 2 000 atoms ≤ 200 ms (measured 110 ms).
 """
 
 import statistics
@@ -21,6 +22,9 @@ LAYER = 3.4
 TILING = {500: (5, 5, 5), 2000: (10, 10, 5), 5000: (25, 10, 5)}  # cells x, y, layers (4 atoms each)
 BASIS = np.array([[0, 0], [0.5 * D, 0.866025 * D], [1.5 * D, 0.866025 * D], [2 * D, 0]])
 BUDGET_MS = {2000: (80.0, 50.0)}  # full, draft
+PRINT_VIEW = QSize(960, 780)
+PRINT_SCALE = 2
+PRINT_BUDGET_MS = 200.0
 
 
 def honeycomb_stack(n_atoms):
@@ -71,3 +75,21 @@ def test_frame_times(n_atoms, qapp):
     if n_atoms in BUDGET_MS:
         full_budget, draft_budget = BUDGET_MS[n_atoms]
         assert full <= full_budget and draft <= draft_budget
+
+
+@pytest.mark.perf
+def test_the_print_frame_of_2000_atoms(qapp):
+    from qe_studio.ui.theme.manager import ThemeManager
+
+    canvas = StructureCanvas(ThemeManager("dark"), honeycomb_stack(2000))
+    canvas.resize(PRINT_VIEW)
+    canvas.render_image(PRINT_VIEW, dpr=PRINT_SCALE)  # warm-up
+    samples = []
+    for _ in range(5):
+        started = time.perf_counter()
+        image = canvas.render_image(PRINT_VIEW, draft=False, dpr=PRINT_SCALE)
+        samples.append((time.perf_counter() - started) * 1000)
+    assert (image.width(), image.height()) == (PRINT_VIEW.width() * 2, PRINT_VIEW.height() * 2)
+    median = statistics.median(samples)
+    print(f"\nPERF print frame, 2000 atoms, {image.width()}x{image.height()}: {median:6.1f} ms")
+    assert median <= PRINT_BUDGET_MS

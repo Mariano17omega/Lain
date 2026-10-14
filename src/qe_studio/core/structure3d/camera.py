@@ -7,7 +7,9 @@ import math
 import numpy as np
 
 PERSPECTIVE_RATIO = 4.0  # focal distance as a multiple of the framed radius
+ROTATION_STEP_DEG = 45.0  # one click of the "Rotação" buttons (spec 46 R3)
 _EPS = 1e-6
+_WORLD_AXES = {"x": 0, "y": 1, "z": 2}
 
 
 def _rotation(axis: np.ndarray, angle: float) -> np.ndarray:
@@ -92,6 +94,14 @@ class Camera:
         axis = np.cross(self._ball_start, end)
         angle = math.acos(float(np.clip(self._ball_start @ end, -1.0, 1.0)))
         self.rotation = _rotation(axis, angle) @ self._rot_start
+
+    def rotate_world(self, axis: str, degrees: float) -> None:
+        """Turn the structure about the Cartesian ``axis`` ("x", "y" or "z") through the view's
+        center, right-hand rule (``x+`` takes +y to +z). Zoom, pan, center and focal stay."""
+        index = _WORLD_AXES.get(axis)
+        if index is None:
+            raise ValueError(f"unknown axis {axis!r}: expected x, y or z")
+        self.rotation = self.rotation @ _rotation(np.eye(3)[index], math.radians(degrees))
 
     @staticmethod
     def _ball_vector(x: float, y: float, viewport: tuple[float, float]) -> np.ndarray:

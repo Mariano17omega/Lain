@@ -3,8 +3,9 @@ the vertex is the second) measured from clicks on the view, one row per measure 
 
 The two mode buttons are exclusive and may both be off (then a click only shows the atom). The atoms of
 the measure under way, of the one just made and of a selected row are numbered on the view
-(``StructureCanvas.set_marks``); nothing here moves the camera. The measures belong to the window:
-nothing is saved.
+(``StructureCanvas.set_marks``); nothing here moves the camera. "Limpar" empties both tables, "Apagar"
+removes the last measure made (spec 46 R4) and Delete the selected rows. The measures belong to the
+window: nothing is saved.
 """
 
 from __future__ import annotations
@@ -181,8 +182,12 @@ class MeasuresSection(QObject):
         self.clear_button = QPushButton("Limpar")
         self.clear_button.setToolTip("Apagar todas as medidas")
         self.clear_button.clicked.connect(self.clear)
+        self.delete_button = QPushButton("Apagar")
+        self.delete_button.setToolTip("Apagar a última medida")
+        self.delete_button.clicked.connect(self.delete_last)
         line.addWidget(self.copy_button)
         line.addWidget(self.clear_button)
+        line.addWidget(self.delete_button)
         line.addStretch(1)
         section.add_full(actions)
 
@@ -265,6 +270,20 @@ class MeasuresSection(QObject):
         self.canvas.set_marks(self.measurer.pending)
         self._refresh()
 
+    def delete_last(self) -> None:
+        """Remove the last measure made, of either kind (spec 46 R4). The atoms of a measure under way
+        stay pending; a row selected in a table does not matter (it is the last *made*, not the
+        selected one)."""
+        if not self.measurements:
+            return
+        last = self.measurements.pop()
+        table = self.tables[last.kind]
+        table.blockSignals(True)
+        table.remove([table.rowCount() - 1])  # the rows of a table follow the order made
+        table.blockSignals(False)
+        self.canvas.set_marks(self.measurer.pending)
+        self._refresh()
+
     def clear(self) -> None:
         """Empty both tables and the measure under way."""
         self.measurements = []
@@ -294,5 +313,5 @@ class MeasuresSection(QObject):
             has = table.rowCount() > 0
             table.setVisible(has)
             self.captions[mode].setVisible(has)
-        self.copy_button.setEnabled(bool(self.measurements))
-        self.clear_button.setEnabled(bool(self.measurements))
+        for button in (self.copy_button, self.clear_button, self.delete_button):
+            button.setEnabled(bool(self.measurements))

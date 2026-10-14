@@ -153,3 +153,25 @@ def test_closing_the_main_window_closes_them_all(qtbot, main_window, si_folder):
         controller.open(si_folder / "si.scf.in")
     main_window.close()
     assert controller.windows == []
+
+
+def test_print_names_the_file_from_the_project_root(qtbot, closing, si_folder, monkeypatch):
+    """Spec 46 R5.5: ``demo_project`` is the root, so the name starts with the folder of the input."""
+    window = closing
+    window.service.detect_now(si_folder)
+    view = open_from_menu(qtbot, window, monkeypatch, si_folder / "si.scf.in")
+    with qtbot.waitSignal(view.image_saved, timeout=10_000) as saved:
+        view.print_button.click()
+    assert saved.args[0] == si_folder / "plots" / "05_si-si.scf-3d.png"
+    assert saved.args[0].read_bytes().startswith(b"\x89PNG")
+    # "Recarregar config.yaml" may move the root: it is asked at every click
+    assert window.structure3d.root() == window.config.paths.local_root
+
+
+def test_print_is_not_written_into_the_fixtures(qtbot, closing, si_folder, monkeypatch):
+    window = closing
+    window.service.detect_now(si_folder)
+    view = open_from_menu(qtbot, window, monkeypatch, si_folder / "si.scf.in")
+    with qtbot.waitSignal(view.image_saved, timeout=10_000):
+        view.print_button.click()
+    assert not (FIXTURES / "si_bands" / "plots").exists()

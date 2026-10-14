@@ -150,6 +150,120 @@ def test_copy_clear_and_delete(qtbot, window):
     assert not measures.copy_button.isEnabled() and window.canvas.marks == ()
 
 
+def kinds(measures) -> list[str]:
+    return [m.kind for m in measures.measurements]
+
+
+def table_items(measures) -> list:
+    """The measures the tables hold, distances then angles (each table in its row order)."""
+    return [*measures.tables["distancia"].items, *measures.tables["angulo"].items]
+
+
+def test_apagar_removes_the_last_measure_made_of_either_kind(qtbot, window):
+    """Spec 46 R4: d1, d2, a1 made in this order go a1, d2, d1."""
+    measures, canvas = window.panel.measures, window.canvas
+    a, b, c = clickable_atoms(canvas, 3)
+    assert not measures.delete_button.isEnabled()
+    assert measures.delete_button.text() == "Apagar"
+    assert measures.delete_button.toolTip() == "Apagar a última medida"
+    measures.buttons["distancia"].click()
+    clicks(qtbot, window, [a, b, b, c])  # d1 = a-b, d2 = b-c
+    measures.buttons["angulo"].click()
+    clicks(qtbot, window, [a, b, c])  # a1
+    assert kinds(measures) == ["distancia", "distancia", "angulo"]
+    assert measures.delete_button.isEnabled()
+    d1, d2, a1 = measures.measurements
+
+    measures.delete_button.click()
+    assert measures.measurements == [d1, d2]
+    assert measures.tables["angulo"].isHidden() and measures.captions["angulo"].isHidden()
+    assert measures.tables["distancia"].items == [d1, d2]
+    measures.delete_button.click()
+    assert measures.measurements == [d1] and measures.tables["distancia"].items == [d1]
+    assert len(measures.tables["distancia"].texts()) == 1
+    measures.delete_button.click()
+    assert measures.measurements == []
+    assert all(t.rowCount() == 0 and t.isHidden() for t in measures.tables.values())
+    assert not measures.delete_button.isEnabled()
+    assert not measures.copy_button.isEnabled() and not measures.clear_button.isEnabled()
+    measures.delete_last()  # nothing to remove: no error
+    assert measures.measurements == []
+
+
+def test_apagar_takes_the_last_made_and_not_the_selected_row(qtbot, window):
+    measures = window.panel.measures
+    a, b, c = clickable_atoms(window.canvas, 3)
+    measures.buttons["distancia"].click()
+    clicks(qtbot, window, [a, b, b, c])
+    measures.buttons["angulo"].click()
+    clicks(qtbot, window, [a, b, c])
+    d1, d2, a1 = measures.measurements
+
+    measures.tables["distancia"].selectRow(0)  # d1 selected: not the one that goes
+    measures.delete_button.click()
+    assert measures.measurements == [d1, d2]
+    measures.tables["distancia"].selectRow(0)
+    measures.delete_button.click()  # the last made is d2, d1 stays selected or not
+    assert measures.measurements == [d1] and measures.tables["distancia"].items == [d1]
+
+
+def test_apagar_keeps_the_atoms_of_a_measure_under_way(qtbot, window):
+    measures, canvas = window.panel.measures, window.canvas
+    a, b, c = clickable_atoms(canvas, 3)
+    measures.buttons["distancia"].click()
+    clicks(qtbot, window, [a, b])  # d1
+    clicks(qtbot, window, [c])  # one atom of the next, pending
+    assert measures.measurer.pending == (c,) and len(measures.measurements) == 1
+
+    measures.delete_button.click()
+    assert measures.measurements == []  # the previous measure went
+    assert measures.measurer.pending == (c,)  # the one under way is still there
+    assert canvas.marks == (c,)
+    assert measures.mode == "distancia" and "Selecionados" in measures.hint.text()
+    clicks(qtbot, window, [a])  # and it completes: c-a
+    assert len(measures.measurements) == 1
+    assert [r for r in measures.measurements[0].refs] == [c, a]
+
+
+def test_copy_after_apagar_does_not_carry_the_measure(qtbot, window):
+    measures, structure = window.panel.measures, window.structure
+    a, b, c = clickable_atoms(window.canvas, 3)
+    measures.buttons["distancia"].click()
+    clicks(qtbot, window, [a, b, b, c])
+    measures.delete_button.click()
+    measures.copy_button.click()
+    text = QApplication.clipboard().text()
+    assert text == to_tsv(structure, measures.measurements)
+    assert text.count("\n") == 2  # the header and the one measure left
+    assert row_text(structure, measures.measurements[0])[0] in text
+
+
+def test_measures_and_table_rows_agree_after_mixing_delete_and_apagar(qtbot, window):
+    measures = window.panel.measures
+    a, b, c = clickable_atoms(window.canvas, 3)
+    measures.buttons["distancia"].click()
+    clicks(qtbot, window, [a, b, b, c, a, c])  # d1 d2 d3
+    measures.buttons["angulo"].click()
+    clicks(qtbot, window, [a, b, c, b, c, a])  # a1 a2
+    table = measures.tables["distancia"]
+    table.selectRow(0)
+    table.setFocus()
+    qtbot.keyClick(table, Qt.Key.Key_Delete)  # d1 goes by Delete
+    measures.delete_button.click()  # a2 goes by Apagar
+    assert kinds(measures) == ["distancia", "distancia", "angulo"]
+    assert sorted(id(m) for m in measures.measurements) == sorted(
+        id(m) for m in table_items(measures)
+    )
+    for mode, tab in measures.tables.items():
+        assert tab.rowCount() == len(tab.items) == len(tab.texts())
+        assert [m.kind for m in tab.items] == [mode] * len(tab.items)
+    measures.delete_button.click()  # a1
+    measures.delete_button.click()  # d3
+    assert kinds(measures) == ["distancia"]
+    assert measures.tables["angulo"].isHidden()
+    assert [m for m in measures.tables["distancia"].items] == measures.measurements
+
+
 def test_measuring_leaves_the_camera_alone(qtbot, window):
     measures, canvas = window.panel.measures, window.canvas
     a, b, c = clickable_atoms(canvas, 3)

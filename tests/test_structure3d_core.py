@@ -415,6 +415,84 @@ def test_frame_from_handles_parallel_up():
     assert np.allclose(r @ r.T, np.eye(3)) and np.linalg.det(r) == pytest.approx(1.0)
 
 
+def turned(axis: str, degrees: float) -> np.ndarray:
+    """The right-hand rotation matrix about a world axis, written out (not the camera's code)."""
+    t = np.radians(degrees)
+    c, s = np.cos(t), np.sin(t)
+    return {
+        "x": np.array([[1, 0, 0], [0, c, -s], [0, s, c]]),
+        "y": np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]]),
+        "z": np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]]),
+    }[axis]
+
+
+def isometric_camera() -> Camera:
+    cam = Camera()
+    cam.center = np.array([1.0, -2.0, 0.5])
+    cam.set_isometric()
+    cam.zoom, cam.pan, cam.focal = 33.0, np.array([12.0, -7.0]), 17.0
+    return cam
+
+
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_a_step_and_its_opposite_cancel_and_eight_steps_close_the_turn(axis):
+    cam = isometric_camera()
+    start = cam.rotation.copy()
+    cam.rotate_world(axis, 45.0)
+    assert not np.allclose(cam.rotation, start)
+    cam.rotate_world(axis, -45.0)
+    assert np.allclose(cam.rotation, start, atol=1e-12)
+    for _ in range(8):
+        cam.rotate_world(axis, 45.0)
+    assert np.allclose(cam.rotation, start, atol=1e-12)
+    assert np.allclose(cam.rotation @ cam.rotation.T, np.eye(3), atol=1e-12)
+
+
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_rotate_world_turns_the_structure_about_the_axis_through_the_center(axis):
+    cam = isometric_camera()
+    points = np.array([[2.0, 0.3, -1.0], [0.0, 0.0, 0.0], [-1.5, 2.5, 3.0], cam.center])
+    before = cam.camera_coords(points)
+    camera_before = Camera()
+    camera_before.rotation, camera_before.center = cam.rotation.copy(), cam.center.copy()
+    cam.rotate_world(axis, 90.0)
+    # what the view shows afterwards is the old view of the points turned +90° about the axis
+    turned_points = (points - cam.center) @ turned(axis, 90.0).T + cam.center
+    assert np.allclose(cam.camera_coords(points), camera_before.camera_coords(turned_points))
+    assert np.allclose(cam.camera_coords(cam.center), 0.0)  # the center stays where it was
+    assert not np.allclose(cam.camera_coords(points), before)
+
+
+def test_rotate_world_right_hand_rule_and_the_rest_of_the_view_stays():
+    cam = Camera()  # identity: the camera frame is the world's
+    cam.rotate_world("z", 90.0)
+    # +x of the structure now points where +y was: the camera sees (0, 1, 0)
+    assert np.allclose(
+        cam.camera_coords(np.array([[1.0, 0.0, 0.0]])), [[0.0, 1.0, 0.0]], atol=1e-12
+    )
+    cam.rotate_world("x", 90.0)  # x+ takes +y to +z
+    assert np.allclose(
+        cam.camera_coords(np.array([[0.0, 1.0, 0.0]])),
+        turned("z", 90.0) @ turned("x", 90.0) @ [0.0, 1.0, 0.0],
+        atol=1e-12,
+    )
+
+    cam = isometric_camera()
+    kept = (cam.zoom, cam.pan.copy(), cam.center.copy(), cam.focal)
+    cam.rotate_world("y", 45.0)
+    assert (cam.zoom, cam.focal) == (kept[0], kept[3])
+    assert np.array_equal(cam.pan, kept[1]) and np.array_equal(cam.center, kept[2])
+
+
+def test_rotate_world_refuses_an_unknown_axis():
+    cam = Camera()
+    before = cam.rotation.copy()
+    for axis in ("a", "w", "", "X"):
+        with pytest.raises(ValueError):
+            cam.rotate_world(axis, 45.0)
+    assert np.array_equal(cam.rotation, before)
+
+
 # -- pick ----------------------------------------------------------------------------------------
 
 

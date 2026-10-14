@@ -164,6 +164,11 @@ settings go into the pydantic models in `core/config.py` and `config.example.yam
   (`test_structure3d_canvas.double_click`). `render_image(size)` draws offscreen without showing the view
   (`test_structure3d_render.py`: pixels are B, G, R, A in memory); `test_perf_structure3d.py` (`perf`) times the frame.
   `clickable_atoms(canvas, n)` gives n atoms apart on screen for the measure tests (`test_structure3d_measure_ui.py`).
+  Spec 46: `Windows.open(path, structure=None, **options)` passes `options` (`root=`) to `StructureWindow`; the print tests
+  (`test_structure3d_print.py`) work on a *copy* of `si_bands/si.scf.in` in `tmp_path` (a window writes `plots/` next to
+  its input: never open a fixture and press "Print"), wait for `window.image_saved` / `print_failed`, and the panel tests
+  patch `qe_studio.ui.widgets.structure3d.panel.ask_restore`. `test_structure3d_render.py` compares `render_image` crops
+  (the triad's corner, the rest of the view) for the axes, widths and label size.
 - Tests have a 60 s timeout (pytest-timeout).
 
 ## Architecture
@@ -1247,7 +1252,7 @@ to `INPUT_READ_LIMIT`, never raises) and uses `input_extract.k_points_text`, the
 Only `summarize(path)` has it (`summarize_lines` keeps its signature and has no "Malha k"); the row has no `line`. Outputs of hundreds of MB take seconds (about 30 MB/s), in a worker, behind
 "Lendo <arquivo>…".
 
-### Visualização 3D (specs 43, 44)
+### Visualização 3D (specs 43, 44, 46)
 
 "Visualização 3D" (context menu of a pw.x input: `ItemActions.file_actions_of` → `FileActions(plot_kind, is_output,
 structure)`, `structure` = the cached sniff is `FileKind.PW_IN`, any `calculation`; after "Resumo", before "Gerar SCF
@@ -1264,23 +1269,42 @@ also for the same file.
   rule but never raises, gray 1.0 Å; Portuguese names, Jmol colors), `bonds` (`compute_bonds` over periodic images,
   `BondGraph.neighbors`), `replicate` (`build_scene`: copies and ghost atoms), `geometry` (the drawn radius of each style,
   `half_bonds`: a half starts where the stick of radius ρ meets its sphere, `√(r² − ρ²)` from the center, ends at the
-  middle; omitted when the spheres overlap past it; `fio` does not cut), `camera`, `pick`, `options` (`DisplayOptions`,
-  `background` "escuro" | "claro").
+  middle; omitted when the spheres overlap past it; `fio` does not cut), `camera` (`Camera.rotate_world(axis, degrees)`,
+  spec 46: `rotation @ R_axis(θ)` about the Cartesian axis through `center`, right-hand rule; `ROTATION_STEP_DEG` = 45),
+  `pick`, `options` (`DisplayOptions`, `background` "escuro" | "claro"; spec 46: `show_abc` / `show_xyz` (the a, b, c arrows
+  with their names, the x, y, z triad: independent), `abc_width` 1.8 / `xyz_width` 2.0 (px, `MIN_`/`MAX_AXIS_WIDTH` 0.5–8),
+  `label_size` 11 (px at font scale 1, 8–32); `background_of_theme(name)`), `image_file` (spec 46 R5: `print_stem(path,
+  root)` = the spec 32 prefix + `<file stem>-3d`, `save_png(folder, stem, data)` makes `plots/` without `parents` and
+  writes `<stem>.png` / `_2`, `_3`… with `unique_names.write_new_bytes(first=2)`; `PLOTS_DIR` lives in
+  `core/plotting/names.py` so this module drags no matplotlib).
 - **View** `ui/widgets/structure3d/`: `renderer.PaintRenderer` (painter's algorithm: spheres by center, halves by the 3D
   middle of the half; in "vareta" every atom gets the 1.3 ρ ball that covers the joints), `bonds_paint` (`half_quads`: a
   half is a quadrilateral widened `±ρ·zoom·scale` at each end, the nearer end wider; `BondShader`: one `QLinearGradient`
   per species moved to each half's edges, lit from the spheres' side; flat in draft mode), `overlay` (labels, hover and
-  current rings, a/b/c, triad; scene colors are constants per background, not tokens), `canvas.StructureCanvas`.
+  current rings, a/b/c, triad; scene colors are constants per background, not tokens; spec 46: the arrow tip grows with
+  `abc_width` (`head_px`: 8 px up to the default width), every label takes `ui_font(options.label_size)` except the
+  numbered badge of a measure, a disc of fixed radius that keeps `DEFAULT_LABEL_SIZE`), `canvas.StructureCanvas`.
   **The camera changes only by a gesture**: drag (turn), middle button / Shift + drag (move), wheel and `+`/`-`, R and
-  "Resetar vista", A/B/C/X/Y/Z, and a new repetition (framed again keeping the rotation). A double click is two clicks
+  "Resetar vista", A/B/C/X/Y/Z, the "Rotação" buttons (`rotate_structure`: no framing, selection and measures
+  untouched) and a new repetition (framed again keeping the rotation). A double click is two clicks
   (`mouseDoubleClickEvent` → `mousePressEvent`); a new bond factor rebuilds the scene without framing; the first frame
   waits for a real size (`_framed`). One current atom (`current_changed`), a click selects (Ctrl too), empty space clears.
   `StructureCanvas.shortcut_help` is a provider of `HelpController.for_window`.
 - **Panel** `panel.StructurePanel` + `panel_atom.AtomSection` / `NeighborTable`: `PanelHeader` "ESTRUTURA" and the
-  `param_widgets.Section`s "Átomo", "Exibição", "Espécies", "Célula" (open/closed in QSettings
-  `structure3d/sections/<título>`, shared; Átomo and Exibição open by default; `Section.add_row` returns its label so a row
-  can hide); fields are `NoWheel*` with `QLocale.c()`; every field edits the window's `DisplayOptions` and calls
-  `canvas.refresh_options()`, never the camera.
+  `param_widgets.Section`s "Átomo", "Medidas", "Exibição", "Rotação", "Espécies", "Célula" (open/closed in QSettings
+  `structure3d/sections/<título>`, shared; Átomo, Medidas, Exibição and Rotação open by default; `Section.add_row` returns
+  its label so a row can hide); fields are `NoWheel*` with `QLocale.c()`; every field edits the window's `DisplayOptions`
+  and calls `canvas.refresh_options()`, never the camera. **"Exibição" (spec 46 R2)** lists Estilo, Raio, Fator de ligação,
+  Repetição, Rótulos, "Tamanho dos rótulos", Fundo, then the five check boxes one after the other (Ligações, Caixa da
+  célula, Perspectiva, "Eixos x, y, z", "Eixos a, b, c") and the two widths, each disabled while its axes box is off
+  (`panel.show_xyz`, `show_abc`, `label_size`, `xyz_width`, `abc_width`). `sync()` (options → widgets, also the species
+  rows with their signals blocked) is the only way a change made in the view (key P, "Restaurar padrões") reaches the panel.
+  **"Rotação" (spec 46 R3)** is `rotation.RotationSection` (`buttons["x+"]` … `["z-"]`, 3 × 2, a click is ±45° through
+  `canvas.rotate_structure`). **"Restaurar padrões" (spec 46 R6)** is `panel.restore_button` in a fixed footer under the
+  scroll area; `panel.ask_restore(parent)` (patched like `ask_discard`) asks, then `canvas.restore_defaults(background)`
+  *replaces* `canvas.options` with a new `DisplayOptions(background_of_theme(theme.name))` (so nothing may keep the old
+  object: every use reads `canvas.options`), frames the isometric view again, sets `canvas.restored = True` (spec 47 reads
+  it) and emits `options_changed`; the current atom, the pending atoms, the measures and the open sections stay.
 - **Measures (spec 44)**: `core/structure3d/measure.py` (`distance`, `angle`: vertex at the 2nd atom, NaN with a zero arm;
   exact copies, no minimum image) and `measurements.py` (`Measurer(structure)`: `mode` "distancia" | "angulo" | None,
   `pending`, `click(ref)` → a `Measurement` when a pair / trio completes, then `pending` starts over (clicks 3 and 4 make a
@@ -1288,21 +1312,32 @@ also for the same file.
   `("O1 - O2", "1.500 Å")` / `"120.00°"`, `to_tsv` for "Copiar"). `ui/widgets/structure3d/measures.py:MeasuresSection` fills
   the "Medidas" section (between "Átomo" and "Exibição", open by default): two `toggle` buttons, exclusive but both may be off
   (no `QButtonGroup`), the hint line, one `MeasureTable` per kind (`#structureMeasures`, hidden while empty, newest row last
-  and selected, Delete removes the selected rows), "Copiar" (`message` → the window's status bar) and "Limpar". The view
+  and selected, Delete removes the selected rows), "Copiar" (`message` → the window's status bar), "Limpar" and, spec 46
+  R4, "Apagar" (`delete_button` / `delete_last()`: the last measure *made*, of either kind, never the selected row; the
+  pending atoms of a measure under way stay). The view
   emits `atom_clicked(ref | None)` on every click and `escape_pressed`; `StructureCanvas.set_marks(refs)` numbers atoms
   (`overlay.badge`): the pending ones, the measure just made (until the next click) or the selected row's.
-- **Window** `window.StructureWindow(structure, theme, settings)`: no parent, `WA_DeleteOnClose`, `closed(self)` from
-  `closeEvent`, title `<arquivo> — <pasta> · Visualização 3D`, 1280 × 820, bar `#plotToolbar` ("Resetar vista", "Vista ▾"
-  with `view_actions`), status bar `#structureStatus` (info, hovered atom, "⚠" with the reader's warnings). Its own
-  options, camera and selection; the background follows `theme.name` when it opens, nothing is saved. QSS:
-  `workspace/structure3d.qss` and the panel's ids in `controls/accordion.qss`.
+- **Window** `window.StructureWindow(structure, theme, settings, *, root=None)`: no parent, `WA_DeleteOnClose`,
+  `closed(self)` from `closeEvent`, title `<arquivo> — <pasta> · Visualização 3D`, 1280 × 820, bar `#plotToolbar`
+  ("Resetar vista", "Vista ▾" with `view_actions` = x, y, z only (spec 46 R1: the keys A, B, C still look along a, b, c;
+  the tooltip says so), "Print"), status bar `#structureStatus` (info, hovered atom, "⚠" with the reader's warnings). Its
+  own options, camera and selection; the background follows `theme.name` when it opens, nothing is saved. **"Print"
+  (spec 46 R5)**: `print_button` draws `canvas.render_image(size, dpr=PRINT_SCALE)` (2×, the view as it is: current
+  ring and badges in, focus and hover rings out) on the GUI thread, then `run_task(print_image.save_view, image,
+  folder, stem)` encodes the PNG and writes `<folder>/plots/<stem>.png` in a worker; no dialog, never over a file
+  (`_2`…), a gone folder is a status bar message and `print_failed(reason)`, not a new folder; `image_saved(Path)`
+  on success. `root` is the callable that gives the project root at each click (`Structure3DController.for_window` passes
+  `lambda: window.config.paths.local_root`, like the `PlotExporter`); without it the prefix is the input's folder. A
+  structure with no `source.path` leaves the button disabled. QSS: `workspace/structure3d.qss` and the panel's ids in
+  `controls/accordion.qss`.
 - **Controller** `ui/structure3d_controller.py:Structure3DController.for_window` (`window.structure3d`): `TaskGroup` by
   `structure3d:<path>:<n>`, busy "Lendo estrutura…", `opened(window)` / `failed(message)` (a `warning` toast "Visualização
   3D de X: motivo"), `windows` (dropped by `closed`), `close_dialog()` closes them all (last in `close_dialogs`),
-  `cancel()` in the "cancelar" step. The same `for_window` binds `ItemActions.xcrysden_path`: the **second 3D viewer** is
+  `cancel()` in the "cancelar" step; `root` (spec 46) is handed to every window. The same `for_window` binds `ItemActions.xcrysden_path`: the **second 3D viewer** is
   the external XCrySDen ("Abrir com XCrysDen", spec 45, see "Context menu"), which Lain only starts.
 - Frame times (`-m perf -s tests/test_perf_structure3d.py`, stacked graphene, 1000 × 800, ball and stick): 500 atoms ≈ 16 ms,
-  2 000 ≈ 50 ms (draft ≈ 28), 5 000 ≈ 105 ms (draft ≈ 65); budget 2 000 ≤ 80 ms full, ≤ 50 ms draft.
+  2 000 ≈ 50 ms (draft ≈ 28), 5 000 ≈ 105 ms (draft ≈ 65); budget 2 000 ≤ 80 ms full, ≤ 50 ms draft. The frame of "Print"
+  (960 × 780 at 2×, 2 000 atoms) ≈ 110 ms, budget 200 ms; the PNG encoding (150–210 ms) runs in a worker.
 
 ### Threading rules (GUI thread must never parse files)
 

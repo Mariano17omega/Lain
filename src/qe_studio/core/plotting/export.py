@@ -15,14 +15,12 @@ from matplotlib.figure import Figure
 
 from ..calculations.base import CalculationModule, D, P
 from .mpl_lock import MPL_LOCK
-from .names import export_prefix, join_stem
+from .names import PLOTS_DIR, export_prefix, join_stem
 from .style import PlotStyle, register_fonts
 from .table import BOM, PlotTable, to_csv
 
 if TYPE_CHECKING:
     from .session import PlotSession
-
-PLOTS_DIR = "plots"
 
 
 def plots_dir(folder: Path) -> Path:

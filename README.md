@@ -134,14 +134,22 @@ a pull.
    a window of its own (two clicks on the same file give two windows, each with its own settings) with
    the structure in 3D and, on the left, the panel of the clicked atom (named as QE numbers it, `O43`,
    with its species, mass, pseudopotential, positions, `if_pos`, starting magnetization and bonded
-   neighbours), the display options (style, radius, bonds, repetition, labels, cell, axes,
-   perspective, background), the species (colour, visibility) and the cell. Drag turns the view,
-   Shift + drag or the middle button moves it, the wheel zooms; **R** or **Resetar vista** goes back to
-   the initial view, **A**/**B**/**C** and **X**/**Y**/**Z** look along an axis, **P** toggles the
-   perspective. Clicking atoms never changes the zoom. A relax input shows its *input* geometry.
+   neighbours), the display options (style, radius, bond factor, repetition, labels and their size,
+   background, then the check boxes for bonds, cell, perspective and the **x, y, z** and **a, b, c**
+   axes, each axes system with its own thickness), the species (colour, visibility) and the cell.
+   Drag turns the view, Shift + drag or the middle button moves it, the wheel zooms; **R** or
+   **Resetar vista** goes back to the initial view, **X**/**Y**/**Z** (the **Vista** menu) and
+   **A**/**B**/**C** (keys only) look along an axis, **P** toggles the perspective. Under **Rotação**,
+   **x+ x- y+ y- z+ z-** turn the structure 45° about that axis (right-hand rule) without changing the
+   zoom. Clicking atoms never changes the zoom. A relax input shows its *input* geometry.
    Under **Medidas**, turn on **Distância** and click two atoms, or **Ângulos** and click three (the
    second is the vertex): each pair or trio adds a row to its table (`O43 - H59  0.965 Å`), in click
-   order; **Copiar** puts them on the clipboard for a spreadsheet, **Limpar** and Delete remove them.
+   order; **Copiar** puts them on the clipboard for a spreadsheet, **Apagar** removes the last measure
+   made, **Limpar** removes all and Delete the selected rows. **Print** (above the view) saves the
+   picture, as it is, at twice its pixels, to `plots/` of the calculation's folder as
+   `<folders from the root>-<file>-3d.png` (a name that exists is never overwritten: `_2`, `_3`…).
+   **Restaurar padrões**, at the foot of the panel, asks and then puts the options and the camera back
+   to a new window's (the measures and the current atom stay).
    A pw.x input or output also has **Abrir com XCrysDen**, which starts the external
    [XCrySDen](http://www.xcrysden.org/) on the file (`xcrysden --pwi scf.in`, `--pwo` for an output).
    Put its install folder (or the `xcrysden` script) in `config.yaml`, under `paths:`, as

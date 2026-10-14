@@ -1,6 +1,7 @@
 """One "Visualização 3D" window (spec 43 R4.3): a top-level window without a parent (its own taskbar
 entry, it may stay behind the main one), one per click, each with its own options, camera and current
 atom. Nothing is saved: it opens with the defaults and the background of the app theme at that moment.
+The one file a window writes is the picture of its "Print" (spec 46 R5), under ``plots/``.
 
 The window emits ``closed(self)`` from its ``closeEvent``, so whoever keeps it drops it there (never
 through ``destroyed``).
@@ -8,6 +9,7 @@ through ``destroyed``).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from PyQt6.QtCore import QSettings, Qt, pyqtSignal
@@ -24,18 +26,26 @@ from PyQt6.QtWidgets import (
 )
 
 from ....core.structure3d.elements import element_for_label
+from ....core.structure3d.image_file import print_stem
 from ....core.structure3d.model import AtomRef, Structure, atom_name
-from ....core.structure3d.options import DisplayOptions
+from ....core.structure3d.options import DisplayOptions, background_of_theme
+from ....core.tasks import run_task
 from ...theme.manager import ThemeManager
 from ..common import IconButton, set_variant
 from .canvas import StructureCanvas
 from .panel import StructurePanel
+from .print_image import save_view
 
 TITLE = "Visualização 3D"
 PANEL_WIDTH = 320
 SIZE = (1280, 820)
-VIEWS = ("a", "b", "c", "x", "y", "z")
+VIEWS = ("x", "y", "z")  # the menu of the bar; the keys A, B, C still look along a, b, c
+VIEW_TIP = "Olhar ao longo de x, y ou z (as teclas A, B e C olham ao longo de a, b e c)"
 MESSAGE_MS = 3000  # a status bar notice ("Medidas copiadas")
+FAILED_MS = 8000  # the notice of a "Print" that failed
+PRINT_TEXT = "Print"
+PRINT_TIP = "Salvar a imagem da vista em PNG, na pasta plots/ do cálculo"
+PRINT_SCALE = 2  # the picture has this many times the pixels of the view
 
 
 def window_title(structure: Structure) -> str:
@@ -55,18 +65,35 @@ def status_text(structure: Structure) -> str:
     return f"{name} · {structure.formula} · nat = {source.nat} · ibrav = {source.ibrav}"
 
 
+def _reason(exc: BaseException) -> str:
+    """Why a "Print" failed, in words for the status bar."""
+    if isinstance(exc, FileNotFoundError):
+        return "a pasta do cálculo não existe mais"
+    if isinstance(exc, OSError) and exc.strerror:
+        return exc.strerror
+    return str(exc) or type(exc).__name__
+
+
 class StructureWindow(QMainWindow):
     closed = pyqtSignal(object)  # this window, from closeEvent
+    image_saved = pyqtSignal(object)  # the Path of the PNG a "Print" wrote
+    print_failed = pyqtSignal(str)  # the reason
 
     def __init__(
-        self, structure: Structure, theme: ThemeManager, settings: QSettings | None = None
+        self,
+        structure: Structure,
+        theme: ThemeManager,
+        settings: QSettings | None = None,
+        *,
+        root: Callable[[], Path | None] | None = None,
     ):
         super().__init__(None)  # top level on purpose: independent of the main window
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.setObjectName("structureWindow")
         self.structure = structure
-        background = "claro" if theme.name == "light" else "escuro"
-        self.canvas = StructureCanvas(theme, structure, DisplayOptions(background=background))
+        self._root = root  # the project root, asked at every "Print" (names the file, spec 32)
+        options = DisplayOptions(background=background_of_theme(theme.name))
+        self.canvas = StructureCanvas(theme, structure, options)
         self.panel = StructurePanel(theme, self.canvas, settings)
 
         view = QWidget()
@@ -90,7 +117,7 @@ class StructureWindow(QMainWindow):
         self.canvas.setFocus()
 
     def _bar(self, theme: ThemeManager) -> QWidget:
-        """Above the view, like a plot's: "Resetar vista" and the "Vista" menu."""
+        """Above the view, like a plot's: "Resetar vista", the "Vista" menu and "Print"."""
         bar = QWidget()
         bar.setObjectName("plotToolbar")
         bar.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -105,7 +132,7 @@ class StructureWindow(QMainWindow):
         self.reset_button.clicked.connect(self._reset_clicked)
         self.view_button = set_variant(QToolButton(), "plotTool")
         self.view_button.setText("Vista")
-        self.view_button.setToolTip("Olhar ao longo de um eixo")
+        self.view_button.setToolTip(VIEW_TIP)
         self.view_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         menu = QMenu(self.view_button)
         self.view_actions: dict[str, QAction] = {}
@@ -115,13 +142,56 @@ class StructureWindow(QMainWindow):
             action.triggered.connect(lambda _=False, n=name: self.canvas.view_along(n))
             self.view_actions[name] = action
         self.view_button.setMenu(menu)
+        self.print_button = IconButton(
+            theme, "image", PRINT_TIP, "plotTool", "text_secondary", "accent", 15
+        )
+        self.print_button.setText(PRINT_TEXT)
+        self.print_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.print_button.setEnabled(
+            bool(self.structure.source.path)
+        )  # a file to put plots/ next to
+        self.print_button.clicked.connect(self._print_clicked)
         layout.addWidget(self.reset_button)
         layout.addWidget(self.view_button)
+        layout.addWidget(self.print_button)
         layout.addStretch(1)
         return bar
 
     def _reset_clicked(self) -> None:
         self.canvas.reset_view()
+
+    # -- Print (spec 46 R5) ------------------------------------------------------------------------
+    def _print_clicked(self) -> None:
+        """The view as it is (camera, options, background, current atom and measure badges: not the
+        focus or hover ring) at ``PRINT_SCALE`` times its size, saved to ``plots/`` by a task."""
+        source = self.structure.source.path
+        if not source:
+            return
+        path = Path(source)
+        root = self._root() if self._root is not None else None
+        stem = print_stem(path, root)
+        image = self.canvas.render_image(self.canvas.size(), draft=False, dpr=PRINT_SCALE)
+        run_task(
+            save_view,
+            image,
+            path.parent,
+            stem,
+            on_done=self._print_done,
+            on_error=self._print_error,
+        )
+
+    def _print_done(self, target: Path) -> None:
+        bar = self.statusBar()
+        if bar is not None:
+            bar.showMessage(f"Imagem salva em plots/{target.name}", MESSAGE_MS)
+        self.image_saved.emit(target)
+
+    def _print_error(self, exc: BaseException) -> None:
+        reason = _reason(exc)
+        bar = self.statusBar()
+        if bar is not None:
+            bar.showMessage(f"Não foi possível salvar a imagem: {reason}", FAILED_MS)
+        self.print_failed.emit(reason)
 
     def _status(self) -> None:
         bar = self.statusBar()

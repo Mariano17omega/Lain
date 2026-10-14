@@ -1,4 +1,5 @@
-"""Spec 43 R2: the bonds are cylinders that start on the spheres' surface (``render_image``)."""
+"""Spec 43 R2: the bonds are cylinders that start on the spheres' surface (``render_image``); spec 46 R2:
+the two axis systems, their widths and the size of the labels."""
 
 import numpy as np
 import pytest
@@ -12,6 +13,7 @@ from qe_studio.core.structure3d.geometry import (
     species_radii,
 )
 from qe_studio.core.structure3d.model import AtomRef
+from qe_studio.core.structure3d.options import DisplayOptions
 from qe_studio.core.structure3d.replicate import build_scene
 from qe_studio.ui.widgets.structure3d.bonds_paint import half_quads
 from qe_studio.ui.widgets.structure3d.canvas import StructureCanvas
@@ -50,7 +52,7 @@ def view(qapp):
 
     canvas = StructureCanvas(ThemeManager("dark"), water())
     canvas.options.perspective = False
-    canvas.options.show_cell = canvas.options.show_axes = False
+    canvas.options.show_cell = canvas.options.show_abc = canvas.options.show_xyz = False
     canvas.render_image(SIZE)  # first frame
     canvas.camera.view_axis("z", np.eye(3))
     canvas.camera.center = canvas.structure.position(AtomRef(0))
@@ -177,3 +179,92 @@ def test_every_style_renders(view):
         assert view.stats.atoms == (
             0 if style == "fio" else 3
         )  # "fio": dots for unbonded atoms only
+
+
+# -- spec 46 R2: the axes (a, b, c and x, y, z), their widths and the size of the labels -------------
+
+VIEW = QSize(600, 480)
+TRIAD = (slice(VIEW.height() - 110, VIEW.height()), slice(0, 110))  # rows, columns of the triad
+
+
+def draw_si(marks=(), **options):
+    """The cell of Si from its initial view, with ``options`` changed: (pixels, canvas)."""
+    from qe_studio.ui.theme.manager import ThemeManager
+
+    canvas = StructureCanvas(ThemeManager("dark"), si())
+    canvas.resize(VIEW)
+    for name, value in options.items():
+        setattr(canvas.options, name, value)
+    canvas.reset_view()
+    canvas.set_marks(marks)
+    return pixels(canvas.render_image(VIEW)), canvas
+
+
+def without_triad(rgb: np.ndarray) -> np.ndarray:
+    out = rgb.copy()
+    out[TRIAD] = 0
+    return out
+
+
+def differing(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    return (a != b).any(axis=2)
+
+
+def test_the_defaults_are_the_widths_and_size_of_before():
+    options = DisplayOptions()
+    assert (options.abc_width, options.xyz_width, options.label_size) == (1.8, 2.0, 11)
+    assert options.show_abc and options.show_xyz
+
+
+def test_the_two_axis_systems_switch_independently():
+    full, canvas = draw_si()
+    primitives = canvas.stats.primitives
+
+    no_abc, c_abc = draw_si(show_abc=False)
+    assert c_abc.stats.primitives == primitives - 3  # the three arrows
+    assert np.array_equal(no_abc[TRIAD], full[TRIAD])  # the triad is whole
+    assert differing(without_triad(no_abc), without_triad(full)).any()  # arrows and names gone
+
+    no_xyz, c_xyz = draw_si(show_xyz=False)
+    assert c_xyz.stats.primitives == primitives
+    assert np.array_equal(without_triad(no_xyz), without_triad(full))  # the arrows are whole
+    assert differing(no_xyz[TRIAD], full[TRIAD]).any()  # the triad and its letters gone
+
+
+def test_a_thicker_axis_paints_more_pixels_and_each_width_is_its_own():
+    # the arrows: what differs from the same view without them (their names included, equal in both)
+    none, _ = draw_si(show_abc=False)
+    thin = int(differing(without_triad(draw_si(abc_width=1.8)[0]), without_triad(none)).sum())
+    thick = int(differing(without_triad(draw_si(abc_width=6.0)[0]), without_triad(none)).sum())
+    assert thick > thin
+    # the triad: what differs from the view without it
+    no_xyz = draw_si(show_xyz=False)[0][TRIAD]
+    thin = int(differing(draw_si(xyz_width=2.0)[0][TRIAD], no_xyz).sum())
+    thick = int(differing(draw_si(xyz_width=6.0)[0][TRIAD], no_xyz).sum())
+    assert thick > thin
+    # the other system does not move with a width
+    default, _ = draw_si()
+    assert np.array_equal(draw_si(abc_width=6.0)[0][TRIAD], default[TRIAD])
+    assert np.array_equal(without_triad(draw_si(xyz_width=6.0)[0]), without_triad(default))
+
+
+def test_label_size_grows_the_text_but_not_the_badge_of_a_measure():
+    quiet = {"show_abc": False, "show_xyz": False}
+    plain, _ = draw_si(**quiet)
+
+    def box(rgb: np.ndarray) -> int:  # the area of the rectangle that holds every changed pixel
+        rows, cols = np.nonzero(differing(plain, rgb))
+        return int((rows.max() - rows.min() + 1) * (cols.max() - cols.min() + 1))
+
+    small = box(draw_si(labels="simbolo", **quiet)[0])
+    large = box(draw_si(labels="simbolo", label_size=20, **quiet)[0])
+    assert large > small
+
+    # the number of a badge sits in a disc of a fixed radius: it keeps its size
+    ref = (AtomRef(0),)
+    marked11, _ = draw_si(marks=ref, label_size=11, **quiet)
+    marked20, _ = draw_si(marks=ref, label_size=20, **quiet)
+    assert differing(marked11, plain).any()  # the ring and the badge are drawn
+    assert np.array_equal(marked11, marked20)
+    # ... while the names of the axes follow the size
+    assert differing(draw_si(label_size=20)[0][TRIAD], draw_si()[0][TRIAD]).any()

@@ -9,6 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 
 SEPARATOR = "-"
+# The exports folder of a simulation. Here, not in export.py: no matplotlib for who only needs the name.
+PLOTS_DIR = "plots"
 # Room left in the file system's 255 bytes for ``_NN``, the longest extension and the ``.….tmp`` of
 # the atomic write.
 MAX_STEM_BYTES = 180

@@ -12,7 +12,8 @@ e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 
 "Criar cálculo" portados dos scripts de `Documentation/Exemplo-SLAB/`: Slab, Supercélula e Molécula na superfície) e as specs 43–44 a
 **sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
 medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
-pw.x), em grupos de itens
+pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
+padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
@@ -78,6 +79,9 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 43 | [spec_43-visualizacao-3d-da-estrutura.md](Archived/spec_43-visualizacao-3d-da-estrutura.md) | "Visualização 3D" no menu dos inputs do pw.x: uma janela própria por clique (núcleo e `QPainter` portados da prova de conceito), ligações como cilindros que saem da superfície das esferas, zoom que não se desfaz ao clicar, painel esquerdo com as seções do Lain | 5, 11, 15, 19, 25, 27-5, 32, 40 | G | Opus 5.5 |
 | 44 | [spec_44-visualizacao-3d-medidas.md](Archived/spec_44-visualizacao-3d-medidas.md) | Seção "Medidas" da janela 3D: botões exclusivos "Distância" (2 átomos) e "Ângulos" (3, vértice no 2º), uma linha por medida nas tabelas, copiar e limpar | 43 | M | Sonnet 5.5 |
 | 45 | [spec_45-abrir-com-xcrysden.md](Archived/spec_45-abrir-com-xcrysden.md) | "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do pw.x: `--pwi` / `--pwo` do XCrySDen instalado em `paths.xcrysden_path`; desabilitado (com o motivo) quando a chave está vazia ou errada | 5, 43 | P | Sonnet 5.5 |
+| 46 | [spec_46-visualizacao-3d-ajustes-da-janela.md](Archived/spec_46-visualizacao-3d-ajustes-da-janela.md) | Janela 3D: a barra só com as vistas x, y, z (A, B, C seguem como teclas); "Eixos" dividido em x, y, z e a, b, c, cada um com a sua espessura; tamanho dos rótulos; caixas de "Exibição" juntas; seção "Rotação" (45° em x, y, z, ±); "Apagar" a última medida; botão "Print" (PNG em `plots/`); "Restaurar padrões" (opções e câmera, com pergunta) | 43, 44, 24, 32 | M | Sonnet 5.5 |
+| 47 | [spec_47-visualizacao-3d-lembrar-a-vista.md](spec_47-visualizacao-3d-lembrar-a-vista.md) | `view3d.plot` na pasta do cálculo: opções e câmera da janela 3D gravadas ao fechar (só se algo mudou) e restauradas ao abrir, uma seção por arquivo, espécies por rótulo, nunca recria uma pasta renomeada; "Restaurar padrões" apaga a seção ao fechar | 46, 43, 3, 27-3 | M | Opus 5.5 |
+| 48 | [spec_48-configuracoes-do-projeto-em-pasta-oculta.md](spec_48-configuracoes-do-projeto-em-pasta-oculta.md) | `folders.json`, `grids.json`, `compounds.json` e `navigation.json` (favoritos e recentes) passam a `<local_root>/.lain/` (oculta, fora do dropdown e do sync): copiar a raiz leva as configurações; um arquivo por raiz, migração única do diretório do usuário, fallback se a raiz não é gravável; os `.plot` não mudam | 14, 16, 21, 23, 27-3, 31 | M | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -116,12 +120,17 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
     (as medidas ocupam a seção que a 43 reserva no painel). Independentes das specs 33–42; a 43 deixa `ui/main_window.py` em 449/450.
 12. **XCrySDen (45, decisão de 13/10/2026):** pequena e independente; depende só do menu de contexto (5) e do ponto de ligação da 43. Pode
     sair antes de qualquer outra spec aberta; não toca `ui/main_window.py` (450/450).
-13. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
+13. **Janela 3D: ajustes e vista lembrada (46–47, decisão de 14/10/2026):** a 46 primeiro (cria `show_abc`, `show_xyz`, as espessuras,
+    `label_size` e `rotate_structure`), a 47 sobre ela (grava o que a 46 cria). Independentes das specs 33–42 e 45; nenhuma toca
+    `ui/main_window.py` (450/450).
+14. **Configurações do projeto (48, decisão de 14/10/2026):** independente das demais (nenhuma toca `ui/main_window.py`, 450/450); só
+    muda o lugar dos quatro arquivos do diretório do usuário, e os `.plot` (inclusive o `view3d.plot` da 47) ficam como estão.
+15. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–45, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz fica a proposta ainda aberta (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–46, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (47, 48 e `spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
@@ -383,6 +392,38 @@ As ideias vieram em `Ideias.md` (13/10/2026); a spec cita o trecho de origem.
 | 4 | `xcrysden_path` vazio: a opção fica desabilitada | spec 45, R2.2 e R3.4 (e também com o caminho errado, com o motivo no tooltip) |
 | 5 | A opção só aparece para `.in` / `.out` do pw.x | spec 45, R2.1 e R3.1 (pelo conteúdo, o sniff em cache; decisão 4) |
 
+## Rastreabilidade: ideias da nona rodada (14/10/2026) → specs
+
+As ideias vieram em `Ideias.md` (14/10/2026), sobre a janela de Visualização 3D das specs 43–44; cada spec cita o trecho de origem.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Barra da vista só com as opções x, y, z (as de a, b, c são redundantes) | spec 46, R1 (as teclas A, B, C ficam: decisão 1) |
+| 2 | A caixa "Eixos" dividida em duas: x, y, z e a, b, c | spec 46, R2 |
+| 3 | Espessura dos eixos x, y, z e a, b, c, ajustável em separado | spec 46, R2 |
+| 4 | Tamanho dos rótulos ajustável | spec 46, R2 (rótulos dos átomos e nomes dos eixos; o selo da medida não cresce) |
+| 5 | As caixas de "Exibição" juntas, uma depois da outra | spec 46, R2 (tabela com a ordem das 14 linhas) |
+| 6 | Seção "Rotação": girar a estrutura 45° em x+, x-, y+, y-, z+, z- | spec 46, R3 (eixos cartesianos, mão direita, sem reenquadrar) |
+| 7 | Botão "PRINT" que salva a imagem 3D em PNG | spec 46, R5 (direto em `plots/`, nome da spec 32 com `-3d`, nunca sobrescreve) |
+| 8 | "Apagar" ao lado de "Limpar": apaga a última medida | spec 46, R4 |
+| 9 | Configurações da janela 3D (posição, rotação, zoom…) salvas e restauradas, em `view3d.plot` na pasta do cálculo | spec 47, R1–R3 (grava ao fechar, só se algo mudou; as medidas não: decisão 1) |
+| 10 | Uma sessão por arquivo aberto dentro do `view3d.plot` | spec 47, R4 (chave = nome do arquivo) |
+| 11 | Botão "Restaurar padrões" (pedido na revisão, depois da primeira versão das specs) | spec 46, R6 (opções e câmera, rodapé do painel, com pergunta); spec 47, R3.5 (a seção do arquivo some ao fechar) |
+
+## Rastreabilidade: ideias da décima rodada (14/10/2026) → specs
+
+As ideias vieram no pedido (não em `Ideias.md`), depois de uma conversa sobre onde ficam os dados; a spec cita o trecho de origem.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Onde ficam salvos os ajustes de plot (`.plot`) e as configurações do grid | pergunta, sem spec (respondida: `<simulação>/<kind>.plot` e `grids.json`) |
+| 2 | Centralizar os arquivos de configuração numa pasta dentro do `local_root`, para a cópia da pasta dos projetos levá-los | spec 48, R1–R2 |
+| 3 | A pasta é oculta (`.lain/`, em vez de `configuration`) | spec 48, R1 (decisão do usuário) |
+| 4 | Fora do dropdown de projetos | spec 48, R5 (a regra do ponto inicial já exclui; vira contrato com teste, e `--exclude=.lain/` fixo no rsync) |
+| 5 | "Recentes" e "Favoritos" também na pasta | spec 48, R2 (`navigation.json`, chave `"."`) |
+| 6 | Os `.plot` **não** entram na mudança | spec 48, "Fora de escopo" (decisão do usuário) |
+| — | Considerações da conversa: raiz somente leitura, migração do diretório antigo, um arquivo por raiz, raiz compartilhada (último a gravar vence), nome reservado | spec 48, R3 e R4 (migração, fallback), R5 (nome), "Fora de escopo" (merge) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -486,3 +527,26 @@ Decisões de 13/10/2026 (oitava rodada, spec 45):
 - **Arquivos:** inputs (`--pwi`) e saídas (`--pwo`) do pw.x, decididos pelo sniff em cache, não pelo sufixo; fora do menu de seleção múltipla.
 - **Ligação:** em `Structure3DController.for_window`, para `ui/main_window.py` continuar em 450/450.
 - **Modelo recomendado:** Sonnet 5.5 para a 45.
+
+Decisões de 14/10/2026 (nona rodada, specs 46–47):
+- **Duas specs:** a 46 (interface: barra, eixos, rótulos, "Rotação", "Apagar", "Print") e a 47 (gravar a vista em `view3d.plot`); a 47 grava os
+  campos que a 46 cria e supera o "nada é gravado" da 43.
+- **Teclas A, B e C ficam**: só a barra da vista perde as opções de a, b, c.
+- **"Rotação":** eixos cartesianos x, y, z da estrutura, 45° fixos, regra da mão direita, pelo centro do bloco; não reenquadra (o zoom fica).
+- **"Print":** grava direto em `<pasta>/plots/` com o nome da spec 32 + `-3d`, nunca sobrescreve (`_2`…), o dobro dos pixels da vista, a vista como
+  está; o texto do botão é "Print" (o pedido escreve 'PRINT').
+- **`view3d.plot`:** grava só ao fechar e só se algo mudou, na thread da GUI; a seção é o nome do arquivo; espécies pelo rótulo; **as medidas não
+  entram**; um fundo gravado vence o tema do app; nunca recria uma pasta renomeada.
+- **"Restaurar padrões" (pedido na revisão):** rodapé fixo do painel 3D, pergunta antes (como o dos gráficos), volta opções e câmera (fundo do
+  tema de agora) e deixa medidas e átomo atual; com a spec 47, a seção do arquivo é apagada ao fechar (ou regravada, se algo mudou depois).
+- **Modelo recomendado:** Sonnet 5.5 para a 46; Opus 5.5 para a 47.
+
+Decisões de 14/10/2026 (décima rodada, spec 48):
+- **Lugar e nome:** `<paths.local_root>/.lain/`, oculta e fora do dropdown; a raiz inteira é a unidade que se copia (uma `.lain` por
+  projeto foi descartada: grids e compostos cruzam projetos e a spec 31 chaveia tudo pela raiz).
+- **O que entra:** `folders.json`, `grids.json`, `compounds.json` e `navigation.json` (favoritos **e recentes**, pedido do usuário).
+  **Não entram:** os `.plot` (decisão do usuário), `config.yaml`, o QSettings e `lain.lock`.
+- **Formatos intactos;** o `navigation.json` da raiz usa a chave `"."` (a de hoje é o caminho absoluto da raiz).
+- **Migração** por filtragem, copiando e nunca movendo (o arquivo antigo fica como "desfazer"); raiz somente leitura cai em
+  `data_dir()/roots/<hash>/` com aviso; raiz compartilhada: o último a gravar vence, sem merge.
+- **Modelo recomendado:** Opus 5.5 para a 48.

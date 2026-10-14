@@ -23,7 +23,7 @@ from ....core.structure3d.pick import TOLERANCE_PX, hit_test
 from ....core.structure3d.replicate import Scene
 from ...painting import ui_font
 from .bonds_paint import BondShader, add_halves
-from .overlay import ABC_COLORS, MIN_PICK_RADIUS, Spot, arrow_head, draw_overlays
+from .overlay import ABC_COLORS, MIN_PICK_RADIUS, Spot, arrow_head, draw_overlays, head_px
 from .render_types import FrameStats, Prims, Projection
 
 WIRE_WIDTH = 1.6  # px, the bonds of "fio"
@@ -31,7 +31,6 @@ DOT_PX = 2.2  # px, an unbonded atom in "fio"
 MIN_SPHERE_PX = {"vareta": 1.5}  # px, the smallest drawn ball (1.0 for the other styles)
 GHOST_OPACITY = 0.35
 DRAFT_MIN_BOND_WIDTH = 1.5  # px: thinner sticks are skipped in draft mode (not the wires of "fio")
-LABEL_PX = 11  # label font at scale 1
 BACKGROUND = {True: (24, 27, 33), False: (248, 248, 246)}  # by dark background
 BOX = {True: (150, 160, 180, 170), False: (80, 80, 95, 200)}
 BLOCK = {True: (150, 160, 180, 90), False: (80, 80, 95, 110)}
@@ -258,7 +257,7 @@ class PaintRenderer:
                 cxy, cdepth, _ = camera.project(scene.box_corners(vectors), size)
                 i, j = _EDGES[:, 0], _EDGES[:, 1]
                 prims.add(K_EDGE, cxy[i], cxy[j], (cdepth[i] + cdepth[j]) / 2, strength, -1)
-        if options.show_axes:
+        if options.show_abc:
             pts = np.vstack([np.zeros((1, 3)), scene.cell])
             axy, adepth, _ = camera.project(pts, size)
             prims.add(
@@ -266,7 +265,7 @@ class PaintRenderer:
                 np.repeat(axy[:1], 3, axis=0),
                 axy[1:],
                 (adepth[0] + adepth[1:]) / 2,
-                1.8,
+                options.abc_width,
                 np.arange(3),
             )
         return prims.finish(), len(a)
@@ -341,7 +340,7 @@ class PaintRenderer:
                 pen.setCapStyle(Qt.PenCapStyle.RoundCap)
                 set_pen(pen)
                 draw_line(QLineF(x1[p], y1[p], x2[p], y2[p]))
-                arrow_head(painter, x1[p], y1[p], x2[p], y2[p])
+                arrow_head(painter, x1[p], y1[p], x2[p], y2[p], head_px(size[p]))
         painter.setOpacity(1.0)
         painter.setBrushOrigin(zero)
 
@@ -368,7 +367,7 @@ class PaintRenderer:
             for number, ref in enumerate(marks, start=1)
             if (spot := self._locate(ref, scene, camera, options, proj, size)) is not None
         ]
-        font = ui_font(LABEL_PX)
+        font = ui_font(options.label_size)
         draw_overlays(
             painter, font, size, camera, scene, options, labels, hover_spot, current_spot, marked
         )

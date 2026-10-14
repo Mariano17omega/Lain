@@ -2,7 +2,7 @@
 
 import threading
 
-from qe_studio.core.unique_names import next_free, write_new
+from qe_studio.core.unique_names import next_free, write_new, write_new_bytes
 
 
 def test_next_free_of_a_file(tmp_path):
@@ -62,6 +62,33 @@ def test_a_failed_write_leaves_no_file(tmp_path):
         pass
     else:
         raise AssertionError("expected an encoding error")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_write_new_bytes_never_overwrites_and_numbers_from_first(tmp_path):
+    path = tmp_path / "figura.png"
+    png = bytes(range(256)) * 4  # not text: nothing is encoded or translated
+    assert write_new_bytes(path, png) == path
+    assert write_new_bytes(path, b"two") == tmp_path / "figura_1.png"
+    assert write_new_bytes(path, b"three", first=2) == tmp_path / "figura_2.png"
+    assert write_new_bytes(path, b"four", first=2) == tmp_path / "figura_3.png"
+    assert path.read_bytes() == png
+    assert (tmp_path / "figura_1.png").read_bytes() == b"two"
+    other = tmp_path / "outra.png"
+    other.write_bytes(b"x")
+    # the figures' convention: the first number is 2
+    assert write_new_bytes(other, b"y", first=2) == tmp_path / "outra_2.png"
+    assert other.read_bytes() == b"x"
+
+
+def test_a_failed_bytes_write_leaves_no_file(tmp_path):
+    path = tmp_path / "bad.png"
+    try:
+        write_new_bytes(path, "not bytes")  # type: ignore[arg-type]
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("expected a TypeError")
     assert list(tmp_path.iterdir()) == []
 
 
