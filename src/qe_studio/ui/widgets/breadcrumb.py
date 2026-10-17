@@ -26,7 +26,6 @@ from .common import set_variant
 from .workspace_tabs import add_action
 
 SEPARATOR = "›"
-MAX_WIDTH = 560  # the row never takes more than this of the top bar
 
 
 class Breadcrumb(QWidget):
@@ -36,7 +35,7 @@ class Breadcrumb(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("breadcrumb")
-        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._on_context_menu)
         self._root: Path | None = None
@@ -132,7 +131,7 @@ class Breadcrumb(QWidget):
     def sizeHint(self) -> QSize:
         widths, separator, _more = self._widths()
         full = sum(widths) + separator * max(len(widths) - 1, 0)
-        return QSize(min(full, MAX_WIDTH), scaled(26))
+        return QSize(full, scaled(26))
 
     def minimumSizeHint(self) -> QSize:
         widths, separator, more = self._widths()

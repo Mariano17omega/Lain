@@ -90,14 +90,6 @@ def test_generate_opens_a_tab_and_asks_for_the_panels(qtbot, rig, demo_project):
     assert rig.status.spinner.isHidden() and rig.workflow.busy.labels == []
 
 
-def test_preview_brings_an_open_plot_to_front(qtbot, rig, demo_project):
-    session = rig.generate(qtbot, demo_project / "03_bands")
-    rig.generate(qtbot, demo_project / "04_pdos")
-    with qtbot.assertNotEmitted(rig.workflow.plot_ready, wait=100):
-        rig.workflow.preview(demo_project / "03_bands")
-    assert rig.workflow.current_plot().session is session
-
-
 def test_export_writes_in_a_worker_and_reports(qtbot, rig, demo_project):
     folder = demo_project / "03_bands"
     rig.generate(qtbot, folder)

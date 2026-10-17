@@ -66,12 +66,46 @@ git-ignored because it may hold credentials.
 
 - **Key (recommended):** `auth: key` and `key_path`. ssh runs non-interactively, so a key with a
   passphrase must be loaded in `ssh-agent`.
-- **Password:** `auth: password`; export the password in the variable named by `password_env`
-  (default `QE_STUDIO_SSH_PASSWORD`) or type it when prompted (kept in memory for the session
-  only). The password reaches ssh through `SSH_ASKPASS` and never appears on a command line or in
-  logs; `sshpass` is not needed.
+- **Password:** `auth: password` (see below).
 - The cluster's host key must already be in `~/.ssh/known_hosts`: connect once with
   `ssh user@host` in a terminal. Unknown keys are never accepted automatically.
+
+#### Connecting with a password
+
+`host`, `user` and `remote_root` must be set, or sync stays disabled:
+
+```yaml
+paths:
+  local_root: ~/qe_simulations
+  remote_root: /home/your_user/qe_simulations   # matching folder on the cluster
+
+cluster:
+  host: cluster.example.org
+  port: 22
+  user: your_user
+  auth: password
+  password_env: QE_STUDIO_SSH_PASSWORD   # name of the environment variable holding the password
+  connect_timeout: 10
+```
+
+The password reaches Lain in one of three ways, most recommended first:
+
+1. **Typed when asked (simplest).** With the variable unset, Lain asks for the password
+   ("Senha do cluster") at the first sync and keeps it in memory for the session only; it is never
+   saved. The start-up warning "auth: password, mas a variável … não está definida" is expected then.
+2. **From the environment variable** named by `password_env`; Lain then asks nothing:
+
+   ```bash
+   export QE_STUDIO_SSH_PASSWORD='my_password'
+   uv run lain
+   ```
+
+3. **Inline in `config.yaml` (discouraged).** `password: my_password` under `cluster:` works, but it
+   is plain text on disk, and Lain warns about it.
+
+Either way the password reaches ssh through `SSH_ASKPASS` (`qe-studio-askpass`) and never appears
+on a command line or in logs; `sshpass` is not needed. After editing the file, use "Recarregar
+config.yaml" or restart Lain.
 
 ### How sync decides
 
@@ -109,7 +143,7 @@ a pull.
    **Renomear** (never overwrites; tabs showing the item are closed). On an SCF output
    there is also **Plotar**, which previews its convergence (estimated accuracy against
    `conv_thr`, |ΔE| or total energy, and the magnetization of spin runs) without saving; the
-   **Plotar SCF** button next to **Gerar Gráfico** does the same for the SCF output open in a tab.
+   **Plotar SCF** button in the top bar does the same for the SCF output open in a tab.
    Every QE output (pw.x, bands.x, projwfc.x…) also has **Resumo**: a tab with its state
    (`Concluído` / `Incompleto` / `Erro`), WALL and CPU time, parallelization, memory, system,
    results (energies, Fermi / HOMO-LUMO and gap, magnetization, pressure and stress, forces, SCF and
@@ -159,11 +193,10 @@ a pull.
    [XCrySDen](http://www.xcrysden.org/) on the file (`xcrysden --pwi scf.in`, `--pwo` for an output).
    Put its install folder (or the `xcrysden` script) in `config.yaml`, under `paths:`, as
    `xcrysden_path`; while it is empty or wrong the item is disabled and its tooltip says why.
-2. **Gerar Gráfico** (Ctrl+G) plots it, saves the figure into `plots/` and switches the left
+2. **Gerar** in the activity bar (Ctrl+G, "Gerar Gráfico") plots it, saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
-   opens when a plot is generated or a file is opened. **Plot** in the activity bar plots the
-   folder without saving anything (a plot already open is just brought to front); clicking it
-   again hides the plot and its parameters.
+   opens when a plot is generated or a file is opened. **Grids** (also in the
+   activity bar) joins open plots in one figure; hide the plots with the **Gráficos** toggle.
 3. Tune the plot. Zooming or panning with the toolbar updates the energy window, and
    **Exportar** (Ctrl+E) saves again. Hovering the plot shows the values under the cursor in the
    toolbar (k and energy with the nearest high-symmetry point, PDOS, relax step, SCF iteration). Your settings are kept in `<kind>.plot` (e.g. `bands.plot`)

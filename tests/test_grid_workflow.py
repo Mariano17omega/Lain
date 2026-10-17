@@ -33,8 +33,8 @@ def generate(qtbot, window, name="Al", saved=False):
     return view
 
 
-def test_the_top_bar_and_the_palette_open_the_grids(qtbot, main_window):
-    button = main_window.top_bar.grids
+def test_the_activity_bar_and_the_palette_open_the_grids(qtbot, main_window):
+    button = main_window.activity.grids
     assert button.text() == "Grids" and not button.isHidden()
     action = main_window._actions["grids.open"]
     assert action.text() == "Grids…"

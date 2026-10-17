@@ -45,6 +45,7 @@ ICONS = [
     # activity bar / top bar
     "account_tree",
     "grid_view",
+    "dashboard",  # "Grids" (spec 49)
     "bolt",
     "monitoring",
     "sync",

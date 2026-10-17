@@ -229,10 +229,10 @@ def test_panel_toggles(qtbot, main_window):
     assert window.files.isVisible()
     window.set_left_mode("params")
     assert window.left.currentIndex() == 1
-    assert window.activity.plot.isChecked() and not window.activity.tree.isChecked()
+    assert not window.activity.tree.isChecked()
     window.set_left_mode("tree")
     assert window.left.currentIndex() == 0
-    assert window.activity.tree.isChecked() and not window.activity.plot.isChecked()
+    assert window.activity.tree.isChecked()
 
 
 def test_activity_bar_has_no_params_button(qtbot, main_window):
@@ -472,3 +472,26 @@ def pump(seconds: float) -> None:
     end = time.monotonic() + seconds
     while time.monotonic() < end:
         QCoreApplication.processEvents()
+
+
+def test_activity_bar_has_no_plot_button(main_window):
+    assert not hasattr(main_window.activity, "plot")
+    assert not hasattr(ActivityBar, "plot_requested")
+
+
+def test_activity_bar_holds_generate_and_grids(main_window):
+    bar = main_window.activity
+    order = [b for b in bar.findChildren(type(bar.tree)) if b is not bar.theme_button]
+    assert order == [bar.tree, bar.grid, bar.generate, bar.grids, bar.rsync, bar.new_calc]
+    for name in ("generate", "grids", "generate_requested", "grids_requested"):
+        assert not hasattr(main_window.top_bar, name)
+
+
+def test_generate_button_plots_and_saves(qtbot, main_window, demo_project):
+    folder = demo_project / "03_bands"
+    main_window.explorer.select_path(folder)
+    with qtbot.waitSignal(main_window.plot_ready, timeout=10_000):
+        main_window.activity.generate.click()
+    with qtbot.waitSignal(main_window.export_finished, timeout=10_000):
+        pass
+    assert (folder / "plots").is_dir()

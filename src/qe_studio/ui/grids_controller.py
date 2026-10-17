@@ -62,7 +62,7 @@ class GridsController(QObject):
         )
         controller = cls(window, window.theme, store, loader, window.workspace, root, window)
         loader.ready.connect(workflow.show_session)
-        window.top_bar.grids_requested.connect(controller.open)
+        window.activity.grids_requested.connect(controller.open)
         return controller
 
     # -- the window ----------------------------------------------------------------------------

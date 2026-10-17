@@ -230,10 +230,9 @@ class MainWindow(QMainWindow):
         self.item_actions.compare_requested.connect(self.compare_inputs)
         self.item_actions.bands_dos_requested.connect(self.plot_workflow.plot_pair)
         self.item_actions.favorite_toggled.connect(self.navigation.set_favorite)
-        self.activity.plot_requested.connect(self.toggle_plot)
         self.activity.sync_requested.connect(self.sync.start_selected)
         self.activity.theme_requested.connect(self.toggle_theme)
-        self.top_bar.generate_requested.connect(self.generate_plot)
+        self.activity.generate_requested.connect(self.generate_plot)
         self.top_bar.plot_file_requested.connect(self.plot_workflow.plot_open_file)
         self.workspace.external_open_requested.connect(self.item_actions.open_default)
         self.workspace.reveal_requested.connect(self.reveal_in_explorer)
@@ -374,15 +373,6 @@ class MainWindow(QMainWindow):
         self.renamer.rename(path)
 
     # -- plots (PlotWorkflow) -----------------------------------------------------------------------
-    def toggle_plot(self) -> None:
-        """Activity bar "Plot": the first click shows the plot and its settings, the next hides
-        them (the left panel goes back to the tree)."""
-        if self.panel_layout.plot_shown():
-            self.set_panel_visible("workspace", False)
-            self.set_left_mode("tree")
-        else:
-            self.plot_workflow.preview(self.current_folder())
-
     def current_plot(self) -> PlotView | None:
         return self.plot_workflow.current_plot()
 

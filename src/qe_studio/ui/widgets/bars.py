@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 from ..theme.manager import ThemeManager
 from ..theme.scale import scaled
 from .breadcrumb import Breadcrumb
-from .common import IconButton, set_variant
+from .common import IconButton
 from .elided_label import ElidedLabel
 from .spinner import CircularProgress
 
@@ -98,7 +98,8 @@ class ActivityButton(IconButton):
 class ActivityBar(QWidget):
     explorer_requested = pyqtSignal()
     grid_toggled = pyqtSignal(bool)
-    plot_requested = pyqtSignal()
+    generate_requested = pyqtSignal()
+    grids_requested = pyqtSignal()
     sync_requested = pyqtSignal()
     create_requested = pyqtSignal()  # "Criar cálculo" (spec 26)
     theme_requested = pyqtSignal()
@@ -114,15 +115,22 @@ class ActivityBar(QWidget):
         layout.setSpacing(4)
         self.tree = ActivityButton(theme, "account_tree", "Árvore", "Explorador de pastas", True)
         self.grid = ActivityButton(theme, "grid_view", "Grade", "Mostrar/ocultar arquivos", True)
-        self.plot = ActivityButton(
-            theme, "bolt", "Plot", "Mostrar/ocultar o gráfico (sem salvar)", True
+        self.generate = ActivityButton(
+            theme,
+            "bolt",
+            "Gerar",
+            "Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)",
+        )
+        # A grid of the open plots in one figure (spec 23).
+        self.grids = ActivityButton(
+            theme, "dashboard", "Grids", "Unir gráficos abertos numa grade N×M (uma só figura)"
         )
         self.rsync = ActivityButton(theme, "sync", "Rsync", "Sincronizar com o cluster")
         self.new_calc = ActivityButton(
             theme, "add_circle", "Criar", "Criar cálculo (scripts e inputs)"
         )
         self.theme_button = ActivityButton(theme, "dark_mode", "Tema", "Alternar tema (Ctrl+T)")
-        for button in (self.tree, self.grid, self.plot, self.rsync, self.new_calc):
+        for button in (self.tree, self.grid, self.generate, self.grids, self.rsync, self.new_calc):
             layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch(1)
         layout.addWidget(self.theme_button, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -131,7 +139,8 @@ class ActivityBar(QWidget):
 
         self.tree.clicked.connect(self.explorer_requested)
         self.grid.toggled.connect(self.grid_toggled)
-        self.plot.clicked.connect(self.plot_requested)
+        self.generate.clicked.connect(self.generate_requested)
+        self.grids.clicked.connect(self.grids_requested)
         self.rsync.clicked.connect(self.sync_requested)
         self.new_calc.clicked.connect(self.create_requested)
         self.theme_button.clicked.connect(self.theme_requested)
@@ -147,7 +156,6 @@ class ActivityBar(QWidget):
 
     def set_left_mode(self, mode: str) -> None:
         self.tree.setChecked(mode == "tree")
-        self.plot.setChecked(mode == "params")
 
     def set_cluster(self, _label: str, state: str) -> None:
         """The reachability dot of "Rsync" (none when the cluster is not configured)."""
@@ -164,9 +172,7 @@ class ActivityBar(QWidget):
 
 
 class TopBar(QWidget):
-    generate_requested = pyqtSignal()
     plot_file_requested = pyqtSignal()
-    grids_requested = pyqtSignal()
     panel_toggled = pyqtSignal(str, bool)  # "tree" | "grid" | "workspace"
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
@@ -186,6 +192,12 @@ class TopBar(QWidget):
         for button in (self.back_button, self.forward_button):
             button.setEnabled(False)
         self.breadcrumb = Breadcrumb()
+        # Only while an output one module can plot on its own is open (the window decides).
+        self.plot_file = QPushButton("Plotar SCF")
+        self.plot_file.setObjectName("plotFileButton")
+        self.plot_file.setToolTip("Plotar a convergência do SCF do arquivo aberto")
+        self.plot_file.clicked.connect(self.plot_file_requested)
+        self.plot_file.hide()
         self.led = StatusLed(theme)
         separator = QWidget()
         separator.setObjectName("topSeparator")
@@ -194,7 +206,8 @@ class TopBar(QWidget):
 
         layout.addWidget(self.back_button)
         layout.addWidget(self.forward_button)
-        layout.addWidget(self.breadcrumb)
+        layout.addWidget(self.breadcrumb, 1)
+        layout.addWidget(self.plot_file)
         layout.addWidget(self.led)
         layout.addWidget(separator)
         self.toggles: dict[str, QToolButton] = {}
@@ -211,25 +224,6 @@ class TopBar(QWidget):
             button.toggled.connect(lambda checked, k=key: self.panel_toggled.emit(k, checked))
             self.toggles[key] = button
             layout.addWidget(button)
-        layout.addStretch(1)
-        self.generate = set_variant(QPushButton("Gerar Gráfico"), "primary")
-        self.generate.setObjectName("generateButton")
-        self.generate.setToolTip("Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)")
-        self.generate.clicked.connect(self.generate_requested)
-        layout.addWidget(self.generate)
-        # A grid of the open plots in one figure (spec 23).
-        self.grids = QPushButton("Grids")
-        self.grids.setObjectName("gridsButton")
-        self.grids.setToolTip("Unir gráficos abertos numa grade N×M (uma só figura)")
-        self.grids.clicked.connect(self.grids_requested)
-        layout.addWidget(self.grids)
-        # Only while an output one module can plot on its own is open (the window decides).
-        self.plot_file = QPushButton("Plotar SCF")
-        self.plot_file.setObjectName("plotFileButton")
-        self.plot_file.setToolTip("Plotar a convergência do SCF do arquivo aberto")
-        self.plot_file.clicked.connect(self.plot_file_requested)
-        self.plot_file.hide()
-        layout.addWidget(self.plot_file)
         theme.theme_changed.connect(self._refresh_icons)
         theme.scale_changed.connect(self._on_scale_changed)
         self._refresh_icons()
@@ -263,9 +257,7 @@ class TopBar(QWidget):
         self.led.set_state(state, "" if state == "disabled" else label)
 
     def _refresh_icons(self, *_args) -> None:
-        self.generate.setIcon(self.theme.icon("bolt", "primary_fg", size=14))
         self.plot_file.setIcon(self.theme.icon("monitoring", "text_secondary", size=14))
-        self.grids.setIcon(self.theme.icon("grid_view", "text_secondary", size=14))
 
 
 class StatusBar(QStatusBar):

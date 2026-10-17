@@ -165,21 +165,10 @@ class PlotWorkflow(QObject):
         self.busy.begin(f"detect:{key}", "Detectando cálculo…")
         self.service.request(Path(folder), fresh=True)
 
-    def preview(self, folder: Path) -> None:
-        """Plot ``folder`` in the workspace without saving it; an open plot of that folder is
-        only brought to front, keeping its edits."""
-        self.panel_requested.emit("workspace")
-        self.panel_requested.emit("params")
-        view = self.plot_of(folder)
-        if view is not None:
-            self.workspace.set_current(view)
-        else:
-            self.generate(folder, auto_export=False)
-
     def plot_file(self, path: Path, kind: str) -> None:
         """Preview the plot of one output file (context-menu "Plotar", "Plotar SCF" button).
 
-        Not saved to plots/: "Salvar em plots/" / Ctrl+E does that, as for the "Plot" button.
+        Not saved to plots/: "Salvar em plots/" / Ctrl+E does that.
         """
         module = module_for(kind)
         assert module.single_file_role is not None

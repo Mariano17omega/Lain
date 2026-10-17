@@ -13,7 +13,7 @@ e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 
 **sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
 medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
-padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`), em grupos de itens
+padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo"), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
 
@@ -82,6 +82,9 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 46 | [spec_46-visualizacao-3d-ajustes-da-janela.md](Archived/spec_46-visualizacao-3d-ajustes-da-janela.md) | Janela 3D: a barra só com as vistas x, y, z (A, B, C seguem como teclas); "Eixos" dividido em x, y, z e a, b, c, cada um com a sua espessura; tamanho dos rótulos; caixas de "Exibição" juntas; seção "Rotação" (45° em x, y, z, ±); "Apagar" a última medida; botão "Print" (PNG em `plots/`); "Restaurar padrões" (opções e câmera, com pergunta) | 43, 44, 24, 32 | M | Sonnet 5.5 |
 | 47 | [spec_47-visualizacao-3d-lembrar-a-vista.md](Archived/spec_47-visualizacao-3d-lembrar-a-vista.md) | `view3d.plot` na pasta do cálculo: opções e câmera da janela 3D gravadas ao fechar (só se algo mudou) e restauradas ao abrir, uma seção por arquivo, espécies por rótulo, nunca recria uma pasta renomeada; "Restaurar padrões" apaga a seção ao fechar | 46, 43, 3, 27-3 | M | Opus 5.5 |
 | 48 | [spec_48-configuracoes-do-projeto-em-pasta-oculta.md](Archived/spec_48-configuracoes-do-projeto-em-pasta-oculta.md) | `folders.json`, `grids.json`, `compounds.json` e `navigation.json` (favoritos e recentes) passam a `<local_root>/.lain/` (oculta, fora do dropdown e do sync): copiar a raiz leva as configurações; um arquivo por raiz, migração única do diretório do usuário, fallback se a raiz não é gravável; os `.plot` não mudam | 14, 16, 21, 23, 27-3, 31 | M | Opus 5.5 |
+| 49 | [spec_49-botoes-gerar-e-grids-na-barra-lateral.md](Archived/spec_49-botoes-gerar-e-grids-na-barra-lateral.md) | "Gerar Gráfico" e "Grids" passam da barra superior para a barra lateral; o botão "Plot" some; o caminho da barra superior ocupa um espaço fixo (o LED e os botões de painel não andam ao trocar de pasta) | 1, 16, 23, 33 | P | Sonnet 5.5 |
+| 50 | [spec_50-arvore-botao-de-arquivos-e-etiqueta-erro.md](spec_50-arvore-botao-de-arquivos-e-etiqueta-erro.md) | Árvore: botão "Mostrar arquivos" (`tree_show_files` em execução) entre "Recolher tudo" e "Atualizar"; etiqueta vermelha "ERRO" na pasta com `CRASH` ou `job.o<id>` não vazio | 4, 14, 15, 37 | M | Sonnet 5.5 |
+| 51 | [spec_51-criar-calculo-numerar-pasta.md](spec_51-criar-calculo-numerar-pasta.md) | "Criar cálculo": caixa "Numerar" põe `<N>_` na frente da pasta (`2_Bands_Al`), N = maior número das pastas irmãs + 1, qualquer tipo | 25, 26, 28 | P | Sonnet 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -125,7 +128,9 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
     `ui/main_window.py` (450/450).
 14. **Configurações do projeto (48, decisão de 14/10/2026):** independente das demais (nenhuma toca `ui/main_window.py`, 450/450); só
     muda o lugar dos quatro arquivos do diretório do usuário, e os `.plot` (inclusive o `view3d.plot` da 47) ficam como estão.
-15. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
+15. **Barras, árvore e numeração (49–51, decisão de 17/10/2026):** três specs independentes entre si e das demais abertas. A 49 só tira linhas de `ui/main_window.py`
+    (450/450); a 50 não toca a janela; a 51 mexe só no passo 1 do "Criar cálculo". Podem sair em qualquer ordem; a 50 (R2) é a de mais uso diário.
+16. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
@@ -424,6 +429,19 @@ As ideias vieram no pedido (não em `Ideias.md`), depois de uma conversa sobre o
 | 6 | Os `.plot` **não** entram na mudança | spec 48, "Fora de escopo" (decisão do usuário) |
 | — | Considerações da conversa: raiz somente leitura, migração do diretório antigo, um arquivo por raiz, raiz compartilhada (último a gravar vence), nome reservado | spec 48, R3 e R4 (migração, fallback), R5 (nome), "Fora de escopo" (merge) |
 
+## Rastreabilidade: ideias da décima primeira rodada (17/10/2026) → specs
+
+As ideias vieram em `Ideias.md` (17/10/2026); cada spec cita o trecho de origem.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Mover "Gerar Gráfico" e "Grid" da barra superior para a barra lateral | spec 49, R1 (rótulos "Gerar" e "Grids"; ícone `dashboard` para não repetir o da "Grade") |
+| 2 | Remover o botão "Plot" da barra lateral | spec 49, R2 (sai também `PlotWorkflow.preview`, sem outro uso) |
+| 3 | Espaço fixo para o endereço da pasta, sem deslocar os itens da direita | spec 49, R3 (o caminho ocupa o que sobra; "Plotar SCF" passa para a esquerda do LED) |
+| 4 | Botão para `tree_show_files` na árvore, entre "Recolher tudo" e "Atualizar" | spec 50, R1 (vale na sessão; o `config.yaml` manda no início e no "Recarregar") |
+| 5 | Etiqueta vermelha "ERRO" na pasta com `*.o*` não vazio ou `CRASH` | spec 50, R2 (só `.o`, como pedido; qualquer pasta, tenha selo de cálculo ou não; só na árvore) |
+| 6 | Caixa "Numerar" no "Criar cálculo": `<N>_` no prefixo da pasta, seguindo as pastas do local, de qualquer tipo | spec 51 (primeira pasta `0_`; maior + 1; lembrada entre aberturas) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -550,3 +568,13 @@ Decisões de 14/10/2026 (décima rodada, spec 48):
 - **Migração** por filtragem, copiando e nunca movendo (o arquivo antigo fica como "desfazer"); raiz somente leitura cai em
   `data_dir()/roots/<hash>/` com aviso; raiz compartilhada: o último a gravar vence, sem merge.
 - **Modelo recomendado:** Opus 5.5 para a 48.
+
+Decisões de 17/10/2026 (décima primeira rodada, specs 49–51):
+- **Três specs:** 49 (barra lateral e barra superior), 50 (painel da árvore) e 51 ("Criar cálculo"), por área; nenhuma depende da outra.
+- **"Plot" removido de vez**, com a prévia sem salvar (`PlotWorkflow.preview`); "Gerar" (que salva em `plots/`) fica como o botão de plotar da barra lateral.
+- **Caminho da barra superior:** `Expanding` com fator 1, sem `MAX_WIDTH`; LED e botões de painel fixos no canto direito; "Plotar SCF" entre o caminho e o LED.
+- **Botão de arquivos da árvore:** só da sessão (nada em QSettings); o `config.yaml` continua dono do estado inicial.
+- **ERRO:** `CRASH` (qualquer tamanho) ou `*.o<id>` não vazio na própria pasta, calculado no worker da detecção (`core/run_errors.py`, `DetectionService.peek_error`);
+  pasta sem selo de cálculo também recebe; `.e` não conta; só a árvore.
+- **Numerar:** primeira pasta `0_`, próximo = maior número + 1 entre as pastas irmãs (`^[0-9]+_`), sem zeros à esquerda, calculado de novo no worker ao criar; escolha lembrada.
+- **Modelo recomendado:** Sonnet 5.5 para 49, 50 e 51.

@@ -22,7 +22,7 @@ def two_plots(qtbot, main_window, demo_project):
 
 
 def open_dialog(qtbot, window):
-    window.top_bar.grids.click()
+    window.activity.grids.click()
     dialog = window.grids.dialog
     assert dialog is not None
     qtbot.waitExposed(dialog)

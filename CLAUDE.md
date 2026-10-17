@@ -995,7 +995,7 @@ substring with `*`/`?`; `CategoryFilter`: badges pick folders, states and visual
 kind with nothing ticked is hidden while the other has something).
 
 `ui/widgets/breadcrumb.py:Breadcrumb` sits in the `TopBar` with the ◀ ▶ buttons; the middle levels
-nearest the project collapse into a "…" menu (`relayout`, in `resizeEvent`). `filter_bar.py:FilterBar`
+nearest the project collapse into a "…" menu (`relayout`, in `resizeEvent`). The row has stretch factor 1 and `Expanding` policy (spec 49): it takes what is left, so the "Plotar …" button, LED and panel toggles keep their place whatever the path. "Gerar" (`generate`) and "Grids" are `ActivityBar` buttons; there is no "Plot" preview button. `filter_bar.py:FilterBar`
 (name field, "Filtrar ▾" menu, removable chips; Esc clears and hides; typing debounced) is in both
 the explorer and the grid, opened by a Ctrl+F `QShortcut` on the panel with `WidgetWithChildren`
 context, so the text viewer's Ctrl+F never crosses it. `FileFilterProxy` applies the filters from

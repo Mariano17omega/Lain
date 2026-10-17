@@ -92,14 +92,6 @@ class LayoutController(QObject):
         self.activity.set_left_mode(mode)
         self.set_panel_visible("tree", True)
 
-    def plot_shown(self) -> bool:
-        """The workspace and the plot parameters are both on screen."""
-        return (
-            not self.panels["workspace"].isHidden()
-            and not self.left.isHidden()
-            and self.left.currentIndex() == PARAMS_PAGE
-        )
-
     def set_panel_visible(self, panel: str, visible: bool) -> None:
         widget = self.panels[panel]
         if widget.isHidden() == visible:
