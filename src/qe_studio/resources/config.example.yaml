@@ -101,6 +101,8 @@ ui:
   hidden_dirs: [tmp, "*.save"]
   # false: the folder tree lists only folders (the file grid always lists files too).
   # true: the tree lists the files as well. Reload with "Recarregar config.yaml".
+  # The file icon in the tree's header (between "Recolher tudo" and "Atualizar") switches it while
+  # the program runs; nothing is saved, and a reload goes back to the value written here.
   tree_show_files: false
   # F5 (Atualizar) keeps what it read from files whose size and modification time did not
   # change. true: reread every file on F5 (only needed if something rewrites files keeping both).

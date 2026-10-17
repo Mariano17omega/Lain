@@ -12,16 +12,20 @@ from ..core.calculations import DetectionResult, drop_cached
 from ..core.calculations.base import feeds_parent, reads_from
 from ..core.detection import detect_folder
 from ..core.folder_memory import FolderMemory
+from ..core.run_errors import RunError, run_error
 from ..core.sniff import FileSniff, SniffCache
 from ..core.tasks import TaskGroup
 
 log = logging.getLogger(__name__)
 
 
-def _detect(folder: Path, sniff: SniffCache, memory: FolderMemory | None) -> list[DetectionResult]:
+def _detect(
+    folder: Path, sniff: SniffCache, memory: FolderMemory | None
+) -> tuple[list[DetectionResult], RunError | None]:
     # No ``except`` here: a failure reaches ``DetectionService._on_error``, which marks the folder
-    # as failed instead of caching "no calculation here" (spec 27-8 R5).
-    return detect_folder(folder, sniff=sniff.sniff, memory=memory)
+    # as failed instead of caching "no calculation here" (spec 27-8 R5). The run error (a CRASH
+    # file, a job log with content: spec 50) is the folder's, whether or not a module matched.
+    return detect_folder(folder, sniff=sniff.sniff, memory=memory), run_error(folder)
 
 
 def _affected(key: str, folder: Path | None, parent: Path | None = None) -> bool:
@@ -47,6 +51,8 @@ class DetectionService(QObject):
         self._pool.setMaxThreadCount(2)
         self._lock = threading.Lock()
         self._results: dict[str, list[DetectionResult]] = {}
+        # Same keys as ``_results`` and always written with it, under the same lock.
+        self._errors: dict[str, RunError | None] = {}
         self._failed: set[str] = (
             set()
         )  # folders whose detection raised (their result is a stand-in)
@@ -65,6 +71,11 @@ class DetectionService(QObject):
         """Cached results only: never schedules detection (filters run for every row)."""
         with self._lock:
             return self._results.get(str(folder))
+
+    def peek_error(self, folder: Path) -> RunError | None:
+        """The cached run error of ``folder`` (spec 50); never schedules detection."""
+        with self._lock:
+            return self._errors.get(str(folder))
 
     def request(self, folder: Path, fresh: bool = False) -> None:
         """Schedule detection; ``fresh`` jumps the queue and supersedes a task already running."""
@@ -86,9 +97,11 @@ class DetectionService(QObject):
         """Synchronous detection refreshing the cache (blocks: scripts and tests only)."""
         key = str(folder)
         results = detect_folder(Path(folder), sniff=self.sniff_cache.sniff, memory=self.memory)
+        error = run_error(Path(folder))
         self._tasks.cancel(key)  # a task started earlier must not overwrite this
         with self._lock:
             self._results[key] = results
+            self._errors[key] = error
         self.detected.emit(key)
         return results
 
@@ -110,6 +123,7 @@ class DetectionService(QObject):
         with self._lock:
             for key in [k for k in self._results if _affected(k, folder, parent)]:
                 del self._results[key]
+                self._errors.pop(key, None)
             self._failed = {k for k in self._failed if not _affected(k, folder, parent)}  # F5
         if folder is None and self.paranoid_refresh:
             self.sniff_cache.clear()
@@ -132,9 +146,11 @@ class DetectionService(QObject):
         """
         return self._tasks.shutdown(msecs)
 
-    def _on_done(self, key: str, results: list[DetectionResult]) -> None:
+    def _on_done(self, key: str, outcome: tuple[list[DetectionResult], RunError | None]) -> None:
+        results, error = outcome
         with self._lock:
             self._results[key] = results
+            self._errors[key] = error
         self.detected.emit(key)
 
     def _on_error(self, key: str, exc: Exception) -> None:
@@ -143,6 +159,7 @@ class DetectionService(QObject):
         log.error("detecção falhou: %s", key, exc_info=exc)
         with self._lock:
             self._results[key] = []  # ends the busy state and the wait of ``results()``
+            self._errors[key] = None
             first = key not in self._failed
             self._failed.add(key)
         self.detected.emit(key)

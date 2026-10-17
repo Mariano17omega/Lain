@@ -92,7 +92,7 @@ def test_line_numbers_pass_aa(theme):
 def test_badges_pass_aa_on_their_own_background(theme):
     tokens = load_tokens(theme)
     foregrounds = [t for t in tokens if t.startswith("badge_") and t.endswith("_fg")]
-    assert len(foregrounds) == 6
+    assert len(foregrounds) == 7
     for fg in foregrounds:
         ground = composite(tokens[fg.replace("_fg", "_bg")], tokens["card"])
         assert contrast_ratio(tokens[fg], ground) >= AA_TEXT, fg

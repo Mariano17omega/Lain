@@ -24,10 +24,16 @@ MARKDOWN_SUFFIXES = {".md", ".markdown"}  # rendered by the text viewer (spec 38
 SCRIPT_SUFFIXES = {".qsub"}
 # Queue logs: PBS/Torque/SGE stdout `job.o12345` and stderr `job.e12345`, job arrays `.o12345.1`.
 JOB_LOG = re.compile(r"^.+\.[oe]\d+(?:[.-]\d+)?$", re.IGNORECASE)
+# The stdout half of it (`job.o12345`): the file whose content makes a folder's "ERRO" (spec 50).
+JOB_STDOUT = re.compile(r"^.+\.o\d+(?:[.-]\d+)?$", re.IGNORECASE)
 
 
 def is_job_log(path: Path) -> bool:
     return JOB_LOG.match(path.name) is not None
+
+
+def is_job_stdout(path: Path) -> bool:
+    return JOB_STDOUT.match(path.name) is not None
 
 
 def is_markdown(path: Path) -> bool:

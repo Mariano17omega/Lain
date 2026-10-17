@@ -69,6 +69,7 @@ QT_FREE = [
     "qe_studio.core.qsub_lint",
     "qe_studio.core.markdown_links",
     "qe_studio.core.file_kinds",
+    "qe_studio.core.run_errors",
     "qe_studio.core.plotting.session",
     "qe_studio.core.plotting.gap_label",
     "qe_studio.core.sync.request",

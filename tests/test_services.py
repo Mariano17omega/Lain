@@ -318,3 +318,72 @@ def test_a_failed_detection_ends_the_busy_state_of_the_plot(qtbot, tmp_path, mon
         assert rig.workflow.busy.labels == []
     finally:
         rig.close()
+
+
+# -- the run error of a folder (spec 50 R2) ----------------------------------------------------------
+
+
+def test_peek_error_follows_the_detection_and_the_invalidation(qtbot, tmp_path):
+    from qe_studio.core.run_errors import RunError
+
+    folder = _detected_empty(tmp_path, ["calc"])["calc"]
+    (folder / "CRASH").write_text("")
+    service = services.DetectionService()
+    assert service.peek_error(folder) is None
+    assert service.peek_results(folder) is None  # peeking schedules nothing
+    with qtbot.waitSignal(service.detected, timeout=5000):
+        assert service.results(folder) is None
+    assert service.peek_error(folder) == RunError("crash", "CRASH")
+
+    (folder / "CRASH").unlink()
+    (folder / "job.o9").write_text("boom")
+    assert service.peek_error(folder) == RunError("crash", "CRASH")  # cached until F5 / sync
+    service.invalidate(folder)
+    assert service.peek_error(folder) is None and service.peek_results(folder) is None
+    with qtbot.waitSignal(service.detected, timeout=5000):
+        service.request(folder)
+    assert service.peek_error(folder) == RunError("job_log", "job.o9")
+    assert service.wait()
+
+
+def test_detect_now_fills_the_error_and_f5_clears_it(qapp, tmp_path):
+    from qe_studio.core.run_errors import RunError
+
+    folders = _detected_empty(tmp_path, ["bad", "good"])
+    (folders["bad"] / "job.o1").write_text("x")
+    service = services.DetectionService()
+    for folder in folders.values():
+        service.detect_now(folder)
+    assert service.peek_error(folders["bad"]) == RunError("job_log", "job.o1")
+    assert service.peek_error(folders["good"]) is None
+
+    service.invalidate()  # F5: results and errors go together
+    assert all(service.peek_results(f) is None for f in folders.values())
+    (folders["good"] / "CRASH").write_text("")
+    service.detect_now(folders["good"])
+    assert service.peek_error(folders["good"]) == RunError("crash", "CRASH")
+    assert service.peek_error(folders["bad"]) is None  # not detected again yet
+
+
+def test_a_folder_that_has_no_calculation_still_gets_its_error(qtbot, tmp_path):
+    from qe_studio.core.run_errors import RunError
+
+    folder = _detected_empty(tmp_path, ["caiu"])["caiu"]
+    (folder / "job.o77").write_text("Segmentation fault")  # the job died before any output
+    service = services.DetectionService()
+    with qtbot.waitSignal(service.detected, timeout=5000):
+        service.request(folder)
+    assert service.peek_results(folder) == []
+    assert service.peek_error(folder) == RunError("job_log", "job.o77")
+    assert service.wait()
+
+
+def test_a_failed_detection_caches_no_error(qtbot, tmp_path, monkeypatch):
+    folder = _detected_empty(tmp_path, ["calc"])["calc"]
+    (folder / "CRASH").write_text("")
+    monkeypatch.setattr(services, "detect_folder", _raise)
+    service = services.DetectionService()
+    with qtbot.waitSignal(service.detected, timeout=5000):
+        service.request(folder)
+    assert service.peek_results(folder) == [] and service.peek_error(folder) is None
+    assert service.wait()

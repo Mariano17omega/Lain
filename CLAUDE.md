@@ -1029,6 +1029,27 @@ with the whole name. List mode is one line per row, as before.
 (`ExplorerPanel(theme, service, root, ui)`, `apply_config(root, ui)`), so "Recarregar config.yaml" applies it without a
 restart; the file grid is not affected. With files hidden, `select_path(file)` selects the file's folder and emits
 `file_selected(file)`, so the grid still selects the file (the tab menu's "Revelar no explorador" works the same).
+**Spec 50 R1:** the header's `files_button` (checkable, icon `draft`, between "Recolher tudo" and "Atualizar") flips it for the
+session and writes nothing. `ExplorerPanel.set_files_shown(bool)` is the one setter, also what `apply_config` calls (so a reload
+sets the button back to the file's value; the button's signal is blocked). Hiding the files while a *file* is the current row
+re-highlights its folder under `_quiet`, which makes `_on_current` ignore everything while the filter switches (Qt moves the
+current row by itself when its row goes): the window is told nothing, so the grid keeps its folder and file, and `current_folder()`
+answers with that folder, not the root. `test_architecture`'s `FS_ALLOWED` counts calls by *method name*: the panel asks the
+model (`proxy.fs.isDir`), not `proxy.is_dir`, for this check, which reads the cache and not the disk.
+
+**Run error on a tree folder (spec 50 R2).** `core/run_errors.py` (Qt-free, in `QT_FREE`): `run_error(folder)` is one `scandir` of
+the folder itself (no subfolder, no file opened): a regular file named exactly `CRASH` (any size) → `RunError("crash", …)`, else
+the first by name of the job stdout logs (`file_kinds.is_job_stdout`, the `.o<id>` half of `JOB_LOG`; `.e<id>` does not count)
+with `st_size > 0` → `"job_log"`; `RunError.tooltip` is what the badge's tooltip says. `DetectionService._detect` returns
+`(results, run_error(folder))`; `_errors` has the keys of `_results`, is written under the same lock and cleared by the same
+`invalidate` keys (`_on_error` stores `None`), and `peek_error(folder)` reads the cache only. The error is the folder's, not a
+module's: a folder whose job died before writing any output has no badge of a calculation, and still gets it. `ExplorerDelegate`
+paints "ERRO" (`badge_error_{bg,fg,border}`, both themes; `paint_badge` token `"error"`) as the *rightmost* badge of a folder row,
+the detection badges to its left, and `_tooltip_at` puts it first in `badge_layout`. The file grid's cards and the "Filtrar ▾"
+menu do not have it. It costs about 10–15 ms for 520 folders (`detect_big_project` does not time it: it calls `detect_folder`
+alone; `test_refresh_of_seen_folders` does, through `detect_now`). Tests: `test_run_errors.py`, `test_services.py`,
+`test_tree_error_tag.py` (it reads the badge's background as the commonest color in the badge's place in a viewport `grab()`, and
+asks `_tooltip_at` for the text; ask for the `failed` fixture *before* `main_window`, so the files exist when the tree is made).
 
 ### Project settings folder (spec 48)
 

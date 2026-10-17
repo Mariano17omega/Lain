@@ -17,9 +17,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...core.calculations import DetectionResult
 from ...core.config import UiConfig
 from ...core.file_kinds import human_size, status_label, status_tooltip
 from ...core.filtering import BADGES, NO_BADGE
+from ...core.run_errors import RunError
 from ..file_types import file_visual, level_token
 from ..painting import BADGE_GAP, badge_layout, mono_font, paint_badge, ui_font
 from ..services import DetectionService
@@ -33,6 +35,9 @@ from .nav_sections import NavSection
 from .project_combo import ProjectCombo
 
 ROW_HEIGHT = 22
+ERROR_BADGE = "ERRO"  # a folder with a CRASH file or a job log with content (spec 50)
+FILES_SHOW_TIP = "Mostrar arquivos na árvore"
+FILES_HIDE_TIP = "Ocultar arquivos da árvore"
 
 
 class ExplorerDelegate(QStyledItemDelegate):
@@ -67,7 +72,11 @@ class ExplorerDelegate(QStyledItemDelegate):
         right = rect.right() - 6
         center = rect.center().y() + 0.5
         if is_dir:
-            for result in reversed(self.service.results(path) or []):
+            results = self.service.results(path) or []  # schedules the detection on a miss
+            if self.service.peek_error(path) is not None:  # the rightmost badge, always in view
+                left = paint_badge(painter, right, center, ERROR_BADGE, self.theme, "error")
+                right = left - BADGE_GAP
+            for result in reversed(results):
                 left = paint_badge(
                     painter, right, center, result.badge, self.theme, result.badge_token
                 )
@@ -145,11 +154,17 @@ class ExplorerDelegate(QStyledItemDelegate):
         path = self.proxy.path(index)
         right, center = rect.right() - 6, rect.center().y() + 0.5
         if self.proxy.is_dir(index):
+            items: list[tuple[str, RunError | DetectionResult]] = []
+            error = self.service.peek_error(path)
+            if error is not None:
+                items.append((ERROR_BADGE, error))
             results = self.service.peek_results(path) or []
-            items = [(result.badge, result) for result in reversed(results)]
-            for box, result in badge_layout(items, right, center):
+            items += [(result.badge, result) for result in reversed(results)]
+            for box, item in badge_layout(items, right, center):
                 if box.adjusted(-1, -4, 1, 4).contains(QPointF(pos)):
-                    return result.module.badge_tooltip()
+                    if isinstance(item, RunError):
+                        return item.tooltip
+                    return item.module.badge_tooltip()
             return ""
         size = self.proxy.fs.size(self.proxy.mapToSource(index))
         text, _token, label = self._file_meta(path, size)
@@ -178,6 +193,7 @@ class ExplorerPanel(QWidget):
     ):
         super().__init__(parent)
         self.theme, self.service = theme, service
+        self._quiet = False  # the tree's current row is being moved by the panel, not the user
         self.setObjectName("explorerPanel")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -185,6 +201,8 @@ class ExplorerPanel(QWidget):
 
         header = PanelHeader(theme, "Explorador", "folder_open")
         self.collapse_button = header.add_button(IconButton(theme, "unfold_less", "Recolher tudo"))
+        self.files_button = header.add_button(IconButton(theme, "draft", FILES_SHOW_TIP))
+        self.files_button.setCheckable(True)  # spec 50 R1: ``ui.tree_show_files``, this session
         self.refresh_button = header.add_button(IconButton(theme, "refresh", "Atualizar (F5)"))
         layout.addWidget(header)
         self.projects = ProjectCombo()  # spec 31: answered by the window's ProjectController
@@ -228,6 +246,8 @@ class ExplorerPanel(QWidget):
         layout.addWidget(self.tree, 1)
 
         self.set_root(root)
+        self.set_files_shown(ui.tree_show_files)  # the button's start; connected just below
+        self.files_button.toggled.connect(self._on_files_toggled)
         selection_of(self.tree).currentChanged.connect(self._on_current)
         self.tree.activated.connect(self._on_activated)  # double click or Enter
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
@@ -275,8 +295,38 @@ class ExplorerPanel(QWidget):
     def apply_config(self, root: Path, ui: UiConfig) -> None:
         """A reloaded config: project root, hidden folders and whether the tree lists files."""
         self.proxy.set_hidden_dirs(ui.hidden_dirs)
-        self.proxy.set_dirs_only(not ui.tree_show_files)
+        self.set_files_shown(ui.tree_show_files)
         self.set_root(root)
+
+    def set_files_shown(self, shown: bool) -> None:
+        """List the files in the tree or folders only; the button follows without ``toggled``."""
+        self.files_button.blockSignals(True)
+        self.files_button.setChecked(shown)
+        self.files_button.blockSignals(False)
+        self._show_files(shown)
+
+    def _on_files_toggled(self, checked: bool) -> None:
+        self._show_files(checked)
+
+    def _show_files(self, shown: bool) -> None:
+        self.files_button.setToolTip(FILES_HIDE_TIP if shown else FILES_SHOW_TIP)
+        index = self.tree.currentIndex()
+        hidden_file = None
+        if not shown and index.isValid() and not self.proxy.fs.isDir(self.proxy.mapToSource(index)):
+            hidden_file = self.proxy.path(index)  # its row is about to go (the model's cache)
+        # The folder open in the grid does not change, so the window is told nothing: Qt moves the
+        # current row by itself when its row goes, and ``current_folder`` must keep answering with
+        # the file's folder, not the root.
+        self._quiet = True
+        try:
+            self.proxy.set_dirs_only(not shown)
+            if hidden_file is not None:
+                folder = hidden_file.parent
+                self.tree.setCurrentIndex(
+                    self.proxy.index_for(folder) if folder != self._root else QModelIndex()
+                )
+        finally:
+            self._quiet = False
 
     def refresh(self) -> None:
         """Repaint the badges; the caller invalidates the detection it knows is stale."""
@@ -333,7 +383,7 @@ class ExplorerPanel(QWidget):
         return source.isValid() and not self.proxy.fs.isDir(source)
 
     def _on_current(self, current: QModelIndex, _previous: QModelIndex) -> None:
-        if not current.isValid():
+        if self._quiet or not current.isValid():
             return
         path = self.proxy.path(current)
         if self.proxy.is_dir(current):
