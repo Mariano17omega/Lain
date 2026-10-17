@@ -345,3 +345,9 @@ def test_xcrysden_path_only_lives_under_paths():
     with pytest.raises(ConfigError) as info:
         parse_config({"xcrysden_path": "/opt/xcrysden"})
     assert "xcrysden_path: chave desconhecida" in str(info.value)
+
+
+def test_auto_generate_plot_is_on_by_default_and_documented():
+    assert AppConfig().ui.auto_generate_plot is True
+    assert parse_config({"ui": {"auto_generate_plot": False}}).ui.auto_generate_plot is False
+    assert "auto_generate_plot" in (ROOT / "config.example.yaml").read_text(encoding="utf-8")

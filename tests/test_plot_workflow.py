@@ -559,13 +559,13 @@ def test_read_only_folder_warns_once(qtbot, main_window, demo_project, no_dialog
     assert not (folder / "bands.plot").exists()
 
 
-def test_placeholder_generates_and_saves(qtbot, main_window, demo_project, no_dialogs):
+def test_generate_plot_button_generates_and_saves(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     folder = demo_project / "03_bands"
     window.explorer.select_path(folder)
     window.set_left_mode("params")
-    button = window.params.body.findChild(QPushButton)
-    assert button.text() == "Gerar gráfico"
+    button = window.params.generate_button
+    assert button.text() == "Gerar Plot"
     with qtbot.waitSignals([window.plot_ready, window.export_finished], timeout=10_000):
         button.click()
     assert (folder / "plots" / "03_bands-bands.png").exists()
@@ -704,12 +704,63 @@ def test_series_rows_are_updated_in_place(qtbot):
     qtbot.waitUntil(lambda: [c.text() for c in series.findChildren(QCheckBox)] == ["Al d"])
 
 
-def test_generate_button_reuses_the_open_plot(qtbot, main_window, demo_project, no_dialogs):
+def test_plot_button_brings_the_open_plot_to_front_without_asking(
+    qtbot, main_window, demo_project, no_dialogs
+):
     window = main_window
     folder = demo_project / "03_bands"
     generate(qtbot, window, folder)
-    tabs = window.workspace.count()
+    view = window.current_plot()
+    window.set_left_mode("tree")
+    window.explorer.select_path(folder)
+    with qtbot.assertNotEmitted(window.plot_ready, wait=200):
+        window.activity.generate.click()
+    assert window.plot_workflow._detecting == {} and no_dialogs["overwrite"] == []
+    assert window.current_plot() is view and window.left.currentIndex() == 1
+
+
+def test_plot_button_with_auto_generation_off_only_opens_the_panel(
+    qtbot, window_factory, demo_project, no_dialogs
+):
+    window = window_factory(ui={"auto_generate_plot": False})
+    folder = demo_project / "03_bands"
+    window.explorer.select_path(folder)
+    with qtbot.assertNotEmitted(window.plot_ready, wait=300):
+        window.activity.generate.click()
+    assert window.current_plot() is None and window.params.generate_button.isVisible()
+    assert not (folder / "plots").exists()
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        window.params.generate_button.click()
+    assert window.current_plot() is not None
+
+
+def test_plot_button_shows_the_plot_made_before_with_auto_generation_off(
+    qtbot, window_factory, demo_project, no_dialogs
+):
+    window = window_factory(ui={"auto_generate_plot": False})
+    folder = demo_project / "03_bands"
+    generate(qtbot, window, folder)  # saved to plots/
+    saved = sorted(p.name for p in (folder / "plots").iterdir())
+    window.workspace.close_key(window.current_plot().session.key)
+    window.set_left_mode("tree")
+    window.explorer.select_path(folder)
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000) as ready:
+        window.activity.generate.click()
+    assert ready.args[0].folder == folder and window.current_plot() is not None
+    assert window.left.currentIndex() == 1 and window.workspace.isVisible()
+    assert window.params.session is window.current_plot().session
+    assert no_dialogs["overwrite"] == []
+    assert sorted(p.name for p in (folder / "plots").iterdir()) == saved
+
+
+def test_plot_button_with_auto_generation_on_does_not_ask_again(
+    qtbot, main_window, demo_project, no_dialogs
+):
+    window = main_window
+    folder = demo_project / "03_bands"
+    generate(qtbot, window, folder)
+    window.workspace.close_key(window.current_plot().session.key)
     window.explorer.select_path(folder)
     with qtbot.waitSignal(window.plot_ready, timeout=10_000):
         window.activity.generate.click()
-    assert window.workspace.count() == tabs and window.current_plot() is not None
+    assert no_dialogs["overwrite"] == []

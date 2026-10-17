@@ -487,6 +487,10 @@ def test_activity_bar_holds_generate_and_grids(main_window):
         assert not hasattr(main_window.top_bar, name)
 
 
+def test_the_sidebar_button_is_called_plot(main_window):
+    assert main_window.activity.generate.text() == "Plot"
+
+
 def test_generate_button_plots_and_saves(qtbot, main_window, demo_project):
     folder = demo_project / "03_bands"
     main_window.explorer.select_path(folder)

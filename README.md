@@ -193,7 +193,10 @@ a pull.
    [XCrySDen](http://www.xcrysden.org/) on the file (`xcrysden --pwi scf.in`, `--pwo` for an output).
    Put its install folder (or the `xcrysden` script) in `config.yaml`, under `paths:`, as
    `xcrysden_path`; while it is empty or wrong the item is disabled and its tooltip says why.
-2. **Gerar** in the activity bar (Ctrl+G, "Gerar Gráfico") plots it, saves the figure into `plots/` and switches the left
+2. **Plot** in the activity bar brings an open plot to front and shows a folder plotted before (a
+   `.plot` file or figures in `plots/`) as it was, without saving again; a folder never plotted is plotted
+   and saved, or, with `ui.auto_generate_plot: false`, only the adjustments panel opens and its
+   **Gerar Plot** button (also Ctrl+G) plots. Generating saves the figure into `plots/` and switches the left
    panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Grids** (also in the
    activity bar) joins open plots in one figure; hide the plots with the **Gráficos** toggle.

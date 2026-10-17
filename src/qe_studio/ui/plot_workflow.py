@@ -40,6 +40,7 @@ from ..core.detection import (
 )
 from ..core.folder_memory import FolderMemory
 from ..core.grid_store import GridStore
+from ..core.plotting.saved import was_plotted
 from ..core.plotting.session import PlotSession, build_session, load_plot, target_key
 from ..core.tasks import TaskGroup
 from .busy import BusyTracker
@@ -109,6 +110,7 @@ class PlotWorkflow(QObject):
         self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
         self._loading: dict[str, _Loading] = {}  # by plot key
         self._loads = TaskGroup()  # by plot key, in the global pool
+        self._saved = TaskGroup()  # by folder: "was it plotted before?" of the Plot button
         self._replacing: str | None = None  # key of the tab a new session is about to replace
         self._plot_file_source: tuple[Path, str] | None = None  # what the "Plotar …" button plots
         # Busy indicator (spec 15 R2): counted by name, so a task that never ends cannot leave a
@@ -165,6 +167,30 @@ class PlotWorkflow(QObject):
         self.busy.begin(f"detect:{key}", "Detectando cálculo…")
         self.service.request(Path(folder), fresh=True)
 
+    def plot_button(self, folder: Path) -> None:
+        """The activity bar's "Plot". An open plot of ``folder`` is brought to front. Else, a folder
+        plotted before (``was_plotted``) is plotted again as it was left, without exporting, so no
+        overwrite question; a new one is plotted and saved when ``ui.auto_generate_plot`` is on, and
+        with it off only the panels open ("Gerar Plot" plots)."""
+        view = self.plot_of(folder)
+        if view is not None:
+            self._show_panels()
+            self.workspace.set_current(view)
+            return
+        if not self._config().ui.auto_generate_plot:
+            self._show_panels()
+        self._saved.submit(str(folder), was_plotted, folder, on_done=self._on_plotted_before)
+
+    def _show_panels(self) -> None:
+        self.panel_requested.emit("workspace")
+        self.panel_requested.emit("params")
+
+    def _on_plotted_before(self, key: str, plotted: bool) -> None:
+        if plotted:
+            self.generate(Path(key), auto_export=False)
+        elif self._config().ui.auto_generate_plot:
+            self.generate(Path(key))
+
     def plot_file(self, path: Path, kind: str) -> None:
         """Preview the plot of one output file (context-menu "Plotar", "Plotar SCF" button).
 
@@ -215,6 +241,7 @@ class PlotWorkflow(QObject):
     def cancel_loads(self) -> None:
         """Window close: the datasets being loaded are not wanted any more."""
         self._loads.cancel_all()
+        self._saved.cancel_all()
 
     def shutdown(self, timeout_ms: int = EXPORT_WAIT_MS) -> bool:
         """Window close: loads are dropped, exports finish (no half-written files)."""

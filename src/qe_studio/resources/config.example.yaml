@@ -105,6 +105,11 @@ ui:
   # F5 (Atualizar) keeps what it read from files whose size and modification time did not
   # change. true: reread every file on F5 (only needed if something rewrites files keeping both).
   paranoid_refresh: false
+  # The Plot button (activity bar) brings an open plot to front and shows a folder plotted before
+  # (a .plot file or figures in plots/) as it was, without saving again. For a folder never plotted:
+  # true plots and saves it; false only opens the plot adjustments panel (press "Gerar Plot" there).
+  # Reload with "Recarregar config.yaml".
+  auto_generate_plot: true
 
 jobs:
   # "Criar cálculo" writes SGE + Intel MPI .qsub scripts. Their cluster side (QE and MPI paths,

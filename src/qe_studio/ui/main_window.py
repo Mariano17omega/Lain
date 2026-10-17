@@ -232,7 +232,7 @@ class MainWindow(QMainWindow):
         self.item_actions.favorite_toggled.connect(self.navigation.set_favorite)
         self.activity.sync_requested.connect(self.sync.start_selected)
         self.activity.theme_requested.connect(self.toggle_theme)
-        self.activity.generate_requested.connect(self.generate_plot)
+        self.activity.generate_requested.connect(self.plot_button)
         self.top_bar.plot_file_requested.connect(self.plot_workflow.plot_open_file)
         self.workspace.external_open_requested.connect(self.item_actions.open_default)
         self.workspace.reveal_requested.connect(self.reveal_in_explorer)
@@ -375,6 +375,9 @@ class MainWindow(QMainWindow):
     # -- plots (PlotWorkflow) -----------------------------------------------------------------------
     def current_plot(self) -> PlotView | None:
         return self.plot_workflow.current_plot()
+
+    def plot_button(self) -> None:
+        self.plot_workflow.plot_button(self.current_folder())
 
     def generate_plot(self) -> None:
         self.generate_plot_for(self.current_folder())

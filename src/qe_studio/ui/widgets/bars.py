@@ -118,8 +118,9 @@ class ActivityBar(QWidget):
         self.generate = ActivityButton(
             theme,
             "bolt",
-            "Gerar",
-            "Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)",
+            "Plot",
+            "Plotar a pasta selecionada (Ctrl+G); com a geração automática desligada "
+            "(ui.auto_generate_plot) só abre os ajustes",
         )
         # A grid of the open plots in one figure (spec 23).
         self.grids = ActivityButton(

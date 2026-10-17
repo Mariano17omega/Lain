@@ -58,6 +58,18 @@ class ParamsPanel(QWidget):
         self.back_button = header.add_button(IconButton(theme, "account_tree", "Voltar à árvore"))
         self.back_button.clicked.connect(self.back_requested)
         layout.addWidget(header)
+        # Plots the selected folder whatever ``ui.auto_generate_plot`` says (the sidebar "Plot").
+        self.generate_button = set_variant(QPushButton("Gerar Plot"), "primary")
+        self.generate_button.setObjectName("generatePlotButton")
+        self.generate_button.setToolTip(
+            "Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)"
+        )
+        self.generate_button.clicked.connect(self.generate_requested)
+        bar = QWidget()
+        bar_layout = QVBoxLayout(bar)
+        bar_layout.setContentsMargins(10, 8, 10, 4)
+        bar_layout.addWidget(self.generate_button)
+        layout.addWidget(bar)
         self.stack = QStackedWidget()
         layout.addWidget(self.stack, 1)
         self._placeholder_page = self._placeholder()
@@ -144,14 +156,11 @@ class ParamsPanel(QWidget):
         page.setObjectName("paramsBody")
         layout = QVBoxLayout(page)
         hint = set_variant(
-            QLabel("Gere um gráfico para ajustar\nos parâmetros de plotagem."), "fieldLabel"
+            QLabel("Gere um gráfico (botão “Gerar Plot”)\npara ajustar os parâmetros."),
+            "fieldLabel",
         )
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        button = set_variant(QPushButton("Gerar gráfico"), "primary")
-        button.setToolTip("Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)")
-        button.clicked.connect(self.generate_requested)
         layout.addStretch(1)
         layout.addWidget(hint)
-        layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch(1)
         return page

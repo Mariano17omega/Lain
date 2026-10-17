@@ -213,6 +213,9 @@ class UiConfig(_Section):
     tree_show_files: bool = False
     # F5 rereads every file, even those whose (mtime, size) did not change (spec 14 R4.2).
     paranoid_refresh: bool = False
+    # The sidebar "Plot" button plots a folder never plotted before; false: it only opens the
+    # adjustments panel, where "Gerar Plot" plots (a folder plotted before is shown either way).
+    auto_generate_plot: bool = True
 
 
 class JobsConfig(_Section):
