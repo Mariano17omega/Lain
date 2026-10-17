@@ -1,0 +1,23 @@
+{
+  "skill_name": "spec-sdd",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Transforme as ideias do specs/Ideias.md em specs.",
+      "expected_output": "Specs numeradas a partir de 33, agrupadas por área (ex.: gap e legenda de bandas/PDOS juntos; visualizador de .md e .qsub juntos; menu de contexto de NSCF e relax juntos; defeitos pequenos 'Abrir local de origem', k-points do Resumo e rótulo do cluster na barra), cada uma com Situação atual com arquivo:linha verificado, R-numerados com testes, Decisões assumidas e Critérios `- [ ]`. specs/README.md com linhas no roadmap, tabela de rastreabilidade com TODAS as ideias do Ideias.md, e bloco de decisões. Ideias.md intacto. check_spec.py sem erros.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Quero ver o tamanho total do que vai ser baixado antes de confirmar o rsync.",
+      "expected_output": "Verifica no código e na spec 17 (Archived) se a prévia do plano já mostra o total (`describe_plan`, `plan_summary`, `large_summary`). Se já mostra, não cria spec: diz o que existe, com arquivo:linha, e registra a ideia como 'já coberto' na rastreabilidade. Se falta só um detalhe, uma spec P que depende da 17 e não edita a spec arquivada.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "crie uma spec: exportar o gráfico de relaxamento e o SCF também em CSV, igual bandas e PDOS",
+      "expected_output": "Spec nova (não edita a spec 32 arquivada) que depende da 32 e usa o hook `has_table` / `table()` de `CalculationModule` e `core/plotting/table.py`; Situação atual cita onde bandas, PDOS e bandas+DOS implementam `table`, que relax e SCF têm `export_stem` próprio (`relax_energia`…), e como o CSV entra em `export_files`; R com as colunas de cada painel do relax (`panels`), testes que comparam o CSV com os artistas da figura como `test_plot_table.py`; Decisões assumidas sobre colunas e escala log; base.py perto de 500 linhas medido com wc -l.",
+      "files": []
+    }
+  ]
+}
