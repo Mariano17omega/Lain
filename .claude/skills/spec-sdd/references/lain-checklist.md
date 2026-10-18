@@ -1,6 +1,7 @@
 # O que uma spec do Lain precisa responder
 
-A fonte é o `CLAUDE.md` (leia a seção da área que a ideia toca: ele guarda invariantes que não cabem aqui). Esta
+A fonte é o `CLAUDE.md` (as regras gerais) e, para a área que a ideia toca, o código e a spec arquivada em
+`specs/Archived/` (guardam os invariantes que não cabem aqui). Esta
 lista só transforma as regras em perguntas, para a spec não prometer o que o `test_architecture.py` ou a CI vão
 recusar. Responda cada pergunta que se aplica; as que não se aplicam, ignore.
 
@@ -21,8 +22,9 @@ recusar. Responda cada pergunta que se aplica; as que não se aplicam, ignore.
   figuras de hoje (`test_figure_regression.py`, goldens); persiste em `<kind>.plot` só após edição do usuário.
 - **Configuração nova?** Não há janela de ajustes (PRD §6): modelo pydantic em `core/config.py` **e** as duas
   cópias idênticas de `config.example.yaml` (raiz e `src/qe_studio/resources/`), com teste em `tests/test_config.py`.
-- **Estado da interface?** QSettings (chaves `layout/*`, `files/*`…). Dado do usuário que sobrevive: arquivo JSON
-  no diretório de dados (`core/appdirs.py`, escrita atômica), **nunca** dentro de pasta de simulação (elas sincronizam).
+- **Estado da interface?** QSettings (chaves `layout/*`, `files/*`…). Dado do projeto que sobrevive: arquivo JSON
+  em `<local_root>/.lain/` (só `core/project_data.py` nomeia a pasta; escrita atômica por `core/appdirs.py`),
+  **nunca** dentro de pasta de simulação (elas sincronizam), salvo `plots/` e `<kind>.plot`.
 - **A spec escreve em disco?** Nunca sobrescreve sem perguntar (`core/unique_names.py`, `export.plan_export`);
   só em `plots/`, `<kind>.plot` ou na pasta que ela mesma cria.
 - **Toca sincronização?** Pull e push passam pela prévia; push só envia arquivos novos; nada apaga no remoto.
@@ -49,5 +51,5 @@ recusar. Responda cada pergunta que se aplica; as que não se aplicam, ignore.
 - Defeito: teste que **falha antes** da correção.
 
 ## Documentação que muda ao implementar
-`CLAUDE.md` (a seção da área), `README.md`, `specs/Archived/spec_0-PRD.md` (só se o PRD afirma o contrário),
+`CLAUDE.md` (só se a spec cria ou muda uma regra geral), `README.md`, `specs/Archived/spec_0-PRD.md` (só se o PRD afirma o contrário),
 `config.example.yaml`. A spec lista quais, em "Notas de implementação".

@@ -76,8 +76,8 @@ leve"). Diferencie o que o usuário decidiu do que você assumiu.
 
 - **Novos / Alterados:** caminhos, e o que muda em cada um dos alterados.
 - **Limites:** arquivo perto de 500 linhas (`ui/main_window.py`: 450) e o que sai dele.
-- **Documentação:** seção do `CLAUDE.md`, `README.md`, PRD a atualizar ao implementar (o `CLAUDE.md` é
-  documentação viva: a regra nova de uma spec entra nele).
+- **Documentação:** `README.md`, PRD e `config.example.yaml` a atualizar ao implementar; o `CLAUDE.md` só quando
+  a spec cria ou muda uma regra geral (ele é enxuto: a descrição da funcionalidade fica na spec arquivada).
 - **Ordem**, quando um R depende de outro ("R3 antes de R4").
 
 ## Critérios de aceite e testes

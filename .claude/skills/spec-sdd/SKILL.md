@@ -6,7 +6,7 @@ description: "Transforma as ideias do usuário (texto do pedido ou specs/Ideias.
 # spec-sdd: das ideias às specs do Lain
 
 Uma spec do Lain é o contrato entre uma ideia e a sua implementação. Quem implementa (`/plan implementar
-specs/spec_N-….md`) é outra sessão, muitas vezes de outro modelo, que tem só a spec e o `CLAUDE.md`: não viu esta
+specs/spec_N-….md`) é outra sessão, muitas vezes de outro modelo, que tem só a spec, o `CLAUDE.md` e o código: não viu esta
 conversa. Por isso a spec precisa bastar a si mesma, e a "Situação atual" precisa ser **verificada no código**: um
 plano feito sobre um `arquivo:linha` inventado só falha no meio da implementação, a hora mais cara de descobrir.
 
@@ -37,7 +37,8 @@ defeito, ajuste ou funcionalidade. Já coberto por uma spec existente? Anote par
 spec (confirme no código antes: "já coberto" também é uma afirmação).
 
 ### 3. Investigar o código
-Para cada item, ache onde ele vive (`grep`, leitura) e leia a seção do `CLAUDE.md` da área. Anote o que a
+Para cada item, ache onde ele vive (`grep`, leitura) e leia o código e a spec arquivada da área (`specs/Archived/`: os
+comentários do código citam "spec N"). Anote o que a
 "Situação atual" vai afirmar: `arquivo:linha`, o comportamento de hoje, **a causa**, o teste que existe e por que
 não pega. Defeito: reproduza (script no scratchpad, nunca no repositório) e diga o que mediu. Meça com `wc -l`
 os arquivos que a spec vai tocar (limite 500; `ui/main_window.py`, 450).

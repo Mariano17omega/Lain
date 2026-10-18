@@ -42,7 +42,7 @@ usuário já decidiu no pedido]]
 - Novos: [[PREENCHER: caminhos]].
 - Alterados: [[PREENCHER: caminhos e o que muda em cada um]].
 - Limites: [[PREENCHER: `arquivo.py` com N de 500 linhas e o que sai dele, ou "nenhum arquivo perto do limite"]].
-- Documentação ao implementar: [[PREENCHER: seção do `CLAUDE.md`, `README.md`, PRD que muda]].
+- Documentação ao implementar: [[PREENCHER: `README.md`, PRD, `config.example.yaml` que mudam; `CLAUDE.md` só se muda uma regra geral]].
 
 ## Critérios de aceite e testes
 
