@@ -11,10 +11,8 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 
-import yaml
-
 from ..i18n import LANGUAGES
-from .config import ConfigError, find_config
+from .config import ConfigError, find_config, read_config_data
 
 ENV_LANGUAGE = "QE_STUDIO_LANGUAGE"
 ENV_LANGUAGE_ALIAS = "LAIN_LANGUAGE"  # the product's name, accepted as well
@@ -26,18 +24,18 @@ def follow_system(system_name: str) -> str:
     return "pt_BR" if system_name.lower().startswith("pt") else "en"
 
 
-def pinned_language(environ: Mapping[str, str], system_name: str = "") -> str | None:
+def resolve_language(setting: str, system_name: str) -> str:
+    """The language of a ``ui.language`` value: ``auto`` follows the system."""
+    return setting if setting in LANGUAGES else follow_system(system_name)
+
+
+def pinned_language(environ: Mapping[str, str]) -> str | None:
     """The language an environment variable fixes (tests, screenshots), or None."""
     for name in (ENV_LANGUAGE, ENV_LANGUAGE_ALIAS):
         value = environ.get(name, "").strip()
         if value and value != "auto":
-            return value if value in LANGUAGES else follow_system(value)
+            return resolve_language(value, value)
     return None
-
-
-def resolve_language(setting: str, system_name: str) -> str:
-    """The language of a ``ui.language`` value: ``auto`` follows the system."""
-    return setting if setting in LANGUAGES else follow_system(system_name)
 
 
 def configured_language(path: Path | None) -> str:
@@ -45,8 +43,8 @@ def configured_language(path: Path | None) -> str:
     if path is None:
         return "auto"
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, yaml.YAMLError):
+        data = read_config_data(path)
+    except (ConfigError, UnicodeDecodeError):
         return "auto"
     ui = data.get("ui") if isinstance(data, dict) else None
     value = ui.get("language") if isinstance(ui, dict) else None
@@ -59,7 +57,7 @@ def startup_language(
     system_name: str,
 ) -> str:
     """The language to install: the environment first, then ``ui.language``, then the system."""
-    pinned = pinned_language(environ, system_name)
+    pinned = pinned_language(environ)
     if pinned is not None:
         return pinned
     try:
@@ -74,6 +72,6 @@ def changes_on_restart(
 ) -> bool:
     """Whether the config's ``ui.language`` would start the program in another language than the
     running one. An environment variable fixes the language, so the config does not matter then."""
-    if pinned_language(environ, system_name) is not None:
+    if pinned_language(environ) is not None:
         return False
     return resolve_language(setting, system_name) != current

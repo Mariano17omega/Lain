@@ -22,12 +22,12 @@ from ...core.calculations.base import Dataset
 from ...core.calculations.params import CommonParams, ParamField, ordered_sections
 from ...core.compounds import atoms_summary
 from ...core.plotting.session import PlotSession
-from ...i18n import N_, _
+from ...i18n import N_
 from ..dialogs.atoms import ask_atoms
 from ..theme.manager import ThemeManager
 from .common import set_variant
 from .no_wheel import NoWheelComboBox, NoWheelDoubleSpinBox, NoWheelSpinBox
-from .param_widgets import ColorButton, Section, SeriesList
+from .param_widgets import ColorButton, Section, SeriesList, remembered_section
 
 SECTIONS_KEY = "params/sections"  # QSettings: <kind>/<section id> → open (bool)
 CLOSED_BY_DEFAULT = ("files",)
@@ -162,25 +162,15 @@ class ParamsBody(QWidget):
         return section
 
     def _section(self, section_id: str, title: str) -> Section:
-        """An accordion section that remembers whether it is open, per kind of plot.
-
-        ``title`` is the Portuguese message; before the ids the state was kept under it, so that key
-        is still read when the id has none.
-        """
-        key = f"{SECTIONS_KEY}/{self.session.kind}/{section_id}"
-        opened = section_id not in CLOSED_BY_DEFAULT
-        if self.settings is not None:
-            legacy = self.settings.value(
-                f"{SECTIONS_KEY}/{self.session.kind}/{title}", opened, type=bool
-            )
-            opened = self.settings.value(key, legacy, type=bool)
-        section = Section(self.theme, _(title), opened, section_id=section_id)
-        section.opened_changed.connect(lambda on, k=key: self._remember_open(k, on))
-        return section
-
-    def _remember_open(self, key: str, opened: bool) -> None:
-        if self.settings is not None:
-            self.settings.setValue(key, opened)
+        """An accordion section that remembers whether it is open, per kind of plot."""
+        return remembered_section(
+            self.theme,
+            self.settings,
+            f"{SECTIONS_KEY}/{self.session.kind}",
+            section_id,
+            title,
+            section_id not in CLOSED_BY_DEFAULT,
+        )
 
     def _add_field(self, section: Section, field: ParamField) -> None:
         value = getattr(self.session.params, field.name)

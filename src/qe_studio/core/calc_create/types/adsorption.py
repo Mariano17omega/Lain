@@ -39,6 +39,7 @@ from .adsorption_fields import (
     BIDENTATE,
     COORDS,
     FROM_COORDS,
+    FROM_LIST,
     SITE,
     default_rule,
     input_tab_fields,
@@ -223,7 +224,7 @@ class AdsorptionType(RelaxType):
         )
         position = ", ".join(decimal(float(v), 3) for v in model.cart[placed.anchor])
         molecule_atoms = len(model) - placed.n_slab
-        how = _("coordenadas") if request.coords is not None else _("lista de candidatos")
+        how = _(FROM_COORDS) if request.coords is not None else _(FROM_LIST)
         facts: Facts = [
             (
                 _("Coordenação"),

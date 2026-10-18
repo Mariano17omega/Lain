@@ -31,15 +31,12 @@ BANDS_SPIN = "bands_spin"
 DOS_AXIS = "dos_axis"
 DOS_PROJECTIONS = "dos_projections"
 # The module's own sections, all ahead of "style" in this order (``ordered_sections``).
-SECTIONS = tuple(
-    (SectionDef(section_id, N_(title)), "style")
-    for section_id, title in (
-        (BANDS_AXIS, _("Bandas ▸ Eixo k")),
-        (BANDS_COLORS, _("Bandas ▸ Cores")),
-        (BANDS_SPIN, _("Bandas ▸ Spin")),
-        (DOS_AXIS, _("DOS ▸ Eixo")),
-        (DOS_PROJECTIONS, _("DOS ▸ Projeções")),
-    )
+SECTIONS = (
+    (SectionDef(BANDS_AXIS, N_("Bandas ▸ Eixo k")), "style"),
+    (SectionDef(BANDS_COLORS, N_("Bandas ▸ Cores")), "style"),
+    (SectionDef(BANDS_SPIN, N_("Bandas ▸ Spin")), "style"),
+    (SectionDef(DOS_AXIS, N_("DOS ▸ Eixo")), "style"),
+    (SectionDef(DOS_PROJECTIONS, N_("DOS ▸ Projeções")), "style"),
 )
 
 

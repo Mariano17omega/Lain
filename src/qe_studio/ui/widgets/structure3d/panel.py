@@ -45,7 +45,7 @@ from ....i18n import N_, _
 from ...theme.manager import ThemeManager
 from ..common import PanelHeader, set_variant
 from ..no_wheel import NoWheelComboBox, NoWheelDoubleSpinBox, NoWheelSpinBox
-from ..param_widgets import ColorButton, Section
+from ..param_widgets import ColorButton, Section, remembered_section
 from .canvas import StructureCanvas
 from .measures import MeasuresSection
 from .panel_atom import AtomSection, triple
@@ -159,20 +159,16 @@ class StructurePanel(QWidget):
 
     # -- sections ----------------------------------------------------------------------------------
     def _section(self, section_id: str, title: str) -> Section:
-        """``title`` is the Portuguese message; before the ids the state was kept under it."""
-        key = f"{SECTIONS_KEY}/{section_id}"
-        opened = section_id in OPEN_BY_DEFAULT
-        if self.settings is not None:
-            legacy = self.settings.value(f"{SECTIONS_KEY}/{title}", opened, type=bool)
-            opened = bool(self.settings.value(key, legacy, type=bool))
-        section = Section(self.theme, _(title), opened, section_id=section_id)
-        section.opened_changed.connect(lambda on, k=key: self._remember_open(k, on))
+        section = remembered_section(
+            self.theme,
+            self.settings,
+            SECTIONS_KEY,
+            section_id,
+            title,
+            section_id in OPEN_BY_DEFAULT,
+        )
         self.column.addWidget(section)
         return section
-
-    def _remember_open(self, key: str, opened: bool) -> None:
-        if self.settings is not None:
-            self.settings.setValue(key, opened)
 
     def _current_changed(self, ref) -> None:
         self.atom.show_atom(ref, self.canvas.graph)

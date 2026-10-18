@@ -20,17 +20,20 @@ import sys
 from pathlib import Path
 
 from babel.messages.catalog import Catalog
-from babel.messages.extract import DEFAULT_KEYWORDS, extract_from_dir
+from babel.messages.extract import extract_from_dir
 from babel.messages.mofile import write_mo
 from babel.messages.pofile import read_po, write_po
+
+from qe_studio import i18n
+from qe_studio.i18n import DOMAIN
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src" / "qe_studio"
 LOCALE = SOURCE / "locale"
-DOMAIN = "lain"
-LANGUAGES = ("en",)  # the source language, pt_BR, needs no catalog
+LANGUAGES = tuple(  # the source language, pt_BR, needs no catalog
+    language for language in i18n.LANGUAGES if language != i18n.SOURCE_LANGUAGE
+)
 POT = LOCALE / f"{DOMAIN}.pot"
-KEYWORDS = dict(DEFAULT_KEYWORDS)  # _, N_, ngettext, pgettext…
 WIDTH = 100
 
 
@@ -55,13 +58,7 @@ def new_catalog(language: str | None = None) -> Catalog:
 def extract(source: Path = SOURCE) -> Catalog:
     """The template: every message marked in the code, with where it is (file names only)."""
     catalog = new_catalog()
-    found = extract_from_dir(
-        str(source),
-        method_map=[("**.py", "python")],
-        keywords=KEYWORDS,
-        comment_tags=["i18n:"],
-        strip_comment_tags=True,
-    )
+    found = extract_from_dir(str(source))  # babel's defaults: *.py, and _, N_, ngettext…
     for filename, lineno, message, comments, context in found:
         if not message:
             continue
@@ -89,18 +86,17 @@ def write_catalog(path: Path, catalog: Catalog) -> None:
         )
 
 
-def update(template: Catalog, language: str, path: Path | None = None) -> Catalog:
+def update(template: Catalog, language: str) -> Catalog:
     """The catalog of ``language`` after the template: kept translations, new messages empty, the
     ones that left the code dropped, a changed message matched to its old one as "fuzzy"."""
-    target = path or po_path(language)
+    target = po_path(language)
     catalog = read_catalog(target, language) if target.exists() else new_catalog(language)
     catalog.update(template)
     return catalog
 
 
-def problems(catalog: Catalog, template: Catalog | None = None) -> list[str]:
-    """What keeps a catalog from being compiled: untranslated, fuzzy and (against the template)
-    missing or stale messages."""
+def problems(catalog: Catalog) -> list[str]:
+    """What keeps a catalog from being compiled: untranslated and fuzzy messages."""
     found = []
     for message in catalog:
         if not message.id:  # the header
@@ -111,13 +107,6 @@ def problems(catalog: Catalog, template: Catalog | None = None) -> list[str]:
         strings = message.string if isinstance(message.string, tuple) else (message.string,)
         if any(not text for text in strings):
             found.append(f"untranslated: {shown!r}")
-    if template is not None:
-        wanted = {(m.id if not isinstance(m.id, tuple) else m.id[0], m.context) for m in template}
-        have = {(m.id if not isinstance(m.id, tuple) else m.id[0], m.context) for m in catalog}
-        for text, context in sorted(wanted - have - {("", None)}, key=repr):
-            found.append(f"missing: {text!r}" + (f" (context {context!r})" if context else ""))
-        for text, context in sorted(have - wanted - {("", None)}, key=repr):
-            found.append(f"stale: {text!r}" + (f" (context {context!r})" if context else ""))
     return found
 
 
@@ -132,39 +121,42 @@ def compile_catalog(language: str) -> list[str]:
     return []
 
 
+def print_problems(todo: list[str]) -> None:
+    for line in todo[:50]:
+        print("  ", line)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("command", choices=["extract", "update", "compile", "check"])
     args = parser.parse_args(argv)
+    status = 0
+    if args.command == "compile":  # the .po alone: no need to scan the sources
+        for language in LANGUAGES:
+            todo = compile_catalog(language)
+            if todo:
+                print(f"{language}: not compiled, {len(todo)} problems")
+                print_problems(todo)
+                status = 1
+            else:
+                print(f"{language}: {mo_path(language).relative_to(ROOT)}")
+        return status
     template = extract()
     if args.command == "extract":
-        POT.parent.mkdir(parents=True, exist_ok=True)
-        with POT.open("wb") as handle:
-            write_po(handle, template, width=WIDTH, sort_output=True, include_lineno=False)
+        write_catalog(POT, template)
         print(f"{len(template)} messages → {POT.relative_to(ROOT)}")
         return 0
-    status = 0
     for language in LANGUAGES:
         if args.command == "update":
             catalog = update(template, language)
             write_catalog(po_path(language), catalog)
             todo = problems(catalog)
             print(f"{language}: {len(catalog)} messages, {len(todo)} to translate or review")
-        elif args.command == "check":
+        else:
             todo = problems(update(template, language))
             print(f"{language}: {len(todo)} to translate or review")
-            for line in todo[:50]:
-                print("  ", line)
+            print_problems(todo)
             status = status or int(bool(todo))
-        else:
-            todo = compile_catalog(language)
-            if todo:
-                print(f"{language}: not compiled, {len(todo)} problems")
-                for line in todo[:50]:
-                    print("  ", line)
-                status = 1
-            else:
-                print(f"{language}: {mo_path(language).relative_to(ROOT)}")
     return status
 
 

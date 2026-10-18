@@ -319,10 +319,12 @@ def parse_progress(chunk: str) -> Progress | None:
     return None
 
 
+AUTH_DENIED = "Permission denied"
+
 FAILURE_HINTS = (
     ("Host key verification failed", _("Chave do host desconhecida. Conecte-se uma vez pelo "
      "terminal (ssh usuario@host) para confirmar a identidade do cluster.")),
-    ("Permission denied", _("Autenticação recusada pelo cluster (verifique usuário, chave ou senha).")),
+    (AUTH_DENIED, _("Autenticação recusada pelo cluster (verifique usuário, chave ou senha).")),
     ("Could not resolve hostname", _("Endereço do cluster não encontrado (verifique cluster.host).")),
     ("Connection timed out", _("Cluster inacessível (tempo de conexão esgotado).")),
     ("Connection refused", _("Conexão recusada pelo cluster (verifique a porta SSH).")),
@@ -349,30 +351,30 @@ CONNECTION_NEEDLES = (
 )
 
 
-def _known_cause(stderr: str) -> bool:
-    return any(needle in stderr for needle, _hint in FAILURE_HINTS)
+def _first_cause(stderr: str) -> tuple[str, str] | None:
+    """The first known cause (its needle and hint) found in ``stderr``."""
+    return next(((needle, hint) for needle, hint in FAILURE_HINTS if needle in stderr), None)
 
 
 def is_auth_failure(stderr: str) -> bool:
     """The cluster refused the credentials (the remembered password is then wrong): the first known
     cause in ``stderr`` is the authentication one."""
-    cause = next((needle for needle, _hint in FAILURE_HINTS if needle in stderr), None)
-    return cause == "Permission denied"
+    cause = _first_cause(stderr)
+    return cause is not None and cause[0] == AUTH_DENIED
 
 
 def is_connection_failure(exit_code: int, stderr: str) -> bool:
     """ssh could not reach/keep the cluster (as opposed to a remote error)."""
     return (
         any(needle in stderr for needle in CONNECTION_NEEDLES)
-        or (exit_code == 255 and "Permission denied" not in stderr)
-        or (INTERRUPTED in stderr and not _known_cause(stderr))
+        or (exit_code == 255 and AUTH_DENIED not in stderr)
+        or (INTERRUPTED in stderr and _first_cause(stderr) is None)
     )
 
 
 def explain_failure(exit_code: int, stderr: str) -> str:
-    for needle, hint in FAILURE_HINTS:
-        if needle in stderr:
-            return hint
+    if cause := _first_cause(stderr):
+        return cause[1]
     if INTERRUPTED in stderr:
         return _("Conexão interrompida (o cluster encerrou a conexão durante a transferência).")
     last = next((ln.strip() for ln in reversed(stderr.splitlines()) if ln.strip()), "")

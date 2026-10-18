@@ -70,9 +70,10 @@ def test_disabled_without_a_project_folder(qtbot, window_factory, tmp_path, demo
     assert button.toolTip() == AVAILABLE_TIP
 
 
-def create(qtbot, window, **setup):
+def create(qtbot, window, numbered=False, **setup):
     """Fill the window, press "Criar", wait for the folder; the step 2 page and the result."""
     dialog = open_dialog(window)
+    dialog.setup.number_check.setChecked(numbered)
     tabs = to_files(qtbot, dialog, **setup)
     with qtbot.waitSignal(window.calc_create.created, timeout=10_000) as blocker:
         dialog.create_button.click()
@@ -132,12 +133,7 @@ def test_a_file_edited_in_the_preview_is_written_as_typed(qtbot, main_window, de
 def test_numbered_follows_the_project_folders(qtbot, main_window, demo_project):
     """Spec 51: ``01_relax`` … ``04_pdos`` (zero-padded, any type) make the next folder ``5_``."""
     window = main_window
-    dialog = open_dialog(window)
-    dialog.setup.number_check.setChecked(True)
-    tabs = to_files(qtbot, dialog, "pdos", location=demo_project)
-    with qtbot.waitSignal(window.calc_create.created, timeout=10_000) as blocker:
-        dialog.create_button.click()
-    created = blocker.args[0]
+    tabs, created = create(qtbot, window, numbered=True, type_id="pdos", location=demo_project)
     assert created.folder == demo_project / "5_PDOS_Al" and created.renamed_from is None
     assert [p.name for p in created.files] == [f.name for f in tabs.plan.files]
     notice = window.toast.current

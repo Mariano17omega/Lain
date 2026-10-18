@@ -29,15 +29,16 @@ def locale_dir() -> Path:
     return Path(str(files("qe_studio").joinpath("locale")))
 
 
-def install(language: str, localedir: Path | None = None) -> None:
+def install(language: str) -> None:
     """Load the catalog of ``language``; a language without one shows the source messages.
 
     Call it before importing the modules that hold texts: a text translated while a module loads
     keeps the language that was installed then.
     """
     global _translation, _language
-    directory = localedir if localedir is not None else locale_dir()
-    _translation = gettext.translation(DOMAIN, str(directory), languages=[language], fallback=True)
+    _translation = gettext.translation(
+        DOMAIN, str(locale_dir()), languages=[language], fallback=True
+    )
     _language = language
 
 
@@ -51,10 +52,6 @@ def _(message: str) -> str:
 
 def ngettext(singular: str, plural: str, n: int) -> str:
     return _translation.ngettext(singular, plural, n)
-
-
-def pgettext(context: str, message: str) -> str:
-    return _translation.pgettext(context, message)
 
 
 def N_(message: str) -> str:

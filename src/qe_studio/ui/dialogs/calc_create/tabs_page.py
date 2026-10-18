@@ -78,8 +78,10 @@ class TabsPage(QWidget):
         self.plan: CalcPlan = self._base  # with the edits: what "Criar" writes
         self._edits: dict[str, str] = {}  # file key → the text typed in its preview
         self._edited = False
-        # where the folder goes (step 1): the place, the name and "Numerar" (spec 51)
-        self._target: tuple[Path, str, bool] | None = None
+        # where the folder goes (step 1), named once per ``set_target`` (it lists the place when
+        # "Numerar" is on, and the tab shows it on every edit): the place, the name asked for and
+        # the one the folder would get now
+        self._target: tuple[Path, str, str] | None = None
         self._extra_warnings: tuple[str, ...] = ()
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -347,14 +349,14 @@ class TabsPage(QWidget):
     ) -> None:
         """Where the folder goes (step 1; the name may be empty, the place's next number in front
         of it when ``numbered``): the "Arquivos" tab shows it."""
-        self._target, self._extra_warnings = (parent, suffix, numbered), warnings
+        asked, name = preview_names(parent, self.calc_type, suffix, numbered)
+        self._target, self._extra_warnings = (parent, asked, name), warnings
         self._show_files()
 
     def _show_files(self) -> None:
         if self._target is None:
             return
-        parent, suffix, numbered = self._target
-        asked, name = preview_names(parent, self.calc_type, suffix, numbered)
+        parent, asked, name = self._target
         self.files_view.show_files(
             parent / name,
             asked,

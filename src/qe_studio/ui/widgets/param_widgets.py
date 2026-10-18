@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QSettings, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from .common import set_variant
 
@@ -113,6 +114,30 @@ class Section(QWidget):
     def _refresh_icon(self, *_args) -> None:
         icon = "expand_more" if self.header.isChecked() else "chevron_right"
         self.header.setIcon(self.theme.icon(icon, "text_muted", size=12))
+
+
+def remembered_section(
+    theme: ThemeManager,
+    settings: QSettings | None,
+    prefix: str,
+    section_id: str,
+    title: str,
+    opened: bool,
+) -> Section:
+    """A ``Section`` that keeps whether it is open in ``settings`` under ``<prefix>/<section id>``.
+
+    ``title`` is the Portuguese message; before the ids the state was kept under it, so that key is
+    still read when the id has none. ``opened`` is the state when nothing was saved.
+    """
+    if settings is None:
+        return Section(theme, _(title), opened, section_id=section_id)
+    key = f"{prefix}/{section_id}"
+    saved = key if settings.contains(key) else f"{prefix}/{title}"
+    section = Section(
+        theme, _(title), settings.value(saved, opened, type=bool), section_id=section_id
+    )
+    section.opened_changed.connect(lambda on: settings.setValue(key, on))
+    return section
 
 
 class SeriesList(QWidget):

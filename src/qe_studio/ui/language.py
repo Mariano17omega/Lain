@@ -56,11 +56,10 @@ def install_qt_translator(app: QCoreApplication, language: str | None = None) ->
     return True
 
 
-def restart_notice(setting: str, environ: Mapping[str, str] | None = None) -> str:
+def restart_notice(setting: str) -> str:
     """What "Recarregar config.yaml" tells when ``ui.language`` now asks for another language
     than the running one, else an empty text."""
     system_name = QLocale.system().name()
-    env = os.environ if environ is None else environ
-    if not changes_on_restart(setting, i18n.current_language(), env, system_name):
+    if not changes_on_restart(setting, i18n.current_language(), os.environ, system_name):
         return ""
     return _("O idioma muda ao reiniciar o Lain.")

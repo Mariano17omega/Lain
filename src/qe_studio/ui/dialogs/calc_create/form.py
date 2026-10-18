@@ -166,9 +166,8 @@ class FieldForm(QWidget):
         kind, default = form_field.kind, form_field.default
         if kind == "choice":
             combo = QComboBox()
-            for (
-                choice
-            ) in form_field.choices:  # the value is the Portuguese token, the text is shown
+            # The data is the Portuguese token, the text its message.
+            for choice in form_field.choices:
                 combo.addItem(_(choice), choice)
             combo.setCurrentIndex(combo.findData(str(default)) if default is not None else -1)
             combo.activated.connect(self._edited)

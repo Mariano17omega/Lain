@@ -18,12 +18,6 @@ from qe_studio.core.language import (
 from qe_studio.ui.language import install_qt_translator, install_startup_language, restart_notice
 
 
-@pytest.fixture(autouse=True)
-def source_language():
-    yield
-    i18n.install("pt_BR")
-
-
 @pytest.mark.parametrize(
     ("setting", "system", "language"),
     [

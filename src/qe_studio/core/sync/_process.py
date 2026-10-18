@@ -76,7 +76,7 @@ class RsyncRun(QObject):
     # -- public API -------------------------------------------------------------------------------
     def start(self, local_dir: Path, remote: Endpoint) -> None:
         if self._running:
-            raise RuntimeError(_("sincronização já em andamento"))
+            raise RuntimeError("sincronização já em andamento")
         self._running = True
         self._cancelled = False
         self._local_dir = Path(local_dir)

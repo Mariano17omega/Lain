@@ -399,6 +399,18 @@ def _warnings(config: AppConfig) -> list[str]:
     return warnings
 
 
+def read_config_data(path: Path) -> object:
+    """The parsed YAML of the config file at ``path``."""
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ConfigError(
+            path, [_("não foi possível ler o arquivo: {exc}").format(exc=exc)]
+        ) from exc
+    except yaml.YAMLError as exc:
+        raise ConfigError(path, [_("YAML inválido: {exc}").format(exc=exc)]) from exc
+
+
 def load_config(
     cli_path: str | os.PathLike[str] | None = None,
     environ: Mapping[str, str] | None = None,
@@ -413,14 +425,6 @@ def load_config(
             [_("config.yaml não encontrado; usando valores padrão."), *_warnings(config)],
             first_run=True,
         )
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except OSError as exc:
-        raise ConfigError(
-            path, [_("não foi possível ler o arquivo: {exc}").format(exc=exc)]
-        ) from exc
-    except yaml.YAMLError as exc:
-        raise ConfigError(path, [_("YAML inválido: {exc}").format(exc=exc)]) from exc
     removed: list[str] = []
-    config = parse_config(data, path, removed)
+    config = parse_config(read_config_data(path), path, removed)
     return LoadedConfig(config, path, [*removed, *_warnings(config)])
