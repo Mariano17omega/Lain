@@ -15,6 +15,7 @@ from typing import ClassVar
 
 import numpy as np
 
+from ....i18n import _, ngettext
 from ...qe.input_edit import InputEditor
 from ..edits import put_mesh, put_string, put_text
 from ..scf_info import ScfInfo
@@ -53,9 +54,9 @@ from .vc_relax import VcRelaxType
 
 __all__ = ["SlabType"]
 
-NO_MOLECULE_NOTE = "Sem molécula: o vácuo é o mínimo"
-NO_MESH = "Preencha a rede de k-points: o SCF não tem K_POINTS automatic"
-GAMMA_NOTE = "K_POINTS gamma do SCF mantido: confira se basta para a célula do slab"
+NO_MOLECULE_NOTE = _("Sem molécula: o vácuo é o mínimo")
+NO_MESH = _("Preencha a rede de k-points: o SCF não tem K_POINTS automatic")
+GAMMA_NOTE = _("K_POINTS gamma do SCF mantido: confira se basta para a célula do slab")
 FIELD_OF_ERROR = {NEED_O_H: "complete", NO_BULK_H: "complete"}  # the field a SurfaceError marks
 Facts = list[tuple[str, str]]  # the lines of geracao.md
 
@@ -66,7 +67,7 @@ class SlabType(VcRelaxType):
     folder_prefix: ClassVar[str] = "Slab"
     script_stem: ClassVar[str] = "slab"
     script_template: ClassVar[str] = "qsub/vc-relax.qsub.j2"
-    scf_label: ClassVar[str] = "SCF do bulk"
+    scf_label: ClassVar[str] = _("SCF do bulk")
     writes_report: ClassVar[bool] = True
 
     def input_fields(self, scf: ScfInfo) -> list[FormField]:
@@ -77,7 +78,7 @@ class SlabType(VcRelaxType):
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values
         axis = AXIS_OF.get(values["axis"] or "", "c")
-        facts: Facts = [("SCF de origem", scf.name)]
+        facts: Facts = [(_("SCF de origem"), scf.name)]
         options = self._options(work, axis, facts)
         editor = work.editor()
         try:
@@ -88,7 +89,7 @@ class SlabType(VcRelaxType):
                 work.problem(field_id, str(exc))
             else:
                 work.errors.append(str(exc))
-            facts.append(("Estrutura não gerada", str(exc)))
+            facts.append((_("Estrutura não gerada"), str(exc)))
         self.edit(editor, work)
         put_string(editor, "cell", "cell_dofree", values["cell_dofree"] or DEFAULT_CELL_DOFREE)
         put_text(editor, "control", "prefix", f"{scf.prefix}-slab-{HKL[axis]}")
@@ -98,21 +99,25 @@ class SlabType(VcRelaxType):
     # -- the pieces of ``inputs`` ------------------------------------------------------------------
     def _options(self, work: Work, axis: str, facts: Facts) -> SlabOptions:
         values = work.values
-        minimum = check_positive(work, "vacuum_min", "O vácuo mínimo") or 0.0
-        distance = check_positive(work, "ads_distance", "A distância de adsorção", True) or 0.0
-        scale = check_positive(work, BOND_SCALE, "A tolerância de ligação") or 1.0
+        minimum = check_positive(work, "vacuum_min", _("O vácuo mínimo")) or 0.0
+        distance = check_positive(work, "ads_distance", _("A distância de adsorção"), True) or 0.0
+        scale = check_positive(work, BOND_SCALE, _("A tolerância de ligação")) or 1.0
         molecule = self._molecule(work, facts)
         if molecule is None:
             vacuum = minimum
             work.notes.append(NO_MOLECULE_NOTE)
-            asked = f"{decimal(vacuum)} Å (o vácuo mínimo; sem molécula)"
+            asked = _("{decimal} Å (o vácuo mínimo; sem molécula)").format(decimal=decimal(vacuum))
         else:
             vacuum = minimum + molecule.extent + distance
-            asked = (
-                f"{decimal(vacuum)} Å = {decimal(minimum)} + molécula {decimal(molecule.extent)} "
-                f"+ adsorção {decimal(distance)}"
+            asked = _(
+                "{decimal} Å = {decimal_2} + molécula {decimal_3} + adsorção {decimal_4}"
+            ).format(
+                decimal=decimal(vacuum),
+                decimal_2=decimal(minimum),
+                decimal_3=decimal(molecule.extent),
+                decimal_4=decimal(distance),
             )
-        facts.append(("Vácuo pedido", asked))
+        facts.append((_("Vácuo pedido"), asked))
         complete = bool(values["complete"])
         if complete:
             metals = check_labels(work, work.scf, "metals", METALS_LABEL)
@@ -135,22 +140,28 @@ class SlabType(VcRelaxType):
         try:
             molecule = molecule_of(other)
         except SurfaceError as exc:
-            work.problem(MOLECULE, f"SCF da molécula: {exc}")
+            work.problem(MOLECULE, _("SCF da molécula: {exc}").format(exc=exc))
             return None
         if other.crystal is not None:
             gap = min(vacuum_gaps(other.crystal.cell, other.crystal.frac))
             if gap < MIN_SURFACE_GAP:
                 work.notes.append(
-                    f"A molécula de {other.name} não parece isolada: só {decimal(gap, 1)} Å de "
-                    "vácuo na caixa dela"
+                    _(
+                        "A molécula de {name} não parece isolada: só {decimal} Å de vácuo na caixa dela"
+                    ).format(name=other.name, decimal=decimal(gap, 1))
                 )
         anchor = f"{molecule.labels[molecule.anchor]}{molecule.anchor + 1}"
-        turned = "; girada para o eixo ficar em +z" if molecule.rotated else ""
+        turned = _("; girada para o eixo ficar em +z") if molecule.rotated else ""
         facts.append(
             (
-                "Molécula",
-                f"{other.name}: {counts(molecule.labels)}, altura {decimal(molecule.extent)} Å, "
-                f"âncora {anchor}{turned}",
+                _("Molécula"),
+                _("{name}: {counts}, altura {decimal} Å, âncora {anchor}{turned}").format(
+                    name=other.name,
+                    counts=counts(molecule.labels),
+                    decimal=decimal(molecule.extent),
+                    anchor=anchor,
+                    turned=turned,
+                ),
             )
         )
         return molecule
@@ -164,8 +175,9 @@ class SlabType(VcRelaxType):
         gap = vacuum_gaps(bulk.cell, bulk.frac)[stack]
         if gap >= MIN_SURFACE_GAP:
             work.notes.append(
-                f"O SCF já tem {decimal(gap, 1)} Å de vácuo ao longo de {options.axis}: parece uma "
-                "superfície"
+                _(
+                    "O SCF já tem {decimal} Å de vácuo ao longo de {axis}: parece uma superfície"
+                ).format(decimal=decimal(gap, 1), axis=options.axis)
             )
         result = make_slab(bulk, options, scf.species)
         work.notes.extend(result.notes)
@@ -187,11 +199,16 @@ class SlabType(VcRelaxType):
             mesh = rescale_mesh(scf.kmesh, {0: first, 1: second})
             put_mesh(editor, mesh)
             facts.append(
-                ("k-points", f"{mesh_text(mesh)} (do SCF {mesh_text(scf.kmesh)}; vácuo 1)")
+                (
+                    "k-points",
+                    _("{mesh_text} (do SCF {mesh_text_2}; vácuo 1)").format(
+                        mesh_text=mesh_text(mesh), mesh_text_2=mesh_text(scf.kmesh)
+                    ),
+                )
             )
         elif scf.kpoints_option == "gamma":
             work.notes.append(GAMMA_NOTE)
-            facts.append(("k-points", "gamma (do SCF)"))
+            facts.append(("k-points", _("gamma (do SCF)")))
         else:
             work.problem("kmesh", NO_MESH)
 
@@ -203,19 +220,23 @@ def bond_notes(result: SlabResult, options: SlabOptions) -> list[str]:
         return []
     if not options.complete:
         total = sum(cut.values())
-        noun = "ligação metal–O cortada" if total == 1 else "ligações metal–O cortadas"
         return [
-            f"{total} {noun} na borda ({bond_text(cut)}); marque '{COMPLETE_LABEL}' para fechá-las "
-            "com OH"
+            ngettext(
+                "{total} ligação metal–O cortada na borda ({bonds}); marque '{label}' para fechá-la com OH",
+                "{total} ligações metal–O cortadas na borda ({bonds}); marque '{label}' para fechá-las com OH",
+                total,
+            ).format(total=total, bonds=bond_text(cut), label=COMPLETE_LABEL)
         ]
     left = [label for label in cut if label not in options.metals]
     if not left:
         return []
     bonds = ", ".join(f"{label}–O" for label in left)
-    verb = "não está" if len(left) == 1 else "não estão"
     return [
-        f"Ligações {bonds} cortadas não foram completadas: {', '.join(left)} {verb} em "
-        f"'{METALS_LABEL}'"
+        ngettext(
+            "Ligação {bonds} cortada não foi completada: {metals} não está em '{label}'",
+            "Ligações {bonds} cortadas não foram completadas: {metals} não estão em '{label}'",
+            len(left),
+        ).format(bonds=bonds, metals=", ".join(left), label=METALS_LABEL)
     ]
 
 
@@ -225,14 +246,24 @@ def structure_facts(
     """The lines of ``geracao.md`` about the slab; atoms are numbered from 1."""
     labels, cell = model.labels, model.cell
     heights = model.cart[:, 2]
-    flip = "invertida" if options.flip else "não invertida"
+    flip = "invertida" if options.flip else _("não invertida")
     lengths = "; ".join(decimal(float(np.linalg.norm(row)), 3) for row in cell)
     facts: Facts = [
-        ("Superfície", f"eixo {options.axis} empilhado ({HKL[options.axis]}), {flip}"),
-        ("Átomos", f"{len(labels)} ({counts(labels)})"),
+        (
+            _("Superfície"),
+            _("eixo {axis} empilhado ({HKL}), {flip}").format(
+                axis=options.axis, HKL=HKL[options.axis], flip=flip
+            ),
+        ),
+        (_("Átomos"), f"{len(labels)} ({counts(labels)})"),
         ("|a|, |b|, |c|", f"{lengths} Å"),
-        ("Fator f", f"{decimal(result.f, 4)} × eixo {options.axis} do bulk"),
-        ("Vácuo medido", f"{decimal(float(cell[2, 2] - np.ptp(heights)))} Å"),
+        (
+            _("Fator f"),
+            _("{decimal} × eixo {axis} do bulk").format(
+                decimal=decimal(result.f, 4), axis=options.axis
+            ),
+        ),
+        (_("Vácuo medido"), f"{decimal(float(cell[2, 2] - np.ptp(heights)))} Å"),
     ]
     if fix is not None:
         facts.append(fixed_fact(labels, fix, rule))
@@ -241,16 +272,16 @@ def structure_facts(
             f"{labels[h.h]}{h.h + 1}–{labels[h.partner]}{h.partner + 1} ({decimal(h.distance, 3)} Å)"
             for h in result.healed
         ]
-        facts.append(("H reconectados", ", ".join(pairs)))
+        facts.append((_("H reconectados"), ", ".join(pairs)))
     if result.added:
         added = [
             f"{labels[a.metal]}{a.metal + 1}: O{a.oxygen + 1} + H{a.hydrogen + 1} "
             f"({labels[a.metal]}–O {decimal(a.distance, 3)} Å)"
             for a in result.added
         ]
-        facts.append(("O + H adicionados", ", ".join(added)))
+        facts.append((_("O + H adicionados"), ", ".join(added)))
     if result.cut_bonds:
-        facts.append(("Ligações a O cortadas", bond_text(result.cut_bonds)))
+        facts.append((_("Ligações a O cortadas"), bond_text(result.cut_bonds)))
     return facts
 
 

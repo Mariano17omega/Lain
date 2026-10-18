@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ....i18n import _
 from ...qe.pw_input import fortran_float
 from . import SurfaceError
 from .candidates import matches_species, surface_frame, top_indices
@@ -49,7 +50,7 @@ __all__ = [
 ]
 
 MIN_CONTACT = 1.5  # Å: an anchor closer than this to a surface atom is refused
-REMOVE_H_LABEL = "Remover o H ligado ao átomo âncora"
+REMOVE_H_LABEL = _("Remover o H ligado ao átomo âncora")
 SHIFTS = tuple(
     (i, j) for i in (-1, 0, 1) for j in (-1, 0, 1)
 )  # in-plane images, the scripts' order
@@ -118,15 +119,24 @@ def _match(model: Model, text: str, tol: float, which: int) -> int:
     role = ("first", "second")[which]
     point = parse_coords(text)
     if point is None:
-        raise SiteError(f"Coordenadas do átomo {which + 1}: escreva três números, x y z", role)
+        raise SiteError(
+            _("Coordenadas do átomo {value}: escreva três números, x y z").format(value=which + 1),
+            role,
+        )
     frac = np.vstack([model.frac, point])
-    distances, _ = pair_images(frac, model.cell, [len(model)], range(len(model)))
+    distances, __ = pair_images(frac, model.cell, [len(model)], range(len(model)))
     index = int(np.argmin(distances[0]))
     distance = float(distances[0, index])
     if distance > tol:
         raise SiteError(
-            f"As coordenadas {_number_text(point)} estão a {decimal(distance, 1)} Å do átomo mais "
-            f"próximo ({_name(model, index)}): nenhum átomo a até {decimal(tol, 1)} Å",
+            _(
+                "As coordenadas {number_text} estão a {decimal} Å do átomo mais próximo ({name}): nenhum átomo a até {decimal_2} Å"
+            ).format(
+                number_text=_number_text(point),
+                decimal=decimal(distance, 1),
+                name=_name(model, index),
+                decimal_2=decimal(tol, 1),
+            ),
             role,
         )
     return index
@@ -138,8 +148,15 @@ def site_atoms(model: Model, request: SiteRequest) -> tuple[int, ...]:
     if request.coords is None:
         marked = tuple(request.marked)
         if len(marked) != need:
-            ask = "Bidentado: marque dois átomos" if need == 2 else "Monodentado: marque um átomo"
-            raise SiteError(f"{ask} da lista (marcados: {len(marked)})", "selection")
+            ask = (
+                _("Bidentado: marque dois átomos")
+                if need == 2
+                else _("Monodentado: marque um átomo")
+            )
+            raise SiteError(
+                _("{ask} da lista (marcados: {count})").format(ask=ask, count=len(marked)),
+                "selection",
+            )
         atoms = [number - 1 for number in marked]
         roles = ["selection"] * need
     else:
@@ -149,17 +166,31 @@ def site_atoms(model: Model, request: SiteRequest) -> tuple[int, ...]:
     top = set(top_indices(surface_frame(model).heights, request.window))
     for index, role in zip(atoms, roles, strict=True):
         if not 0 <= index < len(model):
-            raise SiteError(f"O átomo {index + 1} não existe (1 a {len(model)})", role)
+            raise SiteError(
+                _("O átomo {value} não existe (1 a {count})").format(
+                    value=index + 1, count=len(model)
+                ),
+                role,
+            )
         label = model.labels[index]
         if index not in top:
-            raise SiteError(f"O átomo {index + 1} ({label}) não está na superfície", role)
+            raise SiteError(
+                _("O átomo {value} ({label}) não está na superfície").format(
+                    value=index + 1, label=label
+                ),
+                role,
+            )
         if not matches_species(label, request.species):
             raise SiteError(
-                f"O átomo {index + 1} ({label}) não é de {', '.join(request.species)}", role
+                _("O átomo {value} ({label}) não é de {join}").format(
+                    value=index + 1, label=label, join=", ".join(request.species)
+                ),
+                role,
             )
     if need == 2 and atoms[0] == atoms[1]:
         raise SiteError(
-            f"Bidentado: os dois átomos são o mesmo ({_name(model, atoms[0])})", roles[1]
+            _("Bidentado: os dois átomos são o mesmo ({name})").format(name=_name(model, atoms[0])),
+            roles[1],
         )
     return tuple(index + 1 for index in atoms)
 
@@ -175,7 +206,7 @@ def remove_bonded_h(
         anchor = number - 1
         bonded: list[int] = []
         if hydrogens:
-            distances, _ = pair_images(model.frac, model.cell, [anchor], hydrogens)
+            distances, __ = pair_images(model.frac, model.cell, [anchor], hydrogens)
             radius = covalent_radius(model.labels[anchor])
             bonded = [
                 h
@@ -184,14 +215,21 @@ def remove_bonded_h(
             ]
         if len(bonded) != 1:
             raise SiteError(
-                f"{_name(model, anchor)} tem {len(bonded)} H ligados: desmarque '{REMOVE_H_LABEL}'",
+                _("{name} tem {count} H ligados: desmarque '{REMOVE_H_LABEL}'").format(
+                    name=_name(model, anchor), count=len(bonded), REMOVE_H_LABEL=REMOVE_H_LABEL
+                ),
                 "deprotonation",
             )
         h = bonded[0]
         if h in chosen:
             raise SiteError(
-                f"{_name(model, chosen[h])} e {_name(model, anchor)} estão ligados ao mesmo H "
-                f"({_name(model, h)}): não dá para remover os dois",
+                _(
+                    "{name} e {name_2} estão ligados ao mesmo H ({name_3}): não dá para remover os dois"
+                ).format(
+                    name=_name(model, chosen[h]),
+                    name_2=_name(model, anchor),
+                    name_3=_name(model, h),
+                ),
                 "deprotonation",
             )
         chosen[h] = anchor
@@ -261,13 +299,14 @@ def _checks(
 ) -> tuple[float | None, float | None, float, list[str]]:
     """Raises ``SiteError`` on a contact; the clearances, the vacuum and their notes."""
     rows = list(range(n_slab, len(placed)))
-    distances, _ = pair_images(placed.frac, placed.cell, rows, range(n_slab))
+    distances, __ = pair_images(placed.frac, placed.cell, rows, range(n_slab))
     by_anchor = distances[anchor - n_slab]
     nearest = int(np.argmin(by_anchor))
     if by_anchor[nearest] < MIN_CONTACT:
         raise SiteError(
-            f"O âncora fica a {decimal(float(by_anchor[nearest]), 1)} Å de "
-            f"{_name(placed, nearest, numbers)}: aumente a distância de adsorção",
+            _("O âncora fica a {decimal} Å de {name}: aumente a distância de adsorção").format(
+                decimal=decimal(float(by_anchor[nearest]), 1), name=_name(placed, nearest, numbers)
+            ),
             "distance",
         )
     hydrogens = [j for j in range(n_slab) if element_of(placed.labels[j]) == "H"]
@@ -276,21 +315,25 @@ def _checks(
     clearance = float(distances[others].min()) if others else None
     notes: list[str] = []
     short = [
-        text
-        for text, value in (("âncora···H", anchor_h), ("molécula–superfície", clearance))
+        (text, value)
+        for text, value in ((_("âncora···H"), anchor_h), (_("molécula–superfície"), clearance))
         if value is not None and value < h_clearance
     ]
     if short:
-        values = {"âncora···H": anchor_h, "molécula–superfície": clearance}
-        parts = ", ".join(f"{text} {decimal(values[text] or 0.0)} Å" for text in short)
-        notes.append(f"Folga abaixo de {decimal(h_clearance, 1)} Å: {parts}; o relax ajusta")
+        parts = ", ".join(f"{text} {decimal(value)} Å" for text, value in short)
+        notes.append(
+            _("Folga abaixo de {decimal} Å: {parts}; o relax ajusta").format(
+                decimal=decimal(h_clearance, 1), parts=parts
+            )
+        )
     normal = surface_frame(unwrapped).normal
     heights = unwrapped.cart @ normal
     vacuum = abs(float(unwrapped.cell[2] @ normal)) - float(np.ptp(heights))
     if vacuum < vacuum_min:
         notes.append(
-            f"Vácuo de {decimal(vacuum, 1)} Å acima da molécula, abaixo do mínimo de "
-            f"{decimal(vacuum_min, 1)} Å"
+            _("Vácuo de {decimal} Å acima da molécula, abaixo do mínimo de {decimal_2} Å").format(
+                decimal=decimal(vacuum, 1), decimal_2=decimal(vacuum_min, 1)
+            )
         )
     return anchor_h, clearance, vacuum, notes
 
@@ -319,7 +362,7 @@ def adsorb(
     anchor_h, clearance, vacuum, notes = _checks(
         placed, unwrapped, n_slab, anchor, numbers, h_clearance, vacuum_min
     )
-    distances, _ = pair_images(placed.frac, placed.cell, [anchor], new_sites)
+    distances, __ = pair_images(placed.frac, placed.cell, [anchor], new_sites)
     return Adsorbed(
         placed,
         unwrapped,

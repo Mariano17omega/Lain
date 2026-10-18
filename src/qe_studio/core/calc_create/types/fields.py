@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 
+from ....i18n import _
 from ..kpath import KMesh
 from ..scf_info import ScfInfo
 from .base import FormField, Work
@@ -18,15 +19,17 @@ def kmesh_field(scf: ScfInfo, group: str, required: bool) -> FormField:
     """``K_POINTS automatic`` of ``group``: the SCF's mesh when it has one. Optional (empty keeps
     the SCF's card) unless ``required``, whose fallback is 4 4 4 0 0 0."""
     default = scf.kmesh or (DEFAULT_MESH if required else None)
-    keep = "" if required else "; vazio = mantém o K_POINTS do SCF"
+    keep = "" if required else _("; vazio = mantém o K_POINTS do SCF")
     return FormField(
         "kmesh",
-        "Rede de k-points",
+        _("Rede de k-points"),
         "kmesh",
         default,
         required=required,
         group=group,
-        tooltip=f"K_POINTS automatic: n1 n2 n3 e os deslocamentos s1 s2 s3 (0 ou 1){keep}",
+        tooltip=_("K_POINTS automatic: n1 n2 n3 e os deslocamentos s1 s2 s3 (0 ou 1){keep}").format(
+            keep=keep
+        ),
     )
 
 
@@ -48,10 +51,10 @@ def nbnd_default(scf: ScfInfo) -> int | None:
 
 def nbnd_field(scf: ScfInfo, group: str, hint: str = "") -> FormField:
     """``hint``: a sentence the type adds to the tooltip."""
-    tooltip = "Bandas calculadas: inclua as de condução que quer ver"
+    tooltip = _("Bandas calculadas: inclua as de condução que quer ver")
     return FormField(
         "nbnd",
-        "Número de bandas (nbnd)",
+        _("Número de bandas (nbnd)"),
         "int",
         nbnd_default(scf),
         required=True,

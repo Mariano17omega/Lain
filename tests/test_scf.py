@@ -242,8 +242,8 @@ def test_schema_defaults_and_export_stem(tmp_path):
     _r, spin, params = load(write(tmp_path, synthetic(3, spin=True), "spin.out"))
     assert {"show_magnetization", "magnetization_color"} <= {f.name for f in SCF.param_schema(spin)}
     assert params.figure_height == pytest.approx(CONFIG.plot.figure_size[1] * 2.0)
-    sections = [s.name for s in ordered_sections(SCF)]
-    assert sections.index("Convergência") < sections.index("Eixo X") < sections.index("Estilo")
+    sections = [s.id for s in ordered_sections(SCF)]
+    assert sections.index("convergence") < sections.index("x_axis") < sections.index("style")
     assert {f.section for f in SCF.param_schema(spin)} <= set(sections)
     assert SCF.export_stem(params) == "scf" and SCF.view_fields == ("xmin", "xmax")
 

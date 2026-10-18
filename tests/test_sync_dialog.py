@@ -79,7 +79,7 @@ def test_one_window_from_listing_to_progress(qtbot, rig, boxes):
     assert blocker.args[0].status is SyncStatus.DONE
     assert boxes == []  # success is not modal
     assert not dialog.isVisible()
-    assert [n[:2] for n in notices] == [("2 arquivo(s) baixado(s).", "success")]
+    assert [n[:2] for n in notices] == [("2 arquivos baixados.", "success")]
     assert (project / "run" / "sub" / "b.out").read_text() == "b"
 
 

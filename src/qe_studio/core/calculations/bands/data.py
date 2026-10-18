@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ....i18n import _
 from ...qe import bands_x
 from ...qe.pw_input import QEInput, read_input
 from ...qe.pw_output import PwOutput, read_structure
@@ -16,9 +17,9 @@ from ..base import DetectionResult, LoadError, SniffFn
 BOHR_TO_ANGSTROM = 0.529177210903
 EDGE_TOL = 1e-3  # eV: a band within this of E_F is not counted as crossing it
 # Notes under the readout (spec 27-6 R1) when the gap of a run without spin is in doubt.
-GAP_OFF_PATH_NOTE = "gap indeterminado: E_F fora de [VBM, CBM] no caminho"
-GAP_NO_FERMI_NOTE = "E_F não encontrado: gap pela contagem de elétrons"
-GAP_FROM_FERMI_NOTE = "gap pela posição de E_F: {n:g} elétrons não enchem bandas inteiras"
+GAP_OFF_PATH_NOTE = _("gap indeterminado: E_F fora de [VBM, CBM] no caminho")
+GAP_NO_FERMI_NOTE = _("E_F não encontrado: gap pela contagem de elétrons")
+GAP_FROM_FERMI_NOTE = _("gap pela posição de E_F: {n:g} elétrons não enchem bandas inteiras")
 CHANNELS = ("up", "down")
 # Roles holding the eigenvalue file of each spin channel: (.gnu, filband).
 CHANNEL_ROLES = {"up": ("gnu", "filband"), "down": ("gnu_down", "filband_down")}
@@ -147,7 +148,7 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> BandsDataset:
     scf_path = result.file("scf_out")
     pw = sniff(scf_path).pw if scf_path else None
     if pw is None or pw.fermi is None:
-        warnings.append("energia de Fermi não encontrada: energias absolutas")
+        warnings.append(_("energia de Fermi não encontrada: energias absolutas"))
     bands, bands_down, source = _eigenvalues(result, pw, warnings)
     ticks, labels, tick_source = _ticks(result, bands, source, warnings, sniff)
     dataset = BandsDataset(
@@ -201,22 +202,27 @@ def _eigenvalues(
             if (read := _from_files(result, "down", down_errors)) is not None:
                 down = read[0]
             else:
-                warnings.append(f"canal ↓ ilegível, gráfico só com ↑ ({'; '.join(down_errors)})")
+                warnings.append(
+                    _("canal ↓ ilegível, gráfico só com ↑ ({join})").format(
+                        join="; ".join(down_errors)
+                    )
+                )
         return up[0], down, up[1]
     if (bands_out := result.file("bands_out")) is not None:
         try:
             data, down = _bands_from_pw_output(bands_out, pw)
-            warnings.append("autovalores lidos da saída do pw.x (bands.x não encontrado)")
+            warnings.append(_("autovalores lidos da saída do pw.x (bands.x não encontrado)"))
             return data, down, "pw"
         except LoadError as exc:
             errors.append(str(exc))
     down_files = [p for p in map(result.file, CHANNEL_ROLES["down"]) if p is not None]
     if down_files:  # bands.x did run, for ↓ only: say so instead of "run bands.x"
         errors = [
-            f"só o canal ↓ ({down_files[0].name}) foi encontrado: mapeie-o como ↑ ou rode o "
-            "bands.x com spin_component = 1"
+            _(
+                "só o canal ↓ ({name}) foi encontrado: mapeie-o como ↑ ou rode o bands.x com spin_component = 1"
+            ).format(name=down_files[0].name)
         ]
-    raise LoadError("Não foi possível ler os autovalores:\n" + "\n".join(errors))
+    raise LoadError(_("Não foi possível ler os autovalores:\n") + "\n".join(errors))
 
 
 def _ticks(
@@ -238,7 +244,9 @@ def _ticks(
         labels = labels or [""] * len(hs.hs_x)
         return list(hs.hs_x), labels, "bands.x"
     if kp is not None and kp.is_path:
-        warnings.append("caminho K_POINTS não corresponde aos dados: sem pontos de alta simetria")
+        warnings.append(
+            _("caminho K_POINTS não corresponde aos dados: sem pontos de alta simetria")
+        )
     return [float(x[0]), float(x[-1])], ["", ""], "nenhum"
 
 
@@ -336,10 +344,16 @@ def _bands_from_pw_output(
     atoms = read_structure(read_text(path))
     calc = atoms.calc if atoms is not None else None
     if atoms is None or calc is None or not calc.kpts:
-        raise LoadError(f"{path.name}: pw.x não imprimiu os autovalores (rode o bands.x)")
+        raise LoadError(
+            _("{name}: pw.x não imprimiu os autovalores (rode o bands.x)").format(name=path.name)
+        )
     n_spins = calc.get_number_of_spins()
     if n_spins not in (1, 2):
-        raise LoadError(f"{path.name}: número de spins não suportado ({n_spins})")
+        raise LoadError(
+            _("{name}: número de spins não suportado ({n_spins})").format(
+                name=path.name, n_spins=n_spins
+            )
+        )
     kscaled = calc.get_ibz_k_points()
     kcart = kscaled @ atoms.cell.reciprocal()
     if pw is not None and pw.alat_bohr:

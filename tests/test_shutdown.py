@@ -73,8 +73,8 @@ def test_a_slow_step_is_logged_and_the_rest_still_runs(caplog):
         report = sequence(clock, steps).run()
     assert report.late == ["slow"] and report.ok == ["state"]
     assert ran == [0]  # no budget left: the step runs and does the part that does not wait
-    assert "slow não terminou em 1000 ms" in caplog.text
-    assert "estouros: ['slow']" in caplog.text
+    assert "slow did not finish in 1000 ms" in caplog.text
+    assert "late: ['slow']" in caplog.text
 
 
 def test_a_step_that_raises_does_not_stop_the_state_from_being_saved(caplog):
@@ -87,7 +87,7 @@ def test_a_step_that_raises_does_not_stop_the_state_from_being_saved(caplog):
     with caplog.at_level(logging.WARNING, logger=shutdown.log.name):
         report = sequence(Clock(), steps).run()
     assert saved == [True]
-    assert report.late == ["boom"] and "boom falhou" in caplog.text
+    assert report.late == ["boom"] and "boom failed" in caplog.text
 
 
 def test_exports_wait_their_own_time_and_it_is_not_charged_to_the_budget():

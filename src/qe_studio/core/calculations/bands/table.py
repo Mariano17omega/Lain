@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ....i18n import _
 from ...plotting.table import Column, PlotTable
 from .data import BandsDataset
 from .params import ENERGY_NAMES, BandsParams
@@ -31,7 +32,10 @@ def bands_table(dataset: BandsDataset, params: BandsParams) -> PlotTable:
             columns.append(Column(f"k{mark} ({K_UNIT})", band.x))
         energies = band.energies - ref
         columns += [
-            Column(f"Banda {number}{mark} ({unit})", energy)
+            Column(
+                _("Banda {number}{mark} ({unit})").format(number=number, mark=mark, unit=unit),
+                energy,
+            )
             for number, energy in enumerate(energies, start=1)
         ]
     return PlotTable.of(columns)

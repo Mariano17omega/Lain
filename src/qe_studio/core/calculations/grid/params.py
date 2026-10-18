@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
+from ....i18n import _
 from ..params import COMMON_FIELDS, CommonParams, ParamField, apply_common_config
 
 if TYPE_CHECKING:
@@ -47,8 +48,8 @@ _COMMON = {f.name: f for f in COMMON_FIELDS}
 SCHEMA = [
     ParamField(
         "cell_width",
-        "Largura da célula",
-        "Figura",
+        _("Largura da célula"),
+        "figure",
         "float",
         minimum=1,
         maximum=20,
@@ -57,8 +58,8 @@ SCHEMA = [
     ),
     ParamField(
         "cell_height",
-        "Altura da célula",
-        "Figura",
+        _("Altura da célula"),
+        "figure",
         "float",
         minimum=1,
         maximum=20,
@@ -67,12 +68,12 @@ SCHEMA = [
     ),
     ParamField(
         "show_titles",
-        "Títulos das células",
-        "Figura",
+        _("Títulos das células"),
+        "figure",
         "bool",
-        tooltip="Mostra o título de cada célula no lugar do título do gráfico",
+        tooltip=_("Mostra o título de cada célula no lugar do título do gráfico"),
     ),
-    replace(_COMMON["font_size"], label="Fonte dos títulos"),
+    replace(_COMMON["font_size"], label=_("Fonte dos títulos")),
     _COMMON["background"],
     *(_COMMON[name] for name in ("export_png", "export_svg", "export_pdf", "export_dpi")),
 ]

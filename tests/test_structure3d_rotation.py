@@ -40,8 +40,8 @@ def about(axis: str, degrees: float) -> np.ndarray:
 def test_the_section_comes_after_exibicao_and_is_open(windows):
     panel = windows.open(SI_SCF).panel
     titles = list(panel.sections)
-    assert titles.index("Rotação") == titles.index("Exibição") + 1
-    section = panel.sections["Rotação"]
+    assert titles.index("rotation") == titles.index("display") + 1
+    section = panel.sections["rotation"]
     assert section.header.text() == "ROTAÇÃO" and section.header.isChecked()
     assert section.body.isVisibleTo(panel)
 

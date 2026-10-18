@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ....i18n import _
 from ...compounds import Compound, compound_of
 from ...qe.structure import read_sites
 from ..bands.data import BandsDataset
@@ -26,7 +27,7 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> BandsDosDataset:
     """Both parts through their modules' ``load_cached``, one after the other in this worker: an
     open band or PDOS tab of the same files has them loaded already."""
     if len(result.parts) != len(PARTS):
-        raise LoadError("Bandas com DOS precisa de uma pasta de bandas e uma de PDOS.")
+        raise LoadError(_("Bandas com DOS precisa de uma pasta de bandas e uma de PDOS."))
     bands_result, dos_result = result.parts
     bands: BandsDataset = bands_result.module.load_cached(bands_result, sniff)
     dos: PdosDataset = dos_result.module.load_cached(dos_result, sniff)

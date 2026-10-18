@@ -10,6 +10,7 @@ from typing import BinaryIO
 
 import numpy as np
 
+from ...i18n import _
 from .. import cancel
 
 
@@ -43,7 +44,9 @@ def read_gnu(path: Path) -> BandData:
     try:
         data = np.loadtxt(path, ndmin=2, encoding="utf-8")
     except ValueError as exc:
-        raise BandsFormatError(f"não é um arquivo de bandas numérico: {exc}") from exc
+        raise BandsFormatError(
+            _("não é um arquivo de bandas numérico: {exc}").format(exc=exc)
+        ) from exc
     return _assemble_gnu(data)
 
 
@@ -52,7 +55,9 @@ def read_gnu_text(text: str) -> BandData:
     try:
         data = np.loadtxt(io.StringIO(text), ndmin=2)
     except ValueError as exc:
-        raise BandsFormatError(f"não é um arquivo de bandas numérico: {exc}") from exc
+        raise BandsFormatError(
+            _("não é um arquivo de bandas numérico: {exc}").format(exc=exc)
+        ) from exc
     return _assemble_gnu(data)
 
 
@@ -61,15 +66,15 @@ def _assemble_gnu(data: np.ndarray) -> BandData:
     7.3, a single space in 7.1), so bands are split where x decreases instead of on blank lines."""
     cancel.check()
     if data.size == 0 or data.shape[1] != 2:
-        raise BandsFormatError("esperadas 2 colunas (x, E)")
+        raise BandsFormatError(_("esperadas 2 colunas (x, E)"))
     starts = np.flatnonzero(np.diff(data[:, 0]) < 0) + 1
     blocks = np.split(data, starts)
     nks = len(blocks[0])
     if any(len(block) != nks for block in blocks):
-        raise BandsFormatError("bandas com números diferentes de pontos k")
+        raise BandsFormatError(_("bandas com números diferentes de pontos k"))
     x = blocks[0][:, 0].copy()  # a view would keep the whole table alive
     if not all(np.allclose(block[:, 0], x, atol=1e-3) for block in blocks[1:]):
-        raise BandsFormatError("eixo x difere entre bandas")
+        raise BandsFormatError(_("eixo x difere entre bandas"))
     cancel.check()
     return BandData(x, np.array([block[:, 1] for block in blocks]))
 
@@ -110,14 +115,16 @@ def gnu_shape(handle: BinaryIO, chunk_size: int = GNU_CHUNK_BYTES) -> tuple[int,
         tokens = block.split()
         if tokens:
             if len(tokens) % 2:
-                raise BandsFormatError("esperadas 2 colunas (x, E)")
+                raise BandsFormatError(_("esperadas 2 colunas (x, E)"))
             if first is None:
                 first = block.lstrip().split(b"\n", 1)[0]
             last = block.rstrip().rsplit(b"\n", 1)[-1]
             try:
                 xs = np.array(tokens[0::2]).astype(float)
             except ValueError as exc:
-                raise BandsFormatError(f"não é um arquivo de bandas numérico: {exc}") from exc
+                raise BandsFormatError(
+                    _("não é um arquivo de bandas numérico: {exc}").format(exc=exc)
+                ) from exc
             restarts += int(np.count_nonzero(np.diff(xs) < 0))
             if last_x is not None and xs[0] < last_x:
                 restarts += 1
@@ -126,12 +133,12 @@ def gnu_shape(handle: BinaryIO, chunk_size: int = GNU_CHUNK_BYTES) -> tuple[int,
         if not data:
             break
     if first is None:
-        raise BandsFormatError("arquivo sem dados")
+        raise BandsFormatError(_("arquivo sem dados"))
     if not (_two_floats(first) and _two_floats(last)):
-        raise BandsFormatError("esperadas 2 colunas (x, E)")
+        raise BandsFormatError(_("esperadas 2 colunas (x, E)"))
     bands = restarts + 1
     if lines % bands:
-        raise BandsFormatError("bandas com números diferentes de pontos k")
+        raise BandsFormatError(_("bandas com números diferentes de pontos k"))
     return bands, lines // bands
 
 
@@ -162,17 +169,21 @@ def read_filband(text: str) -> FilbandData:
     """
     header = read_filband_header(text)
     if header is None:
-        raise BandsFormatError("cabeçalho &plot ausente")
+        raise BandsFormatError(_("cabeçalho &plot ausente"))
     nbnd, nks = header
     cancel.check()
     wanted = nks * (3 + nbnd)
     if wanted > len(text) // 3:  # a number takes 3 characters at least: a corrupt header must
-        raise BandsFormatError(f"esperados {nks} pontos k com {nbnd} bandas")  # not allocate
+        raise BandsFormatError(
+            _("esperados {nks} pontos k com {nbnd} bandas").format(nks=nks, nbnd=nbnd)
+        )  # not allocate
     numbers = (float(m.group()) for m in _FLOATS.finditer(text, text.index("/") + 1))
     try:
         values = np.fromiter(numbers, dtype=float, count=wanted)
     except ValueError as exc:  # fewer numbers than the header announces
-        raise BandsFormatError(f"esperados {nks} pontos k com {nbnd} bandas") from exc
+        raise BandsFormatError(
+            _("esperados {nks} pontos k com {nbnd} bandas").format(nks=nks, nbnd=nbnd)
+        ) from exc
     cancel.check()
     rows = values.reshape(nks, 3 + nbnd)
     return FilbandData(rows[:, :3].copy(), rows[:, 3:].T.copy())

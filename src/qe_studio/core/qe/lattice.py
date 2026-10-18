@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ...i18n import _, ngettext
 from .input_edit import InputEditor
 from .pw_input import fortran_float
 
@@ -39,7 +40,7 @@ class Crystal:
 
 def _require(ok: bool, what: str) -> None:
     if not ok:
-        raise StructureError(f"{what} inválido para o ibrav")
+        raise StructureError(_("{what} inválido para o ibrav").format(what=what))
 
 
 def cell_vectors(ibrav: int, celldm: tuple[float, ...] | list[float]) -> np.ndarray:
@@ -105,7 +106,7 @@ def cell_vectors(ibrav: int, celldm: tuple[float, ...] | list[float]) -> np.ndar
             _require(abs(c[i]) < 1, f"celldm({i})")
         sin_g = np.sqrt(1 - c[6] ** 2)
         term = 1 + 2 * c[4] * c[5] * c[6] - c[4] ** 2 - c[5] ** 2 - c[6] ** 2
-        _require(term >= 0, "conjunto de celldm")
+        _require(term >= 0, _("conjunto de celldm"))
         term = np.sqrt(term / (1 - c[6] ** 2))
         b, cc = a * c[2], a * c[3]
         v[:] = [
@@ -114,7 +115,7 @@ def cell_vectors(ibrav: int, celldm: tuple[float, ...] | list[float]) -> np.ndar
             [cc * c[5], cc * (c[4] - c[5] * c[6]) / sin_g, cc * term],
         ]
     else:
-        raise StructureError(f"ibrav = {ibrav} não existe")
+        raise StructureError(_("ibrav = {ibrav} não existe").format(ibrav=ibrav))
     return v
 
 
@@ -123,7 +124,7 @@ def celldm_from_abc(
 ) -> list[float]:
     """``celldm(1..6)`` from ``A`` (Å), ``B``, ``C``, ``cosAB``, ``cosAC``, ``cosBC`` (``abc2celldm``)."""
     if a <= 0:
-        raise StructureError("A deve ser positivo")
+        raise StructureError(_("A deve ser positivo"))
     head = [a / BOHR_ANGSTROM, b / a, c / a]
     if ibrav in (14, 0):
         return [*head, cos_bc, cos_ac, cos_ab]
@@ -164,7 +165,9 @@ def _rows(lines: tuple[str, ...], count: int, what: str) -> list[list[float]]:
     for line in lines[:count]:
         values = [fortran_float(token) for token in line.split()[:3]]
         if len(values) < 3 or any(v is None for v in values):
-            raise StructureError(f"linha de {what} ilegível: {line.strip()}")
+            raise StructureError(
+                _("linha de {what} ilegível: {strip}").format(what=what, strip=line.strip())
+            )
         rows.append([float(v) for v in values if v is not None])
     if len(rows) < count:
         raise StructureError(f"{what} incompleto")
@@ -176,19 +179,19 @@ def _cell_bohr(editor: InputEditor, ibrav: int) -> tuple[np.ndarray, float]:
     celldm = _celldm(editor, ibrav)
     if ibrav != 0:
         if celldm is None:
-            raise StructureError("faltam celldm(1) ou A no &SYSTEM")
+            raise StructureError(_("faltam celldm(1) ou A no &SYSTEM"))
         return cell_vectors(ibrav, celldm), celldm[0]
     card = editor.card("CELL_PARAMETERS")
     if card is None:
-        raise StructureError("ibrav = 0 sem CELL_PARAMETERS")
+        raise StructureError(_("ibrav = 0 sem CELL_PARAMETERS"))
     rows = np.array(_rows(card.lines, 3, "CELL_PARAMETERS"))
     unit = card.option or "alat"
     if unit.startswith("alat"):
         if celldm is None or celldm[0] <= 0:
-            raise StructureError("CELL_PARAMETERS alat sem celldm(1) ou A")
+            raise StructureError(_("CELL_PARAMETERS alat sem celldm(1) ou A"))
         return rows * celldm[0], celldm[0]
     if unit not in ("bohr", "angstrom"):
-        raise StructureError(f"unidade de CELL_PARAMETERS desconhecida: {unit}")
+        raise StructureError(_("unidade de CELL_PARAMETERS desconhecida: {unit}").format(unit=unit))
     cell = rows if unit == "bohr" else rows / BOHR_ANGSTROM
     return cell, float(np.linalg.norm(cell[0]))
 
@@ -198,27 +201,37 @@ def crystal_from_editor(editor: InputEditor) -> Crystal:
     ibrav_text = editor.get("system", "ibrav")
     ibrav_value = fortran_float(ibrav_text) if ibrav_text is not None else None
     if ibrav_value is None or ibrav_value != int(ibrav_value) or int(ibrav_value) not in IBRAVS:
-        raise StructureError(f"ibrav ausente ou inválido ({ibrav_text})")
+        raise StructureError(
+            _("ibrav ausente ou inválido ({ibrav_text})").format(ibrav_text=ibrav_text)
+        )
     ibrav = int(ibrav_value)
     cell, alat = _cell_bohr(editor, ibrav)
     if abs(np.linalg.det(cell)) < 1e-8:
-        raise StructureError("célula de volume nulo")
+        raise StructureError(_("célula de volume nulo"))
     card = editor.card("ATOMIC_POSITIONS")
     if card is None or not card.lines:
-        raise StructureError("sem ATOMIC_POSITIONS")
+        raise StructureError(_("sem ATOMIC_POSITIONS"))
     unit = card.option or "alat"
     if unit not in ("crystal", "alat", "bohr", "angstrom"):
-        raise StructureError(f"ATOMIC_POSITIONS {unit} não é suportado")
+        raise StructureError(_("ATOMIC_POSITIONS {unit} não é suportado").format(unit=unit))
     nat_value = _number(editor, "nat")
     nat = int(nat_value) if nat_value is not None else len(card.lines)
     if len(card.lines) < nat:
-        raise StructureError(f"nat = {nat}, mas ATOMIC_POSITIONS tem {len(card.lines)} linhas")
+        raise StructureError(
+            ngettext(
+                "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha",
+                "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas",
+                len(card.lines),
+            ).format(nat=nat, count=len(card.lines))
+        )
     labels, coords = [], []
     for line in card.lines[:nat]:
         tokens = line.split()
         values = [fortran_float(token) for token in tokens[1:4]]
         if len(tokens) < 4 or any(v is None for v in values):
-            raise StructureError(f"linha de ATOMIC_POSITIONS ilegível: {line.strip()}")
+            raise StructureError(
+                _("linha de ATOMIC_POSITIONS ilegível: {strip}").format(strip=line.strip())
+            )
         labels.append(tokens[0])
         coords.append([float(v) for v in values if v is not None])
     positions = np.array(coords)

@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib.figure import FigureBase
 from matplotlib.ticker import MaxNLocator
 
+from ....i18n import _
 from ...plotting.draw import bands_dos_axes, finish_joined
 from ...plotting.style import PlotStyle
 from ..bands import render as bands_render
@@ -71,12 +72,13 @@ def notes(dataset: BandsDosDataset, params: BandsDosParams) -> tuple[str, ...]:
     bands_fermi, dos_fermi = dataset.bands.fermi, dataset.dos.fermi("scf")
     delta = None if bands_fermi is None or dos_fermi is None else abs(dos_fermi - bands_fermi)
     if delta is not None and delta > FERMI_TOLERANCE:
-        found.append(f"E_F da DOS difere do das bandas em {delta:.3f} eV")
+        found.append(_("E_F da DOS difere do das bandas em {delta:.3f} eV").format(delta=delta))
     bands_compound, dos_compound = dataset.bands_compound, dataset.dos.compound
     if bands_compound and dos_compound and bands_compound.key != dos_compound.key:
         found.append(
-            f"Bandas ({bands_compound.formula}) e DOS ({dos_compound.formula}) são de compostos "
-            "diferentes: a seleção de átomos vale para o composto da DOS"
+            _(
+                "Bandas ({formula}) e DOS ({formula_2}) são de compostos diferentes: a seleção de átomos vale para o composto da DOS"
+            ).format(formula=bands_compound.formula, formula_2=dos_compound.formula)
         )
     return tuple(found)
 
@@ -85,10 +87,14 @@ def summary(dataset: BandsDosDataset, params: BandsDosParams) -> str:
     """The bands' summary (E_F, gap, size) and what the DOS projects."""
     data = dataset.dos.data
     bands = bands_render.summary(dataset.bands, bands_view(params))
-    parts = [bands, f"DOS: {len(data.series)} projeções"]
+    parts = [bands, _("DOS: {count} projeções").format(count=len(data.series))]
     if params.atoms is not None:
         every = {s.atom for s in data.series}
-        parts.append(f"{len(every & set(params.atoms))} de {len(every)} átomos")
+        parts.append(
+            _("{count} de {count_2} átomos").format(
+                count=len(every & set(params.atoms)), count_2=len(every)
+            )
+        )
     return " · ".join(parts)
 
 

@@ -15,6 +15,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import FigureBase
 from matplotlib.lines import Line2D
 
+from ...i18n import N_, _, ngettext
 from ..plotting.draw import (
     DASHED,
     MAX_TICKS,
@@ -37,18 +38,25 @@ from .base import (
     SniffFn,
     output_of,
 )
-from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
+from .params import (
+    COMMON_FIELDS,
+    CommonParams,
+    ParamField,
+    RenderInfo,
+    SectionDef,
+    apply_common_config,
+)
 from .readout import signed
 
 if TYPE_CHECKING:
     from ..config import AppConfig
 
-ENERGY_MODES = (("delta", "|ΔE| entre iterações"), ("total", "E total"))
-SCALES = (("log", "Log"), ("linear", "Linear"))
-NO_DELTAS = "São necessárias pelo menos duas iterações para calcular |ΔE|."
-NO_PANELS = "Nenhum painel selecionado"
-NOT_CONVERGED = "convergência NÃO atingida"
-RUNNING = "em andamento"
+ENERGY_MODES = (("delta", _("|ΔE| entre iterações")), ("total", _("E total")))
+SCALES = (("log", _("Log")), ("linear", _("Linear")))
+NO_DELTAS = _("São necessárias pelo menos duas iterações para calcular |ΔE|.")
+NO_PANELS = _("Nenhum painel selecionado")
+NOT_CONVERGED = _("convergência NÃO atingida")
+RUNNING = _("em andamento")
 
 
 @dataclass
@@ -94,18 +102,20 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
     badge: ClassVar[str] = "SCF"
     badge_token: ClassVar[str | None] = "scf"
     view_fields: ClassVar[tuple[str, ...]] = ("xmin", "xmax")
-    sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Convergência", "Eixo X"),)
-    display_name: ClassVar[str] = "Convergência SCF"
-    description: ClassVar[str] = "Cálculo SCF (pw.x)"
+    sections: ClassVar[tuple[tuple[SectionDef, str | None], ...]] = (
+        (SectionDef("convergence", N_("Convergência")), "x_axis"),
+    )
+    display_name: ClassVar[str] = _("Convergência SCF")
+    description: ClassVar[str] = _("Cálculo SCF (pw.x)")
     plottable: ClassVar[bool] = True
     fallback: ClassVar[bool] = True  # only when no other kind was detected in the folder
     single_file_role: ClassVar[str | None] = "scf_out"
-    plot_file_label: ClassVar[str] = "Plotar SCF"
-    plot_file_tip: ClassVar[str] = "Plotar a convergência do SCF do arquivo aberto"
+    plot_file_label: ClassVar[str] = _("Plotar SCF")
+    plot_file_tip: ClassVar[str] = _("Plotar a convergência do SCF do arquivo aberto")
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole(
             "scf_out",
-            "Saída SCF (pw.x)",
+            _("Saída SCF (pw.x)"),
             output_of(FileKind.PW_OUT, "scf"),
             ("scf*.out",),
             required=True,
@@ -121,22 +131,28 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
     def load(self, result: DetectionResult, sniff: SniffFn) -> ScfDataset:
         output = result.file("scf_out")
         if output is None:
-            raise LoadError("Saída do SCF não encontrada.")
+            raise LoadError(_("Saída do SCF não encontrada."))
         try:
             data = read_scf(output)
         except OSError as exc:
             raise LoadError(f"{output.name}: {exc.strerror or exc}") from exc
         if not data.iterations:
-            raise LoadError(f"Nenhuma iteração SCF completa em {output.name}.")
+            raise LoadError(_("Nenhuma iteração SCF completa em {name}.").format(name=output.name))
         warnings = list(result.warnings)
-        if data.truncated == 1:
-            warnings.append("1 iteração incompleta ignorada")
-        elif data.truncated:
-            warnings.append(f"{data.truncated} iterações incompletas ignoradas")
+        if data.truncated:
+            warnings.append(
+                ngettext(
+                    "{truncated} iteração incompleta ignorada",
+                    "{truncated} iterações incompletas ignoradas",
+                    data.truncated,
+                ).format(truncated=data.truncated)
+            )
         if data.cycles > 1:
-            warnings.append(f"saída com {data.cycles} ciclos SCF; mostrando o primeiro")
+            warnings.append(
+                _("saída com {cycles} ciclos SCF; mostrando o primeiro").format(cycles=data.cycles)
+            )
         if data.threshold_ry is None:
-            warnings.append("limiar de convergência não encontrado no cabeçalho")
+            warnings.append(_("limiar de convergência não encontrado no cabeçalho"))
         return ScfDataset(result.folder, output, data, list(dict.fromkeys(warnings)))
 
     # -- plotting ------------------------------------------------------------------------------
@@ -150,24 +166,28 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
     def param_schema(self, dataset: ScfDataset) -> list[ParamField]:
         spin = dataset.data.spin
         step = {"minimum": 0, "maximum": 1e5, "step": 1, "decimals": 1, "optional": True}
-        section = "Convergência"
+        section = "convergence"
         return [
-            ParamField("show_accuracy", "Precisão estimada", section, "bool"),
-            ParamField("show_energy", "Energia", section, "bool"),
-            ParamField("energy_mode", "Energia como", section, "choice", choices=ENERGY_MODES),
-            *([ParamField("show_magnetization", "Magnetização", section, "bool")] if spin else []),
-            ParamField("scale", "Escala Y", section, "choice", choices=SCALES),
-            ParamField("show_threshold", "Limiar", section, "bool"),
-            ParamField("xmin", "Iteração mín.", "Eixo X", "float", **step),
-            ParamField("xmax", "Iteração máx.", "Eixo X", "float", **step),
-            ParamField("accuracy_color", "Cor precisão", "Estilo", "color"),
-            ParamField("energy_color", "Cor energia", "Estilo", "color"),
+            ParamField("show_accuracy", _("Precisão estimada"), section, "bool"),
+            ParamField("show_energy", _("Energia"), section, "bool"),
+            ParamField("energy_mode", _("Energia como"), section, "choice", choices=ENERGY_MODES),
             *(
-                [ParamField("magnetization_color", "Cor magnetização", "Estilo", "color")]
+                [ParamField("show_magnetization", _("Magnetização"), section, "bool")]
                 if spin
                 else []
             ),
-            ParamField("threshold_color", "Cor limiar", "Estilo", "color"),
+            ParamField("scale", _("Escala Y"), section, "choice", choices=SCALES),
+            ParamField("show_threshold", _("Limiar"), section, "bool"),
+            ParamField("xmin", _("Iteração mín."), "x_axis", "float", **step),
+            ParamField("xmax", _("Iteração máx."), "x_axis", "float", **step),
+            ParamField("accuracy_color", _("Cor precisão"), "style", "color"),
+            ParamField("energy_color", _("Cor energia"), "style", "color"),
+            *(
+                [ParamField("magnetization_color", _("Cor magnetização"), "style", "color")]
+                if spin
+                else []
+            ),
+            ParamField("threshold_color", _("Cor limiar"), "style", "color"),
             *COMMON_FIELDS,
         ]
 
@@ -189,10 +209,12 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
         position = next((i for i, it in enumerate(iterations) if it.index == n), None)
         if position is None:
             return ""
-        it, text = iterations[position], f"iteração {n}"
+        it, text = iterations[position], _("iteração {n}").format(n=n)
         panel = shown[axes_index]
         if panel == "accuracy":
-            return f"{text} · precisão = {it.accuracy_ry:.1e} Ry"
+            return _("{text} · precisão = {accuracy_ry:.1e} Ry").format(
+                text=text, accuracy_ry=it.accuracy_ry
+            )
         if panel == "energy":
             if params.energy_mode == "total":
                 return f"{text} · E = {signed(it.energy_ry, '.6f')} Ry"
@@ -202,7 +224,10 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
             return f"{text} · |ΔE| = {delta:.1e} Ry"
         parts = [
             f"{name} = {signed(value, '.2f')} μB"
-            for name, value in (("magnetização total", it.total_mag), ("absoluta", it.abs_mag))
+            for name, value in (
+                (_("magnetização total"), it.total_mag),
+                (_("absoluta"), it.abs_mag),
+            )
             if value is not None
         ]
         return " · ".join([text, *parts])
@@ -228,7 +253,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
 
         first, last = data.iterations[0].index, data.iterations[-1].index
         bottom = axes[-1]
-        bottom.set_xlabel("Iteração SCF")
+        bottom.set_xlabel(_("Iteração SCF"))
         bottom.set_xticks(range(first, last + 1, max(1, (last - first + 1) // MAX_TICKS)))
         low = params.xmin if params.xmin is not None else first - 0.5
         high = params.xmax if params.xmax is not None else max(last + 0.5, low + 1)
@@ -260,7 +285,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
         self._line(
             ax, x, positive_for_log(values) if log else values, params.accuracy_color, params
         )
-        ax.set_ylabel("Precisão estimada (Ry)")
+        ax.set_ylabel(_("Precisão estimada (Ry)"))
         style_axes(ax, style)
         if not params.show_threshold or data.threshold_ry is None:
             return []
@@ -275,7 +300,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
             x = [it.index for it in data.iterations]
             self._line(ax, x, [it.energy_ry for it in data.iterations], params.energy_color, params)
             ax.ticklabel_format(axis="y", style="plain", useOffset=False)
-            ax.set_ylabel("Energia total (Ry)")
+            ax.set_ylabel(_("Energia total (Ry)"))
         else:
             deltas = data.energy_deltas
             if not deltas:
@@ -295,7 +320,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
         self, ax: Axes, data: ScfData, params: ScfParams, style: PlotStyle, log: bool
     ) -> list:
         handles = []
-        for label, attr, ls in (("total", "total_mag", "-"), ("absoluta", "abs_mag", DASHED)):
+        for label, attr, ls in (("total", "total_mag", "-"), (_("absoluta"), "abs_mag", DASHED)):
             points = [(it.index, getattr(it, attr)) for it in data.iterations]
             points = [(x, y) for x, y in points if y is not None]
             if points:
@@ -303,7 +328,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
                 handles.append(
                     self._line(ax, x, y, params.magnetization_color, params, ls=ls, label=label)
                 )
-        ax.set_ylabel("Magnetização (μB/célula)")
+        ax.set_ylabel(_("Magnetização (μB/célula)"))
         style_axes(ax, style)
         return handles
 
@@ -327,15 +352,28 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
         data = dataset.data
         last = data.iterations[-1]
         count = data.n_reported if data.n_reported is not None else len(data.iterations)
-        noun = "iteração" if count == 1 else "iterações"
-        accuracy = f"precisão {last.accuracy_ry:.1e} Ry"
+        accuracy = _("precisão {accuracy_ry:.1e} Ry").format(accuracy_ry=last.accuracy_ry)
         if data.status == "running":
-            return f"Em andamento · {count} {noun} · {accuracy}"
+            return _("Em andamento · {iterations} · {accuracy}").format(
+                iterations=ngettext("{count} iteração", "{count} iterações", count).format(
+                    count=count
+                ),
+                accuracy=accuracy,
+            )
         if data.threshold_ry is not None:
-            accuracy += f" (limiar {data.threshold_ry:.1e})"
+            accuracy += _(" (limiar {threshold_ry:.1e})").format(threshold_ry=data.threshold_ry)
         if data.status == "not_converged":
-            return f"Não convergiu ✗ após {count} {noun} · {accuracy}"
-        parts = [f"Convergiu ✓ em {count} {noun}", accuracy]
+            return ngettext(
+                "Não convergiu ✗ após {count} iteração · {accuracy}",
+                "Não convergiu ✗ após {count} iterações · {accuracy}",
+                count,
+            ).format(count=count, accuracy=accuracy)
+        parts = [
+            ngettext(
+                "Convergiu ✓ em {count} iteração", "Convergiu ✓ em {count} iterações", count
+            ).format(count=count),
+            accuracy,
+        ]
         if data.final_energy_ry is not None:
             parts.append(f"E = {data.final_energy_ry:.8f} Ry")
         return " · ".join(parts)

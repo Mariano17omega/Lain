@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import functools
 
+from ....i18n import _
 from . import SurfaceError
 
 __all__ = ["atomic_number", "covalent_radius", "element_of"]
@@ -29,7 +30,7 @@ def element_of(label: str) -> str:
         return two
     if label[:1].upper() in symbols:
         return label[:1].upper()
-    raise SurfaceError(f"Espécie sem elemento conhecido: {label}")
+    raise SurfaceError(_("Espécie sem elemento conhecido: {label}").format(label=label))
 
 
 def atomic_number(label: str) -> int:

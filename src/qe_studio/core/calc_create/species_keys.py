@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
+from ...i18n import _
 from ..qe.input_edit import InputEditor
 
 __all__ = ["SPECIES_KEYS", "remap_hubbard", "remap_species_keys"]
@@ -52,7 +53,7 @@ def remap_species_keys(editor: InputEditor, mapping: Mapping[int, int]) -> list[
             continue
         base, indices = match.group(1), match.group(2).split(",")
         if base == "hubbard_v":
-            notes.append(f"{key} usa índices de átomo: não foi renumerado")
+            notes.append(_("{key} usa índices de átomo: não foi renumerado").format(key=key))
         elif base in SPECIES_KEYS and indices[-1].strip().isdigit():
             found.append((key, base, indices, int(indices[-1])))
     for key, _base, _indices, species in found:
@@ -104,7 +105,9 @@ def remap_hubbard(
             new = [_atom_index(int(word), atoms, nat, nat_new) for word in words[3:5]]
             if None in new:
                 notes.append(
-                    f"HUBBARD: linha V removida (cita um átomo fora do fragmento): {row.strip()}"
+                    _("HUBBARD: linha V removida (cita um átomo fora do fragmento): {row}").format(
+                        row=row.strip()
+                    )
                 )
                 continue
             images = images or any(int(word) > nat for word in words[3:5])
@@ -117,12 +120,14 @@ def remap_hubbard(
         return notes
     if images:
         notes.append(
-            "HUBBARD: índice de átomo vizinho (maior que nat) renumerado pela supercélula 3×3×3; "
-            "confira"
+            _(
+                "HUBBARD: índice de átomo vizinho (maior que nat) renumerado pela supercélula 3×3×3; "
+                "confira"
+            )
         )
     if out:
         editor.replace_card_rows("HUBBARD", out)
     else:
         editor.remove_card("HUBBARD")
-        notes.append("HUBBARD sem linhas neste fragmento: o card foi removido")
+        notes.append(_("HUBBARD sem linhas neste fragmento: o card foi removido"))
     return notes

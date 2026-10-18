@@ -19,6 +19,7 @@ from ..core.config import ConfigError, load_config
 from ..core.plotting.style import register_fonts
 from .app_identity import configure_application
 from .excepthook import install_excepthook, set_excepthook_window
+from .language import install_qt_translator
 from .shutdown import ShutdownReport
 from .theme.manager import MODES, ThemeManager
 
@@ -63,13 +64,13 @@ def acquire_instance_lock(path: Path) -> QLockFile | None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        log.warning("sem pasta para a trava de instância (%s): %s", path.parent, exc)
+        log.warning("no folder for the instance lock (%s): %s", path.parent, exc)
         return lock
     if lock.tryLock(0):
         return lock
     if lock.error() == QLockFile.LockError.LockFailedError:
         return None
-    log.warning("trava de instância indisponível (%s): erro %s", path, lock.error().name)
+    log.warning("instance lock unavailable (%s): error %s", path, lock.error().name)
     return lock
 
 
@@ -143,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     install_excepthook()
     app = QApplication(sys.argv[:1])
     configure_application(app)
+    install_qt_translator(app)
     register_fonts()
 
     settings = QSettings()

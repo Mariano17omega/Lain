@@ -13,6 +13,7 @@ import shlex
 from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
+from ....i18n import _
 from ..render import render
 from ..scf_info import ScfInfo
 from ..unit import UNIT_OUTDIR, absolute, climbs
@@ -30,17 +31,17 @@ DEFAULT_OUTPUT_FORMAT = 5
 
 # The codes of INPUT_PP (QE 7.1) the form offers, with the label the window shows.
 IFLAGS = {
-    0: "média esférica (1D)",
-    1: "gráfico 1D",
-    2: "gráfico 2D",
-    3: "grade 3D",
-    4: "gráfico 2D polar numa esfera",
+    0: _("média esférica (1D)"),
+    1: _("gráfico 1D"),
+    2: _("gráfico 2D"),
+    3: _("grade 3D"),
+    4: _("gráfico 2D polar numa esfera"),
 }
 OUTPUT_FORMATS = {
     0: "gnuplot (1D)",
     2: "plotrho (2D)",
-    3: "XCrySDen (2D ou região 3D)",
-    5: "XSF para XCrySDen (3D, grade FFT inteira)",
+    3: _("XCrySDen (2D ou região 3D)"),
+    5: _("XSF para XCrySDen (3D, grade FFT inteira)"),
     6: "cube do Gaussian (3D)",
     7: "gnuplot (2D)",
 }
@@ -85,10 +86,10 @@ def iflag_field(group: str = PP_KEY, note: str = "") -> FormField:
     """``iflag`` of ``&PLOT`` (``note``: a sentence the type adds to the tooltip)."""
     return _field(
         "iflag",
-        "Tipo de gráfico (iflag)",
+        _("Tipo de gráfico (iflag)"),
         "choice",
         choice(DEFAULT_IFLAG, IFLAGS),
-        f"&PLOT iflag: dimensão do gráfico; 3 = grade 3D{note}",
+        _("&PLOT iflag: dimensão do gráfico; 3 = grade 3D{note}").format(note=note),
         tuple(choice(code, IFLAGS) for code in IFLAGS),
         group,
     )
@@ -98,11 +99,12 @@ def output_format_field(group: str = PP_KEY, note: str = "") -> FormField:
     """``output_format`` of ``&PLOT``."""
     return _field(
         "output_format",
-        "Formato de saída (output_format)",
+        _("Formato de saída (output_format)"),
         "choice",
         choice(DEFAULT_OUTPUT_FORMAT, OUTPUT_FORMATS),
-        "&PLOT output_format: 5 = XSF 3D para o XCrySDen (exige iflag = 3); "
-        f"o pp.x ignora o formato nos gráficos 1D e polar{note}",
+        _(
+            "&PLOT output_format: 5 = XSF 3D para o XCrySDen (exige iflag = 3); o pp.x ignora o formato nos gráficos 1D e polar{note}"
+        ).format(note=note),
         tuple(choice(code, OUTPUT_FORMATS) for code in OUTPUT_FORMATS),
         group,
     )
@@ -113,15 +115,19 @@ def format_problem(iflag: int, output_format: int) -> str | None:
     allowed = FORMATS_OF_IFLAG.get(iflag)
     if allowed is None or output_format in allowed:
         return None
-    return (
-        f"output_format = {output_format} não vale para iflag = {iflag} "
-        f"({IFLAGS[iflag]}): use {', '.join(str(code) for code in allowed)}"
+    return _(
+        "output_format = {output_format} não vale para iflag = {iflag} ({IFLAGS}): use {join}"
+    ).format(
+        output_format=output_format,
+        iflag=iflag,
+        IFLAGS=IFLAGS[iflag],
+        join=", ".join(str(code) for code in allowed),
     )
 
 
 class ChargeType(CalcType):
     id: ClassVar[str] = "charge"
-    label: ClassVar[str] = "Carga"
+    label: ClassVar[str] = _("Carga")
     folder_prefix: ClassVar[str] = "Charge"
     script_stem: ClassVar[str] = "charge"
     script_template: ClassVar[str] = "qsub/charge.qsub.j2"
@@ -139,19 +145,19 @@ class ChargeType(CalcType):
         return [
             _field(
                 "plot_num",
-                "Grandeza (plot_num)",
+                _("Grandeza (plot_num)"),
                 "int",
                 DEFAULT_PLOT_NUM,
-                "&INPUTPP plot_num: 0 = densidade de carga eletrônica (pseudo)",
+                _("&INPUTPP plot_num: 0 = densidade de carga eletrônica (pseudo)"),
             ),
             iflag_field(),
             output_format_field(),
             _field(
                 "fileout",
-                "Arquivo de saída (fileout)",
+                _("Arquivo de saída (fileout)"),
                 "text",
                 default_fileout(scf),
-                "&PLOT fileout: relativo e dentro da pasta; o script cria a pasta dele",
+                _("&PLOT fileout: relativo e dentro da pasta; o script cria a pasta dele"),
             ),
         ]
 
@@ -174,7 +180,9 @@ class ChargeType(CalcType):
         if absolute(fileout) or climbs(fileout):
             work.problem(
                 "fileout",
-                f"fileout deve ser relativo e ficar dentro da pasta (sem .. nem / inicial): {fileout}",
+                _(
+                    "fileout deve ser relativo e ficar dentro da pasta (sem .. nem / inicial): {fileout}"
+                ).format(fileout=fileout),
             )
         if (problem := format_problem(iflag, output_format)) is not None:
             work.problem("output_format", problem)

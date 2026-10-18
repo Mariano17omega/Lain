@@ -6,6 +6,7 @@ SCF's value keeps its line byte for byte (``InputEditor`` keeps everything else)
 
 from __future__ import annotations
 
+from ...i18n import _
 from ..qe.input_edit import InputEditor
 from ..qe.pw_input import fortran_float
 from .kpath import KMesh, KPath, to_card
@@ -74,14 +75,24 @@ def ensure_smearing(editor: InputEditor, replace_tetrahedra: bool = True) -> lis
     occupations = (editor.get("system", "occupations") or "").strip().lower()
     if occupations.startswith("tetrahedra") and replace_tetrahedra:
         put_string(editor, "system", "occupations", "smearing")
-        notes.append(f"occupations = '{occupations}' trocado por 'smearing'")
+        notes.append(
+            _("occupations = '{occupations}' trocado por 'smearing'").format(
+                occupations=occupations
+            )
+        )
         occupations = "smearing"
     if occupations != "smearing":
         return notes
     if editor.get("system", "smearing") is None:
         editor.set("system", "smearing", f"'{DEFAULT_SMEARING}'")
-        notes.append(f"smearing = '{DEFAULT_SMEARING}' acrescentado")
+        notes.append(
+            _("smearing = '{DEFAULT_SMEARING}' acrescentado").format(
+                DEFAULT_SMEARING=DEFAULT_SMEARING
+            )
+        )
     if editor.get("system", "degauss") is None:
         editor.set("system", "degauss", fortran_number(DEFAULT_DEGAUSS))
-        notes.append(f"degauss = {DEFAULT_DEGAUSS} acrescentado")
+        notes.append(
+            _("degauss = {DEFAULT_DEGAUSS} acrescentado").format(DEFAULT_DEGAUSS=DEFAULT_DEGAUSS)
+        )
     return notes

@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ....i18n import _
 from ...sniff import FileKind, FileSniff
 from ..base import DetectionResult, FolderListing, Method, SniffFn
 from .data import CHANNEL_ROLES, read_bands_input
@@ -167,18 +168,25 @@ def _channel_warnings(result: DetectionResult, ambiguous: bool, shared: set[str]
     down = any(result.file(f"{role}_down") for role in KIND_OF_ROLE)
     if shared:
         result.warnings.append(
-            f"as entradas do bands.x de ↑ e ↓ escrevem o mesmo arquivo ({', '.join(sorted(shared))}): "
-            "ele guarda só a última execução; use filband diferentes ou o mapeamento manual"
+            _(
+                "as entradas do bands.x de ↑ e ↓ escrevem o mesmo arquivo ({join}): ele guarda só a última execução; use filband diferentes ou o mapeamento manual"
+            ).format(join=", ".join(sorted(shared)))
         )
     elif ambiguous:
         result.warnings.append(
-            "não foi possível identificar o canal ↑/↓ dos arquivos de bandas: "
-            "use o mapeamento manual (só o canal ↑ será plotado)"
+            _(
+                "não foi possível identificar o canal ↑/↓ dos arquivos de bandas: "
+                "use o mapeamento manual (só o canal ↑ será plotado)"
+            )
         )
     elif up and not down:
-        result.warnings.append("só o canal ↑ foi encontrado: rode o bands.x com spin_component = 2")
+        result.warnings.append(
+            _("só o canal ↑ foi encontrado: rode o bands.x com spin_component = 2")
+        )
     elif down and not up:
-        result.warnings.append("só o canal ↓ foi encontrado: rode o bands.x com spin_component = 1")
+        result.warnings.append(
+            _("só o canal ↓ foi encontrado: rode o bands.x com spin_component = 1")
+        )
 
 
 def check_bands(result: DetectionResult, sniffs: dict[Path, FileSniff], sniff: SniffFn) -> None:
@@ -186,7 +194,7 @@ def check_bands(result: DetectionResult, sniffs: dict[Path, FileSniff], sniff: S
     if not any(source in result.files for source in EIGEN_SOURCES):
         result.missing.append("gnu")
     if "bands_in" not in result.files:
-        result.warnings.append("entrada de bandas não encontrada: pontos k sem rótulos")
+        result.warnings.append(_("entrada de bandas não encontrada: pontos k sem rótulos"))
 
     expected = None
     bands_out = result.file("bands_out")
@@ -210,8 +218,9 @@ def check_bands(result: DetectionResult, sniffs: dict[Path, FileSniff], sniff: S
         if expected is not None and nks != expected:
             which = f" {CHANNEL_SYMBOL[channel]}" if "down" in counts else ""
             result.warnings.append(
-                f"os dados de bandas{which} têm {nks} pontos k, mas o cálculo de bandas tem "
-                f"{expected} (bands.x rodou sobre outra execução?)"
+                _(
+                    "os dados de bandas{which} têm {nks} pontos k, mas o cálculo de bandas tem {expected} (bands.x rodou sobre outra execução?)"
+                ).format(which=which, nks=nks, expected=expected)
             )
     if len(set(counts.values())) > 1:
-        result.warnings.append("os canais ↑/↓ têm pontos k diferentes")
+        result.warnings.append(_("os canais ↑/↓ têm pontos k diferentes"))

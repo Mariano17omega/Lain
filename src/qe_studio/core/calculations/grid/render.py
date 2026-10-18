@@ -7,6 +7,7 @@ import copy
 import matplotlib
 from matplotlib.figure import Figure, FigureBase, SubFigure
 
+from ....i18n import _, ngettext
 from ... import cancel
 from ...plotting.cell_layout import fit_cell
 from ...plotting.style import PlotStyle
@@ -14,7 +15,7 @@ from ..params import RenderInfo
 from .data import GridCellData, GridDataset
 from .params import GridParams
 
-UNAVAILABLE = "Plot indisponível: {}"
+UNAVAILABLE = _("Plot indisponível: {}")
 PAD = 0.6  # in font sizes, like ``draw.finish``'s ``tight_layout``
 
 
@@ -47,11 +48,15 @@ def render_grid(
         if data.session is None:
             message = UNAVAILABLE.format(data.error)
             cell.text(0.5, 0.5, message, ha="center", va="center", wrap=True, color=style.muted)
-            notes.append(f"Célula ({data.cell.row + 1}, {data.cell.col + 1}): {data.error}")
+            notes.append(
+                _("Célula ({row}, {col}): {error}").format(
+                    row=data.cell.row + 1, col=data.cell.col + 1, error=data.error
+                )
+            )
         else:
             _draw_cell(cell, data, params)
             drawn += 1
-    plots = "1 gráfico" if drawn == 1 else f"{drawn} gráficos"
+    plots = ngettext("{drawn} gráfico", "{drawn} gráficos", drawn).format(drawn=drawn)
     summary = f"Grid {spec.rows}×{spec.cols} · {plots}"
     return RenderInfo((0.0, 1.0), (0.0, 1.0), summary, tuple(notes))
 

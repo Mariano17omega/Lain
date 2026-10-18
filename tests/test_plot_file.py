@@ -156,8 +156,8 @@ class _Params(CommonParams):
 
 def test_validation_follows_the_field_kind_not_its_name():
     schema = [
-        ParamField("label_color", "Rótulo", "Estilo", "text"),
-        ParamField("accent", "Destaque", "Estilo", "color"),
+        ParamField("label_color", "Rótulo", "style", "text"),
+        ParamField("accent", "Destaque", "style", "color"),
     ]
     params = _Params()
     ignored = apply_stored(params, {"label_color": "not a colour", "accent": "nope"}, schema)

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
 
+from ...i18n import _
 from ..appdirs import cache_dir
 from ..config import AppConfig, ClusterConfig
 from ..project_data import PROJECT_DATA_EXCLUDE
@@ -61,7 +62,11 @@ def remote_dir_of(folder: Path, root: Path, remote_root: str) -> str:
     try:
         relative = folder.relative_to(root)
     except ValueError as exc:
-        raise ValueError(f"{folder} não está dentro da pasta local configurada ({root})") from exc
+        raise ValueError(
+            _("{folder} não está dentro da pasta local configurada ({root})").format(
+                folder=folder, root=root
+            )
+        ) from exc
     remote = PurePosixPath(remote_root)
     return str(remote.joinpath(*relative.parts)) if relative.parts else str(remote)
 
@@ -315,17 +320,17 @@ def parse_progress(chunk: str) -> Progress | None:
 
 
 FAILURE_HINTS = (
-    ("Host key verification failed", "Chave do host desconhecida. Conecte-se uma vez pelo "
-     "terminal (ssh usuario@host) para confirmar a identidade do cluster."),
-    ("Permission denied", "Autenticação recusada pelo cluster (verifique usuário, chave ou senha)."),
-    ("Could not resolve hostname", "Endereço do cluster não encontrado (verifique cluster.host)."),
-    ("Connection timed out", "Cluster inacessível (tempo de conexão esgotado)."),
-    ("Connection refused", "Conexão recusada pelo cluster (verifique a porta SSH)."),
-    ("No route to host", "Cluster inacessível (sem rota; verifique a rede/VPN)."),
-    ("Network is unreachable", "Rede indisponível."),
-    ("No such file or directory", "Pasta não encontrada no cluster."),
-    ("timeout in data send/receive", "Conexão interrompida (sem resposta do cluster)."),
-    ("command not found", "rsync não está instalado no cluster."),
+    ("Host key verification failed", _("Chave do host desconhecida. Conecte-se uma vez pelo "
+     "terminal (ssh usuario@host) para confirmar a identidade do cluster.")),
+    ("Permission denied", _("Autenticação recusada pelo cluster (verifique usuário, chave ou senha).")),
+    ("Could not resolve hostname", _("Endereço do cluster não encontrado (verifique cluster.host).")),
+    ("Connection timed out", _("Cluster inacessível (tempo de conexão esgotado).")),
+    ("Connection refused", _("Conexão recusada pelo cluster (verifique a porta SSH).")),
+    ("No route to host", _("Cluster inacessível (sem rota; verifique a rede/VPN).")),
+    ("Network is unreachable", _("Rede indisponível.")),
+    ("No such file or directory", _("Pasta não encontrada no cluster.")),
+    ("timeout in data send/receive", _("Conexão interrompida (sem resposta do cluster).")),
+    ("command not found", _("rsync não está instalado no cluster.")),
 )  # fmt: skip
 
 
@@ -348,6 +353,13 @@ def _known_cause(stderr: str) -> bool:
     return any(needle in stderr for needle, _hint in FAILURE_HINTS)
 
 
+def is_auth_failure(stderr: str) -> bool:
+    """The cluster refused the credentials (the remembered password is then wrong): the first known
+    cause in ``stderr`` is the authentication one."""
+    cause = next((needle for needle, _hint in FAILURE_HINTS if needle in stderr), None)
+    return cause == "Permission denied"
+
+
 def is_connection_failure(exit_code: int, stderr: str) -> bool:
     """ssh could not reach/keep the cluster (as opposed to a remote error)."""
     return (
@@ -362,6 +374,8 @@ def explain_failure(exit_code: int, stderr: str) -> str:
         if needle in stderr:
             return hint
     if INTERRUPTED in stderr:
-        return "Conexão interrompida (o cluster encerrou a conexão durante a transferência)."
+        return _("Conexão interrompida (o cluster encerrou a conexão durante a transferência).")
     last = next((ln.strip() for ln in reversed(stderr.splitlines()) if ln.strip()), "")
-    return f"rsync terminou com código {exit_code}" + (f": {last}" if last else ".")
+    return _("rsync terminou com código {exit_code}").format(exit_code=exit_code) + (
+        f": {last}" if last else "."
+    )

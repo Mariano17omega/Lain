@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ...i18n import _
 from ..calc_create.surface.model import flags_of
 from ..qe.input_edit import InputEditor, read_input_text
 from ..qe.lattice import StructureError, crystal_from_editor
@@ -34,25 +35,31 @@ def read_structure(path: Path) -> Structure:
     path = Path(path)
     try:
         if path.stat().st_size > INPUT_READ_LIMIT:
-            raise StructureReadError(f"{path.name} passa de 2 MB: grande demais para um input")
+            raise StructureReadError(
+                _("{name} passa de 2 MB: grande demais para um input").format(name=path.name)
+            )
         text = read_input_text(path)
     except OSError as exc:
         raise StructureReadError(
-            f"Não foi possível ler {path.name}: {exc.strerror or exc}"
+            _("Não foi possível ler {name}: {value}").format(
+                name=path.name, value=exc.strerror or exc
+            )
         ) from exc
     return structure_of_text(text, path)
 
 
 def structure_of_text(text: str, path: Path | None = None) -> Structure:
     """The structure of an input's text. Raises ``StructureReadError``."""
-    name = path.name if path is not None else "o input"
+    name = path.name if path is not None else _("o input")
     editor = InputEditor.from_text(text)
     if not editor.has_namelist("system"):
-        raise StructureReadError(f"{name} não é um input do pw.x (sem &SYSTEM)")
+        raise StructureReadError(_("{name} não é um input do pw.x (sem &SYSTEM)").format(name=name))
     try:
         crystal = crystal_from_editor(editor)
     except StructureError as exc:
-        raise StructureReadError(f"Estrutura de {name} ilegível: {exc}") from exc
+        raise StructureReadError(
+            _("Estrutura de {name} ilegível: {exc}").format(name=name, exc=exc)
+        ) from exc
     count = len(crystal.labels)
     flags = (flags_of(text) + (None,) * count)[:count]
     ntyp = _integer(editor, "system", "ntyp")
@@ -102,11 +109,15 @@ def _species(
             species.append(SpeciesInfo(label, None, None, len(species) + 1))
             known.add(label)
             warnings.append(
-                f"Espécie {label} sem linha em ATOMIC_SPECIES (massa e pseudopotencial vazios)"
+                _(
+                    "Espécie {label} sem linha em ATOMIC_SPECIES (massa e pseudopotencial vazios)"
+                ).format(label=label)
             )
     radius = f"{UNKNOWN_RADIUS:.1f}".replace(".", ",")
     warnings += [
-        f"Espécie sem elemento conhecido: {s.label} (cinza, raio {radius} Å)"
+        _("Espécie sem elemento conhecido: {label} (cinza, raio {radius} Å)").format(
+            label=s.label, radius=radius
+        )
         for s in species
         if not element_for_label(s.label).known
     ]

@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 
+from ..i18n import _
 from .appdirs import atomic_write_text, set_aside_corrupt
 from .project_data import COMPOUNDS_FILE, StoreFile
 from .qe.structure import Site, format_formula
@@ -63,7 +64,7 @@ def compound_key(species: Sequence[str]) -> str:
     ``Al O Al`` stays ``AlOAl``; the hash is of the full sequence."""
     label = ""
     for name, run in groupby(species):
-        count = sum(1 for _ in run)
+        count = sum(1 for __ in run)
         label += name + (str(count) if count > 1 else "")
     digest = hashlib.sha1(" ".join(species).encode("utf-8")).hexdigest()[:10]
     return f"{label}:{digest}"
@@ -117,7 +118,7 @@ def normalize_selection(atoms: Sequence[int] | None, valid: Sequence[int]) -> li
 
 def atoms_summary(selected: Sequence[int] | None, total: int) -> str:
     """``todos`` or ``3 de 12``: what the picker button shows beside itself."""
-    return "todos" if selected is None else f"{len(selected)} de {total}"
+    return _("todos") if selected is None else f"{len(selected)} de {total}"
 
 
 def legacy_compounds(data: object) -> dict:
@@ -227,10 +228,12 @@ class CompoundStore:
         except (OSError, ValueError) as exc:
             data = self._set_aside(exc)
         if not isinstance(data, dict):
-            data = self._set_aside("o conteúdo não é um objeto JSON")
+            data = self._set_aside(_("o conteúdo não é um objeto JSON"))
         compounds = data.get("compounds")
         if data and (data.get("version") != FORMAT_VERSION or not isinstance(compounds, dict)):
-            self._set_aside(f"versão de formato desconhecida: {data.get('version')!r}")
+            self._set_aside(
+                _("versão de formato desconhecida: {data!r}").format(data=data.get("version"))
+            )
             compounds = None
         self._compounds = compounds if isinstance(compounds, dict) else {}
         return self._compounds
@@ -240,12 +243,13 @@ class CompoundStore:
             copy = set_aside_corrupt(self.path)
         except OSError as exc:
             self._read_only = True
-            self._warning = (
-                f"{self.path.name} ilegível e não pôde ser copiado ({exc.strerror or exc}): "
-                "a seleção de átomos desta sessão não será salva"
-            )
+            self._warning = _(
+                "{name} ilegível e não pôde ser copiado ({value}): a seleção de átomos desta sessão não será salva"
+            ).format(name=self.path.name, value=exc.strerror or exc)
         else:
-            self._warning = f"{self.path.name} estava corrompido; cópia salva em {copy}"
+            self._warning = _("{name} estava corrompido; cópia salva em {copy}").format(
+                name=self.path.name, copy=copy
+            )
         log.warning("%s (%s)", self._warning, problem)
         return {}
 

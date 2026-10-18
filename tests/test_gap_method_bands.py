@@ -105,7 +105,7 @@ def test_the_schema_field_is_a_choice_that_needs_the_legend_gap():
     schema = [f.name for f in module.param_schema(dataset)]
     assert schema.index("gap_method") == schema.index("legend_gap") + 1
     (field,) = [f for f in module.param_schema(dataset) if f.name == "gap_method"]
-    assert (field.section, field.kind, field.requires) == ("Legenda", "choice", "legend_gap")
+    assert (field.section, field.kind, field.requires) == ("legend", "choice", "legend_gap")
     assert [value for value, _ in field.choices] == ["auto", "homo_lumo", "janela"]
     assert [value for value, _ in GAP_METHODS] == ["auto", "homo_lumo", "janela"]
 

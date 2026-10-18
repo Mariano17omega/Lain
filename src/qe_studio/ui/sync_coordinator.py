@@ -306,7 +306,7 @@ class SyncCoordinator(QObject):
         self.monitor.set_syncing(False)
         if report.status is not SyncStatus.CANCELLED:
             self.monitor.report(not report.connection_failed)
-        if report.status is SyncStatus.FAILED and "Autenticação" in (report.error or ""):
+        if report.status is SyncStatus.FAILED and report.auth_failed:
             self._session_password = None
         if report.changes_local:
             self.synced.emit(report.local_dir)

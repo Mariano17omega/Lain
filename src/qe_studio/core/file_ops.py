@@ -8,10 +8,12 @@ import os
 import sys
 from pathlib import Path
 
+from ..i18n import _
+
 if sys.platform == "win32":
-    _SEPARATORS, _SEPARATOR_ERROR = ("/", "\\"), "O nome não pode conter “/” nem “\\”."
+    _SEPARATORS, _SEPARATOR_ERROR = ("/", "\\"), _("O nome não pode conter “/” nem “\\”.")
 else:
-    _SEPARATORS, _SEPARATOR_ERROR = ("/",), "O nome não pode conter “/”."
+    _SEPARATORS, _SEPARATOR_ERROR = ("/",), _("O nome não pode conter “/”.")
 
 
 def _taken(path: Path, target: Path) -> bool:
@@ -36,15 +38,15 @@ def _same_item(path: Path, target: Path) -> bool:
 def rename_error(path: Path, name: str) -> str | None:
     """Why ``path`` cannot be renamed to ``name`` (None if it can, or if the name is unchanged)."""
     if not name.strip():
-        return "Digite um nome."
+        return _("Digite um nome.")
     if name == path.name:
         return None
     if any(sep in name for sep in _SEPARATORS):
         return _SEPARATOR_ERROR
     if "\0" in name or name in (".", ".."):
-        return "Nome inválido."
+        return _("Nome inválido.")
     if _taken(path, path.with_name(name)):
-        return f"Já existe “{name}” nesta pasta."
+        return _("Já existe “{name}” nesta pasta.").format(name=name)
     return None
 
 
@@ -60,7 +62,9 @@ _NO_NOREPLACE = (errno.ENOSYS, errno.EINVAL, errno.ENOTSUP)
 
 
 def _exists_error(dst: Path) -> OSError:
-    return OSError(errno.EEXIST, f"Já existe “{dst.name}” nesta pasta.", str(dst))
+    return OSError(
+        errno.EEXIST, _("Já existe “{name}” nesta pasta.").format(name=dst.name), str(dst)
+    )
 
 
 def _renameat2(src: Path, dst: Path) -> None:

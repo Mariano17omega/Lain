@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ....i18n import _
 from . import SurfaceError
 from .elements import covalent_radius, element_of
 from .geometry import pair_images
@@ -35,8 +36,8 @@ AXES: dict[str, tuple[tuple[int, int], int]] = {
     "a": ((1, 2), 0),
 }
 HKL = {"c": "001", "b": "010", "a": "100"}
-NEED_O_H = "Completar poliedros precisa de O e H no SCF"
-NO_BULK_H = "Completar poliedros: sem H no bulk para medir o O–H"
+NEED_O_H = _("Completar poliedros precisa de O e H no SCF")
+NO_BULK_H = _("Completar poliedros: sem H no bulk para medir o O–H")
 
 
 @dataclass(frozen=True)
@@ -101,7 +102,7 @@ def _heal(
         column[column > cutoffs] = np.inf
         partner = int(np.argmin(column))
         if not np.isfinite(column[partner]):
-            notes.append(f"H {h + 1} sem vizinho ligado: não reconectado")
+            notes.append(_("H {value} sem vizinho ligado: não reconectado").format(value=h + 1))
             continue
         image = images[partner, col]
         if image[stack] != 0:
@@ -135,7 +136,7 @@ def _bulk_oh_length(bulk: Model, elements: list[str]) -> float:
     """The mean O–H length of the bulk (each H to its nearest O, minimum image)."""
     oxygens = [i for i, element in enumerate(elements) if element == "O"]
     hydrogens = [i for i, element in enumerate(elements) if element == "H"]
-    distances, _ = pair_images(bulk.frac, bulk.cell, oxygens, hydrogens)
+    distances, __ = pair_images(bulk.frac, bulk.cell, oxygens, hydrogens)
     return float(np.mean(distances.min(axis=0)))
 
 
@@ -185,9 +186,9 @@ def make_slab(
     """The slab of ``bulk``; ``species`` are the labels of ``ATOMIC_SPECIES`` (None: the bulk's).
     Raises ``SurfaceError``."""
     if options.axis not in AXES:
-        raise SurfaceError(f"Eixo de superfície desconhecido: {options.axis}")
+        raise SurfaceError(_("Eixo de superfície desconhecido: {axis}").format(axis=options.axis))
     if options.vacuum <= 0:
-        raise SurfaceError("O vácuo deve ser maior que zero")
+        raise SurfaceError(_("O vácuo deve ser maior que zero"))
     (first, second), stack = AXES[options.axis]
     lattice = bulk.cell
     t0 = lattice[first]
@@ -216,14 +217,14 @@ def make_slab(
     thickness = float(heights.max() - heights.min())
     along = float(np.dot(s, normal))
     if abs(along) < 1e-9:
-        raise SurfaceError("O eixo empilhado está no plano da superfície")
+        raise SurfaceError(_("O eixo empilhado está no plano da superfície"))
     f = (thickness + options.vacuum) / abs(along)
     third = f * s
     if np.dot(normal, third) < 0.0:  # keep the cell right-handed: the vacuum side is +third
         third = -third
     cell = np.array([t0, t1, third]) @ frame
     if np.linalg.det(cell) <= 0:
-        raise SurfaceError("A célula do slab ficou com volume ≤ 0")
+        raise SurfaceError(_("A célula do slab ficou com volume ≤ 0"))
     frac = (cart @ frame) @ np.linalg.inv(cell)
     frac[:, 2] = (frac[:, 2] - frac[:, 2].mean() + 0.5) % 1.0  # the slab in the middle of the box
     flags = tuple(bulk.flag(i) if i < len(bulk) else None for i in range(len(labels)))

@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypeVar
 
+from ...i18n import _
 from .input_lexer import CardHeader, Entry, Kind, LexState, LineScan, Mode, scan_line
 from .input_lint import Card
 
@@ -180,7 +181,9 @@ class InputEditor:
         except Exception as exc:  # noqa: BLE001 - never raise on odd input (R1.3)
             self._lines, self._crs = lines, crs
             self._index()
-            self.issues.append(f"Não foi possível editar {what}: {exc}")
+            self.issues.append(
+                _("Não foi possível editar {what}: {exc}").format(what=what, exc=exc)
+            )
             return default
 
     def _index(self) -> None:
@@ -188,7 +191,7 @@ class InputEditor:
             self._scan()
         except Exception as exc:  # noqa: BLE001 - an input the lexer cannot read is left alone
             self._namelists, self._cards = [], []
-            self.issues.append(f"Input não pôde ser lido: {exc}")
+            self.issues.append(_("Input não pôde ser lido: {exc}").format(exc=exc))
 
     def _scan(self) -> None:
         self._namelists, self._cards = [], []
@@ -308,7 +311,7 @@ class InputEditor:
 
     def _remove(self, namelist: str, key: str) -> bool:
         removed = False
-        for _ in range(len(self._entries(namelist, key))):
+        for __ in range(len(self._entries(namelist, key))):
             block = self._first(namelist)
             entries = self._entries(namelist, key)
             if block is None or not entries:
@@ -368,7 +371,7 @@ class InputEditor:
         for entry in sorted(entries, key=lambda e: (e.line, e.col), reverse=True):
             line = self._lines[entry.line]
             written = line[entry.col : line.index("=", entry.col)].rstrip()
-            name, _, index = new.partition("(")
+            name, __, index = new.partition("(")
             text = new
             if "(" in written and written.split("(", 1)[0].strip().lower() == name.lower():
                 text = written.split("(", 1)[0] + "(" + index  # the case it was written in

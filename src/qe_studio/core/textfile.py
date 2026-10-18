@@ -10,13 +10,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..i18n import _
 from . import cancel
 
 LARGE_FILE = 4 * 1024 * 1024
 HEAD_BYTES = 1024 * 1024
 TAIL_BYTES = 2 * 1024 * 1024
 LOAD_ALL_LIMIT = 64 * 1024 * 1024  # "Carregar tudo" refuses larger files
-MARKER = "\n\n    [ … trecho omitido pelo visualizador … ]\n\n"
+MARKER = _("\n\n    [ … trecho omitido pelo visualizador … ]\n\n")
 # Text blocks the marker adds between the last head line and the first tail line: a blank
 # one, the marker itself, another blank one.
 MARKER_BLOCKS = 3

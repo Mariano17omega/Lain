@@ -310,11 +310,9 @@ def test_a_file_edited_during_the_preview_is_not_overwritten(qtbot, dirs):
     assert report.status is SyncStatus.DONE
     assert report.transferred == [] and report.changed_locally == ("a.out",)
     assert (local / "a.out").read_text() == "edited while the preview was open"
-    assert (
-        "1 arquivo(s) mudaram localmente durante a prévia e não foram baixados." in report.message
-    )
+    assert "1 arquivo mudou localmente durante a prévia e não foi baixado." in report.message
     assert "Mudaram localmente (não baixados) (1):\n  a.out" in report.details
-    assert report.headline.endswith("não foram baixados.")
+    assert report.headline.endswith("não foi baixado.")
 
 
 def test_a_file_created_during_the_preview_is_not_overwritten(qtbot, dirs):

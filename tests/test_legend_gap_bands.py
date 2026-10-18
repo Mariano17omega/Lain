@@ -193,7 +193,7 @@ def test_the_field_is_always_in_the_legend_section_of_bands_and_pdos():
         module = next(m for m in REGISTRY if m.kind == kind)
         _, dataset, _ = load(FIXTURES / ("al_bands" if kind == "bands" else "al_pdos_flat"))
         (field,) = [f for f in module.param_schema(dataset) if f.name == "legend_gap"]
-        assert (field.section, field.kind) == ("Legenda", "bool")
+        assert (field.section, field.kind) == ("legend", "bool")
 
 
 def test_scf_and_relax_do_not_offer_it():

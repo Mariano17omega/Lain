@@ -10,7 +10,9 @@ import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-SCOPES = {">": "Ações", "/": "Pastas", "@": "Abas"}
+from ..i18n import N_
+
+SCOPES = {">": N_("Ações"), "/": N_("Pastas"), "@": N_("Abas")}  # names: data, shown via _()
 _BOUNDARIES = " _-./\\"
 PREFIX, WORD, SUBSEQUENCE = 3000, 2000, 1000
 

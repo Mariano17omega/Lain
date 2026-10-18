@@ -18,6 +18,7 @@ from itertools import zip_longest
 from pathlib import Path
 from typing import Literal
 
+from ...i18n import _, ngettext
 from ..sniff import INPUT_READ_LIMIT
 from .input_extract import clean
 from .input_lexer import Kind, LexState, scan_line
@@ -58,15 +59,20 @@ class CardChange:
     @property
     def summary(self) -> str:
         if self.status == "only_a":
-            return f"{self.name}: só em A"
+            return _("{name}: só em A").format(name=self.name)
         if self.status == "only_b":
-            return f"{self.name}: só em B"
+            return _("{name}: só em B").format(name=self.name)
         parts = []
         if self.option_a != self.option_b:
-            parts.append(f"opção {self.option_a or '—'} ↔ {self.option_b or '—'}")
+            parts.append(
+                _("opção {a} ↔ {b}").format(a=self.option_a or "—", b=self.option_b or "—")
+            )
         if self.differing:
-            noun = "linha difere" if self.differing == 1 else "linhas diferem"
-            parts.append(f"{self.differing} {noun}")
+            parts.append(
+                ngettext("{count} linha difere", "{count} linhas diferem", self.differing).format(
+                    count=self.differing
+                )
+            )
         return f"{self.name}: " + ", ".join(parts)
 
 
@@ -282,7 +288,7 @@ class Comparison:
 
 def _read(path: Path) -> str:
     if path.stat().st_size > INPUT_READ_LIMIT:
-        raise TooBigError(f"{path.name}: arquivo grande demais para comparar")
+        raise TooBigError(_("{name}: arquivo grande demais para comparar").format(name=path.name))
     return path.read_text(encoding="utf-8", errors="replace")
 
 

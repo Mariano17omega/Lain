@@ -8,15 +8,16 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from ...i18n import _
 from ..config import AppConfig
 from .rsync import Endpoint, remote_dir_for, remote_dir_of
 
-NOT_CONFIGURED = (
+NOT_CONFIGURED = _(
     "Configure cluster.host, cluster.user e paths.remote_root no config.yaml para sincronizar."
 )
-SYNC_OFF = "Sincronização desligada: configure cluster.host, cluster.user e paths.remote_root"
-PUSH_ROOT = "Escolha uma pasta de cálculo; a pasta raiz inteira não é enviada."
-PUSH_PROJECT = "Escolha uma pasta de cálculo; o projeto inteiro não é enviado."  # spec 31 R5.2
+SYNC_OFF = _("Sincronização desligada: configure cluster.host, cluster.user e paths.remote_root")
+PUSH_ROOT = _("Escolha uma pasta de cálculo; a pasta raiz inteira não é enviada.")
+PUSH_PROJECT = _("Escolha uma pasta de cálculo; o projeto inteiro não é enviado.")  # spec 31 R5.2
 MENU_PATH_MAX = 40  # longer relative paths keep their end in the menu text
 
 
@@ -76,7 +77,7 @@ def prepare_push(
     if resolved == root:
         return SyncRefusal("warning", PUSH_ROOT)
     if not path.is_dir():
-        return SyncRefusal("warning", f"Pasta não encontrada: {path}")
+        return SyncRefusal("warning", _("Pasta não encontrada: {path}").format(path=path))
     if resolved.parent == root:
         return SyncRefusal("warning", PUSH_PROJECT)
     return PushRequest(request.folder, request.endpoint, request.needs_password)
@@ -87,7 +88,7 @@ def push_availability(config: AppConfig, folder: Path, *, resolved_root: Path | 
     request = prepare_push(config, folder, resolved_root=resolved_root)
     if not isinstance(request, SyncRefusal):
         return ""
-    return SYNC_OFF if request.message == NOT_CONFIGURED else request.message
+    return SYNC_OFF if request.level == "info" else request.message
 
 
 @dataclass(frozen=True)
@@ -124,14 +125,14 @@ class SyncScope:
         if self.whole_project:
             return "tudo"
         if self.project:
-            return f"projeto {self.project}"
-        return f"{self.relative} (e subpastas)"
+            return _("projeto {project}").format(project=self.project)
+        return _("{relative} (e subpastas)").format(relative=self.relative)
 
     @property
     def title(self) -> str:
         if self.push:
-            return f"Enviar para o cluster: {self.label}"
-        return f"Baixar do cluster: {self.label}"
+            return _("Enviar para o cluster: {label}").format(label=self.label)
+        return _("Baixar do cluster: {label}").format(label=self.label)
 
     @property
     def tooltip(self) -> str:
@@ -145,22 +146,26 @@ class SyncScope:
     def menu_text(self) -> str:
         if self.push:
             if self.whole_project or self.at_project:
-                return "Enviar pasta ao cluster…"
-            return f"Enviar {_elide_start(self.relative, MENU_PATH_MAX)} ao cluster…"
+                return _("Enviar pasta ao cluster…")
+            return _("Enviar {elide_start} ao cluster…").format(
+                elide_start=_elide_start(self.relative, MENU_PATH_MAX)
+            )
         if self.whole_project:
-            return "Sincronizar tudo"
+            return _("Sincronizar tudo")
         if self.project:
-            return f"Sincronizar projeto {self.project}"
-        return f"Sincronizar {_elide_start(self.relative, MENU_PATH_MAX)}"
+            return _("Sincronizar projeto {project}").format(project=self.project)
+        return _("Sincronizar {elide_start}").format(
+            elide_start=_elide_start(self.relative, MENU_PATH_MAX)
+        )
 
     @property
     def window_title(self) -> str:
-        return "Enviando para o cluster" if self.push else "Sincronizando com o cluster"
+        return _("Enviando para o cluster") if self.push else _("Sincronizando com o cluster")
 
     @property
     def confirm_text(self) -> str:
         """The preview's button that starts the transfer."""
-        return "Enviar" if self.push else "Baixar"
+        return _("Enviar") if self.push else _("Baixar")
 
     @property
     def local_text(self) -> str:

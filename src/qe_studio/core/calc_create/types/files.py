@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from ....i18n import _
 from ..scf_info import ScfInfo
 from .base import FormField, Work
 
@@ -26,7 +27,7 @@ __all__ = [
     "unit_stem",
 ]
 
-NAME_LABEL = "Nome do arquivo"
+NAME_LABEL = _("Nome do arquivo")
 INPUT_SUFFIX = ".in"
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
 _NAME = re.compile(r"[A-Za-z0-9._-]+")
@@ -63,7 +64,9 @@ def name_field(input_file: InputFile) -> FormField:
         "text",
         input_file.name,
         group=input_file.key,
-        tooltip="Nome do input na pasta nova (termina em .in); a saída tem o mesmo nome com .out",
+        tooltip=_(
+            "Nome do input na pasta nova (termina em .in); a saída tem o mesmo nome com .out"
+        ),
     )
 
 
@@ -74,12 +77,11 @@ def output_name(name: str) -> str:
 
 def _problem(name: str) -> str | None:
     if not name.endswith(INPUT_SUFFIX) or name == INPUT_SUFFIX:
-        return f"Nome de arquivo inválido: {name} (use <nome>.in)"
+        return _("Nome de arquivo inválido: {name} (use <nome>.in)").format(name=name)
     if not _NAME.fullmatch(name):
-        return (
-            f"Nome de arquivo inválido: {name} "
-            "(só letras sem acento, números, ponto, hífen e sublinhado)"
-        )
+        return _(
+            "Nome de arquivo inválido: {name} (só letras sem acento, números, ponto, hífen e sublinhado)"
+        ).format(name=name)
     return None
 
 
@@ -96,7 +98,7 @@ def check_names(work: Work, script_name: str) -> dict[str, str]:
         work.names[key] = name
         problem = _problem(name)
         if problem is None and name in owners:
-            problem = f"Nome de arquivo repetido: {name}"
+            problem = _("Nome de arquivo repetido: {name}").format(name=name)
             if owners[name]:
                 problems.setdefault(owners[name], problem)
         owners.setdefault(name, field_id)

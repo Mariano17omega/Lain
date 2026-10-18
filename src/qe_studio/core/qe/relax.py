@@ -27,6 +27,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from ...i18n import N_
 from .. import cancel
 from .structure import SITE, format_formula
 
@@ -35,7 +36,13 @@ BOHR_TO_ANGSTROM = 0.529177210903
 # etot_conv_thr (Ry), forc_conv_thr (Ry/Bohr), press_conv_thr (kbar)
 QE_DEFAULT_THRESHOLDS = (1.0e-4, 1.0e-3, 0.5)
 
-HEADER, CRITERIA, INPUT, QE_DEFAULT = "cabeçalho", "critérios", "entrada", "padrão do QE"
+# Where a threshold came from: data compared and kept in the dataset, shown through ``_()``.
+HEADER, CRITERIA, INPUT, QE_DEFAULT = (
+    N_("cabeçalho"),
+    N_("critérios"),
+    N_("entrada"),
+    N_("padrão do QE"),
+)
 
 _ENERGY = re.compile(rf"^\s*!+\s*total\s+energy\s*=\s*({NUMBER})\s*Ry", re.I)
 _FORCE = re.compile(rf"\bTotal\s+force\s*=\s*({NUMBER})", re.I)

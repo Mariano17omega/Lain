@@ -41,6 +41,7 @@ from ....core.structure3d.options import (
     STYLES,
     background_of_theme,
 )
+from ....i18n import N_, _
 from ...theme.manager import ThemeManager
 from ..common import PanelHeader, set_variant
 from ..no_wheel import NoWheelComboBox, NoWheelDoubleSpinBox, NoWheelSpinBox
@@ -50,9 +51,16 @@ from .measures import MeasuresSection
 from .panel_atom import AtomSection, triple
 from .rotation import RotationSection
 
-SECTIONS_KEY = "structure3d/sections"  # QSettings: <section title> → open (bool)
-TITLES = ("Átomo", "Medidas", "Exibição", "Rotação", "Espécies", "Célula")
-OPEN_BY_DEFAULT = ("Átomo", "Medidas", "Exibição", "Rotação")
+SECTIONS_KEY = "structure3d/sections"  # QSettings: <section id> → open (bool)
+SECTIONS = (
+    ("atom", N_("Átomo")),
+    ("measures", N_("Medidas")),
+    ("display", N_("Exibição")),
+    ("rotation", N_("Rotação")),
+    ("species", N_("Espécies")),
+    ("cell", N_("Célula")),
+)
+OPEN_BY_DEFAULT = ("atom", "measures", "display", "rotation")
 MIN_WIDTH = 260
 RESTORE_TITLE = "Restaurar padrões"
 RESTORE_QUESTION = "Voltar todas as opções e a câmera desta janela ao padrão?"
@@ -120,7 +128,9 @@ class StructurePanel(QWidget):
         self.column = QVBoxLayout(body)
         self.column.setContentsMargins(0, 0, 0, 0)
         self.column.setSpacing(0)
-        self.sections: dict[str, Section] = {title: self._section(title) for title in TITLES}
+        self.sections: dict[str, Section] = {
+            section_id: self._section(section_id, title) for section_id, title in SECTIONS
+        }
         self.column.addStretch(1)
         self.scroll_area.setWidget(body)
         layout.addWidget(self.scroll_area, 1)
@@ -135,25 +145,27 @@ class StructurePanel(QWidget):
         line.addWidget(self.restore_button)
         layout.addWidget(footer)
 
-        self.atom = AtomSection(self.sections["Átomo"], self.structure)
+        self.atom = AtomSection(self.sections["atom"], self.structure)
         self.atom.show_atom(canvas.current, canvas.graph)
         self.atom.table.neighbor_clicked.connect(canvas.select)
-        self.measures = MeasuresSection(self.sections["Medidas"], canvas)
-        self._build_display(self.sections["Exibição"])
-        self.rotation = RotationSection(self.sections["Rotação"], canvas)
-        self._build_species(self.sections["Espécies"])
-        self._build_cell(self.sections["Célula"])
+        self.measures = MeasuresSection(self.sections["measures"], canvas)
+        self._build_display(self.sections["display"])
+        self.rotation = RotationSection(self.sections["rotation"], canvas)
+        self._build_species(self.sections["species"])
+        self._build_cell(self.sections["cell"])
         canvas.current_changed.connect(self._current_changed)
         canvas.options_changed.connect(self.sync)
         self.sync()
 
     # -- sections ----------------------------------------------------------------------------------
-    def _section(self, title: str) -> Section:
-        key = f"{SECTIONS_KEY}/{title}"
-        opened = title in OPEN_BY_DEFAULT
+    def _section(self, section_id: str, title: str) -> Section:
+        """``title`` is the Portuguese message; before the ids the state was kept under it."""
+        key = f"{SECTIONS_KEY}/{section_id}"
+        opened = section_id in OPEN_BY_DEFAULT
         if self.settings is not None:
-            opened = bool(self.settings.value(key, opened, type=bool))
-        section = Section(self.theme, title, opened)
+            legacy = self.settings.value(f"{SECTIONS_KEY}/{title}", opened, type=bool)
+            opened = bool(self.settings.value(key, legacy, type=bool))
+        section = Section(self.theme, _(title), opened, section_id=section_id)
         section.opened_changed.connect(lambda on, k=key: self._remember_open(k, on))
         self.column.addWidget(section)
         return section
@@ -347,25 +359,25 @@ class StructurePanel(QWidget):
         structure, source = self.structure, self.structure.source
         a, b, c, alpha, beta, gamma = structure.lattice_parameters
         rows = [
-            ("a, b, c (Å)", triple((a, b, c), 5), True),
-            ("α, β, γ (°)", triple((alpha, beta, gamma), 3), True),
-            ("Volume (Å³)", f"{structure.volume:.4f}", True),
-            ("a₁ (Å)", triple(structure.cell[0], 4), True),
-            ("a₂ (Å)", triple(structure.cell[1], 4), True),
-            ("a₃ (Å)", triple(structure.cell[2], 4), True),
-            ("ibrav", str(source.ibrav), False),
-            ("nat", str(source.nat), False),
-            ("Fórmula", structure.formula, False),
-            ("prefix", source.prefix, False),
-            ("calculation", source.calculation, False),
+            ("abc", "a, b, c (Å)", triple((a, b, c), 5), True),
+            ("angles", "α, β, γ (°)", triple((alpha, beta, gamma), 3), True),
+            ("volume", "Volume (Å³)", f"{structure.volume:.4f}", True),
+            ("a1", "a₁ (Å)", triple(structure.cell[0], 4), True),
+            ("a2", "a₂ (Å)", triple(structure.cell[1], 4), True),
+            ("a3", "a₃ (Å)", triple(structure.cell[2], 4), True),
+            ("ibrav", "ibrav", str(source.ibrav), False),
+            ("nat", "nat", str(source.nat), False),
+            ("formula", _("Fórmula"), structure.formula, False),
+            ("prefix", "prefix", source.prefix, False),
+            ("calculation", "calculation", source.calculation, False),
         ]
         self.cell_values: dict[str, QLabel] = {}
-        for label, text, mono in rows:
+        for row_id, label, text, mono in rows:
             value = set_variant(QLabel(text), "readout") if mono else QLabel(text)
             value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             value.setWordWrap(True)
             section.add_row(label, value)
-            self.cell_values[label] = value
+            self.cell_values[row_id] = value
         self.warnings: list[QLabel] = []
         for warning in source.warnings:
             line = set_variant(QLabel(f"⚠ {warning}"), "warning")

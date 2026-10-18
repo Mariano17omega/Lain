@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from matplotlib.lines import Line2D
 
+from ....i18n import _
 from ...plotting.gap_label import gap_handle, gap_label
 from ..params import gap_method_in_force
 from .data import EDGE_TOL
@@ -107,14 +108,14 @@ def window_entries(dataset: BandsDataset, params: BandsParams) -> list[GapEntry]
     return entries
 
 
-NO_GAP_NOTE = "Sem gap para a legenda: sistema metálico ao longo do caminho"
-NO_COUNT_NOTE = "Sem gap para a legenda: sem a saída do SCF não há contagem de elétrons"
-NO_HOMO_LUMO_NOTE = (
+NO_GAP_NOTE = _("Sem gap para a legenda: sistema metálico ao longo do caminho")
+NO_COUNT_NOTE = _("Sem gap para a legenda: sem a saída do SCF não há contagem de elétrons")
+NO_HOMO_LUMO_NOTE = _(
     "Sem gap para a legenda: HOMO/LUMO não impresso pelo pw.x (só com ocupações fixas e nbnd "
     "maior que as bandas ocupadas)"
 )
-CLOSED_HOMO_LUMO_NOTE = "Sem gap para a legenda: HOMO e LUMO impressos pelo pw.x coincidem"
-NO_WINDOW_GAP_NOTE = (
+CLOSED_HOMO_LUMO_NOTE = _("Sem gap para a legenda: HOMO e LUMO impressos pelo pw.x coincidem")
+NO_WINDOW_GAP_NOTE = _(
     "Sem gap para a legenda: nenhum intervalo vazio de pelo menos 0,05 eV na janela de energia"
 )
 

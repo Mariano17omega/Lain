@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 
+from ...i18n import _
 from ..plotting.draw import DASHED, style_axes
 from ..plotting.style import PlotStyle
 from ..qe.relax import QE_DEFAULT, RelaxData
@@ -36,9 +37,9 @@ def draw_pressure(ax: Axes, data: RelaxData, params: RelaxParams, style: PlotSty
     around the target pressure. Steps without a pressure are skipped."""
     points = [(s.index, s.pressure_kbar) for s in data.steps if s.pressure_kbar is not None]
     _line_panel(
-        ax, [x for x, _ in points], [y for _, y in points], params.pressure_color, params, style
+        ax, [x for x, __ in points], [y for __, y in points], params.pressure_color, params, style
     )
-    ax.set_ylabel("Pressão (kbar)")
+    ax.set_ylabel(_("Pressão (kbar)"))
     if not params.show_thresholds:
         return []
     target, threshold = data.target_pressure_kbar, data.pressure_threshold
@@ -55,7 +56,7 @@ def draw_volume(ax: Axes, data: RelaxData, params: RelaxParams, style: PlotStyle
     skipped."""
     points = [(s.index, s.volume_ang3) for s in data.steps if s.volume_ang3 is not None]
     _line_panel(
-        ax, [x for x, _ in points], [y for _, y in points], params.volume_color, params, style
+        ax, [x for x, __ in points], [y for __, y in points], params.volume_color, params, style
     )
     ax.set_ylabel("Volume (Å³)")
     return []
@@ -67,9 +68,13 @@ def cell_readout(data: RelaxData, step: int, panel: str) -> str:
         return ""
     item = data.steps[step]
     if panel == "pressure" and item.pressure_kbar is not None:
-        return f"passo {step} · P = {item.pressure_kbar:.2f} kbar"
+        return _("passo {step} · P = {pressure_kbar:.2f} kbar").format(
+            step=step, pressure_kbar=item.pressure_kbar
+        )
     if panel == "volume" and item.volume_ang3 is not None:
-        return f"passo {step} · V = {item.volume_ang3:.2f} Å³"
+        return _("passo {step} · V = {volume_ang3:.2f} Å³").format(
+            step=step, volume_ang3=item.volume_ang3
+        )
     return ""
 
 
@@ -80,5 +85,5 @@ def cell_summary(data: RelaxData) -> list[str]:
     if volumes:
         parts.append(f"V: {volumes[0]:.1f} → {volumes[-1]:.1f} Å³")
     if (pressure := data.steps[-1].pressure_kbar) is not None:
-        parts.append(f"P final = {pressure:.2f} kbar")
+        parts.append(_("P final = {pressure:.2f} kbar").format(pressure=pressure))
     return parts

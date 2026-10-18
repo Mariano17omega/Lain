@@ -11,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, ClassVar
 
+from ....i18n import _
 from ..edits import ensure_smearing, put_mesh, put_number, put_string
 from ..render import render
 from ..scf_info import ScfInfo
@@ -30,11 +31,11 @@ DEFAULT_DEGAUSS = 0.000735  # Ry, ≈ 0.01 eV (spec 28 R3.4)
 DEFAULT_NGAUSS = 0
 OCCUPATIONS = ("smearing", "tetrahedra", "tetrahedra_opt", "tetrahedra_lin", "fixed")
 DEFAULT_OCCUPATIONS = "tetrahedra"
-NO_BROADENING_NOTE = (
+NO_BROADENING_NOTE = _(
     "projwfc.in sem ngauss/degauss: com tetraedros o projwfc.x usa o método dos tetraedros "
     "(um degauss no input o desligaria)"
 )
-ENERGY_WINDOW_HINT = (
+ENERGY_WINDOW_HINT = _(
     "Emin/Emax são energias absolutas em eV; acima da energia da última banda calculada (nbnd) "
     "a DOS é zero. Aumente nbnd ou reduza Emax"
 )
@@ -81,24 +82,26 @@ class PdosType(CalcType):
             nbnd_field(scf, NSCF, ENERGY_WINDOW_HINT),
             FormField(
                 "occupations",
-                "Ocupações (occupations)",
+                _("Ocupações (occupations)"),
                 "choice",
                 _occupations(scf),
                 group=NSCF,
                 choices=OCCUPATIONS,
                 tooltip=(
-                    "&SYSTEM occupations do NSCF (tetraedros dão uma DOS mais limpa; com "
-                    "tetraedros o projwfc.in sai sem ngauss/degauss, e o projwfc.x usa o "
-                    "método dos tetraedros)"
+                    _(
+                        "&SYSTEM occupations do NSCF (tetraedros dão uma DOS mais limpa; com "
+                        "tetraedros o projwfc.in sai sem ngauss/degauss, e o projwfc.x usa o "
+                        "método dos tetraedros)"
+                    )
                 ),
             ),
             mesh,
             _projwfc(
-                "delta_e", "Passo de energia (DeltaE, eV)", "float", DEFAULT_DELTA_E, "DeltaE"
+                "delta_e", _("Passo de energia (DeltaE, eV)"), "float", DEFAULT_DELTA_E, "DeltaE"
             ),
             _projwfc(
                 "e_min",
-                "Energia mínima (Emin, eV)",
+                _("Energia mínima (Emin, eV)"),
                 "float",
                 DEFAULT_E_MIN,
                 "Emin",
@@ -106,7 +109,7 @@ class PdosType(CalcType):
             ),
             _projwfc(
                 "e_max",
-                "Energia máxima (Emax, eV)",
+                _("Energia máxima (Emax, eV)"),
                 "float",
                 DEFAULT_E_MAX,
                 f"Emax: {ENERGY_WINDOW_HINT}",
@@ -114,24 +117,24 @@ class PdosType(CalcType):
             ),
             _projwfc(
                 "degauss",
-                "Alargamento (degauss, Ry)",
+                _("Alargamento (degauss, Ry)"),
                 "float",
                 DEFAULT_DEGAUSS,
-                "degauss (em Ry; 0.000735 Ry ≈ 0,01 eV): ignorado com tetraedros",
+                _("degauss (em Ry; 0.000735 Ry ≈ 0,01 eV): ignorado com tetraedros"),
             ),
             _projwfc(
                 "ngauss",
-                "Tipo de alargamento (ngauss)",
+                _("Tipo de alargamento (ngauss)"),
                 "int",
                 DEFAULT_NGAUSS,
-                "ngauss: ignorado com tetraedros",
+                _("ngauss: ignorado com tetraedros"),
             ),
             _projwfc(
                 "filpdos",
-                "Prefixo dos arquivos PDOS (filpdos)",
+                _("Prefixo dos arquivos PDOS (filpdos)"),
                 "text",
                 f"{scf.prefix}.dat",
-                "filpdos: os arquivos são <filpdos>.pdos_atm#…",
+                _("filpdos: os arquivos são <filpdos>.pdos_atm#…"),
             ),
         ]
 
@@ -154,7 +157,7 @@ class PdosType(CalcType):
             put_mesh(editor, mesh)
         e_min, e_max = values["e_min"], values["e_max"]
         if e_min is not None and e_max is not None and e_min >= e_max:
-            work.errors.append("Emin deve ser menor que Emax")
+            work.errors.append(_("Emin deve ser menor que Emax"))
         broadening = not (occupations or "").startswith("tetrahedra")
         if not broadening:
             work.notes.append(NO_BROADENING_NOTE)

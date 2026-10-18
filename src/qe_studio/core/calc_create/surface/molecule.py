@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ....i18n import _
 from ..scf_info import ScfInfo
 from . import SurfaceError
 from .elements import atomic_number, element_of
@@ -72,8 +73,12 @@ def molecule_of(scf: ScfInfo, anchor: int | None = None) -> Molecule:
     elif 1 <= anchor <= count:
         index = anchor - 1
     else:
-        raise SurfaceError(f"Átomo âncora {anchor} fora da molécula (1 a {count})")
-    _, images = pair_images(model.frac, model.cell, [index], range(count))
+        raise SurfaceError(
+            _("Átomo âncora {anchor} fora da molécula (1 a {count})").format(
+                anchor=anchor, count=count
+            )
+        )
+    __, images = pair_images(model.frac, model.cell, [index], range(count))
     delta = model.frac - model.frac[index] + images[0]
     coords = delta @ model.cell
     axis = _axis(model.labels, coords, index)

@@ -79,7 +79,7 @@ def tick_sizes(figure):
 
 # -- the schema ---------------------------------------------------------------------------------
 def test_the_four_fields_follow_the_legend_frame_in_the_legend_section():
-    names = [f.name for f in COMMON_FIELDS if f.section == "Legenda"]
+    names = [f.name for f in COMMON_FIELDS if f.section == "legend"]
     assert names == ["show_legend", "legend_loc", *SHIFT, "legend_frame", *NEW]
     fields = {f.name: f for f in COMMON_FIELDS}
     assert [fields[n].label for n in NEW] == [
@@ -107,7 +107,7 @@ def test_every_module_offers_the_shift_in_the_legend_section(case, tmp_path):
     module, dataset, _params = CASES[case](tmp_path)
     schema = {f.name: f for f in module.param_schema(dataset)}
     for name in SHIFT:
-        assert schema[name].section == "Legenda" and schema[name].requires == "show_legend"
+        assert schema[name].section == "legend" and schema[name].requires == "show_legend"
 
 
 # -- defaults leave every figure as it was --------------------------------------------------------
@@ -327,7 +327,7 @@ def test_the_panel_edits_reach_the_figure_and_the_plot_file(qtbot, main_window, 
         main_window.generate_plot_for(folder, auto_export=False)
     view = main_window.current_plot()
     body = main_window.params.body
-    (legend,) = [s for s in body.findChildren(Section) if s.title == "Legenda"]
+    (legend,) = [s for s in body.findChildren(Section) if s.id == "legend"]
     assert legend is not None
     for name in ("legend_size", "legend_transparency", "tick_size", "label_size"):
         assert name in body._setters

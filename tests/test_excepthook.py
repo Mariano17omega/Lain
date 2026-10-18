@@ -96,7 +96,7 @@ def test_the_same_error_twice_is_one_toast_and_a_count(qtbot, boxes, reporter, w
             reporter(*boom())  # one call site: the same ``file:line``
     assert len(window.toast.shown) == 1
     messages = [r.getMessage() for r in caplog.records]
-    assert messages == ["erro inesperado", "erro inesperado (x2)"]  # every one is in the log
+    assert messages == ["unexpected error", "unexpected error (x2)"]  # every one is in the log
 
 
 def test_another_error_is_another_toast(qtbot, boxes, reporter, window):
@@ -118,7 +118,7 @@ def test_after_the_window_the_same_error_shows_again(qtbot, boxes, reporter, win
     with caplog.at_level(logging.ERROR, logger="qe_studio"):
         again()
     assert len(window.toast.shown) == 2
-    assert caplog.records[-1].getMessage() == "erro inesperado"  # the count starts over
+    assert caplog.records[-1].getMessage() == "unexpected error"  # the count starts over
 
 
 def test_an_error_while_reporting_goes_to_the_log_only(qtbot, boxes, reporter, window, caplog):
@@ -133,7 +133,7 @@ def test_an_error_while_reporting_goes_to_the_log_only(qtbot, boxes, reporter, w
         reporter(*boom("de fora"))
     assert window.toast.shown == ["Erro inesperado: ValueError: de fora (ver o log)"]
     assert boxes == []
-    assert any("durante o tratamento" in r.getMessage() for r in caplog.records)
+    assert any("while handling another" in r.getMessage() for r in caplog.records)
 
 
 def test_the_hook_survives_a_failing_toast(qtbot, boxes, reporter, window, caplog):
@@ -144,7 +144,7 @@ def test_the_hook_survives_a_failing_toast(qtbot, boxes, reporter, window, caplo
     with caplog.at_level(logging.ERROR, logger="qe_studio"):
         reporter(*boom())
         reporter(*boom("outro"))  # not stuck "handling"
-    assert "falha ao informar" in caplog.text
+    assert "failed to report an unexpected error" in caplog.text
 
 
 def test_before_the_window_exists_one_box_per_error(qtbot, boxes, reporter):

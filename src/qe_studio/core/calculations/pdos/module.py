@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from matplotlib.figure import FigureBase
 
+from ....i18n import N_, _
 from ...compounds import AtomChoices
 from ...plotting.style import PlotStyle
 from ...qe import projwfc
@@ -21,7 +22,7 @@ from ..base import (
     Stores,
     output_of,
 )
-from ..params import ParamField, RenderInfo
+from ..params import ParamField, RenderInfo, SectionDef
 from . import atoms as atoms_mod
 from . import params as params_mod
 from . import render as render_mod
@@ -51,26 +52,30 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
     badge: ClassVar[str] = "PDOS"
     badge_token: ClassVar[str | None] = "pdos"
     view_fields: ClassVar[tuple[str, ...]] = ("emin", "emax", "dos_max")
-    sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Projeções", "Legenda"),)
-    display_name: ClassVar[str] = "Densidade de estados projetada"
-    description: ClassVar[str] = "pdos_tot e arquivos de PDOS por átomo detectados"
+    sections: ClassVar[tuple[tuple[SectionDef, str | None], ...]] = (
+        (SectionDef("projections", N_("Projeções")), "legend"),
+    )
+    display_name: ClassVar[str] = _("Densidade de estados projetada")
+    description: ClassVar[str] = _("pdos_tot e arquivos de PDOS por átomo detectados")
     plottable: ClassVar[bool] = True
     has_table: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
-        FileRole("scf_out", "Saída SCF (pw.x)", output_of(FileKind.PW_OUT, "scf"), ("scf*.out",)),
         FileRole(
-            "nscf_out", "Saída NSCF (pw.x)", output_of(FileKind.PW_OUT, "nscf"), ("nscf*.out",)
+            "scf_out", _("Saída SCF (pw.x)"), output_of(FileKind.PW_OUT, "scf"), ("scf*.out",)
+        ),
+        FileRole(
+            "nscf_out", _("Saída NSCF (pw.x)"), output_of(FileKind.PW_OUT, "nscf"), ("nscf*.out",)
         ),
         FileRole(
             "projwfc_out",
-            "Saída do projwfc.x",
+            _("Saída do projwfc.x"),
             output_of(FileKind.PROJWFC_OUT),
             ("projwfc*.out",),
             anchor=True,
         ),
         FileRole(
             "pdos_atm",
-            "Projeções pdos_atm#*_wfc#*",
+            _("Projeções pdos_atm#*_wfc#*"),
             output_of(FileKind.PDOS_ATM),
             ("orbitals/*pdos_atm#*_wfc#*",),
             required=True,
@@ -79,7 +84,7 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
         ),
         FileRole(
             "pdos_tot",
-            "DOS total (pdos_tot)",
+            _("DOS total (pdos_tot)"),
             output_of(FileKind.PDOS_TOT),
             ("*pdos_tot", "orbitals/*pdos_tot"),
         ),
@@ -100,8 +105,11 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
             chosen = max(groups.values(), key=_newest)
             if len(groups) > 1:
                 result.warnings.append(
-                    f"{len(groups)} conjuntos de PDOS encontrados; usando o mais recente "
-                    f"({_group_key(chosen[0])[1] or chosen[0].parent.name})"
+                    _(
+                        "{count} conjuntos de PDOS encontrados; usando o mais recente ({chosen})"
+                    ).format(
+                        count=len(groups), chosen=_group_key(chosen[0])[1] or chosen[0].parent.name
+                    )
                 )
             return sorted(chosen)
         if role.id == "pdos_tot" and "pdos_atm" in result.files:
@@ -122,7 +130,7 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
         if "scf_out" not in result.files and "nscf_out" not in result.files:
             result.missing.append("scf_out")
         elif "scf_out" not in result.files:
-            result.warnings.append("saída SCF não encontrada: E_F lida da saída NSCF")
+            result.warnings.append(_("saída SCF não encontrada: E_F lida da saída NSCF"))
 
     # -- plotting ------------------------------------------------------------------------------
     def default_params(self, config: AppConfig, dataset: PdosDataset) -> PdosParams:

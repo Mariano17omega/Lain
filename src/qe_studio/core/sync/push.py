@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ...i18n import _, ngettext
 from ._process import RsyncRun
 from .push_plan import PushPlan, build_push_plan
 from .report import PushReport, SyncStatus
@@ -23,11 +24,16 @@ def _push_plan(stdout: str, local_dir: Path) -> PushPlan:
 
 
 class PushController(RsyncRun):
-    LISTING = "Comparando com o cluster…"
-    PLANNING = "Conferindo arquivos locais…"
-    SENDING = "Enviando {count} arquivo(s)…"
+    LISTING = _("Comparando com o cluster…")
+    PLANNING = _("Conferindo arquivos locais…")
 
     _plan: PushPlan
+
+    @staticmethod
+    def _sending(count: int) -> str:
+        return ngettext("Enviando {count} arquivo…", "Enviando {count} arquivos…", count).format(
+            count=count
+        )
 
     @property
     def plan(self) -> PushPlan:
@@ -56,7 +62,9 @@ class PushController(RsyncRun):
         )
         self._send([item.path for item in self._plan.new], argv)
 
-    def _report(self, status: SyncStatus, error: str | None, connection_failed: bool) -> PushReport:
+    def _report(
+        self, status: SyncStatus, error: str | None, connection_failed: bool, auth_failed: bool
+    ) -> PushReport:
         return PushReport(
             status,
             self._local_dir,
@@ -65,4 +73,5 @@ class PushController(RsyncRun):
             existing=[item.path for item in self._plan.exists],
             error=error,
             connection_failed=connection_failed,
+            auth_failed=auth_failed,
         )

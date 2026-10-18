@@ -71,7 +71,7 @@ def test_the_preview_comes_first_and_only_new_files_go_up(qtbot, dirs):
     assert [i.path for i in plan.exists] == ["scf.out"]
     assert report.status is SyncStatus.DONE, report.error
     assert sorted(report.transferred) == ["job/scf.qsub", "scf.in"]
-    assert report.existing == ["scf.out"] and "2 arquivo(s) enviado(s)." in report.message
+    assert report.existing == ["scf.out"] and "2 arquivos enviados." in report.message
     assert (remote / "scf.in").read_text() == "input"
     assert abs((remote / "job/scf.qsub").stat().st_mtime - (T0 + 60)) < 1  # dates kept
     assert (remote / "scf.out").read_text() == "cluster copy"

@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..i18n import _
 from . import cancel, textfile
 from .file_kinds import human_size, is_job_log, is_markdown, is_script
 from .qe.input_extract import Chip, extract
@@ -70,12 +71,15 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
     cancel.check()
     banner, level = "", "warning"
     if piece.truncated:
-        banner = (
-            f"Arquivo grande ({human_size(piece.size)}): exibindo o primeiro "
-            f"{human_size(textfile.HEAD_BYTES)} e os últimos {human_size(textfile.TAIL_BYTES)}."
+        banner = _(
+            "Arquivo grande ({human_size}): exibindo o primeiro {human_size_2} e os últimos {human_size_3}."
+        ).format(
+            human_size=human_size(piece.size),
+            human_size_2=human_size(textfile.HEAD_BYTES),
+            human_size_3=human_size(textfile.TAIL_BYTES),
         )
     elif full and piece.size > textfile.LARGE_FILE:
-        banner = f"Arquivo completo ({human_size(piece.size)})."
+        banner = _("Arquivo completo ({human_size}).").format(human_size=human_size(piece.size))
     job_log = is_job_log(path)
     info = _sniff(path)
     cancel.check()
@@ -84,9 +88,9 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
     judged_by_run = output and info is not None and info.job_done is not None
     if job_log and not judged_by_run:
         if piece.text:
-            job, level = "O job registrou mensagens de erro.", "error"
+            job, level = _("O job registrou mensagens de erro."), "error"
         else:
-            job, level = "Arquivo vazio: o job não registrou erros.", "success"
+            job, level = _("Arquivo vazio: o job não registrou erros."), "success"
         banner = f"{job} {banner}".rstrip()
     # A script or a Markdown file is judged by its name: a heredoc of ``&PROJWFC`` in a ``.qsub``
     # must not make it an input.
@@ -99,17 +103,23 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
         if piece.size <= INPUT_READ_LIMIT:  # below the viewer's own limit: the text is whole
             doc = lint(piece.text)
         else:
-            note = f"Input grande ({human_size(piece.size)}): a escrita não foi verificada, só o realce."
+            note = _(
+                "Input grande ({human_size}): a escrita não foi verificada, só o realce."
+            ).format(human_size=human_size(piece.size))
             banner = f"{note} {banner}".rstrip()
     elif script:
         if piece.size <= INPUT_READ_LIMIT:
             issues = tuple(lint_script(piece.text))
         else:
-            note = f"Script grande ({human_size(piece.size)}): a escrita não foi verificada, só o realce."
+            note = _(
+                "Script grande ({human_size}): a escrita não foi verificada, só o realce."
+            ).format(human_size=human_size(piece.size))
             banner = f"{note} {banner}".rstrip()
     renderable = markdown and not piece.truncated and piece.size <= MARKDOWN_RENDER_LIMIT
     if markdown and not piece.truncated and not renderable:  # the truncation banner says it already
-        note = f"Markdown grande ({human_size(piece.size)}): exibido como texto, sem renderizar."
+        note = _("Markdown grande ({human_size}): exibido como texto, sem renderizar.").format(
+            human_size=human_size(piece.size)
+        )
         banner = f"{note} {banner}".rstrip()
     chips = extract(doc) if doc is not None else ()
     return TextPreview(

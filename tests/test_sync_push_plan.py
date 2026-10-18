@@ -129,9 +129,7 @@ def report(status, **fields) -> PushReport:
 
 def test_push_report_says_what_went_up_and_what_was_left_alone():
     done = report(SyncStatus.DONE, transferred=["a.in", "b.qsub"], existing=["scf.out"])
-    assert done.message == (
-        "2 arquivo(s) enviado(s).\n1 já existiam no cluster e não foram alterados."
-    )
+    assert done.message == ("2 arquivos enviados.\n1 já existia no cluster e não foi alterado.")
     assert "Enviados (2):\n  a.in\n  b.qsub" in done.details
     assert "Já existiam no cluster (não alterados) (1):\n  scf.out" in done.details
     assert "Cluster: me@hpc:/scratch/run/" in done.details

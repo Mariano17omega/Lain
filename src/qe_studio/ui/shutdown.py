@@ -68,7 +68,7 @@ class ShutdownSequence:
             try:
                 finished = step.run(ms) is not False
             except Exception:  # the steps after it still have to run (the user's state above all)
-                log.exception("encerramento: %s falhou", step.name)
+                log.exception("shutdown: %s failed", step.name)
                 finished = False
             if step.own_budget:
                 free += self._clock() - began
@@ -76,9 +76,9 @@ class ShutdownSequence:
                 ok.append(step.name)
             else:
                 late.append(step.name)
-                log.warning("encerramento: %s não terminou em %d ms", step.name, ms)
+                log.warning("shutdown: %s did not finish in %d ms", step.name, ms)
         elapsed = int((self._clock() - start) * 1000)
-        log.info("encerramento: %d ms; ok: %s; estouros: %s", elapsed, ok, late or "nenhum")
+        log.info("shutdown: %d ms; ok: %s; late: %s", elapsed, ok, late or "none")
         return ShutdownReport(elapsed, ok, late)
 
 

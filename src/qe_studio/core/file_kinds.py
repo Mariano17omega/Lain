@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ..i18n import N_, _
 from .qe import projwfc
 from .sniff import FileSniff, looks_like_input
 
@@ -77,18 +78,18 @@ def status_label(path: Path, size: int, sniff: FileSniff | None) -> tuple[str, s
     """
     if sniff is not None and sniff.is_output and sniff.job_done is not None:
         if not sniff.job_done:
-            return "INCOMPLETO", "warning"
-        return ("AVISO", "warning") if sniff.warnings else ("OK", "success")
+            return N_("INCOMPLETO"), "warning"
+        return (N_("AVISO"), "warning") if sniff.warnings else (N_("OK"), "success")
     if is_job_log(path):
-        return ("ERRO", "error") if size > 0 else ("SEM ERROS", "success")
+        return (N_("ERRO"), "error") if size > 0 else (N_("SEM ERROS"), "success")
     return None
 
 
 STATE_TOOLTIPS = {
-    "OK": "Execução concluída (JOB DONE)",
-    "INCOMPLETO": "Sem JOB DONE: job rodando ou interrompido",
-    "ERRO": "O job registrou mensagens de erro (arquivo não vazio)",
-    "SEM ERROS": "Arquivo vazio: o job não registrou erros",
+    "OK": _("Execução concluída (JOB DONE)"),
+    "INCOMPLETO": _("Sem JOB DONE: job rodando ou interrompido"),
+    "ERRO": _("O job registrou mensagens de erro (arquivo não vazio)"),
+    "SEM ERROS": _("Arquivo vazio: o job não registrou erros"),
 }
 
 
@@ -97,7 +98,7 @@ def status_tooltip(label: str, sniff: FileSniff | None) -> str:
     line. Never reads the file."""
     if label == "AVISO":
         warnings = sniff.warnings if sniff is not None else ()
-        return "\n".join(warnings) or "Execução concluída com avisos"
+        return "\n".join(warnings) or _("Execução concluída com avisos")
     return STATE_TOOLTIPS.get(label, "")
 
 

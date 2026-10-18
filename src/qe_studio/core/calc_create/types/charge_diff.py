@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
+from ....i18n import N_, _
 from ...qe.input_edit import InputEditor
 from ..edits import put_text
 from ..fragments import CLEAN, ISOLATED, atom_rows, split_input
@@ -42,14 +43,16 @@ PP_BASE = "pp_base"
 PP_CLEAN = "pp_clean"
 PP_ISOLATED = "pp_isolated"
 PP_DIFF = "pp_diff"
-ATOMS_TAB = "Átomos"  # the group of the atoms field: no file is named so, so it is a tab of its own
+ATOMS_TAB = N_(
+    "Átomos"
+)  # the group of the atoms field: no file is named so, so it is a tab of its own
 DIFF_TEMPLATE = "qe/charge_diff/pp_charge_diff.in.j2"
-ATOMS_HINT = (
+ATOMS_HINT = _(
     "Selecionados → isolated (só eles); o resto → clean (sem eles). "
     "Δρ = ρ(base) − ρ(clean) − ρ(isolated)"
 )
 XSF_DIR_FIELD = "xsf_dir"
-ALL_PP_NOTE = ". Vale para os quatro inputs do pp.x"
+ALL_PP_NOTE = _(". Vale para os quatro inputs do pp.x")
 
 
 def xsf_dir_of(values: dict[str, Any]) -> str:
@@ -63,7 +66,7 @@ def _xsf(folder: str, stem: str) -> str:
 
 class ChargeDiffType(CalcType):
     id: ClassVar[str] = "charge_diff"
-    label: ClassVar[str] = "Diferença de carga"
+    label: ClassVar[str] = _("Diferença de carga")
     folder_prefix: ClassVar[str] = "Diff_Charge"
     script_stem: ClassVar[str] = "charge_diff"
     script_template: ClassVar[str] = "qsub/charge_diff.qsub.j2"
@@ -78,7 +81,7 @@ class ChargeDiffType(CalcType):
             InputFile(PP_BASE, f"pp_{stem}_charge.in", "pp.x base"),
             InputFile(PP_CLEAN, f"pp_{stem}_clean_charge.in", "pp.x clean"),
             InputFile(PP_ISOLATED, f"pp_{stem}_isolated_charge.in", "pp.x isolated"),
-            InputFile(PP_DIFF, "pp_charge_diff.in", "pp.x diferença"),
+            InputFile(PP_DIFF, "pp_charge_diff.in", _("pp.x diferença")),
         ]
 
     def input_fields(self, scf: ScfInfo) -> list[FormField]:
@@ -87,12 +90,12 @@ class ChargeDiffType(CalcType):
         return [
             FormField(
                 "atoms",
-                "Átomos do fragmento isolado",
+                _("Átomos do fragmento isolado"),
                 "atoms",
                 (),
                 required=True,
                 group=ATOMS_TAB,
-                tooltip="Átomos do SCF isolated; os demais formam o SCF clean",
+                tooltip=_("Átomos do SCF isolated; os demais formam o SCF clean"),
                 standard=True,
                 hint=ATOMS_HINT,
                 data=atom_rows(scf.text),
@@ -101,13 +104,15 @@ class ChargeDiffType(CalcType):
             output_format_field(PP_DIFF, ALL_PP_NOTE),
             FormField(
                 XSF_DIR_FIELD,
-                "Pasta dos .xsf",
+                _("Pasta dos .xsf"),
                 "text",
                 FILEOUT_DIR,
                 group=PP_DIFF,
                 tooltip=(
-                    "&PLOT fileout dos quatro pp.x: <pasta>/<nome>.xsf. Relativa e dentro da "
-                    "pasta; o script cria a pasta"
+                    _(
+                        "&PLOT fileout dos quatro pp.x: <pasta>/<nome>.xsf. Relativa e dentro da "
+                        "pasta; o script cria a pasta"
+                    )
                 ),
             ),
         ]
@@ -129,8 +134,9 @@ class ChargeDiffType(CalcType):
         if absolute(folder) or climbs(folder):
             work.problem(
                 XSF_DIR_FIELD,
-                f"A pasta dos .xsf deve ser relativa e ficar dentro da pasta (sem .. nem / inicial): "
-                f"{folder}",
+                _(
+                    "A pasta dos .xsf deve ser relativa e ficar dentro da pasta (sem .. nem / inicial): {folder}"
+                ).format(folder=folder),
             )
         if (problem := format_problem(iflag, output_format)) is not None:
             work.problem("output_format", problem)

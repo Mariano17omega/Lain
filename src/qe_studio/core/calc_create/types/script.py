@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from ....i18n import _
 from ...config import JobsConfig
 from ..render import render
 from ..scf_info import ScfInfo
@@ -36,19 +37,19 @@ def script_fields(type_: CalcType, scf: ScfInfo, jobs: JobsConfig) -> list[FormF
     return [
         FormField(
             "job_name",
-            "Nome do job",
+            _("Nome do job"),
             "text",
             job_name(scf.prefix),
             group=group,
-            tooltip="#$ -N: nome exibido no scheduler (até 15 caracteres, sem espaços)",
+            tooltip=_("#$ -N: nome exibido no scheduler (até 15 caracteres, sem espaços)"),
         ),
         FormField(
             "np",
-            "Núcleos (NP)",
+            _("Núcleos (NP)"),
             "int",
             jobs.cores,
             group=group,
-            tooltip="#$ -pe: número de núcleos do job",
+            tooltip=_("#$ -pe: número de núcleos do job"),
         ),
         FormField(
             "nk",
@@ -56,7 +57,7 @@ def script_fields(type_: CalcType, scf: ScfInfo, jobs: JobsConfig) -> list[FormF
             "int",
             jobs.nk,
             group=group,
-            tooltip="pw.x -nk: número de pools (grupos de k-points); NP deve ser múltiplo de nk",
+            tooltip=_("pw.x -nk: número de pools (grupos de k-points); NP deve ser múltiplo de nk"),
         ),
     ]
 
@@ -65,13 +66,21 @@ def pool_notes(np_: int, nk: int) -> list[str]:
     """Warnings of NP and nk; they never block (spec R6.2), though pw.x stops on them
     (``mp_start_pools``)."""
     if np_ < 1:
-        return ["NP deve ser ao menos 1"]
+        return [_("NP deve ser ao menos 1")]
     if nk < 1:
-        return ["nk deve ser ao menos 1"]
+        return [_("nk deve ser ao menos 1")]
     if nk > np_:
-        return [f"nk = {nk} é maior que NP = {np_}: o pw.x para com erro (mp_start_pools)"]
+        return [
+            _("nk = {nk} é maior que NP = {np}: o pw.x para com erro (mp_start_pools)").format(
+                nk=nk, np=np_
+            )
+        ]
     if np_ % nk:
-        return [f"NP = {np_} não é múltiplo de nk = {nk}: o pw.x para com erro (mp_start_pools)"]
+        return [
+            _(
+                "NP = {np} não é múltiplo de nk = {nk}: o pw.x para com erro (mp_start_pools)"
+            ).format(np=np_, nk=nk)
+        ]
     return []
 
 
@@ -81,7 +90,9 @@ def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
     name = job_name(typed)
     if typed.strip() and name != typed.strip():
         work.notes.append(
-            f"Nome do job ajustado para {name} (até 15 caracteres: letras, números, . _ -)"
+            _(
+                "Nome do job ajustado para {name} (até 15 caracteres: letras, números, . _ -)"
+            ).format(name=name)
         )
     np_ = values["np"] if values["np"] is not None else jobs.cores
     nk = values["nk"] if values["nk"] is not None else jobs.nk
@@ -96,4 +107,6 @@ def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
         },
     )
     script = type_.script_name
-    return PlannedFile(script, "qsub", text, f"Script ({script})", SCRIPT_KEY)
+    return PlannedFile(
+        script, "qsub", text, _("Script ({script})").format(script=script), SCRIPT_KEY
+    )

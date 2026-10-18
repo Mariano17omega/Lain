@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ...i18n import _, ngettext
 from ..file_kinds import human_size
 from .kpath import KMesh
 from .types.base import CalcType, PlannedFile
@@ -33,14 +34,18 @@ __all__ = [
 ]
 
 FILE_KINDS = {
-    "qsub": "Script SGE",
-    "pw_input": "Input do pw.x",
-    "qe_input": "Input do QE",
-    "notes": "Anotações",
-    "report": "Relatório",
+    "qsub": _("Script SGE"),
+    "pw_input": _("Input do pw.x"),
+    "qe_input": _("Input do QE"),
+    "notes": _("Anotações"),
+    "report": _("Relatório"),
 }
-OUTSIDE_PROJECT = "Fora da pasta raiz: a detecção e a sincronização só enxergam pastas dentro dela"
-AT_ROOT = "A pasta será criada fora de um projeto e aparecerá como um projeto novo."  # spec 31 R6.2
+OUTSIDE_PROJECT = _(
+    "Fora da pasta raiz: a detecção e a sincronização só enxergam pastas dentro dela"
+)
+AT_ROOT = _(
+    "A pasta será criada fora de um projeto e aparecerá como um projeto novo."
+)  # spec 31 R6.2
 # After the tab label and the kind of a file edited by hand (spec 39 R2.4).
 EDITED_MARK = " (editado)"
 
@@ -77,9 +82,11 @@ def field_text(value: Any) -> str:
 def mesh_summary(mesh: KMesh | None) -> str:
     """The size of a mesh, as a rough hint: pw.x keeps only the points symmetry leaves."""
     if mesh is None:
-        return "Vazio: mantém o K_POINTS do SCF"
+        return _("Vazio: mantém o K_POINTS do SCF")
     n1, n2, n3 = mesh.n
-    return f"{n1}×{n2}×{n3} = {mesh.count} k-points na rede (o pw.x reduz pela simetria)"
+    return _("{n1}×{n2}×{n3} = {count} k-points na rede (o pw.x reduz pela simetria)").format(
+        n1=n1, n2=n2, n3=n3, count=mesh.count
+    )
 
 
 def file_rows(files: Sequence[PlannedFile], edited: Collection[str] = ()) -> list[FileRow]:
@@ -99,8 +106,8 @@ def target_text(parent: Path, type_: CalcType, suffix: str, numbered: bool = Fal
     Only ``stat``s, and lists ``parent`` when numbered."""
     asked, name = preview_names(parent, type_, suffix, numbered)
     if name == asked:
-        return f"Será criada: {name}"
-    return f"Será criada: {name} — já existe {asked}"
+        return _("Será criada: {name}").format(name=name)
+    return _("Será criada: {name} — já existe {asked}").format(name=name, asked=asked)
 
 
 def outside_project(parent: Path, root: Path) -> bool:
@@ -125,18 +132,23 @@ def location_warnings(parent: Path, root: Path) -> tuple[str, ...]:
     return (AT_ROOT,) if at_root(parent, root) else ()
 
 
-PUSH_REMINDER = "Use ‘Enviar ao cluster’ para levar a pasta ao cluster"
+PUSH_REMINDER = _("Use ‘Enviar ao cluster’ para levar a pasta ao cluster")
 
 
 def created_notice(created: Created, sync: bool = False) -> tuple[str, str]:
     """The toast of a created folder: its text and its "Detalhes". With ``sync`` (sync is
     configured) the text ends reminding of "Enviar ao cluster" (spec 26 R5.3, spec 27)."""
     count = len(created.files)
-    noun = "arquivo" if count == 1 else "arquivos"
-    text = f"Pasta {created.folder.name} criada com {count} {noun}"
+    text = ngettext(
+        "Pasta {name} criada com {count} arquivo", "Pasta {name} criada com {count} arquivos", count
+    ).format(name=created.folder.name, count=count)
     if sync:
         text += f". {PUSH_REMINDER}"
     details = [str(created.folder), *(f"  {path.name}" for path in created.files)]
     if created.renamed_from:
-        details.append(f"{created.renamed_from} já existia: criada como {created.folder.name}")
+        details.append(
+            _("{renamed_from} já existia: criada como {name}").format(
+                renamed_from=created.renamed_from, name=created.folder.name
+            )
+        )
     return text, "\n".join(details)

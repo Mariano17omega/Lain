@@ -17,6 +17,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import FigureBase
 from matplotlib.lines import Line2D
 
+from ...i18n import N_, _, ngettext
 from ..plotting.draw import (
     DASHED,
     MAX_TICKS,
@@ -43,28 +44,35 @@ from .base import (
     output_of,
 )
 from .listing import FolderListing
-from .params import COMMON_FIELDS, CommonParams, ParamField, RenderInfo, apply_common_config
+from .params import (
+    COMMON_FIELDS,
+    CommonParams,
+    ParamField,
+    RenderInfo,
+    SectionDef,
+    apply_common_config,
+)
 from .relax_panels import cell_readout, cell_summary, draw_pressure, draw_volume
 
 if TYPE_CHECKING:
     from ..config import AppConfig
 
 PANELS = (
-    ("both", "Ambos"),
-    ("energy", "Energia / entalpia"),
-    ("force", "Força"),
-    ("all", "Todos"),
+    ("both", _("Ambos")),
+    ("energy", _("Energia / entalpia")),
+    ("force", _("Força")),
+    ("all", _("Todos")),
 )
-SCALES = (("log", "Log"), ("linear", "Linear"))
+SCALES = (("log", _("Log")), ("linear", _("Linear")))
 EXPORT_STEMS = {
     "both": "relax",
     "energy": "relax_energia",
     "force": "relax_forca",
     "all": "relax_todos",
 }
-NO_DELTAS = "São necessários pelo menos dois passos completos para calcular |ΔE|."
-NO_ENTHALPY = "entalpia indisponível neste passo"
-NO_STEPS = "Nenhum passo completo de relaxamento encontrado."
+NO_DELTAS = _("São necessários pelo menos dois passos completos para calcular |ΔE|.")
+NO_ENTHALPY = _("entalpia indisponível neste passo")
+NO_STEPS = _("Nenhum passo completo de relaxamento encontrado.")
 
 
 @dataclass
@@ -123,24 +131,26 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     badge: ClassVar[str] = "RELAX"
     badge_token: ClassVar[str | None] = "relax"
     view_fields: ClassVar[tuple[str, ...]] = ("xmin", "xmax")
-    sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Relaxamento", "Eixo X"),)
-    display_name: ClassVar[str] = "Otimização estrutural"
-    description: ClassVar[str] = "Saída de relax/vc-relax do pw.x com passos BFGS"
+    sections: ClassVar[tuple[tuple[SectionDef, str | None], ...]] = (
+        (SectionDef("relaxation", N_("Relaxamento")), "x_axis"),
+    )
+    display_name: ClassVar[str] = _("Otimização estrutural")
+    description: ClassVar[str] = _("Saída de relax/vc-relax do pw.x com passos BFGS")
     plottable: ClassVar[bool] = True
     single_file_role: ClassVar[str | None] = "relax_out"
-    plot_file_label: ClassVar[str] = "Plotar relaxamento"
-    plot_file_tip: ClassVar[str] = "Plotar os passos do relaxamento do arquivo aberto"
+    plot_file_label: ClassVar[str] = _("Plotar relaxamento")
+    plot_file_tip: ClassVar[str] = _("Plotar os passos do relaxamento do arquivo aberto")
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole(
             "relax_in",
-            "Entrada relax/vc-relax (pw.x)",
+            _("Entrada relax/vc-relax (pw.x)"),
             output_of(FileKind.PW_IN, "relax", "vc-relax"),
             ("relax*.in", "vc-relax*.in"),
             anchor=True,
         ),
         FileRole(
             "relax_out",
-            "Saída relax/vc-relax (pw.x)",
+            _("Saída relax/vc-relax (pw.x)"),
             output_of(FileKind.PW_OUT, "relax", "vc-relax"),
             ("relax*.out", "vc-relax*.out"),
             required=True,
@@ -170,8 +180,9 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         outputs = [p for p in listing.files if out_role.accepts(sniffs[p])]
         if len(outputs) > 1:
             result.warnings.append(
-                f"{len(outputs)} saídas de relax/vc-relax na pasta; mostrando {output.name}. "
-                "As outras: botão direito ▸ Plotar."
+                _(
+                    "{count} saídas de relax/vc-relax na pasta; mostrando {name}. As outras: botão direito ▸ Plotar."
+                ).format(count=len(outputs), name=output.name)
             )
         if result.methods.get("relax_in") is Method.MANUAL:
             return  # the user's own choice
@@ -195,7 +206,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     def load(self, result: DetectionResult, sniff: SniffFn) -> RelaxDataset:
         output = result.file("relax_out")
         if output is None:
-            raise LoadError("Saída do relaxamento não encontrada.")
+            raise LoadError(_("Saída do relaxamento não encontrada."))
         try:
             settings = input_settings(result.file("relax_in"))
             data = read_relax(
@@ -207,14 +218,20 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         except OSError as exc:
             raise LoadError(f"{output.name}: {exc.strerror or exc}") from exc
         if not data.steps:
-            raise LoadError(f"Nenhum passo de relaxamento completo em {output.name}.")
+            raise LoadError(
+                _("Nenhum passo de relaxamento completo em {name}.").format(name=output.name)
+            )
         warnings = list(result.warnings)
-        if data.truncated_steps == 1:
-            warnings.append("1 passo incompleto ignorado")
-        elif data.truncated_steps:
-            warnings.append(f"{data.truncated_steps} passos incompletos ignorados")
+        if data.truncated_steps:
+            warnings.append(
+                ngettext(
+                    "{truncated_steps} passo incompleto ignorado",
+                    "{truncated_steps} passos incompletos ignorados",
+                    data.truncated_steps,
+                ).format(truncated_steps=data.truncated_steps)
+            )
         if data.defaulted_thresholds:
-            warnings.append("limiares de convergência não encontrados: padrões do QE")
+            warnings.append(_("limiares de convergência não encontrados: padrões do QE"))
         return RelaxDataset(result.folder, data, data.formula, list(dict.fromkeys(warnings)))
 
     # -- plotting ------------------------------------------------------------------------------
@@ -227,16 +244,16 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     def param_schema(self, dataset: RelaxDataset) -> list[ParamField]:
         step = {"minimum": -1, "maximum": 1e5, "step": 1, "decimals": 1, "optional": True}
         return [
-            ParamField("panels", "Painéis", "Relaxamento", "choice", choices=PANELS),
-            ParamField("scale", "Escala Y", "Relaxamento", "choice", choices=SCALES),
-            ParamField("show_thresholds", "Limiares", "Relaxamento", "bool"),
-            ParamField("xmin", "Passo mín.", "Eixo X", "float", **step),
-            ParamField("xmax", "Passo máx.", "Eixo X", "float", **step),
-            ParamField("energy_color", "Cor |ΔE| / |ΔH|", "Estilo", "color"),
-            ParamField("force_color", "Cor força", "Estilo", "color"),
-            ParamField("pressure_color", "Cor pressão", "Estilo", "color"),
-            ParamField("volume_color", "Cor volume", "Estilo", "color"),
-            ParamField("threshold_color", "Cor limiares", "Estilo", "color"),
+            ParamField("panels", _("Painéis"), "relaxation", "choice", choices=PANELS),
+            ParamField("scale", _("Escala Y"), "relaxation", "choice", choices=SCALES),
+            ParamField("show_thresholds", _("Limiares"), "relaxation", "bool"),
+            ParamField("xmin", _("Passo mín."), "x_axis", "float", **step),
+            ParamField("xmax", _("Passo máx."), "x_axis", "float", **step),
+            ParamField("energy_color", _("Cor |ΔE| / |ΔH|"), "style", "color"),
+            ParamField("force_color", _("Cor força"), "style", "color"),
+            ParamField("pressure_color", _("Cor pressão"), "style", "color"),
+            ParamField("volume_color", _("Cor volume"), "style", "color"),
+            ParamField("threshold_color", _("Cor limiares"), "style", "color"),
             *COMMON_FIELDS,
         ]
 
@@ -268,10 +285,14 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
             deltas = data.convergence_deltas()
             if 1 <= step <= len(deltas):  # bar i is |E_i − E_(i-1)|
                 value, enthalpy = deltas[step - 1]
-                return f"passo {step} · {'|ΔH|' if enthalpy else '|ΔE|'} = {value:.1e} Ry"
+                return _("passo {step} · {name} = {delta:.1e} Ry").format(
+                    step=step, name="|ΔH|" if enthalpy else "|ΔE|", delta=value
+                )
         elif panel == "force":
             if 0 <= step < len(data.steps):
-                return f"passo {step} · F = {data.steps[step].force_ry_bohr:.1e} Ry/Bohr"
+                return _("passo {step} · F = {force_ry_bohr:.1e} Ry/Bohr").format(
+                    step=step, force_ry_bohr=data.steps[step].force_ry_bohr
+                )
         else:
             return cell_readout(data, step, panel)
         return ""
@@ -301,7 +322,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         n = len(data.steps)
         first = 0 if "force" in shown else 1  # |ΔE| starts at the second step
         bottom = axes[-1]
-        bottom.set_xlabel("Passo BFGS")
+        bottom.set_xlabel(_("Passo BFGS"))
         bottom.set_xticks(range(first, n, max(1, n // MAX_TICKS)))
         low = params.xmin if params.xmin is not None else first - 0.5
         high = params.xmax if params.xmax is not None else max(n - 0.5, low + 1)
@@ -309,7 +330,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         finish(figure, axes[0], params, legends[0])
         top = axes[0]
         pairs = data.convergence_deltas()
-        missing = data.calculation == "vc-relax" and not all(enthalpy for _, enthalpy in pairs)
+        missing = data.calculation == "vc-relax" and not all(enthalpy for __, enthalpy in pairs)
         notes = (NO_ENTHALPY,) if "energy" in shown and missing else ()
         return RenderInfo(top.get_xlim(), top.get_ylim(), self.summary(dataset), notes)
 
@@ -332,13 +353,13 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         if not series:
             empty_panel(ax, NO_DELTAS, style)
             return []
-        deltas = [value for value, _ in series]
+        deltas = [value for value, __ in series]
         if log:
             ax.set_yscale("log")
         values = positive_for_log(deltas) if log else deltas
         x = range(1, len(deltas) + 1)
         ax.bar(x, values, width=0.72, color=params.energy_color, zorder=2)
-        ax.set_ylabel("|ΔH| (Ry)" if any(enthalpy for _, enthalpy in series) else "|ΔE| (Ry)")
+        ax.set_ylabel("|ΔH| (Ry)" if any(enthalpy for __, enthalpy in series) else "|ΔE| (Ry)")
         style_axes(ax, style)
         return self._threshold(
             ax, data.energy_threshold, data.energy_threshold_source, "etot_conv_thr", "Ry", params
@@ -363,7 +384,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
             markersize=max(3.0, params.line_width * 3),
             zorder=3,
         )
-        ax.set_ylabel("Força total (Ry/Bohr)")
+        ax.set_ylabel(_("Força total (Ry/Bohr)"))
         style_axes(ax, style)
         return self._threshold(
             ax,
@@ -378,18 +399,33 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     def summary(dataset: RelaxDataset) -> str:
         data = dataset.data
         if data.converged:
-            status = "Relaxado ✓"
+            status = _("Relaxado ✓")
         elif not data.job_done:
-            status = "Em andamento"
+            status = _("Em andamento")
         else:
-            status = "Não relaxado"
+            status = _("Não relaxado")
         moves = data.steps[-1].bfgs_step  # as pw.x counts them ("… and M bfgs steps")
-        parts = [status, f"{moves} passo BFGS" if moves == 1 else f"{moves} passos BFGS"]
+        parts = [
+            status,
+            ngettext("{moves} passo BFGS", "{moves} passos BFGS", moves).format(moves=moves),
+        ]
         if series := data.convergence_deltas():
             value, enthalpy = series[-1]
-            parts.append(f"{'|ΔH|' if enthalpy else '|ΔE|'} final {value:.1e} Ry")
-        parts.append(f"F final {data.steps[-1].force_ry_bohr:.1e} Ry/Bohr")
+            parts.append(
+                _("{name} final {delta:.1e} Ry").format(
+                    name="|ΔH|" if enthalpy else "|ΔE|", delta=value
+                )
+            )
+        parts.append(
+            _("F final {force_ry_bohr:.1e} Ry/Bohr").format(
+                force_ry_bohr=data.steps[-1].force_ry_bohr
+            )
+        )
         parts += cell_summary(data)
         if data.final_scf_energy is not None:
-            parts.append(f"E final (SCF final) {data.final_scf_energy:.6f} Ry")
+            parts.append(
+                _("E final (SCF final) {final_scf_energy:.6f} Ry").format(
+                    final_scf_energy=data.final_scf_energy
+                )
+            )
         return " · ".join(parts)

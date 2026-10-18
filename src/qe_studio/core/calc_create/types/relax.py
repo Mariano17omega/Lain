@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+from ....i18n import _
 from ...qe.input_edit import InputEditor
 from ...qe.pw_input import fortran_float
 from ..edits import put_mesh, put_number, put_string
@@ -46,15 +47,15 @@ class RelaxType(CalcType):
             kmesh_field(scf, group, required=False),
             FormField(
                 "nstep",
-                "Passos máximos (nstep)",
+                _("Passos máximos (nstep)"),
                 "int",
                 int(nstep) if nstep is not None else DEFAULT_NSTEP,
                 group=group,
-                tooltip="&CONTROL nstep: número máximo de passos da otimização",
+                tooltip=_("&CONTROL nstep: número máximo de passos da otimização"),
             ),
             FormField(
                 "forc_conv_thr",
-                "Convergência das forças (forc_conv_thr)",
+                _("Convergência das forças (forc_conv_thr)"),
                 "float",
                 forc if forc is not None else DEFAULT_FORC_CONV_THR,
                 group=group,
@@ -62,7 +63,7 @@ class RelaxType(CalcType):
             ),
             FormField(
                 "ion_dynamics",
-                "Dinâmica dos íons (ion_dynamics)",
+                _("Dinâmica dos íons (ion_dynamics)"),
                 "choice",
                 dynamics if dynamics in ION_DYNAMICS else ION_DYNAMICS[0],
                 group=group,

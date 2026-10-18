@@ -22,14 +22,15 @@ from ...core.calculations.base import Dataset
 from ...core.calculations.params import CommonParams, ParamField, ordered_sections
 from ...core.compounds import atoms_summary
 from ...core.plotting.session import PlotSession
+from ...i18n import N_, _
 from ..dialogs.atoms import ask_atoms
 from ..theme.manager import ThemeManager
 from .common import set_variant
 from .no_wheel import NoWheelComboBox, NoWheelDoubleSpinBox, NoWheelSpinBox
 from .param_widgets import ColorButton, Section, SeriesList
 
-SECTIONS_KEY = "params/sections"  # QSettings: <kind>/<section title> → open (bool)
-CLOSED_BY_DEFAULT = ("Arquivos",)
+SECTIONS_KEY = "params/sections"  # QSettings: <kind>/<section id> → open (bool)
+CLOSED_BY_DEFAULT = ("files",)
 
 
 class ParamsBody(QWidget):
@@ -69,10 +70,10 @@ class ParamsBody(QWidget):
         if module.selectable or any(result.files.get(r.id) for r in module.roles):
             column.addWidget(self._files_section())  # a grid has neither files nor a mapping
         for definition in ordered_sections(session.module):
-            fields = [f for f in self.schema if f.section == definition.name]
+            fields = [f for f in self.schema if f.section == definition.id]
             if not fields:
                 continue
-            section = self._section(definition.name)
+            section = self._section(definition.id, definition.title)
             for field in fields:
                 self._add_field(section, field)
             column.addWidget(section)
@@ -138,7 +139,7 @@ class ParamsBody(QWidget):
         return box
 
     def _files_section(self) -> QWidget:
-        section = self._section("Arquivos")
+        section = self._section("files", N_("Arquivos"))
         result = self.session.result
         for role in self.session.module.roles:
             paths = result.files.get(role.id)
@@ -151,7 +152,7 @@ class ParamsBody(QWidget):
             value.setMinimumWidth(0)
             value.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             tip = "\n".join(str(p) for p in paths[:20])
-            value.setToolTip(f"{tip}\n(detectado por {method.value})" if method else tip)
+            value.setToolTip(f"{tip}\n(detectado por {method.label})" if method else tip)
             section.add_full(name)
             section.add_full(value)
         if self.session.module.selectable:  # a figure of several folders has no mapping of its own
@@ -160,13 +161,20 @@ class ParamsBody(QWidget):
             section.add_full(remap)
         return section
 
-    def _section(self, title: str) -> Section:
-        """An accordion section that remembers whether it is open, per kind of plot."""
-        key = f"{SECTIONS_KEY}/{self.session.kind}/{title}"
-        opened = title not in CLOSED_BY_DEFAULT
+    def _section(self, section_id: str, title: str) -> Section:
+        """An accordion section that remembers whether it is open, per kind of plot.
+
+        ``title`` is the Portuguese message; before the ids the state was kept under it, so that key
+        is still read when the id has none.
+        """
+        key = f"{SECTIONS_KEY}/{self.session.kind}/{section_id}"
+        opened = section_id not in CLOSED_BY_DEFAULT
         if self.settings is not None:
-            opened = self.settings.value(key, opened, type=bool)
-        section = Section(self.theme, title, opened)
+            legacy = self.settings.value(
+                f"{SECTIONS_KEY}/{self.session.kind}/{title}", opened, type=bool
+            )
+            opened = self.settings.value(key, legacy, type=bool)
+        section = Section(self.theme, _(title), opened, section_id=section_id)
         section.opened_changed.connect(lambda on, k=key: self._remember_open(k, on))
         return section
 

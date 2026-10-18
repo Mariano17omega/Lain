@@ -168,7 +168,7 @@ def test_the_tooltip_of_the_band_gap_says_it_is_along_the_path():
     for kind, dataset in datasets.items():
         module = next(m for m in REGISTRY if m.kind == kind)
         (field,) = [f for f in module.param_schema(dataset) if f.name == "legend_gap"]
-        assert (field.section, field.kind) == ("Legenda", "bool")
+        assert (field.section, field.kind) == ("legend", "bool")
         tooltips[kind] = field.tooltip
     path = "Gap ao longo do caminho de k; o gap indireto verdadeiro pode estar fora dele."
     assert tooltips["bands"].endswith(path) and tooltips["bands_dos"] == tooltips["bands"]

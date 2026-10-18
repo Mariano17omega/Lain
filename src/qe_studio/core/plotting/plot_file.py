@@ -24,6 +24,7 @@ from typing import Any
 import yaml
 from matplotlib.colors import is_color_like
 
+from ...i18n import _
 from ..appdirs import atomic_write_text
 from ..calculations.params import ParamField
 from .names import PLOTS_DIR
@@ -32,7 +33,7 @@ log = logging.getLogger(__name__)
 
 FORMAT_VERSION = 1
 SUFFIX = ".plot"
-HEADER = "# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.\n"
+HEADER = _("# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.\n")
 
 
 class WriteOrder:
@@ -72,7 +73,7 @@ def plot_file_path(folder: Path, kind: str) -> Path:
 def read_plot_file(folder: Path, kind: str) -> tuple[dict[str, Any] | None, list[str]]:
     """(stored parameters or None, warnings for the user). A missing file is not a warning."""
     path = plot_file_path(folder, kind)
-    invalid = f"{path.name} inválido; usando ajustes padrão."
+    invalid = _("{name} inválido; usando ajustes padrão.").format(name=path.name)
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -84,10 +85,16 @@ def read_plot_file(folder: Path, kind: str) -> tuple[dict[str, Any] | None, list
         return None, [invalid]
     if data.get("lain_plot") != FORMAT_VERSION:
         version = data.get("lain_plot")
-        return None, [f"{path.name} ignorado: versão de formato desconhecida ({version!r})."]
+        return None, [
+            _("{name} ignorado: versão de formato desconhecida ({version!r}).").format(
+                name=path.name, version=version
+            )
+        ]
     if data.get("kind") != kind:
         return None, [
-            f"{path.name} ignorado: pertence a outro tipo de gráfico ({data.get('kind')!r})."
+            _("{name} ignorado: pertence a outro tipo de gráfico ({data!r}).").format(
+                name=path.name, data=data.get("kind")
+            )
         ]
     return data["params"], []
 

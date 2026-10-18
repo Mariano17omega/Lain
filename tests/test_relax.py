@@ -318,13 +318,13 @@ def test_params_schema_and_export_stem():
     assert params.show_legend and (params.panels, params.scale) == ("both", "log")
     assert params.figure_height == pytest.approx(CONFIG.plot.figure_size[1] * 1.5)
     schema = RELAX.param_schema(dataset)
-    assert {f.name for f in schema if f.section == "Relaxamento"} == {
+    assert {f.name for f in schema if f.section == "relaxation"} == {
         "panels",
         "scale",
         "show_thresholds",
     }
-    names = [section.name for section in ordered_sections(RELAX)]
-    assert names.index("Relaxamento") < names.index("Eixo X") < names.index("Estilo")
+    names = [section.id for section in ordered_sections(RELAX)]
+    assert names.index("relaxation") < names.index("x_axis") < names.index("style")
     stems = {}
     for panels in ("both", "energy", "force"):
         params.panels = panels
@@ -756,7 +756,7 @@ def test_vc_relax_params_round_trip(tmp_path):
     assert warnings_ == [] and apply_stored(fresh, stored, RELAX.param_schema(None)) == []
     assert asdict(fresh) == asdict(params)
     schema = {f.name: f for f in RELAX.param_schema(None)}
-    assert schema["pressure_color"].section == schema["volume_color"].section == "Estilo"
+    assert schema["pressure_color"].section == schema["volume_color"].section == "style"
     assert [value for value, _ in schema["panels"].choices] == ["both", "energy", "force", "all"]
 
 

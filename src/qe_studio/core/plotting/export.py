@@ -13,6 +13,7 @@ import matplotlib
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
+from ...i18n import _
 from ..calculations.base import CalculationModule, D, P
 from .mpl_lock import MPL_LOCK
 from .names import PLOTS_DIR, export_prefix, join_stem
@@ -88,7 +89,7 @@ def plan_export(session: PlotSession, root: Path | None = None) -> ExportPlan:
             [],
             [],
             None,
-            "Selecione ao menos um formato de exportação.",
+            _("Selecione ao menos um formato de exportação."),
             table,
         )
     existing = existing_targets(session.folder, stem, formats, table)

@@ -26,6 +26,7 @@ from pydantic import (
     model_validator,
 )
 
+from ..i18n import _
 from .fontscale import MAX_SCALE, MIN_SCALE
 
 ENV_CONFIG = "QE_STUDIO_CONFIG"
@@ -34,7 +35,7 @@ CONFIG_NAME = "config.yaml"
 
 def _check_color(value: str) -> str:
     if not is_color_like(value):
-        raise ValueError(f"cor inválida: {value!r}")
+        raise ValueError(_("cor inválida: {value!r}").format(value=value))
     return value
 
 
@@ -153,7 +154,7 @@ class ExportConfig(_Section):
     @classmethod
     def _unique(cls, value: list[str]) -> list[str]:
         if not value:
-            raise ValueError("informe ao menos um formato")
+            raise ValueError(_("informe ao menos um formato"))
         return list(dict.fromkeys(value))
 
 
@@ -181,7 +182,7 @@ class PlotConfig(_Section):
     @classmethod
     def _positive_size(cls, value: tuple[float, float]) -> tuple[float, float]:
         if min(value) <= 0 or max(value) > 50:
-            raise ValueError("largura e altura devem estar entre 0 e 50 polegadas")
+            raise ValueError(_("largura e altura devem estar entre 0 e 50 polegadas"))
         return value
 
     @field_validator("orbital_colors")
@@ -194,18 +195,21 @@ class PlotConfig(_Section):
     def _fill_atoms(cls, value: dict[str, str]) -> dict[str, str]:
         for label in value:
             if not label or label != label.strip() or any(c.isspace() for c in label):
-                raise ValueError(f"rótulo de elemento inválido: {label!r}")
+                raise ValueError(_("rótulo de elemento inválido: {label!r}").format(label=label))
         return {**DEFAULT_ATOMOS_COLORS, **value}
 
     @model_validator(mode="after")
     def _energy_window(self) -> PlotConfig:
         if self.energy_min >= self.energy_max:
-            raise ValueError("energy_min deve ser menor que energy_max")
+            raise ValueError(_("energy_min deve ser menor que energy_max"))
         return self
 
 
 class UiConfig(_Section):
     theme: Literal["dark", "light", "system"] = "dark"  # system: follow the OS color scheme
+    # The language of the texts; applied at startup (a reload tells to restart). "auto" follows the
+    # system: Portuguese for pt*, English for anything else (spec end R2).
+    language: Literal["auto", "pt_BR", "en"] = "auto"
     # Scales every font and the heights that hold text; paddings and icons stay (spec 19 R2).
     font_scale: float = Field(default=1.0, ge=MIN_SCALE, le=MAX_SCALE)
     hidden_dirs: list[str] = Field(default_factory=lambda: ["tmp", "*.save"])
@@ -256,7 +260,9 @@ class ConfigError(Exception):
         self.path = path
         self.problems = problems
         where = f" ({path})" if path else ""
-        super().__init__(f"Configuração inválida{where}:\n" + "\n".join(problems))
+        super().__init__(
+            _("Configuração inválida{where}:\n").format(where=where) + "\n".join(problems)
+        )
 
 
 @dataclass
@@ -288,7 +294,9 @@ def find_config(
         if explicit:
             path = Path(explicit).expanduser()
             if not path.is_file():
-                raise ConfigError(path, [f"arquivo indicado por {origin} não encontrado"])
+                raise ConfigError(
+                    path, [_("arquivo indicado por {origin} não encontrado").format(origin=origin)]
+                )
             return path
     for candidate in ((cwd or Path.cwd()) / CONFIG_NAME, user_config_path()):
         if candidate.is_file():
@@ -302,7 +310,7 @@ def _format_validation(exc: ValidationError) -> list[str]:
         loc = ".".join(str(part) for part in err["loc"]) or "(raiz)"
         msg = err["msg"].removeprefix("Value error, ")
         if err["type"] == "extra_forbidden":
-            msg = "chave desconhecida"
+            msg = _("chave desconhecida")
         problems.append(f"• {loc}: {msg}")
     return problems
 
@@ -332,7 +340,11 @@ def _drop_removed_keys(data: dict, warnings: list[str]) -> dict:
             if keys[-1] in parents[-1]:
                 data = _without(data, keys)
                 name = ".".join(keys)
-                warnings.append(f"{name} foi removido e é ignorado: apague a linha do config.yaml.")
+                warnings.append(
+                    _("{name} foi removido e é ignorado: apague a linha do config.yaml.").format(
+                        name=name
+                    )
+                )
     return data
 
 
@@ -350,7 +362,7 @@ def parse_config(
     if data is None:
         data = {}
     if not isinstance(data, dict):
-        raise ConfigError(path, ["o arquivo deve conter um mapeamento YAML (chave: valor)"])
+        raise ConfigError(path, [_("o arquivo deve conter um mapeamento YAML (chave: valor)")])
     data = _drop_removed_keys(data, [] if warnings is None else warnings)
     try:
         return AppConfig.model_validate(data)
@@ -361,23 +373,28 @@ def parse_config(
 def _warnings(config: AppConfig) -> list[str]:
     warnings = []
     if not config.paths.local_root.is_dir():
-        warnings.append(f"Pasta local não encontrada: {config.paths.local_root}")
+        warnings.append(
+            _("Pasta local não encontrada: {local_root}").format(local_root=config.paths.local_root)
+        )
     cluster = config.cluster
     if cluster.password is not None:
         warnings.append(
-            "Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave."
+            _("Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave.")
         )
     if config.sync_enabled:
         if cluster.auth == "key" and cluster.key_path and not cluster.key_path.is_file():
-            warnings.append(f"Chave SSH não encontrada: {cluster.key_path}")
+            warnings.append(
+                _("Chave SSH não encontrada: {key_path}").format(key_path=cluster.key_path)
+            )
         if cluster.auth == "password" and cluster.resolve_password() is None:
             warnings.append(
-                f"auth: password, mas a variável {cluster.password_env or '(password_env)'} "
-                "não está definida."
+                _("auth: password, mas a variável {value} não está definida.").format(
+                    value=cluster.password_env or "(password_env)"
+                )
             )
     else:
         warnings.append(
-            "Cluster não configurado (host/user/remote_root): sincronização desativada."
+            _("Cluster não configurado (host/user/remote_root): sincronização desativada.")
         )
     return warnings
 
@@ -393,15 +410,17 @@ def load_config(
         return LoadedConfig(
             config,
             None,
-            ["config.yaml não encontrado; usando valores padrão.", *_warnings(config)],
+            [_("config.yaml não encontrado; usando valores padrão."), *_warnings(config)],
             first_run=True,
         )
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise ConfigError(path, [f"não foi possível ler o arquivo: {exc}"]) from exc
+        raise ConfigError(
+            path, [_("não foi possível ler o arquivo: {exc}").format(exc=exc)]
+        ) from exc
     except yaml.YAMLError as exc:
-        raise ConfigError(path, [f"YAML inválido: {exc}"]) from exc
+        raise ConfigError(path, [_("YAML inválido: {exc}").format(exc=exc)]) from exc
     removed: list[str] = []
     config = parse_config(data, path, removed)
     return LoadedConfig(config, path, [*removed, *_warnings(config)])

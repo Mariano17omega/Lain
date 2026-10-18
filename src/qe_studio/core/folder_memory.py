@@ -16,6 +16,7 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
+from ..i18n import _
 from .appdirs import atomic_write_text, set_aside_corrupt
 from .project_data import FOLDERS_FILE, StoreFile
 
@@ -158,7 +159,7 @@ class FolderMemory:
         except (OSError, ValueError) as exc:
             data = self._set_aside(exc)
         if not isinstance(data, dict):
-            data = self._set_aside("o conteúdo não é um objeto JSON")
+            data = self._set_aside(_("o conteúdo não é um objeto JSON"))
         migrated = False
         if "version" not in data:  # version 1: absolute folder paths as keys
             folders = self._migrate(data)
@@ -166,7 +167,9 @@ class FolderMemory:
         elif data.get("version") == FORMAT_VERSION and isinstance(data.get("folders"), dict):
             folders = data["folders"]
         else:
-            self._set_aside(f"versão de formato desconhecida: {data.get('version')!r}")
+            self._set_aside(
+                _("versão de formato desconhecida: {data!r}").format(data=data.get("version"))
+            )
             folders = {}
         self._folders = folders
         rehomed = self._rehome()
@@ -189,7 +192,7 @@ class FolderMemory:
             if isinstance(entry, dict):
                 folder = Path(key)
                 folders.setdefault(self._key(folder), self._normalized(folder, entry))
-        log.info("folders.json: %d pastas migradas para chaves relativas", len(folders))
+        log.info("folders.json: %d folders migrated to relative keys", len(folders))
         return folders
 
     def _rehome(self) -> bool:
@@ -213,12 +216,13 @@ class FolderMemory:
             copy = set_aside_corrupt(self.path)
         except OSError as exc:
             self._read_only = True
-            self._warning = (
-                f"{self.path.name} ilegível e não pôde ser copiado ({exc.strerror or exc}): "
-                "mapeamentos e rótulos desta sessão não serão salvos"
-            )
+            self._warning = _(
+                "{name} ilegível e não pôde ser copiado ({value}): mapeamentos e rótulos desta sessão não serão salvos"
+            ).format(name=self.path.name, value=exc.strerror or exc)
         else:
-            self._warning = f"{self.path.name} estava corrompido; cópia salva em {copy}"
+            self._warning = _("{name} estava corrompido; cópia salva em {copy}").format(
+                name=self.path.name, copy=copy
+            )
         log.warning("%s (%s)", self._warning, problem)
         return {"version": FORMAT_VERSION, "folders": {}}
 

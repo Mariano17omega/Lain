@@ -53,6 +53,7 @@ cover/
 
 # Translations
 *.mo
+!src/qe_studio/locale/**/*.mo
 *.pot
 
 # Django stuff:

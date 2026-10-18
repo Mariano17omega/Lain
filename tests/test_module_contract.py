@@ -22,6 +22,7 @@ from qe_studio.core.calculations.params import (
     CommonParams,
     ParamField,
     RenderInfo,
+    SectionDef,
     apply_common_config,
     ordered_sections,
 )
@@ -67,7 +68,7 @@ class DummyModule(CalculationModule[DummyData, DummyParams]):
     display_name = "Cálculo de teste"
     plottable = True
     view_fields = ("ymin", "ymax")
-    sections = (("Teste", None),)
+    sections = ((SectionDef("test", "Teste"), None),)
     roles = (
         FileRole(
             "data",
@@ -92,10 +93,10 @@ class DummyModule(CalculationModule[DummyData, DummyParams]):
 
     def param_schema(self, dataset: DummyData) -> list[ParamField]:
         return [
-            ParamField("color", "Cor", "Teste", "color"),
-            ParamField("ymin", "y mín", "Teste", "float", optional=True, minimum=-1e6),
-            ParamField("ymax", "y máx", "Teste", "float", optional=True, minimum=-1e6),
-            ParamField("pick", "Pontos", "Teste", "atoms"),
+            ParamField("color", "Cor", "test", "color"),
+            ParamField("ymin", "y mín", "test", "float", optional=True, minimum=-1e6),
+            ParamField("ymax", "y máx", "test", "float", optional=True, minimum=-1e6),
+            ParamField("pick", "Pontos", "test", "atoms"),
             *COMMON_FIELDS,
         ]
 
@@ -173,8 +174,8 @@ def test_dummy_flows_through_the_window(qtbot, main_window, dummy_folder):
 
     view = window.current_plot()
     assert isinstance(view, PlotView) and view.session.module is DUMMY
-    titles = [s.title for s in window.params.body.findChildren(Section)]
-    assert titles == ["Arquivos", "Estilo", "Legenda", "Figura", "Teste", "Exportar"]
+    titles = [s.id for s in window.params.body.findChildren(Section)]
+    assert titles == ["files", "style", "legend", "figure", "test", "export"]
 
     with qtbot.waitSignal(window.params.changed):
         window.params.set_param("color", "#00ff00")
@@ -221,31 +222,34 @@ def test_every_schema_field_belongs_to_a_section(demo_project, folder, kind):
     results = detect_folder(demo_project / folder, sniff=SniffCache().sniff)
     result = next(r for r in results if r.kind == kind)
     module = result.module
-    sections = {s.name for s in ordered_sections(module)}
+    sections = {s.id for s in ordered_sections(module)}
     schema = module.param_schema(module.load(result, sniff))
     assert {f.section for f in schema} <= sections
     assert all(f.kind != "series" or f.colors for f in schema)
 
 
 def test_sections_are_ordered_from_the_module_declarations():
-    names = [s.name for s in ordered_sections(DUMMY)]
-    assert names == ["Energia", "Eixo X", "Estilo", "Legenda", "Figura", "Teste", "Exportar"]
-    pdos = [s.name for s in ordered_sections(next(m for m in REGISTRY if m.kind == "pdos"))]
-    assert pdos.index("Projeções") == pdos.index("Legenda") - 1
+    names = [s.id for s in ordered_sections(DUMMY)]
+    assert names == ["energy", "x_axis", "style", "legend", "figure", "test", "export"]
+    pdos = [s.id for s in ordered_sections(next(m for m in REGISTRY if m.kind == "pdos"))]
+    assert pdos.index("projections") == pdos.index("legend") - 1
 
     class Unknown(DummyModule):
-        sections = (("Antes", "Figura"), ("Perdida", "não existe"))
+        sections = (
+            (SectionDef("before", "Antes"), "figure"),
+            (SectionDef("lost", "Perdida"), "does_not_exist"),
+        )
 
     # an unknown anchor puts the section just before the export one, which stays last
-    assert [s.name for s in ordered_sections(Unknown())] == [
-        "Energia",
-        "Eixo X",
-        "Estilo",
-        "Legenda",
-        "Antes",
-        "Figura",
-        "Perdida",
-        "Exportar",
+    assert [s.id for s in ordered_sections(Unknown())] == [
+        "energy",
+        "x_axis",
+        "style",
+        "legend",
+        "before",
+        "figure",
+        "lost",
+        "export",
     ]
 
 
@@ -260,12 +264,12 @@ def test_a_module_plots_its_folder_unless_it_says_otherwise(dummy_folder):
 
 
 def test_the_legend_shift_comes_with_the_common_fields(dummy_folder):
-    """Spec 36: a module that spreads ``COMMON_FIELDS`` gets ``dx`` / ``dy`` in "Legenda"."""
+    """Spec 36: a module that spreads ``COMMON_FIELDS`` gets ``dx`` / ``dy`` in "legend"."""
     dataset = DUMMY.load(detect_dummy(dummy_folder), sniff)
     schema = {f.name: f for f in DUMMY.param_schema(dataset)}
     assert [(schema[n].section, schema[n].label) for n in ("legend_dx", "legend_dy")] == [
-        ("Legenda", "dx"),
-        ("Legenda", "dy"),
+        ("legend", "dx"),
+        ("legend", "dy"),
     ]
     params = DummyParams()
     assert (params.legend_dx, params.legend_dy) == (0.0, 0.0)

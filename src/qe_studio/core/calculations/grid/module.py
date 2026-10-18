@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from matplotlib.figure import Figure, FigureBase
 
+from ....i18n import _
+
 # The module, not its names: plot_file imports calculations (circular at import time).
 from ...plotting import plot_file
 from ...plotting.style import PlotStyle
@@ -27,7 +29,7 @@ class GridModule(CalculationModule[GridDataset, GridParams]):
     kind: ClassVar[str] = "grid"
     badge: ClassVar[str] = "GRID"
     display_name: ClassVar[str] = "Grid"
-    description: ClassVar[str] = "Grade de gráficos já plotados numa só figura"
+    description: ClassVar[str] = _("Grade de gráficos já plotados numa só figura")
     plottable: ClassVar[bool] = True
     selectable: ClassVar[bool] = False  # made from plots, not mapped from files
     plot_file: ClassVar[bool] = False  # its settings live with its definition (grids.json)

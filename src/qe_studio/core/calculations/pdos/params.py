@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from ....i18n import _
 from ...config import DEFAULT_ATOMOS_COLORS, DEFAULT_ORBITAL_COLORS
 from ..params import (
     COMMON_FIELDS,
@@ -20,17 +21,17 @@ if TYPE_CHECKING:
     from .data import PdosDataset
 
 GROUPINGS = (
-    ("species_orbital", "Espécie + orbital"),
-    ("species", "Espécie"),
-    ("orbital", "Orbital"),
+    ("species_orbital", _("Espécie + orbital")),
+    ("species", _("Espécie")),
+    ("orbital", _("Orbital")),
 )
-ORIENTATIONS = (("horizontal", "Energia no eixo x"), ("vertical", "Energia no eixo y"))
+ORIENTATIONS = (("horizontal", _("Energia no eixo x")), ("vertical", _("Energia no eixo y")))
 SPIN_MODES = (
-    ("mirror", "Espelhado (↓ negativo)"),
-    ("overlay", "Sobreposto"),
-    ("up", "Só ↑"),
-    ("down", "Só ↓"),
-    ("sum", "Soma (↑ + ↓)"),
+    ("mirror", _("Espelhado (↓ negativo)")),
+    ("overlay", _("Sobreposto")),
+    ("up", _("Só ↑")),
+    ("down", _("Só ↓")),
+    ("sum", _("Soma (↑ + ↓)")),
 )
 
 
@@ -85,23 +86,23 @@ def default_params(config: AppConfig, dataset: PdosDataset) -> PdosParams:
 
 
 def param_schema(dataset: PdosDataset) -> list[ParamField]:
-    sources = [("scf", "SCF")] if dataset.fermi_scf is not None else []
+    sources = [("scf", _("SCF"))] if dataset.fermi_scf is not None else []
     if dataset.fermi_nscf is not None:
         sources.append(("nscf", "NSCF"))
     return [
         ParamField(
             "fermi_source",
-            "E_F de",
-            "Energia",
+            _("E_F de"),
+            "energy",
             "choice",
             choices=tuple(sources),
             refreshes=True,
         ),
-        ParamField("shift_to_fermi", "Referenciar a E_F", "Energia", "bool", refreshes=True),
+        ParamField("shift_to_fermi", _("Referenciar a E_F"), "energy", "bool", refreshes=True),
         ParamField(
             "emin",
-            "E mín",
-            "Energia",
+            _("E mín"),
+            "energy",
             "float",
             minimum=-1e4,
             maximum=1e4,
@@ -111,8 +112,8 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
         ),
         ParamField(
             "emax",
-            "E máx",
-            "Energia",
+            _("E máx"),
+            "energy",
             "float",
             minimum=-1e4,
             maximum=1e4,
@@ -120,12 +121,12 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
             decimals=3,
             suffix="eV",
         ),
-        ParamField("show_fermi_line", "Linha de Fermi", "Energia", "bool"),
-        ParamField("orientation", "Orientação", "Eixo X", "choice", choices=ORIENTATIONS),
+        ParamField("show_fermi_line", _("Linha de Fermi"), "energy", "bool"),
+        ParamField("orientation", _("Orientação"), "x_axis", "choice", choices=ORIENTATIONS),
         ParamField(
             "dos_max",
-            "DOS máx",
-            "Eixo X",
+            _("DOS máx"),
+            "x_axis",
             "float",
             minimum=0,
             maximum=1e6,
@@ -136,22 +137,22 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
         ),
         ParamField(
             "grouping",
-            "Agrupar por",
-            "Projeções",
+            _("Agrupar por"),
+            "projections",
             "choice",
             choices=GROUPINGS,
             refreshes=True,
         ),
-        ParamField("show_total", "DOS total", "Projeções", "bool"),
-        ParamField("fill_occupied", "Preencher estados ocupados", "Projeções", "bool"),
-        ParamField("atoms", "Átomos", "Projeções", "atoms"),
+        ParamField("show_total", _("DOS total"), "projections", "bool"),
+        ParamField("fill_occupied", _("Preencher estados ocupados"), "projections", "bool"),
+        ParamField("atoms", _("Átomos"), "projections", "atoms"),
         *(
-            [ParamField("spin_mode", "Spin", "Projeções", "choice", choices=SPIN_MODES)]
+            [ParamField("spin_mode", _("Spin"), "projections", "choice", choices=SPIN_MODES)]
             if dataset.data.spin_polarized
             else []
         ),
-        ParamField("hidden_series", "Séries", "Projeções", "series", colors="series_colors"),
-        ParamField("fermi_color", "Fermi", "Estilo", "color"),
+        ParamField("hidden_series", _("Séries"), "projections", "series", colors="series_colors"),
+        ParamField("fermi_color", _("Fermi"), "style", "color"),
         *COMMON_FIELDS,
         LEGEND_GAP_FIELD,
         GAP_METHOD_FIELD,

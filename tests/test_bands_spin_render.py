@@ -174,12 +174,12 @@ def test_fermi_line_can_be_hidden(spin):
 def test_spin_fields_appear_only_with_two_channels(spin):
     module, dataset, _ = spin
     fields = {f.name: f for f in module.param_schema(dataset)}
-    assert all(fields[name].section == "Spin" for name in SPIN_FIELDS)
+    assert all(fields[name].section == "spin" for name in SPIN_FIELDS)
     assert [c[0] for c in fields["spin_channels"].choices] == ["both", "up", "down"]
     assert [c[0] for c in fields["spin_layout"].choices] == ["overlay", "side"]
     assert [c[0] for c in fields["spin_coloring"].choices] == ["channel", "occupation"]
-    sections = [s.name for s in ordered_sections(module)]
-    assert sections.index("Spin") == sections.index("Estilo") - 1
+    sections = [s.id for s in ordered_sections(module)]
+    assert sections.index("spin") == sections.index("style") - 1
 
     plain_module, plain, _ = load(FIXTURES / "al_bands")
     assert not set(SPIN_FIELDS) & {f.name for f in plain_module.param_schema(plain)}

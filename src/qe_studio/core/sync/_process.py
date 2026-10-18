@@ -15,6 +15,7 @@ from typing import Any, ClassVar
 
 from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, QTimer, pyqtSignal
 
+from ...i18n import _, ngettext
 from ..config import AppConfig
 from ..tasks import TaskHandle, run_task
 from .report import SyncReport, SyncStatus
@@ -22,6 +23,7 @@ from .rsync import (
     Endpoint,
     child_env,
     explain_failure,
+    is_auth_failure,
     is_connection_failure,
     parse_progress,
     parse_version,
@@ -31,7 +33,7 @@ from .rsync import (
 log = logging.getLogger(__name__)
 
 KILL_GRACE_MS = 3000
-RSYNC_MISSING = "rsync não encontrado (sync.rsync_binary)."
+RSYNC_MISSING = _("rsync não encontrado (sync.rsync_binary).")
 
 
 class RsyncRun(QObject):
@@ -41,9 +43,8 @@ class RsyncRun(QObject):
     transfer_started = pyqtSignal(int)  # files to transfer, before its stage and progress
     finished = pyqtSignal(object)  # SyncReport (or a subclass)
 
-    LISTING: ClassVar[str] = "Listando arquivos no cluster…"
-    PLANNING: ClassVar[str] = "Comparando datas de modificação…"
-    SENDING: ClassVar[str] = "Transferindo {count} arquivo(s)…"
+    LISTING: ClassVar[str] = _("Listando arquivos no cluster…")
+    PLANNING: ClassVar[str] = _("Comparando datas de modificação…")
 
     def __init__(
         self,
@@ -75,7 +76,7 @@ class RsyncRun(QObject):
     # -- public API -------------------------------------------------------------------------------
     def start(self, local_dir: Path, remote: Endpoint) -> None:
         if self._running:
-            raise RuntimeError("sincronização já em andamento")
+            raise RuntimeError(_("sincronização já em andamento"))
         self._running = True
         self._cancelled = False
         self._local_dir = Path(local_dir)
@@ -106,7 +107,7 @@ class RsyncRun(QObject):
             self._plan_task.cancel()
         process = self._process
         if process is not None and process.state() != QProcess.ProcessState.NotRunning:
-            self.stage_changed.emit("Cancelando…")
+            self.stage_changed.emit(_("Cancelando…"))
             process.terminate()
             QTimer.singleShot(KILL_GRACE_MS, self._kill_if_running)
         else:
@@ -145,7 +146,9 @@ class RsyncRun(QObject):
     def _discard_partial(self) -> None:
         """A transfer failed or was cancelled: clean what it may have left behind."""
 
-    def _report(self, status: SyncStatus, error: str | None, connection_failed: bool) -> SyncReport:
+    def _report(
+        self, status: SyncStatus, error: str | None, connection_failed: bool, auth_failed: bool
+    ) -> SyncReport:
         raise NotImplementedError
 
     # -- stages -----------------------------------------------------------------------------------
@@ -160,7 +163,10 @@ class RsyncRun(QObject):
     def _unexpected(self, exc: BaseException) -> None:
         log.error("sync stage failed", exc_info=exc)
         self._kill_if_running()
-        self._finish(SyncStatus.FAILED, error=f"erro inesperado ({type(exc).__name__}: {exc})")
+        self._finish(
+            SyncStatus.FAILED,
+            error=_("erro inesperado ({name}: {exc})").format(name=type(exc).__name__, exc=exc),
+        )
 
     def _check_version(self) -> None:
         argv = version_command(self.config.sync.rsync_binary)
@@ -202,15 +208,27 @@ class RsyncRun(QObject):
 
     def _ask_plan(self, plan: Any) -> None:
         self._awaiting_plan = True
-        self.stage_changed.emit("Aguardando confirmação…")
+        self.stage_changed.emit(_("Aguardando confirmação…"))
         self.plan_ready.emit(plan)
+
+    @staticmethod
+    def _files_done(done: int, total: int) -> str:
+        return ngettext("{done}/{total} arquivo", "{done}/{total} arquivos", total).format(
+            done=done, total=total
+        )
+
+    @staticmethod
+    def _sending(count: int) -> str:
+        return ngettext(
+            "Transferindo {count} arquivo…", "Transferindo {count} arquivos…", count
+        ).format(count=count)
 
     def _send(self, files: list[str], argv: list[str]) -> None:
         """Transfer ``files`` (relative to the synced folder, on rsync's stdin) with ``argv``."""
         self._transfer = files
         self.transfer_started.emit(len(files))
-        self.stage_changed.emit(self.SENDING.format(count=len(files)))
-        self.progress_changed.emit(0, f"0/{len(files)} arquivos")
+        self.stage_changed.emit(self._sending(len(files)))
+        self.progress_changed.emit(0, self._files_done(0, len(files)))
         stdin = ("\0".join(files) + "\0").encode("utf-8")
         self._launch(argv, self._on_transfer_finished, stdin=stdin, progress=True)
 
@@ -222,7 +240,9 @@ class RsyncRun(QObject):
             self._discard_partial()
             self._fail(code)
         else:
-            self.progress_changed.emit(100, f"{len(self._transfer)}/{len(self._transfer)} arquivos")
+            self.progress_changed.emit(
+                100, self._files_done(len(self._transfer), len(self._transfer))
+            )
             self._finish(SyncStatus.DONE)
 
     # -- helpers ----------------------------------------------------------------------------------
@@ -264,7 +284,8 @@ class RsyncRun(QObject):
                 if self._process is process:
                     self._process = None
                 self._finish(
-                    SyncStatus.FAILED, error=start_error or f"não foi possível executar {argv[0]}"
+                    SyncStatus.FAILED,
+                    error=start_error or _("não foi possível executar {argv}").format(argv=argv[0]),
                 )
 
         process.readyReadStandardOutput.connect(read_stdout)
@@ -284,7 +305,7 @@ class RsyncRun(QObject):
             return
         total = update.files_total or len(self._transfer)
         done = update.files_done if update.files_done is not None else 0
-        self.progress_changed.emit(update.percent, f"{min(done, total)}/{total} arquivos")
+        self.progress_changed.emit(update.percent, self._files_done(min(done, total), total))
 
     def _kill_if_running(self) -> None:
         process = self._process
@@ -293,13 +314,18 @@ class RsyncRun(QObject):
 
     def _fail(self, code: int) -> None:
         connection = is_connection_failure(code, self._stderr)
-        self._finish(SyncStatus.FAILED, explain_failure(code, self._stderr), connection)
+        auth = is_auth_failure(self._stderr)
+        self._finish(SyncStatus.FAILED, explain_failure(code, self._stderr), connection, auth)
 
     def _finish(
-        self, status: SyncStatus, error: str | None = None, connection_failed: bool = False
+        self,
+        status: SyncStatus,
+        error: str | None = None,
+        connection_failed: bool = False,
+        auth_failed: bool = False,
     ) -> None:
         if not self._running:
             return
         self._running = False
         self._awaiting_plan = False
-        self.finished.emit(self._report(status, error, connection_failed))
+        self.finished.emit(self._report(status, error, connection_failed, auth_failed))

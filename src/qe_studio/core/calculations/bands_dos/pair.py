@@ -10,13 +10,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from ....i18n import _
 from ..bands import BandsModule
 from ..base import CalculationModule, DetectionResult
 from ..pdos import PdosModule
 
 # Prefix of each part's roles in the combined result (``bands.gnu``, ``dos.pdos_atm``) and the label
 # its files and warnings carry, in the order of ``DetectionResult.parts``.
-PARTS = (("bands", "Bandas"), ("dos", "DOS"))
+PARTS = (("bands", _("Bandas")), ("dos", _("DOS")))
 
 Results = Sequence[DetectionResult] | None
 

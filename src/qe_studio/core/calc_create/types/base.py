@@ -16,6 +16,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
+from ....i18n import _
 from ...config import JobsConfig
 from ...qe.input_edit import InputEditor
 from ...qe.pw_input import fortran_float
@@ -175,12 +176,14 @@ def _resolve_one(form_field: FormField, value: Any) -> tuple[Any, str | None]:
         try:
             value = _coerce(form_field, value)
         except (TypeError, ValueError):
-            problem = f"Valor inválido em {form_field.label}: {value}"
+            problem = _("Valor inválido em {label}: {value}").format(
+                label=form_field.label, value=value
+            )
             value = None
     if is_empty(value):
         value = None
         if form_field.required and problem is None:
-            problem = f"Preencha {form_field.label}"
+            problem = _("Preencha {label}").format(label=form_field.label)
     return value, problem
 
 
@@ -269,7 +272,7 @@ class CalcType:
     script_template: ClassVar[str]  # under templates/
     input_templates: ClassVar[tuple[str, ...]] = ()  # the other templates it renders
     uses_name: ClassVar[bool] = False  # a standard file name takes the folder's name (spec 29)
-    scf_label: ClassVar[str] = "Input de SCF"  # what step 1 calls the SCF (spec 40 R1.4)
+    scf_label: ClassVar[str] = _("Input de SCF")  # what step 1 calls the SCF (spec 40 R1.4)
     writes_report: ClassVar[bool] = False  # ``geracao.md`` after the inputs (spec 40 R1.5)
 
     @property

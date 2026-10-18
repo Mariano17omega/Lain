@@ -224,17 +224,17 @@ def test_defaults_and_title():
 def test_every_field_has_a_section_of_this_figure(bands, dos):
     module, dataset, params = combined(bands, dos)
     schema = module.param_schema(dataset)
-    sections = [s.name for s in ordered_sections(module)]
+    sections = [s.id for s in ordered_sections(module)]
     assert {f.section for f in schema} <= set(sections)
     names = [f.name for f in schema]
     assert len(names) == len(set(names))
     assert all(hasattr(params, name) for name in names)
     assert not {"spin_layout", "orientation", "fermi_source", "shift_to_fermi"} & set(names)
     by_name = {f.name: f.section for f in schema}
-    assert by_name["emin"] == "Energia" and by_name["labels"] == "Bandas ▸ Eixo k"
-    assert by_name["atoms"] == by_name["hidden_series"] == "DOS ▸ Projeções"
-    assert by_name["dos_width_ratio"] == by_name["dos_max"] == "DOS ▸ Eixo"
-    assert sections.index("DOS ▸ Projeções") < sections.index("Estilo")
+    assert by_name["emin"] == "energy" and by_name["labels"] == "bands_axis"
+    assert by_name["atoms"] == by_name["hidden_series"] == "dos_projections"
+    assert by_name["dos_width_ratio"] == by_name["dos_max"] == "dos_axis"
+    assert sections.index("dos_projections") < sections.index("style")
     spin = dataset.bands.spin
     assert ("spin_channels" in by_name) == spin and ("spin_mode" in by_name) == spin
 

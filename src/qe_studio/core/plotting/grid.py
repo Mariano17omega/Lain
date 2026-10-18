@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ...i18n import _
+
 MAX_SIZE = 6  # rows and columns: the figure size and the memory stay reasonable
 
 
@@ -46,25 +48,31 @@ class GridSpec:
         errors = []
         name = self.name.strip()
         if not name:
-            errors.append("Dê um nome à grade.")
+            errors.append(_("Dê um nome à grade."))
         elif "/" in name:
-            errors.append("O nome não pode conter “/”.")
+            errors.append(_("O nome não pode conter “/”."))
         sized = 1 <= self.rows <= MAX_SIZE and 1 <= self.cols <= MAX_SIZE
         if not sized:
-            errors.append(f"Linhas e colunas vão de 1 a {MAX_SIZE}.")
+            errors.append(_("Linhas e colunas vão de 1 a {MAX_SIZE}.").format(MAX_SIZE=MAX_SIZE))
         if not self.cells:
-            errors.append("Adicione ao menos uma célula.")
+            errors.append(_("Adicione ao menos uma célula."))
         taken: dict[tuple[int, int], int] = {}
         for number, cell in enumerate(self.cells, 1):
             where = f"({cell.row + 1}, {cell.col + 1})"
             if cell.ref is None:
-                errors.append(f"Célula {number}: escolha um gráfico.")
+                errors.append(_("Célula {number}: escolha um gráfico.").format(number=number))
             if not (0 <= cell.row < self.rows and 0 <= cell.col < self.cols):
                 if not sized:
                     continue  # the size is the problem: said once, above
                 errors.append(
-                    f"Célula {number}: posição {where} fora da grade {self.rows} × {self.cols}."
+                    _("Célula {number}: posição {where} fora da grade {rows} × {cols}.").format(
+                        number=number, where=where, rows=self.rows, cols=self.cols
+                    )
                 )
             elif (first := taken.setdefault((cell.row, cell.col), number)) != number:
-                errors.append(f"Células {first} e {number} estão na mesma posição {where}.")
+                errors.append(
+                    _("Células {first} e {number} estão na mesma posição {where}.").format(
+                        first=first, number=number, where=where
+                    )
+                )
         return errors

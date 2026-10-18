@@ -17,6 +17,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 
+from ...i18n import _
 from ..tasks import run_task
 from ._process import RsyncRun
 from .planner import (
@@ -43,7 +44,7 @@ def _pull_plan(stdout: str, local_dir: Path) -> SyncPlan:
 class SyncController(RsyncRun):
     conflict_needed = pyqtSignal(object)  # PlanItem
 
-    CHECKING = "Conferindo arquivos locais…"
+    CHECKING = _("Conferindo arquivos locais…")
 
     _plan: SyncPlan
     _resolver: ConflictResolver | None
@@ -99,7 +100,7 @@ class SyncController(RsyncRun):
             return
         item = self._resolver.next_conflict()
         if item is not None:
-            self.stage_changed.emit("Aguardando sua decisão…")
+            self.stage_changed.emit(_("Aguardando sua decisão…"))
             self.conflict_needed.emit(item)
             return
         self._step(self._recheck)
@@ -158,7 +159,9 @@ class SyncController(RsyncRun):
                 except OSError:
                     continue
 
-    def _report(self, status: SyncStatus, error: str | None, connection_failed: bool) -> SyncReport:
+    def _report(
+        self, status: SyncStatus, error: str | None, connection_failed: bool, auth_failed: bool
+    ) -> SyncReport:
         resolver = self._resolver
         return SyncReport(
             status,
@@ -171,6 +174,7 @@ class SyncController(RsyncRun):
             changed_locally=tuple(self._changed),
             error=error,
             connection_failed=connection_failed,
+            auth_failed=auth_failed,
         )
 
 

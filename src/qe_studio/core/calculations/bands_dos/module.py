@@ -12,11 +12,12 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from matplotlib.figure import FigureBase
 
+from ....i18n import _
 from ...compounds import AtomChoices
 from ...plotting.style import PlotStyle
 from ..bands import BandsModule
 from ..base import AxesLimits, CalculationModule, DetectionResult, FileRole, SniffFn, Stores
-from ..params import ParamField, RenderInfo
+from ..params import ParamField, RenderInfo, SectionDef
 from ..pdos import PdosModule
 from ..pdos import atoms as pdos_atoms
 from ..pdos import render as pdos_render
@@ -42,15 +43,15 @@ def _prefixed(roles: tuple[FileRole, ...], prefix: str, label: str) -> tuple[Fil
 class BandsDosModule(CalculationModule[BandsDosDataset, BandsDosParams]):
     kind: ClassVar[str] = "bands_dos"
     badge: ClassVar[str] = "BANDS+DOS"
-    display_name: ClassVar[str] = "Bandas + DOS"
-    description: ClassVar[str] = (
+    display_name: ClassVar[str] = _("Bandas + DOS")
+    description: ClassVar[str] = _(
         "Estrutura de bandas e PDOS de duas pastas, com o mesmo eixo de energia"
     )
     plottable: ClassVar[bool] = True
     has_table: ClassVar[bool] = True
     selectable: ClassVar[bool] = False  # made from two folders, not mapped from one
     view_fields: ClassVar[tuple[str, ...]] = ("emin", "emax", "xmin", "xmax", "dos_max")
-    sections: ClassVar[tuple[tuple[str, str | None], ...]] = params_mod.SECTIONS
+    sections: ClassVar[tuple[tuple[SectionDef, str | None], ...]] = params_mod.SECTIONS
     roles: ClassVar[tuple[FileRole, ...]] = _prefixed(BandsModule.roles, *PARTS[0]) + _prefixed(
         PdosModule.roles, *PARTS[1]
     )

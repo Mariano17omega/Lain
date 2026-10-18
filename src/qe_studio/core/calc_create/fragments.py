@@ -15,6 +15,7 @@ import functools
 from collections.abc import Collection
 from dataclasses import dataclass
 
+from ...i18n import _
 from ..qe.input_edit import InputEditor
 from ..qe.pw_input import fortran_float
 from .edits import put_number
@@ -34,10 +35,10 @@ CLEAN, ISOLATED = "clean", "isolated"
 UNITS = ("alat", "bohr", "angstrom", "crystal")
 PER_ATOM_CARDS = ("ATOMIC_FORCES", "ATOMIC_VELOCITIES")  # a row per atom, in the atoms' order
 WHOLE_SYSTEM_KEYS = ("tot_charge", "tot_magnetization")
-NOTHING_SELECTED = "Selecione os átomos do fragmento isolado"
-EVERYTHING_SELECTED = "Deixe ao menos um átomo fora da seleção: o SCF clean ficaria vazio"
-CONSTRAINTS = "Restrições (CONSTRAINTS) não são suportadas na diferença de carga"
-CRYSTAL_SG = "Posições em crystal_sg não são suportadas"
+NOTHING_SELECTED = _("Selecione os átomos do fragmento isolado")
+EVERYTHING_SELECTED = _("Deixe ao menos um átomo fora da seleção: o SCF clean ficaria vazio")
+CONSTRAINTS = _("Restrições (CONSTRAINTS) não são suportadas na diferença de carga")
+CRYSTAL_SG = _("Posições em crystal_sg não são suportadas")
 
 
 @dataclass(frozen=True)
@@ -74,20 +75,26 @@ def _int(editor: InputEditor, key: str) -> int | None:
 def _positions(editor: InputEditor) -> tuple[str, list[str], str]:
     """(unit, the first ``nat`` rows as written, the problem or "")."""
     if editor.issues:
-        return "", [], f"Input não pôde ser lido: {editor.issues[0]}"
+        return "", [], _("Input não pôde ser lido: {issues}").format(issues=editor.issues[0])
     card = editor.card("ATOMIC_POSITIONS")
     rows = editor.card_rows("ATOMIC_POSITIONS")
     if card is None or not rows:
-        return "", [], "sem ATOMIC_POSITIONS"
+        return "", [], _("sem ATOMIC_POSITIONS")
     unit = card.option or "alat"
     if unit == "crystal_sg":
         return "", [], CRYSTAL_SG
     if unit not in UNITS:
-        return "", [], f"ATOMIC_POSITIONS {unit} não é suportado"
+        return "", [], _("ATOMIC_POSITIONS {unit} não é suportado").format(unit=unit)
     nat = _int(editor, "nat")
     nat = len(rows) if nat is None else nat
     if nat < 1 or len(rows) < nat:
-        return "", [], f"nat = {nat}, mas ATOMIC_POSITIONS tem {len(rows)} linhas"
+        return (
+            "",
+            [],
+            _("nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas").format(
+                nat=nat, count=len(rows)
+            ),
+        )
     return unit, rows[:nat], ""
 
 
@@ -102,7 +109,9 @@ def atom_rows(text: str) -> AtomRows:
     for index, row in enumerate(rows, 1):
         words = row.split()
         if len(words) < 4:
-            return AtomRows("", (), f"linha de ATOMIC_POSITIONS ilegível: {row.strip()}")
+            return AtomRows(
+                "", (), _("linha de ATOMIC_POSITIONS ilegível: {row}").format(row=row.strip())
+            )
         out.append(AtomRow(index, words[0], words[1], words[2], words[3]))
     return AtomRows(unit, tuple(out))
 
@@ -139,16 +148,20 @@ def _fragment(text: str, keep: list[int], nat: int) -> tuple[InputEditor, list[s
         notes += remap_hubbard(editor, dropped, atoms, nat)
 
     if editor.remove("system", "nbnd"):
-        notes.append("nbnd removido: o pw.x escolhe pelo número de elétrons do fragmento")
+        notes.append(_("nbnd removido: o pw.x escolhe pelo número de elétrons do fragmento"))
     if _int(editor, "nspin") == 2 and not any(
         key.startswith("starting_magnetization(") for key in editor.keys("system")
     ):
         notes.append(
-            "nspin = 2, mas nenhuma espécie deste fragmento tem starting_magnetization: "
-            "o pw.x para (some starting_magnetization MUST be set)"
+            _(
+                "nspin = 2, mas nenhuma espécie deste fragmento tem starting_magnetization: "
+                "o pw.x para (some starting_magnetization MUST be set)"
+            )
         )
     notes += [
-        f"{key} do SCF vale para o sistema inteiro: confira se serve a este fragmento"
+        _("{key} do SCF vale para o sistema inteiro: confira se serve a este fragmento").format(
+            key=key
+        )
         for key in WHOLE_SYSTEM_KEYS
         if editor.get("system", key) is not None
     ]
@@ -160,7 +173,7 @@ def split_input(text: str, selected: Collection[int]) -> Fragments:
     empty or total, ``CONSTRAINTS`` or a structure that cannot be read are errors, and both texts are
     then the original."""
     editor = InputEditor.from_text(text)
-    _, rows, problem = _positions(editor)
+    __, rows, problem = _positions(editor)
     if problem:
         return Fragments(text, text, (), (problem,))
     nat = len(rows)

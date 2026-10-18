@@ -48,17 +48,17 @@ def windows(qtbot, settings):
 
 def test_sections_in_order_without_tabs_or_sliders(windows):
     panel = windows.open(SI_SCF).panel
-    assert list(panel.sections) == ["Átomo", "Medidas", "Exibição", "Rotação", "Espécies", "Célula"]
+    assert list(panel.sections) == ["atom", "measures", "display", "rotation", "species", "cell"]
     headers = [s.header.text() for s in panel.sections.values()]
     assert headers == ["ÁTOMO", "MEDIDAS", "EXIBIÇÃO", "ROTAÇÃO", "ESPÉCIES", "CÉLULA"]
     opened = {title: s.header.isChecked() for title, s in panel.sections.items()}
     assert opened == {
-        "Átomo": True,
-        "Medidas": True,
-        "Exibição": True,
-        "Rotação": True,
-        "Espécies": False,
-        "Célula": False,
+        "atom": True,
+        "measures": True,
+        "display": True,
+        "rotation": True,
+        "species": False,
+        "cell": False,
     }
     assert panel.findChildren(QTabWidget) == [] and panel.findChildren(QSlider) == []
     fields = panel.findChildren(QSpinBox) + panel.findChildren(QDoubleSpinBox)
@@ -142,13 +142,13 @@ def test_cell_section_matches_the_structure(windows):
     window = windows.open(SI_SCF)
     values = {label: v.text() for label, v in window.panel.cell_values.items()}
     a, b, c, alpha, beta, gamma = window.structure.lattice_parameters
-    assert [float(x) for x in values["a, b, c (Å)"].split()] == pytest.approx([a, b, c], abs=1e-5)
-    angles = [float(x) for x in values["α, β, γ (°)"].split()]
+    assert [float(x) for x in values["abc"].split()] == pytest.approx([a, b, c], abs=1e-5)
+    angles = [float(x) for x in values["angles"].split()]
     assert angles == pytest.approx([alpha, beta, gamma], abs=1e-3)
-    assert float(values["Volume (Å³)"]) == pytest.approx(window.structure.volume, abs=1e-4)
-    rows = [[float(x) for x in values[f"a{i} (Å)"].split()] for i in "₁₂₃"]
+    assert float(values["volume"]) == pytest.approx(window.structure.volume, abs=1e-4)
+    rows = [[float(x) for x in values[f"a{i}"].split()] for i in "123"]
     assert np.allclose(rows, window.structure.cell, atol=1e-4)
-    assert (values["ibrav"], values["nat"], values["Fórmula"]) == ("2", "2", "Si2")
+    assert (values["ibrav"], values["nat"], values["formula"]) == ("2", "2", "Si2")
     assert (values["prefix"], values["calculation"]) == ("silicon", "scf")
     assert window.panel.warnings == []
 
@@ -164,13 +164,13 @@ def test_reader_warnings_are_lines_of_the_cell_section(windows):
 
 def test_sections_remember_open_and_closed(windows):
     window = windows.open(SI_SCF)
-    window.panel.sections["Átomo"].header.click()
-    window.panel.sections["Célula"].header.click()
+    window.panel.sections["atom"].header.click()
+    window.panel.sections["cell"].header.click()
     window.close()
     again = windows.open(SI_SCF).panel
-    assert not again.sections["Átomo"].header.isChecked()
-    assert again.sections["Célula"].header.isChecked()
-    assert not again.sections["Átomo"].body.isVisibleTo(again)
+    assert not again.sections["atom"].header.isChecked()
+    assert again.sections["cell"].header.isChecked()
+    assert not again.sections["atom"].body.isVisibleTo(again)
 
 
 def test_bond_factor_follows_the_bonds_box(windows):
@@ -186,7 +186,7 @@ def test_bond_factor_follows_the_bonds_box(windows):
 def test_species_colors_and_restore(windows):
     window = windows.open(SLAB_2X1)
     panel = window.panel
-    names = [panel.sections["Espécies"].grid.itemAt(i).widget() for i in range(len(panel.swatches))]
+    names = [panel.sections["species"].grid.itemAt(i).widget() for i in range(len(panel.swatches))]
     assert names and all(row is not None for row in names)
     original = panel.swatches[0].color
     panel.swatches[0].color_changed.emit("#00ff00")
@@ -233,7 +233,7 @@ DISPLAY_ROWS = [
 
 
 def test_the_display_rows_are_in_order_and_the_check_boxes_are_together(windows):
-    grid = windows.open(SI_SCF).panel.sections["Exibição"].grid
+    grid = windows.open(SI_SCF).panel.sections["display"].grid
     rows = [row for row in range(grid.rowCount()) if grid.itemAtPosition(row, 0) is not None]
     labels = [grid.itemAtPosition(row, 0).widget().text() for row in rows]
     assert labels == DISPLAY_ROWS
@@ -390,7 +390,7 @@ def test_restore_defaults_keeps_the_current_atom_and_the_measures(qtbot, windows
     assert canvas.options.radius_scale == 1.0
     assert canvas.current == second and len(panel.measures.measurements) == 1
     assert panel.measures.mode == "distancia"
-    assert panel.sections["Exibição"].header.isChecked()  # the sections keep their state
+    assert panel.sections["display"].header.isChecked()  # the sections keep their state
 
 
 def test_restore_defaults_takes_the_background_of_the_theme_now(windows, monkeypatch):

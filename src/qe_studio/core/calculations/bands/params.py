@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
+from ....i18n import _
 from ..params import (
     COMMON_FIELDS,
     GAP_METHOD_FIELD,
@@ -21,15 +22,16 @@ if TYPE_CHECKING:
 # The bands' gap is the one along the path (spec 27-6 R1.3); bands + DOS shows the same gap.
 BANDS_LEGEND_GAP_FIELD = replace(
     LEGEND_GAP_FIELD,
-    tooltip=f"{LEGEND_GAP_FIELD.tooltip} Gap ao longo do caminho de k; o gap indireto verdadeiro "
-    "pode estar fora dele.",
+    tooltip=_(
+        "{tooltip} Gap ao longo do caminho de k; o gap indireto verdadeiro pode estar fora dele."
+    ).format(tooltip=LEGEND_GAP_FIELD.tooltip),
 )
 
 REFERENCES = (
-    ("fermi", "E_F (SCF)"),
-    ("vbm", "Topo da valência (VBM)"),
-    ("midgap", "Meio do gap"),
-    ("absolute", "Absoluta"),
+    ("fermi", _("E_F (SCF)")),
+    ("vbm", _("Topo da valência (VBM)")),
+    ("midgap", _("Meio do gap")),
+    ("absolute", _("Absoluta")),
 )
 ENERGY_NAMES = {  # plain text of Y_LABELS, for the cursor readout
     "fermi": "E − E_F",
@@ -45,9 +47,9 @@ Y_LABELS = {
 }
 
 
-SPIN_CHANNELS = (("both", "Ambos"), ("up", "Só ↑"), ("down", "Só ↓"))
-SPIN_LAYOUTS = (("overlay", "Sobrepostos"), ("side", "Lado a lado"))
-SPIN_COLORINGS = (("channel", "Canal"), ("occupation", "Valência/condução"))
+SPIN_CHANNELS = (("both", _("Ambos")), ("up", _("Só ↑")), ("down", _("Só ↓")))
+SPIN_LAYOUTS = (("overlay", _("Sobrepostos")), ("side", _("Lado a lado")))
+SPIN_COLORINGS = (("channel", _("Canal")), ("occupation", _("Valência/condução")))
 
 
 @dataclass
@@ -102,16 +104,16 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
     return [
         ParamField(
             "reference",
-            "Referência",
-            "Energia",
+            _("Referência"),
+            "energy",
             "choice",
             choices=tuple(references),
             refreshes=True,
         ),
         ParamField(
             "emin",
-            "E mín",
-            "Energia",
+            _("E mín"),
+            "energy",
             "float",
             minimum=-1e4,
             maximum=1e4,
@@ -121,8 +123,8 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
         ),
         ParamField(
             "emax",
-            "E máx",
-            "Energia",
+            _("E máx"),
+            "energy",
             "float",
             minimum=-1e4,
             maximum=1e4,
@@ -130,11 +132,11 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
             decimals=3,
             suffix="eV",
         ),
-        ParamField("show_fermi_line", "Linha de Fermi", "Energia", "bool"),
+        ParamField("show_fermi_line", _("Linha de Fermi"), "energy", "bool"),
         ParamField(
             "xmin",
-            "x mín",
-            "Eixo X",
+            _("x mín"),
+            "x_axis",
             "float",
             minimum=0,
             maximum=1e4,
@@ -144,8 +146,8 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
         ),
         ParamField(
             "xmax",
-            "x máx",
-            "Eixo X",
+            _("x máx"),
+            "x_axis",
             "float",
             minimum=0,
             maximum=1e4,
@@ -155,15 +157,15 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
         ),
         ParamField(
             "labels",
-            "Rótulos k",
-            "Eixo X",
+            _("Rótulos k"),
+            "x_axis",
             "labels",
-            tooltip="Separados por vírgula, ex.: G, X, W, L, G (G = Γ)",
+            tooltip=_("Separados por vírgula, ex.: G, X, W, L, G (G = Γ)"),
         ),
-        ParamField("show_hs_lines", "Linhas de alta simetria", "Eixo X", "bool"),
-        ParamField("valence_color", "Valência", "Estilo", "color"),
-        ParamField("conduction_color", "Condução", "Estilo", "color"),
-        ParamField("fermi_color", "Fermi", "Estilo", "color"),
+        ParamField("show_hs_lines", _("Linhas de alta simetria"), "x_axis", "bool"),
+        ParamField("valence_color", _("Valência"), "style", "color"),
+        ParamField("conduction_color", _("Condução"), "style", "color"),
+        ParamField("fermi_color", _("Fermi"), "style", "color"),
         *(_spin_fields() if dataset.spin else []),
         *COMMON_FIELDS,
         BANDS_LEGEND_GAP_FIELD,
@@ -173,11 +175,11 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
 
 def _spin_fields() -> list[ParamField]:
     return [
-        ParamField("spin_channels", "Canais", "Spin", "choice", choices=SPIN_CHANNELS),
-        ParamField("spin_layout", "Disposição", "Spin", "choice", choices=SPIN_LAYOUTS),
-        ParamField("spin_coloring", "Cores por", "Spin", "choice", choices=SPIN_COLORINGS),
-        ParamField("up_color", "Cor ↑", "Spin", "color"),
-        ParamField("down_color", "Cor ↓", "Spin", "color"),
+        ParamField("spin_channels", _("Canais"), "spin", "choice", choices=SPIN_CHANNELS),
+        ParamField("spin_layout", _("Disposição"), "spin", "choice", choices=SPIN_LAYOUTS),
+        ParamField("spin_coloring", _("Cores por"), "spin", "choice", choices=SPIN_COLORINGS),
+        ParamField("up_color", _("Cor ↑"), "spin", "color"),
+        ParamField("down_color", _("Cor ↓"), "spin", "color"),
     ]
 
 

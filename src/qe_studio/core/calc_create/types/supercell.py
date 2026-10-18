@@ -14,6 +14,7 @@ from typing import ClassVar
 
 import numpy as np
 
+from ....i18n import N_, _
 from ...qe.input_edit import InputEditor
 from ..edits import put_mesh, put_number, put_string, put_text
 from ..scf_info import ScfInfo
@@ -42,15 +43,15 @@ from .vc_relax import VcRelaxType
 
 __all__ = ["GROUP", "REPEATS", "SupercellType", "has_vacuum"]
 
-GROUP = "Supercélula"  # no file is named so: a tab of its own, before the input's
+GROUP = N_("Supercélula")  # no file is named so: a tab of its own, before the input's
 REPEATS = ("n1", "n2", "n3")
 DEFAULT_REPEATS = (2, 1, 1)  # SUPERCELL_MULT = 2 of the scripts, along a
 DEFAULT_VACUUM_MIN = 10.5  # Å, VACUUM_MIN of the scripts
-MESH_HINT = "Vazio = a do SCF dividida pelas repetições"
-GAMMA_NOTE = "K_POINTS gamma do SCF mantido: confira se basta para a supercélula"
-STACKED_NOTE = "Repetir ao longo do vácuo (c) empilha slabs: o vácuo entre eles não muda"
-LOW_VACUUM = "Vácuo de {} Å ao longo de c, abaixo do mínimo de {} Å"
-BULK_NOTE = "SCF sem vácuo: supercélula de bulk, cell_dofree = '{}'"
+MESH_HINT = _("Vazio = a do SCF dividida pelas repetições")
+GAMMA_NOTE = _("K_POINTS gamma do SCF mantido: confira se basta para a supercélula")
+STACKED_NOTE = _("Repetir ao longo do vácuo (c) empilha slabs: o vácuo entre eles não muda")
+LOW_VACUUM = _("Vácuo de {} Å ao longo de c, abaixo do mínimo de {} Å")
+BULK_NOTE = _("SCF sem vácuo: supercélula de bulk, cell_dofree = '{}'")
 Facts = list[tuple[str, str]]  # the lines of geracao.md
 
 
@@ -86,11 +87,11 @@ def _field(
 
 class SupercellType(VcRelaxType):
     id: ClassVar[str] = "supercell"
-    label: ClassVar[str] = "Supercélula"
+    label: ClassVar[str] = _("Supercélula")
     folder_prefix: ClassVar[str] = "Supercell"
     script_stem: ClassVar[str] = "supercell"
     script_template: ClassVar[str] = "qsub/vc-relax.qsub.j2"
-    scf_label: ClassVar[str] = "SCF da superfície (ou do bulk)"
+    scf_label: ClassVar[str] = _("SCF da superfície (ou do bulk)")
     writes_report: ClassVar[bool] = True
 
     def input_fields(self, scf: ScfInfo) -> list[FormField]:
@@ -98,7 +99,7 @@ class SupercellType(VcRelaxType):
         relax = [form_field for form_field in super().input_fields(scf) if form_field.id != "kmesh"]
         return [
             *self._supercell_fields(scf),
-            mesh_field(group, MESH_HINT, "da supercélula"),
+            mesh_field(group, MESH_HINT, _("da supercélula")),
             *relax,
             dofree_field(group, _default_dofree(scf)),
         ]
@@ -107,10 +108,10 @@ class SupercellType(VcRelaxType):
         repeats = [
             _field(
                 field_id,
-                f"Repetições ao longo de {axis}",
+                _("Repetições ao longo de {axis}").format(axis=axis),
                 "int",
                 default,
-                f"Cópias da célula do SCF ao longo de {axis} (1 a 8)",
+                _("Cópias da célula do SCF ao longo de {axis} (1 a 8)").format(axis=axis),
                 standard=True,
             )
             for field_id, axis, default in zip(REPEATS, AXIS_NAMES, DEFAULT_REPEATS, strict=True)
@@ -121,26 +122,26 @@ class SupercellType(VcRelaxType):
             bond_scale_field(GROUP),
             _field(
                 "vacuum_min",
-                "Vácuo mínimo (Å)",
+                _("Vácuo mínimo (Å)"),
                 "float",
                 DEFAULT_VACUUM_MIN,
-                "Só verifica: abaixo dele ao longo de c, o plano avisa (a célula não muda)",
+                _("Só verifica: abaixo dele ao longo de c, o plano avisa (a célula não muda)"),
             ),
         ]
 
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values
-        facts: Facts = [("SCF de origem", scf.name)]
+        facts: Facts = [(_("SCF de origem"), scf.name)]
         repeats = self._repeats(work)
         dofree = values["cell_dofree"] or _default_dofree(scf)
         editor = work.editor()
         if repeats is not None:
-            facts.append(("Repetições", " × ".join(str(n) for n in repeats)))
+            facts.append((_("Repetições"), " × ".join(str(n) for n in repeats)))
             try:
                 self._structure(work, editor, repeats, dofree, facts)
             except SurfaceError as exc:
                 work.errors.append(str(exc))
-                facts.append(("Estrutura não gerada", str(exc)))
+                facts.append((_("Estrutura não gerada"), str(exc)))
         self.edit(editor, work)
         put_string(editor, "cell", "cell_dofree", dofree)
         if repeats is not None:
@@ -183,7 +184,7 @@ class SupercellType(VcRelaxType):
         vacuum = has_vacuum(scf)
         model = make_supercell(model_of(scf), repeats)
         rule = work.values[FIX_RULE] or _default_rule(scf)
-        scale = check_positive(work, BOND_SCALE, "A tolerância de ligação") or 1.0
+        scale = check_positive(work, BOND_SCALE, _("A tolerância de ligação")) or 1.0
         fix = fixed_for(work, model, rule, scale)
         model = apply_fix(model, fix, rule) if fix is not None else model
         work.notes.extend(put_structure(editor, model, species_rows(scf.text)))
@@ -195,15 +196,20 @@ class SupercellType(VcRelaxType):
         work.notes.extend(non_orthogonal_notes(dofree, model.cell))
         lengths = "; ".join(decimal(float(np.linalg.norm(row)), 3) for row in model.cell)
         facts += [
-            ("Átomos", f"{len(model)} ({counts(model.labels)})"),
+            (_("Átomos"), f"{len(model)} ({counts(model.labels)})"),
             ("|a|, |b|, |c|", f"{lengths} Å"),
-            ("Vácuo medido", f"{decimal(gap)} Å ao longo de c" if vacuum else "sem vácuo (bulk)"),
+            (
+                _("Vácuo medido"),
+                _("{decimal} Å ao longo de c").format(decimal=decimal(gap))
+                if vacuum
+                else _("sem vácuo (bulk)"),
+            ),
         ]
         if fix is not None:
             facts.append(fixed_fact(model.labels, fix, rule))
 
     def _vacuum_notes(self, work: Work, gap: float, repeats: tuple[int, int, int]) -> None:
-        minimum = check_positive(work, "vacuum_min", "O vácuo mínimo")
+        minimum = check_positive(work, "vacuum_min", _("O vácuo mínimo"))
         if minimum is not None and gap < minimum:
             work.notes.append(LOW_VACUUM.format(decimal(gap, 1), decimal(minimum, 1)))
         if repeats[2] > 1:
@@ -213,7 +219,7 @@ class SupercellType(VcRelaxType):
         self, scf: ScfInfo, editor: InputEditor, repeats: tuple[int, int, int], facts: Facts
     ) -> None:
         if scf.nbnd is None:
-            facts.append(("nbnd", "não definido no SCF (o padrão do pw.x)"))
+            facts.append(("nbnd", _("não definido no SCF (o padrão do pw.x)")))
             return
         nbnd = scf.nbnd * int(np.prod(repeats))
         put_number(editor, "system", "nbnd", nbnd)
@@ -228,15 +234,15 @@ class SupercellType(VcRelaxType):
         elif scf.kmesh is not None:
             if has_vacuum(scf):
                 mesh = rescale_mesh(scf.kmesh, {0: 0, 1: 1}, {0: repeats[0], 1: repeats[1]})
-                how = "÷ repetições; vácuo 1"
+                how = _("÷ repetições; vácuo 1")
             else:
                 axes = {0: 0, 1: 1, 2: 2}
                 mesh = rescale_mesh(scf.kmesh, axes, dict(enumerate(repeats)), vacuum_axis=None)
-                how = "÷ repetições"
+                how = _("÷ repetições")
             put_mesh(editor, mesh)
             facts.append(("k-points", f"{mesh_text(mesh)} (do SCF {mesh_text(scf.kmesh)}, {how})"))
         elif scf.kpoints_option == "gamma":
             work.notes.append(GAMMA_NOTE)
-            facts.append(("k-points", "gamma (do SCF)"))
+            facts.append(("k-points", _("gamma (do SCF)")))
         else:
             work.problem("kmesh", NO_MESH)

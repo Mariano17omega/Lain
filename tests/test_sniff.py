@@ -219,7 +219,7 @@ def test_a_file_that_breaks_a_parser_is_unknown_and_logged_once(tmp_path, monkey
         assert cache.sniff(folder / "al.band.out").kind is FileKind.UNKNOWN
     assert [r.kind for r in results] == ["bands"]  # the .gnu and the bands.x files still count
     logged = [r.getMessage() for r in caplog.records]
-    assert sorted(logged) == [f"sniff falhou: {folder / n}" for n in ("al.band.out", "al.scf.out")]
+    assert sorted(logged) == [f"sniff failed: {folder / n}" for n in ("al.band.out", "al.scf.out")]
     assert cache.sniff(folder / "bands.dat.gnu").kind is FileKind.GNU_DATA
 
 

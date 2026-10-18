@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import re
 
+from ..i18n import _
 from . import cancel
 from .qe.input_lexer import LintIssue, Severity
 
@@ -47,18 +48,18 @@ _HEREDOC = re.compile(r"<<(-?)[ \t]*(?:\\?([A-Za-z_][^\s;|&<>()'\"]*)|'([^']+)'|
 _OPTION = re.compile(r"-[A-Za-z_]+$")
 _TOKEN = re.compile(r"(?:\"[^\"]*\"|'[^']*'|[^\s\"'])+")
 
-CRLF = "Fim de linha CRLF: o bash do cluster lê o \\r como parte do comando"
-NO_SHEBANG = "Falta o #! na primeira linha (por exemplo: #!/usr/bin/env bash)"
-BROKEN_CONTINUATION = "\\ no fim da linha seguido de espaço: a continuação de linha não funciona"
-PE_NEEDS = "-pe pede o ambiente paralelo e o número de slots (por exemplo: -pe physica 64)"
-N_NEEDS = "-N pede o nome do job"
+CRLF = _("Fim de linha CRLF: o bash do cluster lê o \\r como parte do comando")
+NO_SHEBANG = _("Falta o #! na primeira linha (por exemplo: #!/usr/bin/env bash)")
+BROKEN_CONTINUATION = _("\\ no fim da linha seguido de espaço: a continuação de linha não funciona")
+PE_NEEDS = _("-pe pede o ambiente paralelo e o número de slots (por exemplo: -pe physica 64)")
+N_NEEDS = _("-N pede o nome do job")
 STRAY = {
-    "fi": "fi sem if correspondente",
-    "done": "done sem for/while/until correspondente",
-    "esac": "esac sem case correspondente",
-    "do": "do fora de um laço for/while/until",
+    "fi": _("fi sem if correspondente"),
+    "done": _("done sem for/while/until correspondente"),
+    "esac": _("esac sem case correspondente"),
+    "do": _("do fora de um laço for/while/until"),
 }
-LEFTOVER = {"if": "if sem fi", "loop": "{word} sem done", "case": "case sem esac"}
+LEFTOVER = {"if": _("if sem fi"), "loop": _("{word} sem done"), "case": _("case sem esac")}
 
 
 class _Scan:
@@ -193,7 +194,7 @@ class _Scan:
 
     def _brace(self, line: str, lineno: int, at: int) -> None:
         if "}" not in line[at + 2 :]:
-            self.add(lineno, at, len(line), "error", "${ sem } na linha")
+            self.add(lineno, at, len(line), "error", _("${ sem } na linha"))
 
     def _blanks_after_backslash(self, line: str, lineno: int, at: int) -> None:
         rest = line[at + 1 :]
@@ -211,7 +212,13 @@ class _Scan:
             end = col + len(token)
             name = token[1:]
             if name not in SGE_OPTIONS:
-                self.add(lineno, col, end, "warning", f"Opção desconhecida do qsub: {token}")
+                self.add(
+                    lineno,
+                    col,
+                    end,
+                    "warning",
+                    _("Opção desconhecida do qsub: {token}").format(token=token),
+                )
                 continue
             values = []
             for _col, value in tokens[k + 1 :]:
@@ -227,7 +234,9 @@ class _Scan:
         if self.quote is not None:
             at_line, column = self.quote_at
             quote = self.quote[-1]
-            message = f"Aspas {quote} abertas e não fechadas até o fim do arquivo"
+            message = _("Aspas {quote} abertas e não fechadas até o fim do arquivo").format(
+                quote=quote
+            )
             self.add(at_line, column, len(lines[at_line - 1]), "error", message)
         for family, word, at_line, start, end in self.stack:
             self.add(at_line, start, end, "error", LEFTOVER[family].format(word=word))

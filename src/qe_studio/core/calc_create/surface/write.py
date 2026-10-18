@@ -14,6 +14,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from ....i18n import _
 from ...qe.cell_card import set_cell
 from ...qe.input_edit import InputEditor
 from ..edits import put_number
@@ -25,10 +26,10 @@ __all__ = ["PER_ATOM_CARDS", "put_structure", "structure_problem"]
 
 PER_ATOM_CARDS = ("ATOMIC_FORCES", "ATOMIC_VELOCITIES")
 DECIMALS = 10
-CONSTRAINTS = (
+CONSTRAINTS = _(
     "O SCF tem CONSTRAINTS, que numeram os átomos: remova o card para gerar a estrutura nova"
 )
-HUBBARD_V = (
+HUBBARD_V = _(
     "O SCF tem termos Hubbard V, que numeram os átomos: remova-os para gerar a estrutura nova"
 )
 
@@ -58,7 +59,7 @@ def structure_problem(editor: InputEditor, model: Model, species: Sequence[str])
     known = {row.split()[0] for row in species if row.split()}
     missing = [label for label in dict.fromkeys(model.labels) if label not in known]
     if missing:
-        return f"Espécie sem linha em ATOMIC_SPECIES: {', '.join(missing)}"
+        return _("Espécie sem linha em ATOMIC_SPECIES: {join}").format(join=", ".join(missing))
     return None
 
 
@@ -80,7 +81,9 @@ def _species(editor: InputEditor, model: Model, rows: Sequence[str]) -> list[str
         notes += remap_species_keys(editor, mapping)
         notes += remap_hubbard(editor, dropped, {}, max(len(model), 1))
         notes.append(
-            f"Espécies sem átomo removidas de ATOMIC_SPECIES: {', '.join(sorted(dropped))}"
+            _("Espécies sem átomo removidas de ATOMIC_SPECIES: {join}").format(
+                join=", ".join(sorted(dropped))
+            )
         )
     put_number(editor, "system", "ntyp", len(kept))
     return notes
@@ -102,5 +105,5 @@ def put_structure(editor: InputEditor, model: Model, species: Sequence[str]) -> 
     notes += _species(editor, model, species)
     for card in PER_ATOM_CARDS:
         if editor.remove_card(card):
-            notes.append(f"{card} removido: os átomos mudaram")
+            notes.append(_("{card} removido: os átomos mudaram").format(card=card))
     return notes

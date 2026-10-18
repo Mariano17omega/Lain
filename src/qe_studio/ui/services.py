@@ -172,7 +172,7 @@ class DetectionService(QObject):
     def _on_error(self, key: str, exc: Exception) -> None:
         """The detection raised: the folder shows no calculation, but the failure is logged and
         said once (until F5 clears it), so it is not mistaken for an empty folder."""
-        log.error("detecção falhou: %s", key, exc_info=exc)  # the traceback shows the cause
+        log.error("detection failed: %s", key, exc_info=exc)  # the traceback shows the cause
         with self._lock:
             self._results[key] = []  # ends the busy state and the wait of ``results()``
             self._errors[key] = exc.error if isinstance(exc, _DetectionFailed) else None

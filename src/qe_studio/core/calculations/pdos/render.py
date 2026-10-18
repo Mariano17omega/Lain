@@ -10,6 +10,7 @@ from matplotlib.colors import to_hex, to_rgb
 from matplotlib.figure import FigureBase
 from matplotlib.lines import Line2D
 
+from ....i18n import _
 from ...config import DEFAULT_ORBITAL_COLORS
 from ...plotting.draw import finish, new_axes
 from ...plotting.gap_label import gap_handle, gap_label
@@ -180,7 +181,7 @@ def draw_pdos(
     dos_lim = (-top if mirrored else 0.0, top)
     e_lim = (params.emin, params.emax)
     e_label = r"$E - E_F$ (eV)" if ref else r"$E$ (eV)"
-    dos_label = "PDOS (estados/eV)"
+    dos_label = _("PDOS (estados/eV)")
     guide = {"color": style.guide, "lw": 0.7, "zorder": 0}
     if vertical:
         ax.set_xlim(*dos_lim)
@@ -209,7 +210,7 @@ def total_curve(data: projwfc.PdosData, params: PdosParams) -> tuple[projwfc.Cha
     """The "DOS total" curve and its legend label. pdos_tot holds every atom, which would mislead
     next to a subset of them: then it is the sum of what is drawn."""
     if params.atoms is not None:
-        return projwfc.selected_total(data, params.atoms), "Soma dos átomos selecionados"
+        return projwfc.selected_total(data, params.atoms), _("Soma dos átomos selecionados")
     return data.total, "Total (Σ PDOS)" if data.total_is_sum else "Total"
 
 
@@ -250,8 +251,10 @@ def _channel_marks(ax: Axes, params: PdosParams, style: PlotStyle, vertical: boo
 def line_styles(params: PdosParams, style: PlotStyle) -> list[Line2D]:
     """Legend entries for the two channels of an overlaid PDOS."""
     return [
-        Line2D([], [], color=style.text, lw=params.line_width, ls="-", label="↑ contínua"),
-        Line2D([], [], color=style.text, lw=params.line_width, ls=DOWN_DASH, label="↓ tracejada"),
+        Line2D([], [], color=style.text, lw=params.line_width, ls="-", label=_("↑ contínua")),
+        Line2D(
+            [], [], color=style.text, lw=params.line_width, ls=DOWN_DASH, label=_("↓ tracejada")
+        ),
     ]
 
 
@@ -275,19 +278,29 @@ def summary(dataset: PdosDataset, params: PdosParams) -> str:
         parts.append(f"E_F = {fermi:.4f} eV ({source})")
     parts += _gap_parts(dataset, params)
     data = dataset.data
-    parts.append(f"{len(data.series)} projeções · {len(data.species)} espécies")
+    parts.append(
+        _("{count} projeções · {count_2} espécies").format(
+            count=len(data.series), count_2=len(data.species)
+        )
+    )
     if params.atoms is not None:
         every = {s.atom for s in data.series}
-        parts.append(f"{len(every & set(params.atoms))} de {len(every)} átomos")
+        parts.append(
+            _("{count} de {count_2} átomos").format(
+                count=len(every & set(params.atoms)), count_2=len(every)
+            )
+        )
     if data.spin_polarized:
-        parts.append("spin polarizado")
+        parts.append(_("spin polarizado"))
         if dataset.magnetization is not None:
-            parts.append(f"M = {dataset.magnetization:.2f} μB/célula")
+            parts.append(
+                _("M = {magnetization:.2f} μB/célula").format(magnetization=dataset.magnetization)
+            )
     return " · ".join(parts)
 
 
 # Where the footer says the gap of each method was found; ``auto`` adds nothing (spec 34).
-GAP_WHERE = {"homo_lumo": "(HOMO/LUMO)", "janela": "(na janela)"}
+GAP_WHERE = {"homo_lumo": "(HOMO/LUMO)", "janela": _("(na janela)")}
 
 
 def _gap_parts(dataset: PdosDataset, params: PdosParams) -> list[str]:
@@ -298,7 +311,7 @@ def _gap_parts(dataset: PdosDataset, params: PdosParams) -> list[str]:
         return []
     where, gap = GAP_WHERE[method], gap_for(dataset, params)
     if gap is None:
-        return [f"sem gap {where}"]
+        return [_("sem gap {where}").format(where=where)]
     if gap.source == "dos":
         return [f"E_gap {where} ≈ {gap.value:.2f} eV"]
     return [f"E_gap {where} = {gap.value:.3f} eV"]

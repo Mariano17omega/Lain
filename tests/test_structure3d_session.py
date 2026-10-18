@@ -251,8 +251,8 @@ def test_resetting_the_view_is_a_change(qtbot, window, si_folder, how):
 
 def test_opening_a_section_of_the_panel_is_no_change(qtbot, window, si_folder):
     view = open_view(qtbot, window, si_folder / NAME)
-    view.panel.sections["Célula"].header.click()
-    assert view.panel.sections["Célula"].header.isChecked()
+    view.panel.sections["cell"].header.click()
+    assert view.panel.sections["cell"].header.isChecked()
     close_view(qtbot, window, view)
     assert not view_file_path(si_folder).exists()
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from ....i18n import _
 from ...qe.input_edit import InputEditor
 from ..edits import put_number, put_string
 from ..scf_info import ScfInfo
@@ -30,7 +31,7 @@ class VcRelaxType(RelaxType):
             *super().input_fields(scf),
             FormField(
                 "cell_dynamics",
-                "Dinâmica da célula (cell_dynamics)",
+                _("Dinâmica da célula (cell_dynamics)"),
                 "choice",
                 dynamics if dynamics in CELL_DYNAMICS else CELL_DYNAMICS[0],
                 group=group,
@@ -39,11 +40,11 @@ class VcRelaxType(RelaxType):
             ),
             FormField(
                 "press",
-                "Pressão (press, kbar)",
+                _("Pressão (press, kbar)"),
                 "float",
                 press if press is not None else DEFAULT_PRESS,
                 group=group,
-                tooltip="&CELL press: pressão externa alvo, em kbar",
+                tooltip=_("&CELL press: pressão externa alvo, em kbar"),
             ),
         ]
 

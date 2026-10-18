@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ....i18n import _
 from ...qe.input_edit import InputEditor
 from ...qe.pw_input import fortran_float
 from ..scf_info import ScfInfo
@@ -73,7 +74,9 @@ def model_of(scf: ScfInfo) -> Model:
     crystal = scf.crystal
     if crystal is None:
         raise SurfaceError(
-            f"Estrutura de {scf.name} ilegível: {scf.structure_problem or 'sem estrutura'}"
+            _("Estrutura de {name} ilegível: {value}").format(
+                name=scf.name, value=scf.structure_problem or "sem estrutura"
+            )
         )
     flags = flags_of(scf.text)
     count = len(crystal.labels)

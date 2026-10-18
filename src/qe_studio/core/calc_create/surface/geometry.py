@@ -12,6 +12,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from ....i18n import _
 from ..scf_info import ScfInfo
 from .elements import covalent_radius
 from .model import Model
@@ -65,7 +66,7 @@ def bond_cutoff(first: str, second: str, scale: float) -> float:
 
 def bonded(model: Model, i: int, j: int, scale: float) -> bool:
     """Whether atoms ``i`` and ``j`` are bonded: distance ``<=`` ``bond_cutoff``."""
-    distance, _ = min_image(model.frac[j] - model.frac[i], model.cell)
+    distance, __ = min_image(model.frac[j] - model.frac[i], model.cell)
     return distance <= bond_cutoff(model.labels[i], model.labels[j], scale)
 
 
@@ -103,18 +104,18 @@ def surface_problem(scf: ScfInfo, name: str) -> str | None:
     a type that puts a molecule on a surface and must refuse a bulk's SCF (spec 42 R1)."""
     crystal = scf.crystal
     if crystal is None:
-        return f"Estrutura de {name} ilegível: {scf.structure_problem or 'sem estrutura'}"
+        return _("Estrutura de {name} ilegível: {value}").format(
+            name=name, value=scf.structure_problem or "sem estrutura"
+        )
     gaps = vacuum_gaps(crystal.cell, crystal.frac)
     if gaps[2] >= MIN_SURFACE_GAP:
         return None
     open_axes = [axis for axis, gap in zip("ab", gaps[:2], strict=True) if gap >= MIN_SURFACE_GAP]
     other = open_axes[0] if open_axes else None
     if other is not None:
-        return (
-            f"O vácuo de {name} está ao longo de {other}; o Lain espera a superfície com o vácuo "
-            "ao longo de c, como o Slab gera."
-        )
-    return (
-        f"{name} parece o SCF de um bulk: não há vácuo ao longo de c (maior intervalo vazio: "
-        f"{decimal(gaps[2])} Å). Escolha o SCF de uma superfície relaxada (Slab ou Supercélula)."
-    )
+        return _(
+            "O vácuo de {name} está ao longo de {other}; o Lain espera a superfície com o vácuo ao longo de c, como o Slab gera."
+        ).format(name=name, other=other)
+    return _(
+        "{name} parece o SCF de um bulk: não há vácuo ao longo de c (maior intervalo vazio: {decimal} Å). Escolha o SCF de uma superfície relaxada (Slab ou Supercélula)."
+    ).format(name=name, decimal=decimal(gaps[2]))

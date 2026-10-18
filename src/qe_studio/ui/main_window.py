@@ -39,6 +39,7 @@ from .first_run import FirstRunController
 from .focus_controller import FocusController
 from .grids_controller import GridsController
 from .help_controller import HelpController
+from .language import restart_notice
 from .layout_controller import LayoutController
 from .navigation_controller import NavigationController
 from .palette_controller import PaletteController
@@ -418,6 +419,8 @@ class MainWindow(QMainWindow):
         self._apply_loaded(loaded)
         message = loaded.warnings[0] if loaded.warnings else "config.yaml recarregado."
         self.status.set_message(message, "warning" if loaded.warnings else "info", 5000)
+        if notice := restart_notice(loaded.config.ui.language):
+            self.toast.show_message(notice)
 
     def use_session_root(self, folder: Path) -> None:
         """Browse ``folder`` as the project for this session only: the config file is not written,

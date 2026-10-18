@@ -14,6 +14,8 @@ from importlib.resources import files
 from importlib.resources.abc import Traversable
 from typing import TYPE_CHECKING, Any
 
+from ...i18n import _
+
 if TYPE_CHECKING:
     from jinja2 import Environment
 
@@ -96,6 +98,6 @@ def render(template: str, values: Mapping[str, Any]) -> str:
     try:
         return _environment().get_template(template).render(**values)
     except jinja2.TemplateNotFound as exc:
-        raise TemplateFailure(f"Template não encontrado: {exc.name}") from exc
+        raise TemplateFailure(_("Template não encontrado: {name}").format(name=exc.name)) from exc
     except jinja2.UndefinedError as exc:
         raise TemplateFailure(f"Template {template}: {exc.message}") from exc

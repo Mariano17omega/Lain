@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..i18n import _
 from .fuzzy import fold
 from .paths import is_hidden, normalize_patterns
 
@@ -91,15 +92,15 @@ def validate_project_name(
     collide on a case-insensitive file system), and so is one the panels would hide."""
     name = name.strip()
     if not name:
-        return ["Digite um nome para o projeto"]
+        return [_("Digite um nome para o projeto")]
     if not _NAME.fullmatch(name):
-        return ["Use só letras sem acento, números, ponto, hífen e sublinhado no nome"]
+        return [_("Use só letras sem acento, números, ponto, hífen e sublinhado no nome")]
     if name.startswith("."):
-        return ["O nome não pode começar com ponto"]
+        return [_("O nome não pode começar com ponto")]
     if name.casefold() == EXPORTS_DIR or is_hidden(name, normalize_patterns(list(hidden_dirs))):
-        return ["Este nome é reservado: a pasta não apareceria como projeto"]
+        return [_("Este nome é reservado: a pasta não apareceria como projeto")]
     if name.casefold() in {other.casefold() for other in existing}:
-        return ["Já existe um projeto com esse nome"]
+        return [_("Já existe um projeto com esse nome")]
     return []
 
 
@@ -113,7 +114,11 @@ def create_project(root: Path, name: str, hidden_dirs: list[str] | tuple[str, ..
     try:
         path.mkdir(exist_ok=False)
     except FileExistsError as exc:
-        raise ProjectError("Já existe uma pasta com esse nome") from exc
+        raise ProjectError(_("Já existe uma pasta com esse nome")) from exc
     except OSError as exc:
-        raise ProjectError(f"Não foi possível criar a pasta {path}: {exc.strerror or exc}") from exc
+        raise ProjectError(
+            _("Não foi possível criar a pasta {path}: {value}").format(
+                path=path, value=exc.strerror or exc
+            )
+        ) from exc
     return path

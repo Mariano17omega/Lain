@@ -351,3 +351,15 @@ def test_auto_generate_plot_is_on_by_default_and_documented():
     assert AppConfig().ui.auto_generate_plot is True
     assert parse_config({"ui": {"auto_generate_plot": False}}).ui.auto_generate_plot is False
     assert "auto_generate_plot" in (ROOT / "config.example.yaml").read_text(encoding="utf-8")
+
+
+def test_language_is_auto_by_default_and_documented(tmp_path):
+    """Spec end R2.1: ``ui.language`` is auto, pt_BR or en."""
+    assert AppConfig().ui.language == "auto"
+    assert parse_config({"ui": {"language": "en"}}).ui.language == "en"
+    assert parse_config({"ui": {"language": "pt_BR"}}).ui.language == "pt_BR"
+    with pytest.raises(ConfigError):
+        parse_config({"ui": {"language": "fr"}})
+    example = ROOT / "config.example.yaml"
+    assert "language" in example.read_text(encoding="utf-8")
+    assert load_config(example, environ={}, cwd=tmp_path).config.ui.language == "auto"

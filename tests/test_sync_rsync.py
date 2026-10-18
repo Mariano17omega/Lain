@@ -16,6 +16,7 @@ from qe_studio.core.sync.rsync import (
     decode_rsync_name,
     dry_run_command,
     explain_failure,
+    is_auth_failure,
     parse_dry_run,
     parse_itemize_line,
     parse_progress,
@@ -179,6 +180,19 @@ def test_parse_progress():
 )
 def test_explain_failure(stderr, fragment):
     assert fragment in explain_failure(12, stderr)
+
+
+@pytest.mark.parametrize(
+    ("stderr", "auth"),
+    [
+        ("me@h: Permission denied (publickey,password).", True),
+        ("Host key verification failed.\nme@h: Permission denied", False),  # the first cause wins
+        ("ssh: connect to host h port 22: Connection timed out", False),
+        ("", False),
+    ],
+)
+def test_is_auth_failure(stderr, auth):
+    assert is_auth_failure(stderr) is auth
 
 
 def test_remote_dir_for(tmp_path):

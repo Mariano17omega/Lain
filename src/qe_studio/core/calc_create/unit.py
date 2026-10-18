@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
+from ...i18n import _
 from ..config import JobsConfig
 from ..qe.input_edit import InputEditor
 from .edits import put_text
@@ -29,8 +30,8 @@ __all__ = [
 ]
 
 UNIT_OUTDIR = "./tmp/"
-PSEUDO_DIR_NOTE = "Defina jobs.pseudo_dir no config.yaml para fixar os pseudopotenciais"
-OUTSIDE = "O SCF usa um caminho fora da pasta: {}"
+PSEUDO_DIR_NOTE = _("Defina jobs.pseudo_dir no config.yaml para fixar os pseudopotenciais")
+OUTSIDE = _("O SCF usa um caminho fora da pasta: {}")
 
 
 def apply_unit(editor: InputEditor, jobs: JobsConfig) -> None:
@@ -57,12 +58,16 @@ def unit_notes(scf: ScfInfo, jobs: JobsConfig) -> list[str]:
     if jobs.pseudo_dir is None:
         notes.append(PSEUDO_DIR_NOTE)
         if pseudo is None:
-            notes.append("sem pseudo_dir: o pw.x procura os pseudopotenciais em $ESPRESSO_PSEUDO")
+            notes.append(
+                _("sem pseudo_dir: o pw.x procura os pseudopotenciais em $ESPRESSO_PSEUDO")
+            )
         elif climbs(pseudo):
             notes.append(OUTSIDE.format(f"pseudo_dir = {pseudo}"))
         elif not absolute(pseudo):
             notes.append(
-                f"pseudo_dir relativo ({pseudo}): confira se ele vale a partir da pasta nova"
+                _(
+                    "pseudo_dir relativo ({pseudo}): confira se ele vale a partir da pasta nova"
+                ).format(pseudo=pseudo)
             )
     wfcdir = (scf.value("control", "wfcdir") or "").strip()
     if wfcdir and (absolute(wfcdir) or climbs(wfcdir)):

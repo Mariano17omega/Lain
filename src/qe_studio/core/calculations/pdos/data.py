@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ....i18n import _
 from ...compounds import Compound, GeometryDrift, compound_of
 from ...qe import projwfc
 from ...qe.pw_output import PwOutput
@@ -52,7 +53,7 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
     try:
         data = projwfc.load_pdos(result.files.get("pdos_atm", []), tot)
     except (OSError, ValueError) as exc:
-        raise LoadError(f"Não foi possível ler a PDOS: {exc}") from exc
+        raise LoadError(_("Não foi possível ler a PDOS: {exc}").format(exc=exc)) from exc
 
     def pw_of(role: str) -> PwOutput | None:
         path = result.file(role)
@@ -83,5 +84,5 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
         compound=compound_of(sites),
     )
     if dataset.fermi("scf") is None:
-        dataset.warnings.append("energia de Fermi não encontrada: energias absolutas")
+        dataset.warnings.append(_("energia de Fermi não encontrada: energias absolutas"))
     return dataset

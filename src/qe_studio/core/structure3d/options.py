@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ...i18n import _
+
 __all__ = [
     "BACKGROUNDS",
     "DEFAULT_ABC_WIDTH",
@@ -28,18 +30,18 @@ __all__ = [
 ]
 
 STYLES: dict[str, str] = {
-    "bola-vareta": "Bola e vareta",
-    "vareta": "Vareta",
+    "bola-vareta": _("Bola e vareta"),
+    "vareta": _("Vareta"),
     "fio": "Fio",
-    "espaco-cheio": "Espaço cheio",
+    "espaco-cheio": _("Espaço cheio"),
 }
 LABEL_MODES: dict[str, str] = {
-    "nenhum": "Nenhum",
-    "simbolo": "Símbolo",
-    "indice": "Número",
-    "ambos": "Ambos",
+    "nenhum": _("Nenhum"),
+    "simbolo": _("Símbolo"),
+    "indice": _("Número"),
+    "ambos": _("Ambos"),
 }
-BACKGROUNDS: dict[str, str] = {"escuro": "Escuro", "claro": "Claro"}
+BACKGROUNDS: dict[str, str] = {"escuro": _("Escuro"), "claro": _("Claro")}
 MIN_REPEAT, MAX_REPEAT = 1, 5
 MIN_RADIUS, MAX_RADIUS = 0.20, 2.50  # radius scale
 MIN_FACTOR, MAX_FACTOR = 0.60, 1.80  # bond factor
@@ -62,7 +64,7 @@ class DisplayOptions:
     bond_factor: float = 1.15
     show_bonds: bool = True
     reps: tuple[int, int, int] = (1, 1, 1)
-    labels: str = "nenhum"
+    labels: str = "nenhum"  # a LABEL_MODES id: data, never translated
     label_size: int = DEFAULT_LABEL_SIZE  # atom labels and the a, b, c / x, y, z names
     show_cell: bool = True
     show_abc: bool = True  # the a, b, c arrows and their names

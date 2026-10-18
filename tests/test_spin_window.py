@@ -31,8 +31,8 @@ def test_the_panel_offers_the_spin_section_and_rerenders_on_edit(qtbot, main_win
     generate(qtbot, main_window, folder)
     view = main_window.current_plot()
     assert view.session.dataset.spin and len(view.figure.axes) == 1
-    titles = [s.title for s in main_window.params.body.findChildren(Section)]
-    assert titles.index("Spin") == titles.index("Estilo") - 1
+    titles = [s.id for s in main_window.params.body.findChildren(Section)]
+    assert titles.index("spin") == titles.index("style") - 1
 
     main_window.params.set_param("spin_layout", "side")
     qtbot.waitUntil(lambda: len(view.figure.axes) == 2, timeout=3000)

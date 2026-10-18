@@ -15,6 +15,7 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from ....i18n import _
 from ...qe.input_edit import InputEditor
 from ...qe.pw_input import fortran_float
 from ..edits import put_number, put_string
@@ -31,7 +32,7 @@ __all__ = [
     "merge_species",
 ]
 
-NBND_NOTE = "nbnd removido: o pw.x calcula o padrão para o sistema com a molécula"
+NBND_NOTE = _("nbnd removido: o pw.x calcula o padrão para o sistema com a molécula")
 SMEARING_KEYS = ("smearing", "degauss")
 
 
@@ -64,11 +65,19 @@ def merge_species(surface_rows: Sequence[str], molecule_rows: Sequence[str]) -> 
             added.append(label)
             continue
         if mine[2:3] != words[2:3]:
-            notes.append(f"{label}: vale o pseudopotencial da superfície ({' '.join(mine[2:3])})")
+            notes.append(
+                _("{label}: vale o pseudopotencial da superfície ({join})").format(
+                    label=label, join=" ".join(mine[2:3])
+                )
+            )
         elif (_number(mine[1]) if len(mine) > 1 else None) != (
             _number(words[1]) if len(words) > 1 else None
         ):
-            notes.append(f"{label}: vale a massa da superfície ({' '.join(mine[1:2])})")
+            notes.append(
+                _("{label}: vale a massa da superfície ({join})").format(
+                    label=label, join=" ".join(mine[1:2])
+                )
+            )
     return SpeciesMerge(tuple(rows), tuple(added), tuple(notes))
 
 
@@ -124,24 +133,30 @@ def difference_notes(
     ):
         if mine is not None and theirs is not None and theirs > mine:
             notes.append(
-                f"{key}: molécula {theirs:g} Ry, superfície {mine:g} Ry; vale o da superfície"
+                _(
+                    "{key}: molécula {theirs:g} Ry, superfície {mine:g} Ry; vale o da superfície"
+                ).format(key=key, theirs=theirs, mine=mine)
             )
     for key in ("vdw_corr", "input_dft"):
         mine, theirs = _written(surface, "system", key), _written(molecule, "system", key)
         if mine.lower() != theirs.lower():
             notes.append(
-                f"{key}: superfície '{mine or 'nenhum'}', molécula '{theirs or 'nenhum'}'; vale o "
-                "da superfície"
+                _("{key}: superfície '{value}', molécula '{value_2}'; vale o da superfície").format(
+                    key=key, value=mine or "nenhum", value_2=theirs or "nenhum"
+                )
             )
     if surface.nspin != molecule.nspin:
         notes.append(
-            f"nspin: superfície {surface.nspin}, molécula {molecule.nspin}; vale o da superfície"
+            _("nspin: superfície {nspin}, molécula {nspin_2}; vale o da superfície").format(
+                nspin=surface.nspin, nspin_2=molecule.nspin
+            )
         )
     mine, theirs = surface.pseudo_dir or "", molecule.pseudo_dir or ""
     if added and not pseudo_dir_set and mine.rstrip("/") != theirs.rstrip("/"):
         notes.append(
-            f"pseudo_dir: superfície '{mine}', molécula '{theirs}'; os pseudopotenciais de "
-            f"{', '.join(added)} precisam estar no da superfície"
+            _(
+                "pseudo_dir: superfície '{mine}', molécula '{theirs}'; os pseudopotenciais de {join} precisam estar no da superfície"
+            ).format(mine=mine, theirs=theirs, join=", ".join(added))
         )
     return notes
 

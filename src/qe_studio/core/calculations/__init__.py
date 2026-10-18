@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from ...i18n import join_or
 from ..sniff import FileSniff
 from .bands import BandsModule
 from .bands_dos import BandsDosModule
@@ -47,9 +48,7 @@ def module_for_file(
 def describe_plottable(modules: tuple[CalculationModule[Any, Any], ...] = REGISTRY) -> str:
     """Names of the calculations one can map by hand, for a sentence: "a, b ou c" (lowercase)."""
     names = [m.display_name.lower() for m in modules if m.plottable and m.selectable]
-    if len(names) < 2:
-        return "".join(names)
-    return f"{', '.join(names[:-1])} ou {names[-1]}"
+    return join_or(names)
 
 
 __all__ = [

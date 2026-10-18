@@ -20,6 +20,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..i18n import _
 from .appdirs import data_dir
 
 log = logging.getLogger(__name__)
@@ -34,9 +35,9 @@ COMPOUNDS_FILE = "compounds.json"
 NAVIGATION_FILE = "navigation.json"
 FALLBACK_DIR = "roots"  # data_dir()/roots/<hash>: a root that cannot hold its own folder
 
-NOT_A_FOLDER = "{folder} não é uma pasta: as configurações do projeto ficam em {fallback}."
-NOT_WRITABLE = "{folder} não é gravável: as configurações do projeto ficam em {fallback}."
-NO_ROOT = "nenhuma"
+NOT_A_FOLDER = _("{folder} não é uma pasta: as configurações do projeto ficam em {fallback}.")
+NOT_WRITABLE = _("{folder} não é gravável: as configurações do projeto ficam em {fallback}.")
+NO_ROOT = _("nenhuma")
 
 
 @dataclass(frozen=True)
@@ -122,9 +123,9 @@ class StoreFile:
         except FileNotFoundError:
             return None
         except (OSError, ValueError) as exc:
-            log.warning("%s ilegível; nada importado (%s)", self.legacy, exc)
+            log.warning("%s unreadable; nothing imported (%s)", self.legacy, exc)
             return None
 
     def log_import(self, count: int) -> None:
         if self.legacy is not None:
-            log.info("%s: %d itens importados de %s", self.path, count, self.legacy)
+            log.info("%s: %d items imported from %s", self.path, count, self.legacy)

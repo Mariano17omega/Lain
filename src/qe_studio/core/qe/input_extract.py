@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ...i18n import _
 from .input_lint import Card, Entry, InputDoc
 
 # QE's defaults of the few parameters worth showing when absent: (namelist, key) → value.
@@ -63,7 +64,7 @@ class Chip:
 
     @property
     def text(self) -> str:
-        return f"{self.label}: {self.value}" + (" (padrão)" if self.is_default else "")
+        return f"{self.label}: {self.value}" + (_(" (padrão)") if self.is_default else "")
 
 
 def clean(value_text: str) -> str:
@@ -109,7 +110,7 @@ def _k_points(card: Card) -> Chip:
 def _spin(doc: InputDoc) -> Chip | None:
     noncolinear = doc.get("system", "noncolin")
     if noncolinear is not None and _is_true(noncolinear):
-        mode = "SO" if _is_true(doc.get("system", "lspinorb")) else "não colinear"
+        mode = "SO" if _is_true(doc.get("system", "lspinorb")) else _("não colinear")
         return Chip("nspin", mode, noncolinear.line)
     return _param(doc, "nspin", "system", "nspin")
 

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
+from ...i18n import _, ngettext
 from .rsync import Endpoint
 
 DETAILS_MAX_FILES = 200  # per list: a pull of thousands of files is summed up, not listed
@@ -32,6 +33,7 @@ class SyncReport:
     local_newer_folders: list[str] = field(default_factory=list)
     error: str | None = None
     connection_failed: bool = False
+    auth_failed: bool = False  # the cluster refused the credentials
     # Edited, created or removed locally between the preview and the transfer: left alone (R3.1).
     changed_locally: tuple[str, ...] = ()
 
@@ -43,23 +45,37 @@ class SyncReport:
     @property
     def message(self) -> str:
         if self.status is SyncStatus.FAILED:
-            return f"Falha na sincronização: {self.error}"
+            return _("Falha na sincronização: {error}").format(error=self.error)
         if self.status is SyncStatus.CANCELLED:
-            return "Sincronização cancelada."
+            return _("Sincronização cancelada.")
         if self.status is SyncStatus.UP_TO_DATE:
-            return "Pasta já sincronizada: nada a transferir."
+            return _("Pasta já sincronizada: nada a transferir.")
         lines = []
         if self.status is SyncStatus.LOCAL_NEWER:
             lines.append(
-                "A cópia local é mais recente que a do cluster: nenhuma transferência realizada."
+                _("A cópia local é mais recente que a do cluster: nenhuma transferência realizada.")
             )
         else:
-            lines.append(f"{len(self.transferred)} arquivo(s) baixado(s).")
+            lines.append(
+                ngettext(
+                    "{count} arquivo baixado.", "{count} arquivos baixados.", len(self.transferred)
+                ).format(count=len(self.transferred))
+            )
         if self.skipped:
-            lines.append(f"{len(self.skipped)} conflito(s) mantido(s) na versão local.")
+            lines.append(
+                ngettext(
+                    "{count} conflito mantido na versão local.",
+                    "{count} conflitos mantidos na versão local.",
+                    len(self.skipped),
+                ).format(count=len(self.skipped))
+            )
         if self.local_newer and self.status is not SyncStatus.LOCAL_NEWER:
             lines.append(
-                f"{len(self.local_newer)} arquivo(s) local(is) mais recente(s) mantido(s)."
+                ngettext(
+                    "{count} arquivo local mais recente mantido.",
+                    "{count} arquivos locais mais recentes mantidos.",
+                    len(self.local_newer),
+                ).format(count=len(self.local_newer))
             )
         if self.changed_locally:
             lines.append(self.changed_note)
@@ -67,10 +83,11 @@ class SyncReport:
 
     @property
     def changed_note(self) -> str:
-        return (
-            f"{len(self.changed_locally)} arquivo(s) mudaram localmente durante a prévia "
-            "e não foram baixados."
-        )
+        return ngettext(
+            "{count} arquivo mudou localmente durante a prévia e não foi baixado.",
+            "{count} arquivos mudaram localmente durante a prévia e não foram baixados.",
+            len(self.changed_locally),
+        ).format(count=len(self.changed_locally))
 
     @property
     def headline(self) -> str:
@@ -85,14 +102,14 @@ class SyncReport:
         lines = [
             self.message,
             "",
-            f"Pasta local: {self.local_dir}",
+            _("Pasta local: {local_dir}").format(local_dir=self.local_dir),
             f"Cluster: {self.remote.spec()}",
         ]
         for title, paths in (
-            ("Baixados", self.transferred),
-            ("Mantidos na versão local", self.skipped),
-            ("Mais recentes no computador", self.local_newer),
-            ("Mudaram localmente (não baixados)", list(self.changed_locally)),
+            (_("Baixados"), self.transferred),
+            (_("Mantidos na versão local"), self.skipped),
+            (_("Mais recentes no computador"), self.local_newer),
+            (_("Mudaram localmente (não baixados)"), list(self.changed_locally)),
         ):
             if paths:
                 lines += ["", f"{title} ({len(paths)}):", *_listed(paths)]
@@ -113,15 +130,25 @@ class PushReport(SyncReport):
     @property
     def message(self) -> str:
         if self.status is SyncStatus.FAILED:
-            return f"Falha no envio: {self.error}"
+            return _("Falha no envio: {error}").format(error=self.error)
         if self.status is SyncStatus.CANCELLED:
-            return "Envio cancelado."
+            return _("Envio cancelado.")
         if self.status is SyncStatus.UP_TO_DATE:
-            lines = ["Nada a enviar."]
+            lines = [_("Nada a enviar.")]
         else:
-            lines = [f"{len(self.transferred)} arquivo(s) enviado(s)."]
+            lines = [
+                ngettext(
+                    "{count} arquivo enviado.", "{count} arquivos enviados.", len(self.transferred)
+                ).format(count=len(self.transferred))
+            ]
         if self.existing:
-            lines.append(f"{len(self.existing)} já existiam no cluster e não foram alterados.")
+            lines.append(
+                ngettext(
+                    "{count} já existia no cluster e não foi alterado.",
+                    "{count} já existiam no cluster e não foram alterados.",
+                    len(self.existing),
+                ).format(count=len(self.existing))
+            )
         return "\n".join(lines)
 
     @property
@@ -129,12 +156,12 @@ class PushReport(SyncReport):
         lines = [
             self.message,
             "",
-            f"Pasta local: {self.local_dir}",
+            _("Pasta local: {local_dir}").format(local_dir=self.local_dir),
             f"Cluster: {self.remote.spec()}",
         ]
         for title, paths in (
-            ("Enviados", self.transferred),
-            ("Já existiam no cluster (não alterados)", self.existing),
+            (_("Enviados"), self.transferred),
+            (_("Já existiam no cluster (não alterados)"), self.existing),
         ):
             if paths:
                 lines += ["", f"{title} ({len(paths)}):", *_listed(paths)]
@@ -144,5 +171,5 @@ class PushReport(SyncReport):
 def _listed(paths: list[str]) -> list[str]:
     shown = [f"  {path}" for path in sorted(paths)[:DETAILS_MAX_FILES]]
     if len(paths) > DETAILS_MAX_FILES:
-        shown.append(f"  … e mais {len(paths) - DETAILS_MAX_FILES}")
+        shown.append(_("  … e mais {value}").format(value=len(paths) - DETAILS_MAX_FILES))
     return shown

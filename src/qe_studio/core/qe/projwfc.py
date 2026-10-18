@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ...i18n import _
 from .. import cancel
 
 ATM_PATTERN = re.compile(
@@ -71,9 +72,9 @@ def header_columns(header: str) -> list[str]:
     Raises for k-resolved files (``# ik E (eV) ...``), which the MVP does not plot.
     """
     if not header.lstrip().startswith("#"):
-        raise PdosFormatError("cabeçalho '#' ausente")
+        raise PdosFormatError(_("cabeçalho '#' ausente"))
     if re.search(r"\bik\b", header):
-        raise PdosFormatError("PDOS resolvida em k (kresolveddos) não é suportada")
+        raise PdosFormatError(_("PDOS resolvida em k (kresolveddos) não é suportada"))
     return re.findall(r"(\w+)\(E\)", header)
 
 
@@ -106,10 +107,10 @@ def read_pdos_file(path: Path, total: bool = False) -> tuple[np.ndarray, Channel
     elif names:
         cols = (1,)
     else:
-        raise PdosFormatError(f"colunas não reconhecidas em {path.name}")
+        raise PdosFormatError(_("colunas não reconhecidas em {name}").format(name=path.name))
     data = np.loadtxt(path, skiprows=1, usecols=(0, *cols), ndmin=2)
     if data.shape[0] == 0:
-        raise PdosFormatError(f"{path.name} sem dados")
+        raise PdosFormatError(_("{name} sem dados").format(name=path.name))
     energy = data[:, 0]
     channel = Channel(data[:, 1], data[:, 2] if len(cols) == 2 else None)
     return energy, channel
@@ -152,7 +153,7 @@ def _group_key(series: PdosSeries, grouping: str) -> tuple[str, str]:
         return series.species, ""
     if grouping == "orbital":
         return "", series.l
-    raise ValueError(f"agrupamento desconhecido: {grouping}")
+    raise ValueError(_("agrupamento desconhecido: {grouping}").format(grouping=grouping))
 
 
 def aggregate(
@@ -201,14 +202,16 @@ def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosDa
         if energy is None:
             energy = grid
         elif len(grid) != len(energy) or not np.allclose(grid, energy):
-            warnings.append(f"{path.name}: grade de energia diferente, interpolada")
+            warnings.append(
+                _("{name}: grade de energia diferente, interpolada").format(name=path.name)
+            )
             channel = Channel(
                 np.interp(energy, grid, channel.up),
                 None if channel.down is None else np.interp(energy, grid, channel.down),
             )
         series.append(PdosSeries(meta.atom, meta.species, meta.wfc, meta.l, meta.j, channel))
     if energy is None:
-        raise PdosFormatError("nenhum arquivo pdos_atm# encontrado")
+        raise PdosFormatError(_("nenhum arquivo pdos_atm# encontrado"))
 
     total = None
     total_is_sum = False
@@ -223,7 +226,7 @@ def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosDa
         total_is_sum = True
         for s in series:
             total = s.channel if total is None else total + s.channel
-        warnings.append("pdos_tot ausente: total = soma das projeções")
+        warnings.append(_("pdos_tot ausente: total = soma das projeções"))
     return PdosData(energy, tuple(series), total, total_is_sum, tuple(warnings))
 
 

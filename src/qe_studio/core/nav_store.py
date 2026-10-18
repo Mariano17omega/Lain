@@ -19,6 +19,7 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
+from ..i18n import _
 from .appdirs import atomic_write_text, set_aside_corrupt
 from .project_data import NAVIGATION_FILE, StoreFile
 
@@ -100,10 +101,12 @@ class NavigationStore:
         except (OSError, ValueError) as exc:
             data = self._set_aside(exc)
         if not isinstance(data, dict):
-            data = self._set_aside("o conteúdo não é um objeto JSON")
+            data = self._set_aside(_("o conteúdo não é um objeto JSON"))
         projects = data.get("projects")
         if data and (data.get("version") != FORMAT_VERSION or not isinstance(projects, dict)):
-            self._set_aside(f"versão de formato desconhecida: {data.get('version')!r}")
+            self._set_aside(
+                _("versão de formato desconhecida: {data!r}").format(data=data.get("version"))
+            )
             projects = None
         self._projects = projects if isinstance(projects, dict) else {}
         return self._projects
@@ -123,12 +126,13 @@ class NavigationStore:
             copy = set_aside_corrupt(self.path)
         except OSError as exc:
             self._read_only = True
-            self._warning = (
-                f"{self.path.name} ilegível e não pôde ser copiado ({exc.strerror or exc}): "
-                "favoritos e recentes desta sessão não serão salvos"
-            )
+            self._warning = _(
+                "{name} ilegível e não pôde ser copiado ({value}): favoritos e recentes desta sessão não serão salvos"
+            ).format(name=self.path.name, value=exc.strerror or exc)
         else:
-            self._warning = f"{self.path.name} estava corrompido; cópia salva em {copy}"
+            self._warning = _("{name} estava corrompido; cópia salva em {copy}").format(
+                name=self.path.name, copy=copy
+            )
         log.warning("%s (%s)", self._warning, problem)
         return {}
 

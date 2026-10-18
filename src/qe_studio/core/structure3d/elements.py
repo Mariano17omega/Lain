@@ -12,6 +12,8 @@ from functools import cache
 
 import numpy as np
 
+from ...i18n import _
+
 __all__ = ["ElementInfo", "element_by_z", "element_for_label", "symbol_from_label"]
 
 UNKNOWN_RADIUS = 1.0  # Å, covalent and van der Waals radius of an unknown element
@@ -20,17 +22,19 @@ VDW_FALLBACK = 1.8  # Å, for elements with no van der Waals radius in ASE
 _FALLBACK_COLOR = (0.7, 0.7, 0.7)  # elements beyond the Jmol table
 
 _NAMES = (  # Portuguese element names by Z
-    "Hidrogênio Hélio Lítio Berílio Boro Carbono Nitrogênio Oxigênio Flúor Neônio Sódio Magnésio "
-    "Alumínio Silício Fósforo Enxofre Cloro Argônio Potássio Cálcio Escândio Titânio Vanádio Cromo "
-    "Manganês Ferro Cobalto Níquel Cobre Zinco Gálio Germânio Arsênio Selênio Bromo Criptônio "
-    "Rubídio Estrôncio Ítrio Zircônio Nióbio Molibdênio Tecnécio Rutênio Ródio Paládio Prata "
-    "Cádmio Índio Estanho Antimônio Telúrio Iodo Xenônio Césio Bário Lantânio Cério Praseodímio "
-    "Neodímio Promécio Samário Európio Gadolínio Térbio Disprósio Hólmio Érbio Túlio Itérbio "
-    "Lutécio Háfnio Tântalo Tungstênio Rênio Ósmio Irídio Platina Ouro Mercúrio Tálio Chumbo "
-    "Bismuto Polônio Astato Radônio Frâncio Rádio Actínio Tório Protactínio Urânio Netúnio "
-    "Plutônio Amerício Cúrio Berquélio Califórnio Einstênio Férmio Mendelévio Nobélio "
-    "Laurêncio Rutherfórdio Dúbnio Seabórgio Bóhrio Hássio Meitnério Darmstádio Roentgênio "
-    "Copernício Nihônio Fleróvio Moscóvio Livermório Tenessino Oganessônio"
+    _(
+        "Hidrogênio Hélio Lítio Berílio Boro Carbono Nitrogênio Oxigênio Flúor Neônio Sódio Magnésio "
+        "Alumínio Silício Fósforo Enxofre Cloro Argônio Potássio Cálcio Escândio Titânio Vanádio Cromo "
+        "Manganês Ferro Cobalto Níquel Cobre Zinco Gálio Germânio Arsênio Selênio Bromo Criptônio "
+        "Rubídio Estrôncio Ítrio Zircônio Nióbio Molibdênio Tecnécio Rutênio Ródio Paládio Prata "
+        "Cádmio Índio Estanho Antimônio Telúrio Iodo Xenônio Césio Bário Lantânio Cério Praseodímio "
+        "Neodímio Promécio Samário Európio Gadolínio Térbio Disprósio Hólmio Érbio Túlio Itérbio "
+        "Lutécio Háfnio Tântalo Tungstênio Rênio Ósmio Irídio Platina Ouro Mercúrio Tálio Chumbo "
+        "Bismuto Polônio Astato Radônio Frâncio Rádio Actínio Tório Protactínio Urânio Netúnio "
+        "Plutônio Amerício Cúrio Berquélio Califórnio Einstênio Férmio Mendelévio Nobélio "
+        "Laurêncio Rutherfórdio Dúbnio Seabórgio Bóhrio Hássio Meitnério Darmstádio Roentgênio "
+        "Copernício Nihônio Fleróvio Moscóvio Livermório Tenessino Oganessônio"
+    )
 )
 _NAMES_PT = _NAMES.split()
 
@@ -98,7 +102,7 @@ def element_for_label(label: str) -> ElementInfo:
         return ElementInfo(
             symbol=label.strip() or "X",
             z=0,
-            name="Desconhecido",
+            name=_("Desconhecido"),
             r_cov=UNKNOWN_RADIUS,
             r_vdw=UNKNOWN_RADIUS,
             color=UNKNOWN_COLOR,

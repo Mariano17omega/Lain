@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ....i18n import _
 from ..scf_info import ScfInfo, scf_info
 from .elements import covalent_radius, element_of
 from .geometry import pair_images
@@ -127,7 +128,7 @@ def _letter(number: int) -> str:
 
 def _neighbors(model: Model, rows: list[int], scale: float) -> list[tuple[tuple[str, float], ...]]:
     count = len(model)
-    distances, _ = pair_images(model.frac, model.cell, rows, range(count))
+    distances, __ = pair_images(model.frac, model.cell, rows, range(count))
     radii = np.array([covalent_radius(label) for label in model.labels])
     out = []
     for k, i in enumerate(rows):
@@ -200,4 +201,6 @@ def candidate_note(candidate: Candidate) -> str:
 
 
 def no_candidates_text(species: Sequence[str], window: float) -> str:
-    return f"Nenhum átomo de {', '.join(species)} a até {decimal(window, 1)} Å do topo"
+    return _("Nenhum átomo de {join} a até {decimal} Å do topo").format(
+        join=", ".join(species), decimal=decimal(window, 1)
+    )

@@ -82,7 +82,7 @@ def report(status: SyncStatus, local: Path, **fields) -> SyncReport:
 @pytest.mark.parametrize(
     ("status", "box", "message", "notice"),
     [
-        (SyncStatus.DONE, None, ("0 arquivo(s) baixado(s).", "info"), "success"),
+        (SyncStatus.DONE, None, ("0 arquivos baixados.", "info"), "success"),
         (
             SyncStatus.UP_TO_DATE,
             None,
@@ -118,7 +118,9 @@ def test_the_report_is_shown_after_the_folder_is_refreshed(
 def test_an_authentication_failure_forgets_the_password(qtbot, tmp_path, boxes):
     coordinator = make(qtbot, tmp_path, auth="password", password_env="LAIN_NO_PW")
     coordinator._session_password = "wrong"
-    coordinator._on_finished(report(SyncStatus.FAILED, tmp_path, error="Autenticação recusada"))
+    coordinator._on_finished(
+        report(SyncStatus.FAILED, tmp_path, error="Autenticação recusada", auth_failed=True)
+    )
     assert coordinator._session_password is None
 
 

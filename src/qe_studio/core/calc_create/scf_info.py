@@ -14,6 +14,7 @@ import functools
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ...i18n import _
 from ..qe.input_edit import InputEditor, read_input_text
 from ..qe.lattice import Crystal, StructureError, crystal_from_editor
 from ..qe.pw_input import fortran_float
@@ -83,15 +84,21 @@ def _float(text: str | None) -> float | None:
 
 def scf_info(text: str, path: Path | None = None) -> ScfInfo:
     """The facts of an SCF input. Raises ``ScfInputError`` when it is no pw.x SCF."""
-    name = path.name if path is not None else "O arquivo"
+    name = path.name if path is not None else _("O arquivo")
     editor = InputEditor.from_text(text)
     if editor.issues:
-        raise ScfInputError(f"{name} não pôde ser lido: {editor.issues[0]}")
+        raise ScfInputError(
+            _("{name} não pôde ser lido: {issues}").format(name=name, issues=editor.issues[0])
+        )
     if not editor.has_namelist("system"):
-        raise ScfInputError(f"{name} não é um input do pw.x (sem &SYSTEM)")
+        raise ScfInputError(_("{name} não é um input do pw.x (sem &SYSTEM)").format(name=name))
     calculation = (editor.get("control", "calculation") or "scf").strip().lower()
     if calculation != "scf":
-        raise ScfInputError(f"O arquivo não é um SCF (calculation = '{calculation}')")
+        raise ScfInputError(
+            _("O arquivo não é um SCF (calculation = '{calculation}')").format(
+                calculation=calculation
+            )
+        )
 
     def get(namelist: str, key: str) -> str | None:
         value = editor.get(namelist, key)
@@ -147,7 +154,11 @@ def read_scf(path: Path) -> ScfInfo:
     try:
         text = read_input_text(path)
     except OSError as exc:
-        raise ScfInputError(f"Não foi possível ler {path.name}: {exc.strerror or exc}") from exc
+        raise ScfInputError(
+            _("Não foi possível ler {name}: {value}").format(
+                name=path.name, value=exc.strerror or exc
+            )
+        ) from exc
     info = scf_info(text, path)
     return dataclasses.replace(info, scf_bands=_bands_of_output(path))
 
@@ -158,5 +169,7 @@ def read_other_scf(path: Path) -> ScfInfo:
     from ..sniff import looks_like_input
 
     if not looks_like_input(path):
-        raise ScfInputError(f"{path.name} não parece um input do Quantum ESPRESSO")
+        raise ScfInputError(
+            _("{name} não parece um input do Quantum ESPRESSO").format(name=path.name)
+        )
     return read_scf(path)

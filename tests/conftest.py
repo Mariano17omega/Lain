@@ -11,6 +11,9 @@ from ssh_server import LocalSSHServer, ServerKeys
 # QT_QPA_PLATFORM=xcb would run the tests on the real display, with other screen sizes than CI.
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ.setdefault("MPLBACKEND", "Agg")
+# The texts the tests compare are the Portuguese source ones, whatever the machine's language is
+# (the modules are imported with no language installed, which is the source language too).
+os.environ["QE_STUDIO_LANGUAGE"] = "pt_BR"
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -24,6 +27,16 @@ settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "dev"))
 def pytest_collection_modifyitems(items):
     # Last, so the fixtures check also sees what this run's tests wrote.
     items.sort(key=lambda item: item.name == "test_fixtures_are_untouched")
+
+
+@pytest.fixture(autouse=True)
+def _source_language():
+    """A test may install another language (spec end R4); the next one starts in Portuguese."""
+    from qe_studio import i18n
+
+    yield
+    if i18n.current_language() != i18n.SOURCE_LANGUAGE:
+        i18n.install(i18n.SOURCE_LANGUAGE)
 
 
 @pytest.fixture(autouse=True)

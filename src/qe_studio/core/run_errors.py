@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from ..i18n import _
 from .file_kinds import is_job_stdout
 from .sniff import FileSniff
 
@@ -29,8 +30,8 @@ class RunError:
     @property
     def tooltip(self) -> str:
         if self.kind == "crash":
-            return f"Erro de simulação: arquivo {self.name}"
-        return f"Erro de simulação: {self.name} não está vazio"
+            return _("Erro de simulação: arquivo {name}").format(name=self.name)
+        return _("Erro de simulação: {name} não está vazio").format(name=self.name)
 
 
 def run_error(folder: Path, sniff: Callable[[Path], FileSniff] | None = None) -> RunError | None:

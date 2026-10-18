@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from ...i18n import _
 from .input_edit import InputEditor
 
 __all__ = ["set_cell"]
@@ -24,7 +25,7 @@ def set_cell(
     rows: Sequence[str],
     alat: str | None = None,
     *,
-    cell: str = "a célula",
+    cell: str = _("a célula"),
 ) -> str | None:
     """Write ``rows`` (as they go in the file) as ``CELL_PARAMETERS unit`` with ``ibrav = 0``;
     ``alat`` is the value of ``celldm(1)`` of an ``alat`` card. Returns the note of an ``ibrav`` that
@@ -39,5 +40,7 @@ def set_cell(
     if unit == "alat" and alat is not None:
         editor.set("system", "celldm(1)", alat)  # the unit of the rows
     if ibrav is not None and ibrav.strip() != "0":
-        return f"ibrav = {ibrav.strip()} trocado por 0: {cell} vai em CELL_PARAMETERS"
+        return _("ibrav = {ibrav} trocado por 0: {cell} vai em CELL_PARAMETERS").format(
+            ibrav=ibrav.strip(), cell=cell
+        )
     return None

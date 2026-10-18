@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from ....i18n import _
+
 if TYPE_CHECKING:
     from ..types.base import PlannedFile
 
@@ -17,8 +19,8 @@ __all__ = ["REPORT_KEY", "REPORT_NAME", "decimal", "report_file", "report_text"]
 
 REPORT_NAME = "geracao.md"
 REPORT_KEY = "report"
-TITLE = "# Relatório da geração"
-TAB_LABEL = f"Relatório ({REPORT_NAME})"
+TITLE = _("# Relatório da geração")
+TAB_LABEL = _("Relatório ({REPORT_NAME})").format(REPORT_NAME=REPORT_NAME)
 
 
 def decimal(value: float, digits: int = 2) -> str:

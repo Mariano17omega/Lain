@@ -286,7 +286,7 @@ def test_a_failed_detection_ends_says_so_once_and_f5_tries_again(
         assert service.results(folder) is None
     assert service.results(folder) == [] and emitted == [str(folder)]  # not scheduled again
     assert messages == [("Falha ao detectar calc (veja o log)", "warning")]
-    assert "detecção falhou" in caplog.text
+    assert "detection failed" in caplog.text
 
     with qtbot.waitSignal(service.detected, timeout=5000):
         service.request(folder, fresh=True)

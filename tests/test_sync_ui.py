@@ -82,8 +82,8 @@ def test_sync_with_conflict_prompt(qtbot, tmp_path, demo_project, ssh_server, me
     assert (local / "scf.out").read_text() == "cluster version"
     assert not (local / "tmp" / "al.save").exists()
     assert messages == []  # success is a toast, not a message box (spec 17 R3)
-    assert window.toast.isVisible() and window.toast.text.text() == "2 arquivo(s) baixado(s)."
-    assert window.status.message.text() == "2 arquivo(s) baixado(s)."
+    assert window.toast.isVisible() and window.toast.text.text() == "2 arquivos baixados."
+    assert window.status.message.text() == "2 arquivos baixados."
     assert window.monitor.state.value != "syncing"
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     assert window.sync.controller is None and window.sync.conflict_dialog is None

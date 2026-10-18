@@ -16,11 +16,12 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar
 
+from ...i18n import N_, _
 from ..compounds import AtomChoices, CompoundStore
 from ..sniff import FileKind, FileSniff
 from .listing import IGNORED_SUBDIRS, FolderListing, is_pdos_name
 from .load_cache import CACHE
-from .params import CommonParams, ParamField, RenderInfo
+from .params import CommonParams, ParamField, RenderInfo, SectionDef
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure, FigureBase
@@ -114,10 +115,17 @@ class LoadError(Exception):
 
 
 class Method(StrEnum):
-    NAME = "nome"
-    CONTENT = "conteúdo"
-    INFERRED = "inferido"
-    MANUAL = "manual"
+    """How a file was assigned to its role. The value is the data (Portuguese, never shown); the UI
+    shows ``label``."""
+
+    NAME = N_("nome")
+    CONTENT = N_("conteúdo")
+    INFERRED = N_("inferido")
+    MANUAL = N_("manual")
+
+    @property
+    def label(self) -> str:
+        return _(self.value)
 
 
 @dataclass(frozen=True)
@@ -228,13 +236,14 @@ class CalculationModule(Generic[D, P]):
     badge_token: ClassVar[str | None] = None
     # Parameters the plot toolbar's Reset restores from the defaults (axis limits).
     view_fields: ClassVar[tuple[str, ...]] = ()
-    # Own sections of the tuning panel as (name, section to insert before); see ``ordered_sections``.
-    sections: ClassVar[tuple[tuple[str, str | None], ...]] = ()
+    # Own sections of the tuning panel as (section, id of the one to insert before); see
+    # ``ordered_sections``.
+    sections: ClassVar[tuple[tuple[SectionDef, str | None], ...]] = ()
     # Role whose single file can be plotted on its own (right-click "Plotar"); see ``module_for_file``.
     single_file_role: ClassVar[str | None] = None
     # Label and tooltip of the top bar button that plots the open output (spec 35 R4).
-    plot_file_label: ClassVar[str] = "Plotar"
-    plot_file_tip: ClassVar[str] = "Plotar o arquivo aberto"
+    plot_file_label: ClassVar[str] = _("Plotar")
+    plot_file_tip: ClassVar[str] = _("Plotar o arquivo aberto")
     # Offered in the manual mapping dialog. False for figures built from other results (spec 22).
     selectable: ClassVar[bool] = True
     # Parameters kept in ``<folder>/plots/<kind>.plot``. False: edits go to ``save_stored`` (grid).

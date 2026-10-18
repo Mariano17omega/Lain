@@ -17,6 +17,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from ..i18n import _
 from .appdirs import atomic_write_text, set_aside_corrupt
 from .plotting.grid import GridCell, GridSpec, PlotRef
 from .project_data import GRIDS_FILE, StoreFile
@@ -117,7 +118,7 @@ class GridStore:
             try:
                 return self._spec(name, entry) if isinstance(entry, dict) else None
             except (KeyError, TypeError, ValueError) as exc:
-                log.warning("grids.json: grade %r ilegível (%s)", name, exc)
+                log.warning("grids.json: grid %r unreadable (%s)", name, exc)
                 return None
 
     def params(self, name: str) -> dict[str, Any]:
@@ -228,10 +229,12 @@ class GridStore:
         except (OSError, ValueError) as exc:
             data = self._set_aside(exc)
         if not isinstance(data, dict):
-            data = self._set_aside("o conteúdo não é um objeto JSON")
+            data = self._set_aside(_("o conteúdo não é um objeto JSON"))
         grids = data.get("grids")
         if data and (data.get("version") != FORMAT_VERSION or not isinstance(grids, dict)):
-            self._set_aside(f"versão de formato desconhecida: {data.get('version')!r}")
+            self._set_aside(
+                _("versão de formato desconhecida: {data!r}").format(data=data.get("version"))
+            )
             grids = None
         self._grids = grids if isinstance(grids, dict) else {}
         return self._grids
@@ -250,12 +253,13 @@ class GridStore:
             copy = set_aside_corrupt(self.path)
         except OSError as exc:
             self._read_only = True
-            self._warning = (
-                f"{self.path.name} ilegível e não pôde ser copiado ({exc.strerror or exc}): "
-                "as grades desta sessão não serão salvas"
-            )
+            self._warning = _(
+                "{name} ilegível e não pôde ser copiado ({value}): as grades desta sessão não serão salvas"
+            ).format(name=self.path.name, value=exc.strerror or exc)
         else:
-            self._warning = f"{self.path.name} estava corrompido; cópia salva em {copy}"
+            self._warning = _("{name} estava corrompido; cópia salva em {copy}").format(
+                name=self.path.name, copy=copy
+            )
         log.warning("%s (%s)", self._warning, problem)
         return {}
 

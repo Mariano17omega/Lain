@@ -7,6 +7,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..i18n import _
 from .calculations import (
     REGISTRY,
     CalculationModule,
@@ -144,9 +145,12 @@ class PairTarget:
     def build(self) -> DetectionResult:
         """The combined result; ``LoadError`` (for the user) when a folder is gone or the two no
         longer make a pair."""
-        for folder, name in ((self.bands, "das bandas"), (self.dos, "da DOS")):
+        for folder, message in (
+            (self.bands, _("Pasta das bandas não encontrada: {folder}")),
+            (self.dos, _("Pasta da DOS não encontrada: {folder}")),
+        ):
             if not folder.is_dir():
-                raise LoadError(f"Pasta {name} não encontrada: {folder}")
+                raise LoadError(message.format(folder=folder))
         sniff = sniff_once(self.sniff)
         pair = ordered_pair(
             detect_folder(self.bands, sniff, self.memory),
@@ -154,7 +158,9 @@ class PairTarget:
         )
         if pair is None:
             raise LoadError(
-                f"{self.bands.name} e {self.dos.name} não formam um par de bandas e DOS completos."
+                _("{name} e {name_2} não formam um par de bandas e DOS completos.").format(
+                    name=self.bands.name, name_2=self.dos.name
+                )
             )
         return pair_result(pair, self.module)
 
@@ -208,12 +214,16 @@ class FolderTarget:
 
     def build(self) -> DetectionResult:
         if not self.folder.is_dir():
-            raise LoadError(f"Pasta não encontrada: {self.folder}")
+            raise LoadError(_("Pasta não encontrada: {folder}").format(folder=self.folder))
         results = detect_folder(self.folder, self.sniff, self.memory)
         found = next((r for r in results if r.kind == self.kind and r.plottable), None)
         if found is None:
             name = self.module.display_name.lower()
-            raise LoadError(f"Nenhum cálculo de {name} completo em {self.folder.name}.")
+            raise LoadError(
+                _("Nenhum cálculo de {name} completo em {name_2}.").format(
+                    name=name, name_2=self.folder.name
+                )
+            )
         return found
 
 
@@ -228,7 +238,7 @@ def ref_target(
         return PairTarget(ref.path, ref.partner, sniff, memory)
     if module.single_file_role is not None and not ref.path.is_dir():
         if not ref.path.is_file():
-            raise LoadError(f"Arquivo não encontrado: {ref.path}")
+            raise LoadError(_("Arquivo não encontrado: {path}").format(path=ref.path))
         return ManualTarget(module, ref.path.parent, {module.single_file_role: [ref.path]}, sniff)
     return FolderTarget(ref.path, ref.kind, sniff, memory)
 
@@ -269,12 +279,11 @@ def mapping_message(results: list[DetectionResult]) -> str:
     is incomplete: the dialog shows what is missing)."""
     detected = [r.badge for r in results if not r.module.plottable]
     if detected and not any(r.module.plottable for r in results):
-        return (
-            f"Esta pasta foi identificada como {', '.join(detected)}, que não tem gráfico "
-            f"próprio. Para plotar {describe_plottable()}, indique os arquivos."
-        )
+        return _(
+            "Esta pasta foi identificada como {join}, que não tem gráfico próprio. Para plotar {describe_plottable}, indique os arquivos."
+        ).format(join=", ".join(detected), describe_plottable=describe_plottable())
     if not results:
-        return (
+        return _(
             "Nenhum cálculo reconhecido nesta pasta (nomes e conteúdo). "
             "Indique o tipo de cálculo e os arquivos manualmente."
         )

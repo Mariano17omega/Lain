@@ -206,7 +206,7 @@ def test_apply_limits_stores_the_symmetric_limit_only_when_mirrored(spin):
 def test_spin_mode_is_offered_only_for_a_spin_polarized_pdos(spin):
     module, dataset, _ = spin
     fields = {f.name: f for f in module.param_schema(dataset)}
-    assert fields["spin_mode"].section == "Projeções"
+    assert fields["spin_mode"].section == "projections"
     assert [c[0] for c in fields["spin_mode"].choices] == MODES
     plain_module, plain, _ = load(FIXTURES / "al_pdos_flat")
     assert "spin_mode" not in {f.name for f in plain_module.param_schema(plain)}

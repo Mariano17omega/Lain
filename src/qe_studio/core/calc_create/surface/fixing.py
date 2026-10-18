@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ....i18n import N_, _
 from . import SurfaceError
 from .elements import covalent_radius
 from .geometry import pair_images
@@ -36,12 +37,13 @@ __all__ = [
     "fixed_atoms",
 ]
 
-BOTTOM = "camada inferior"
-SPECIES = "espécies e vizinhos"
-FROM_SCF = "do SCF"
-NONE = "nenhum"
+# The values of the "fix" choice: data, shown through ``_()`` by the form.
+BOTTOM = N_("camada inferior")
+SPECIES = N_("espécies e vizinhos")
+FROM_SCF = N_("do SCF")
+NONE = N_("nenhum")
 FIX_RULES = (BOTTOM, SPECIES, FROM_SCF, NONE)
-ALL_FIXED = "Todos os átomos ficariam fixos"
+ALL_FIXED = _("Todos os átomos ficariam fixos")
 FIXED: Flags = (0, 0, 0)
 
 
@@ -69,7 +71,7 @@ def _by_species(
     notes = []
     fixed = set(chosen)
     if chosen and around:
-        distances, _ = pair_images(model.frac, model.cell, chosen, around)
+        distances, __ = pair_images(model.frac, model.cell, chosen, around)
         radii = np.array([covalent_radius(label) for label in model.labels])
         cutoffs = bond_scale * (radii[chosen][:, None] + radii[around][None, :])
         fixed |= {around[j] for j in np.flatnonzero((distances < cutoffs).any(axis=0))}
@@ -77,8 +79,9 @@ def _by_species(
     if chosen and heights[chosen].mean() > middle:
         names = ", ".join(dict.fromkeys(model.labels[i] for i in chosen))
         notes.append(
-            f"Os átomos de {names} ficam, em média, acima do plano médio: a parte fixa não é a "
-            "de baixo"
+            _(
+                "Os átomos de {names} ficam, em média, acima do plano médio: a parte fixa não é a de baixo"
+            ).format(names=names)
         )
     return sorted(fixed), notes
 
@@ -107,11 +110,11 @@ def fixed_atoms(
     elif rule == NONE:
         indices = []
     else:
-        raise SurfaceError(f"Regra de átomos fixos desconhecida: {rule}")
+        raise SurfaceError(_("Regra de átomos fixos desconhecida: {rule}").format(rule=rule))
     if count and len(indices) >= count:
         raise SurfaceError(ALL_FIXED)
     if not indices and rule != NONE:
-        notes.append(f"Nenhum átomo ficou fixo pela regra '{rule}'")
+        notes.append(_("Nenhum átomo ficou fixo pela regra '{rule}'").format(rule=rule))
     return FixResult(tuple(int(i) for i in indices), tuple(notes))
 
 

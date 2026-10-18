@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
+from ..i18n import _
 from . import cancel
 from .qe import bands_x, projwfc
 from .qe.pw_input import parse_input
@@ -206,7 +207,7 @@ def _sniff_output(path: Path, size: int, program: str) -> FileSniff:
         )
     text = _read_text(path, size, FULL_READ_LIMIT if kind is FileKind.BANDSX_OUT else 0)
     job_done = "JOB DONE" in text
-    warnings = () if job_done else ("execução incompleta (sem JOB DONE)",)
+    warnings = () if job_done else (_("execução incompleta (sem JOB DONE)"),)
     bandsx = bands_x.parse_bandsx_output(text) if kind is FileKind.BANDSX_OUT else None
     return FileSniff(
         path, kind, program=program, bandsx=bandsx, job_done=job_done, warnings=warnings
@@ -247,7 +248,7 @@ class SniffCache:
             raise
         except Exception:  # one odd file must not take its whole folder down (spec 27-8 R5)
             # Cached below like any result: logged once per (file, mtime, size), not read again.
-            log.exception("sniff falhou: %s", path)
+            log.exception("sniff failed: %s", path)
             result = FileSniff(path, FileKind.UNKNOWN)
         with self._lock:
             self._entries[path] = (*stamp, result)

@@ -49,11 +49,18 @@ class Section(QWidget):
     opened_changed = pyqtSignal(bool)  # the user opened or closed it
 
     def __init__(
-        self, theme: ThemeManager, title: str, opened: bool = True, parent: QWidget | None = None
+        self,
+        theme: ThemeManager,
+        title: str,
+        opened: bool = True,
+        parent: QWidget | None = None,
+        *,
+        section_id: str = "",
     ):
         super().__init__(parent)
         self.theme = theme
         self.title = title
+        self.id = section_id
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)

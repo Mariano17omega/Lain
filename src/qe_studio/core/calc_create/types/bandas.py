@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+from ....i18n import _
 from ..edits import ensure_smearing, put_number, put_path, put_string
 from ..kpath import KPath, collapse_note, collapsed_segments
 from ..render import render
@@ -29,7 +30,7 @@ CHANNELS = (("up", 1), ("dw", 2))  # the ↑/↓ names spec 13 pairs (band_up, b
 def bands_x_keys(scf: ScfInfo) -> list[str]:
     """The bands.x inputs (their keys are their standard names without ``.in``): one, or one per
     channel of a collinear spin run."""
-    return [f"bands_pp_{tag}" for tag, _ in CHANNELS] if scf.spin else ["bands_pp"]
+    return [f"bands_pp_{tag}" for tag, __ in CHANNELS] if scf.spin else ["bands_pp"]
 
 
 def channel_filband(filband: str, tag: str) -> str:
@@ -44,7 +45,7 @@ def channel_filband(filband: str, tag: str) -> str:
 
 class BandasType(CalcType):
     id: ClassVar[str] = "bandas"
-    label: ClassVar[str] = "Bandas"
+    label: ClassVar[str] = _("Bandas")
     folder_prefix: ClassVar[str] = "Bands"
     script_stem: ClassVar[str] = "bands"
     script_template: ClassVar[str] = "qsub/bands.qsub.j2"
@@ -53,7 +54,7 @@ class BandasType(CalcType):
     def input_files(self, scf: ScfInfo, name: str = "") -> list[InputFile]:
         return [
             scf_input(scf),
-            InputFile(BANDS_KEY, BANDS, "Bandas"),
+            InputFile(BANDS_KEY, BANDS, _("Bandas")),
             *(InputFile(key, f"{key}.in") for key in bands_x_keys(scf)),
         ]
 
@@ -62,22 +63,22 @@ class BandasType(CalcType):
             nbnd_field(scf, BANDS_KEY),
             FormField(
                 "kpath",
-                "Caminho de alta simetria",
+                _("Caminho de alta simetria"),
                 "kpath",
                 None,
                 required=True,
                 group=BANDS_KEY,
-                tooltip="K_POINTS crystal_b: pontos de alta simetria e pontos até o próximo",
+                tooltip=_("K_POINTS crystal_b: pontos de alta simetria e pontos até o próximo"),
                 standard=True,
             ),
             FormField(
                 "filband",
-                "Arquivo das bandas (filband)",
+                _("Arquivo das bandas (filband)"),
                 "text",
                 DEFAULT_FILBAND,
                 group=bands_x_keys(scf)[0],
                 tooltip="bands.x grava <filband> e <filband>.gnu"
-                + (" (_up / _dw por canal de spin)" if scf.spin else ""),
+                + (_(" (_up / _dw por canal de spin)") if scf.spin else ""),
             ),
         ]
 
@@ -92,8 +93,9 @@ class BandasType(CalcType):
         path: KPath = values["kpath"] or KPath(())
         if scf.crystal is None:
             work.notes.append(
-                f"Estrutura do SCF não lida ({scf.structure_problem}): digite o caminho à mão; "
-                "checagem do eixo x das bandas não feita"
+                _(
+                    "Estrutura do SCF não lida ({structure_problem}): digite o caminho à mão; checagem do eixo x das bandas não feita"
+                ).format(structure_problem=scf.structure_problem)
             )
         else:
             work.notes.extend(
@@ -112,7 +114,9 @@ class BandasType(CalcType):
         files = [work.pw_file(SCF_KEY, work.editor()), work.pw_file(BANDS_KEY, editor)]
         filband = values["filband"] or DEFAULT_FILBAND
         if scf.spin:
-            work.notes.append("nspin = 2: o bands.x roda uma vez por canal (spin_component 1 e 2)")
+            work.notes.append(
+                _("nspin = 2: o bands.x roda uma vez por canal (spin_component 1 e 2)")
+            )
             runs = [(channel_filband(filband, tag), component) for tag, component in CHANNELS]
         else:
             runs = [(filband, None)]

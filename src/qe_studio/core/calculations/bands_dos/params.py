@@ -11,10 +11,11 @@ import os
 from dataclasses import dataclass, field, fields, replace
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from ....i18n import N_, _
 from ...config import DEFAULT_ATOMOS_COLORS, DEFAULT_ORBITAL_COLORS
 from ..bands import params as bands_params
 from ..bands.params import BandsParams
-from ..params import COMMON_FIELDS, GAP_METHOD_FIELD, CommonParams, ParamField
+from ..params import COMMON_FIELDS, GAP_METHOD_FIELD, CommonParams, ParamField, SectionDef
 from ..pdos import params as pdos_params
 from ..pdos.params import PdosParams
 
@@ -24,14 +25,21 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-BANDS_AXIS = "Bandas ▸ Eixo k"
-BANDS_COLORS = "Bandas ▸ Cores"
-BANDS_SPIN = "Bandas ▸ Spin"
-DOS_AXIS = "DOS ▸ Eixo"
-DOS_PROJECTIONS = "DOS ▸ Projeções"
-# The module's own sections, all ahead of "Estilo" in this order (``ordered_sections``).
+BANDS_AXIS = "bands_axis"
+BANDS_COLORS = "bands_colors"
+BANDS_SPIN = "bands_spin"
+DOS_AXIS = "dos_axis"
+DOS_PROJECTIONS = "dos_projections"
+# The module's own sections, all ahead of "style" in this order (``ordered_sections``).
 SECTIONS = tuple(
-    (name, "Estilo") for name in (BANDS_AXIS, BANDS_COLORS, BANDS_SPIN, DOS_AXIS, DOS_PROJECTIONS)
+    (SectionDef(section_id, N_(title)), "style")
+    for section_id, title in (
+        (BANDS_AXIS, _("Bandas ▸ Eixo k")),
+        (BANDS_COLORS, _("Bandas ▸ Cores")),
+        (BANDS_SPIN, _("Bandas ▸ Spin")),
+        (DOS_AXIS, _("DOS ▸ Eixo")),
+        (DOS_PROJECTIONS, _("DOS ▸ Projeções")),
+    )
 )
 
 
@@ -112,14 +120,14 @@ def relative_folder(folder: os.PathLike[str], start: os.PathLike[str]) -> str:
 
 WIDTH_FIELD = ParamField(
     "dos_width_ratio",
-    "Largura da DOS",
+    _("Largura da DOS"),
     DOS_AXIS,
     "float",
     minimum=0.1,
     maximum=2.0,
     step=0.05,
     decimals=2,
-    tooltip="Largura do painel da DOS em relação ao das bandas",
+    tooltip=_("Largura do painel da DOS em relação ao das bandas"),
 )
 
 
@@ -131,7 +139,7 @@ def param_schema(dataset: BandsDosDataset) -> list[ParamField]:
         return [replace(source[name], section=section) for name in names if name in source]
 
     return [
-        *take(bands, ("reference", "emin", "emax", "show_fermi_line"), "Energia"),
+        *take(bands, ("reference", "emin", "emax", "show_fermi_line"), "energy"),
         *take(bands, ("xmin", "xmax", "labels", "show_hs_lines"), BANDS_AXIS),
         *take(bands, ("valence_color", "conduction_color"), BANDS_COLORS),
         *take(bands, ("spin_channels", "spin_coloring", "up_color", "down_color"), BANDS_SPIN),
@@ -142,7 +150,7 @@ def param_schema(dataset: BandsDosDataset) -> list[ParamField]:
             ("grouping", "show_total", "fill_occupied", "atoms", "spin_mode", "hidden_series"),
             DOS_PROJECTIONS,
         ),
-        *take(bands, ("fermi_color",), "Estilo"),
+        *take(bands, ("fermi_color",), "style"),
         *COMMON_FIELDS,
         bands_params.BANDS_LEGEND_GAP_FIELD,  # the gap is the bands' one
         GAP_METHOD_FIELD,

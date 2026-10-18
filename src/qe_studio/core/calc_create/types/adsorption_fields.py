@@ -12,6 +12,7 @@ import dataclasses
 from collections.abc import Mapping
 from typing import Any
 
+from ....i18n import N_, _
 from ..fragments import AtomRow, AtomRows
 from ..scf_info import ScfInfo
 from ..surface import SurfaceError
@@ -46,19 +47,20 @@ __all__ = [
     "site_rows",
 ]
 
-MOLECULE_TAB = "Molécula"  # no file is named so: tabs of their own, before the input's
-SITE_TAB = "Sítio"
+# Group names double as the tabs' keys and titles: data, shown through ``_()`` by the dialog.
+MOLECULE_TAB = N_("Molécula")  # no file is named so: tabs of their own, before the input's
+SITE_TAB = N_("Sítio")
 SITE = "site"
-MONODENTATE, BIDENTATE = "monodentado", "bidentado"
+MONODENTATE, BIDENTATE = N_("monodentado"), N_("bidentado")
 MODES = (MONODENTATE, BIDENTATE)
-FROM_LIST, FROM_COORDS = "lista de candidatos", "coordenadas"
+FROM_LIST, FROM_COORDS = N_("lista de candidatos"), N_("coordenadas")
 COORDS = ("coords_1", "coords_2")
 DEFAULT_SPECIES = "O"  # SITE_SYMBOLS of the scripts: the molecule anchors on O
 DEFAULT_WINDOW = 1.5  # Å, HEIGHT_WINDOW = ASF_HEIGHT of the scripts
 DEFAULT_SYMPREC = 1e-3  # Å, SYMPREC
 DEFAULT_ETOT_CONV_THR = 1e-4  # Ry, pw.x's default and the scripts' value
 SITE_PARAMS = ("site_species", "height_window", "symprec", BOND_SCALE)  # what the table follows
-SITE_HINT = (
+SITE_HINT = _(
     "Monodentado: marque um átomo. Bidentado: marque dois. Mesma letra = sítios equivalentes por "
     "simetria"
 )
@@ -93,46 +95,54 @@ def molecule_fields() -> list[FormField]:
     return [
         molecule_field(
             MOLECULE_TAB,
-            "SCF da molécula",
-            "O átomo âncora vai sobre o sítio e o eixo âncora → resto da molécula, na normal da "
-            "superfície",
+            _("SCF da molécula"),
+            _(
+                "O átomo âncora vai sobre o sítio e o eixo âncora → resto da molécula, na normal da "
+                "superfície"
+            ),
             required=True,
         ),
         _field(
             MOLECULE_TAB,
             "anchor",
-            "Átomo âncora (nº na molécula)",
+            _("Átomo âncora (nº na molécula)"),
             "int",
             None,
-            "Número do átomo na ordem do SCF da molécula; vazio = o mais pesado (o primeiro num "
-            "empate)",
-            hint="vazio = o mais pesado",
+            _(
+                "Número do átomo na ordem do SCF da molécula; vazio = o mais pesado (o primeiro num "
+                "empate)"
+            ),
+            hint=_("vazio = o mais pesado"),
         ),
         _field(
             MOLECULE_TAB,
             "ads_distance",
-            "Distância de adsorção (Å)",
+            _("Distância de adsorção (Å)"),
             "float",
             2.0,
-            "Distância mínima do âncora a cada átomo da superfície: acima de um átomo, a altura; "
-            "entre dois, o âncora sobe até ficar a esta distância de todos",
+            _(
+                "Distância mínima do âncora a cada átomo da superfície: acima de um átomo, a altura; "
+                "entre dois, o âncora sobe até ficar a esta distância de todos"
+            ),
         ),
         _field(
             MOLECULE_TAB,
             "h_clearance",
-            "Folga mínima (Å)",
+            _("Folga mínima (Å)"),
             "float",
             1.9,
-            "Só avisa: abaixo dela, a folga do âncora aos H da superfície ou do resto da molécula à "
-            "superfície (o relax ajusta)",
+            _(
+                "Só avisa: abaixo dela, a folga do âncora aos H da superfície ou do resto da molécula à "
+                "superfície (o relax ajusta)"
+            ),
         ),
         _field(
             MOLECULE_TAB,
             "vacuum_min",
-            "Vácuo mínimo (Å)",
+            _("Vácuo mínimo (Å)"),
             "float",
             10.5,
-            "Só verifica: abaixo dele, acima da molécula, o plano avisa (a célula não muda)",
+            _("Só verifica: abaixo dele, acima da molécula, o plano avisa (a célula não muda)"),
         ),
     ]
 
@@ -144,20 +154,20 @@ def site_fields(scf: ScfInfo | None) -> list[FormField]:
         _field(
             SITE_TAB,
             "mode",
-            "Coordenação",
+            _("Coordenação"),
             "choice",
             MONODENTATE,
-            "Monodentado: o âncora sobre um átomo. Bidentado: entre dois átomos, no ponto médio",
+            _("Monodentado: o âncora sobre um átomo. Bidentado: entre dois átomos, no ponto médio"),
             standard=True,
             choices=MODES,
         ),
         FormField(
             SITE,
-            "Átomo âncora na superfície",
+            _("Átomo âncora na superfície"),
             "atoms",
             (),
             group=SITE_TAB,
-            tooltip="Os átomos da superfície (na janela do topo) das espécies candidatas",
+            tooltip=_("Os átomos da superfície (na janela do topo) das espécies candidatas"),
             standard=True,
             hint=SITE_HINT,
             data=site_rows(scf, {}) if scf is not None else None,
@@ -169,29 +179,33 @@ def site_fields(scf: ScfInfo | None) -> list[FormField]:
             REMOVE_H_LABEL,
             "bool",
             False,
-            "Desprotona o sítio: o único H ligado a cada átomo âncora sai, e a molécula toma o "
-            "lugar dele",
+            _(
+                "Desprotona o sítio: o único H ligado a cada átomo âncora sai, e a molécula toma o "
+                "lugar dele"
+            ),
             standard=True,
         ),
         _field(
             SITE_TAB,
             "site_from",
-            "Escolher o sítio por",
+            _("Escolher o sítio por"),
             "choice",
             FROM_LIST,
-            "Pela lista: os átomos marcados na tabela. Por coordenadas: o átomo mais próximo de "
-            "cada x y z",
+            _(
+                "Pela lista: os átomos marcados na tabela. Por coordenadas: o átomo mais próximo de "
+                "cada x y z"
+            ),
             choices=(FROM_LIST, FROM_COORDS),
         ),
         *(
             _field(
                 SITE_TAB,
                 field_id,
-                f"Coordenadas do átomo {k} (crystal)",
+                _("Coordenadas do átomo {k} (crystal)").format(k=k),
                 "text",
                 None,
-                "Frações x y z: escolhem o átomo mais próximo, até a tolerância"
-                + (" (só no bidentado)" if k == 2 else ""),
+                _("Frações x y z: escolhem o átomo mais próximo, até a tolerância")
+                + (_(" (só no bidentado)") if k == 2 else ""),
                 hint="x y z",
             )
             for k, field_id in enumerate(COORDS, 1)
@@ -199,35 +213,37 @@ def site_fields(scf: ScfInfo | None) -> list[FormField]:
         _field(
             SITE_TAB,
             "site_tol",
-            "Tolerância das coordenadas (Å)",
+            _("Tolerância das coordenadas (Å)"),
             "float",
             0.5,
-            "Distância máxima entre as coordenadas e o átomo que elas escolhem",
+            _("Distância máxima entre as coordenadas e o átomo que elas escolhem"),
         ),
         _field(
             SITE_TAB,
             "site_species",
-            "Espécies candidatas",
+            _("Espécies candidatas"),
             "text",
             DEFAULT_SPECIES,
-            "Rótulos ou elementos, separados por espaço, dos átomos da lista",
+            _("Rótulos ou elementos, separados por espaço, dos átomos da lista"),
         ),
         _field(
             SITE_TAB,
             "height_window",
-            "Janela da superfície (Å)",
+            _("Janela da superfície (Å)"),
             "float",
             DEFAULT_WINDOW,
-            "A superfície: os átomos até esta distância abaixo do mais alto, ao longo da normal. "
-            "Vale para a lista e para aceitar o átomo escolhido",
+            _(
+                "A superfície: os átomos até esta distância abaixo do mais alto, ao longo da normal. "
+                "Vale para a lista e para aceitar o átomo escolhido"
+            ),
         ),
         _field(
             SITE_TAB,
             "symprec",
-            "Tolerância de simetria (Å)",
+            _("Tolerância de simetria (Å)"),
             "float",
             DEFAULT_SYMPREC,
-            "symprec do spglib, que agrupa os átomos equivalentes (as letras da coluna Sítio)",
+            _("symprec do spglib, que agrupa os átomos equivalentes (as letras da coluna Sítio)"),
         ),
         bond_scale_field(SITE_TAB),
     ]
@@ -255,7 +271,7 @@ def input_tab_fields(scf: ScfInfo, group: str, relax: list[FormField]) -> list[F
         *fields,
         FormField(
             "etot_conv_thr",
-            "Convergência da energia (etot_conv_thr)",
+            _("Convergência da energia (etot_conv_thr)"),
             "float",
             DEFAULT_ETOT_CONV_THR,
             group=group,
@@ -267,9 +283,9 @@ def input_tab_fields(scf: ScfInfo, group: str, relax: list[FormField]) -> list[F
 
 # The names the checks of these numbers use ("A janela da superfície deve ser maior que zero").
 NOUNS = {
-    "height_window": "A janela da superfície",
-    "symprec": "A tolerância de simetria",
-    BOND_SCALE: "A tolerância de ligação",
+    "height_window": _("A janela da superfície"),
+    "symprec": _("A tolerância de simetria"),
+    BOND_SCALE: _("A tolerância de ligação"),
 }
 
 
@@ -281,11 +297,11 @@ def _site_params(values: Mapping[str, Any]) -> tuple[tuple[str, ...], float, flo
         return errors[0]
     species = labels_of(resolved["site_species"])
     if not species:
-        return "Preencha Espécies candidatas"
+        return _("Preencha Espécies candidatas")
     numbers = []
     for key in SITE_PARAMS[1:]:
         if resolved[key] <= 0:
-            return f"{NOUNS[key]} deve ser maior que zero"
+            return _("{NOUNS} deve ser maior que zero").format(NOUNS=NOUNS[key])
         numbers.append(float(resolved[key]))
     return species, numbers[0], numbers[1], numbers[2]
 

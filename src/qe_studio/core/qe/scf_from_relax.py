@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ...i18n import _
 from ..sniff import FileKind, FileSniff
 from ..unique_names import write_new
 from .cell_card import set_cell
@@ -35,11 +36,11 @@ SCF_STEM = "scf_convergido"
 SEP = "_"  # between the stem and the prefix (spec 24, assumed decision 1)
 DEFAULT_PREFIX = "pwscf"  # pw.x's when the input sets none
 DEFAULT_OUTDIR = "./"  # pw.x's without outdir (and without $ESPRESSO_TMPDIR)
-VC_RELAX_CELL = (
+VC_RELAX_CELL = _(
     "Cálculo vc-relax: a célula foi escrita com ibrav = 0; o pw.x detecta a simetria pela "
     "tolerância numérica da célula final."
 )
-NO_INPUT = "Input do relax não encontrado na pasta"
+NO_INPUT = _("Input do relax não encontrado na pasta")
 _UNSAFE = re.compile(r"[\\/\0]")
 
 
@@ -83,7 +84,9 @@ def pair_input(output: Path, results: Iterable[DetectionResult] | None) -> Path 
 
 
 def _not_relax(name: str, calculation: str | None) -> str:
-    return f"{name} não é um relax/vc-relax (calculation = '{calculation or 'scf'}')"
+    return _("{name} não é um relax/vc-relax (calculation = '{value}')").format(
+        name=name, value=calculation or "scf"
+    )
 
 
 def pair_problem(pair: Path | None, sniff: FileSniff | None) -> str:
@@ -94,7 +97,7 @@ def pair_problem(pair: Path | None, sniff: FileSniff | None) -> str:
     if sniff is not None and sniff.kind is FileKind.PW_IN and sniff.calculation not in RELAX:
         return _not_relax(pair.name, sniff.calculation)
     if sniff is not None and sniff.kind not in (FileKind.PW_IN, FileKind.UNKNOWN):
-        return f"{pair.name} não é um input do pw.x"
+        return _("{name} não é um input do pw.x").format(name=pair.name)
     return ""
 
 
@@ -120,7 +123,7 @@ def _int(text: str | None) -> int | None:
         return None
 
 
-def scf_from_relax(final: FinalStructure, in_text: str, name: str = "O input") -> ScfResult:
+def scf_from_relax(final: FinalStructure, in_text: str, name: str = _("O input")) -> ScfResult:
     """The relax input ``in_text`` turned into an SCF at ``final``. Raises ``ScfError`` (nothing
     to write) when the input is no relax or its ``nat`` disagrees with the output."""
     editor = InputEditor.from_text(in_text)
@@ -130,7 +133,9 @@ def scf_from_relax(final: FinalStructure, in_text: str, name: str = "O input") -
     nat, count = _int(editor.get("system", "nat")), len(final.positions.lines)
     if nat != count:
         raise ScfError(
-            f"nat = {nat if nat is not None else '?'} no input, {count} posições na saída"
+            _("nat = {value} no input, {count} posições na saída").format(
+                value=nat if nat is not None else "?", count=count
+            )
         )
 
     warnings = [_same_save_dir(editor)]
@@ -146,7 +151,7 @@ def scf_from_relax(final: FinalStructure, in_text: str, name: str = "O input") -
     if calculation == "vc-relax":
         _final_cell(editor, final, warnings)
     if editor.issues:
-        raise ScfError(f"Não foi possível montar o SCF: {editor.issues[0]}")
+        raise ScfError(_("Não foi possível montar o SCF: {issues}").format(issues=editor.issues[0]))
     return ScfResult(editor.text(), editor.get("control", "prefix"), tuple(warnings))
 
 
@@ -156,25 +161,25 @@ def _same_save_dir(editor: InputEditor) -> str:
     prefix = (editor.get("control", "prefix") or "").strip() or DEFAULT_PREFIX
     outdir = (editor.get("control", "outdir") or "").strip() or DEFAULT_OUTDIR
     save = f"{outdir.rstrip('/')}/{prefix}.save"  # "/" stays "/"
-    return (
-        f"O SCF usa o mesmo prefix ({prefix}) e outdir do relax: rodá-lo regrava {save} e impede "
-        "reiniciar o relax. Mude o prefix ou o outdir antes de rodar."
-    )
+    return _(
+        "O SCF usa o mesmo prefix ({prefix}) e outdir do relax: rodá-lo regrava {save} e impede reiniciar o relax. Mude o prefix ou o outdir antes de rodar."
+    ).format(prefix=prefix, save=save)
 
 
 def _final_cell(editor: InputEditor, final: FinalStructure, warnings: list[str]) -> None:
     """The vc-relax's cell as printed, with ibrav = 0 (decision 5 of the spec)."""
     cell = final.cell
     if cell is None:
-        raise ScfError("A saída não traz a célula final (CELL_PARAMETERS) do vc-relax")
+        raise ScfError(_("A saída não traz a célula final (CELL_PARAMETERS) do vc-relax"))
     if final.positions.unit == "alat" and cell.unit != "alat":
         raise ScfError(
-            f"Posições em alat com a célula em {cell.unit}: o alat do SCF seria outro "
-            "e o Lain não converte unidades"
+            _(
+                "Posições em alat com a célula em {unit}: o alat do SCF seria outro e o Lain não converte unidades"
+            ).format(unit=cell.unit)
         )
     if cell.unit == "alat" and cell.alat is None:
-        raise ScfError("CELL_PARAMETERS (alat) sem o valor de alat na saída")
-    note = set_cell(editor, cell.unit, cell.rows, cell.alat, cell="a célula final")
+        raise ScfError(_("CELL_PARAMETERS (alat) sem o valor de alat na saída"))
+    note = set_cell(editor, cell.unit, cell.rows, cell.alat, cell=_("a célula final"))
     if note is not None:
         warnings.append(note)
     warnings.append(VC_RELAX_CELL)
@@ -197,15 +202,23 @@ def generate_scf_file(output: Path, results: Iterable[DetectionResult] | None) -
         final = read_final_structure(output)
     except OSError as exc:
         name = Path(exc.filename).name if exc.filename else output.name
-        raise ScfError(f"Não foi possível ler {name}: {exc.strerror or exc}") from exc
+        raise ScfError(
+            _("Não foi possível ler {name}: {value}").format(name=name, value=exc.strerror or exc)
+        ) from exc
     if final is None:
         raise ScfError(
-            f"{output.name} não tem o bloco final de coordenadas (Begin final coordinates)"
+            _("{name} não tem o bloco final de coordenadas (Begin final coordinates)").format(
+                name=output.name
+            )
         )
     result = scf_from_relax(final, in_text, pair.name)
     name = scf_name(result.prefix)
     try:
         path = write_new(output.parent / name, result.text)
     except OSError as exc:
-        raise ScfError(f"Não foi possível gravar {name}: {exc.strerror or exc}") from exc
+        raise ScfError(
+            _("Não foi possível gravar {name}: {value}").format(
+                name=name, value=exc.strerror or exc
+            )
+        ) from exc
     return GeneratedScf(path, result.warnings)

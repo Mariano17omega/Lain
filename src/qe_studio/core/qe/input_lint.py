@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from ...i18n import _
 from .input_lexer import (
     CARD_OPTIONS,
     KNOWN_CARDS,
@@ -109,9 +110,9 @@ def _lint(text: str) -> InputDoc:
         doc.issues.append(LintIssue(line, start, end, severity, message))
 
     def unclosed_issue(item: tuple[str, NamelistOpen, int]) -> None:
-        _, token, line = item
+        __, token, line = item
         name = token.name.upper()
-        rule(line, token.start, token.end, f"&{name} não foi fechada com '/'")
+        rule(line, token.start, token.end, _("&{name} não foi fechada com '/'").format(name=name))
 
     for number, raw in enumerate(text.split("\n"), 1):
         line = raw[:-1] if raw.endswith("\r") else raw
@@ -137,7 +138,7 @@ def _lint(text: str) -> InputDoc:
                     number,
                     scan.opens.start,
                     scan.opens.end,
-                    f"&{name.upper()} repetida: o pw.x lê só a primeira",
+                    _("&{upper} repetida: o pw.x lê só a primeira").format(upper=name.upper()),
                     "warning",
                 )
             else:
@@ -163,7 +164,7 @@ def _lint(text: str) -> InputDoc:
     if building is not None:
         doc.cards.append(building.build())
 
-    doc.program = deduce_program(name for name, _, _ in opened)
+    doc.program = deduce_program(name for name, __, __ in opened)
     _check_names(doc, opened, headers, rule)
     doc.issues.sort(key=lambda issue: (issue.line, issue.col_start, issue.col_end))
     return doc
@@ -184,23 +185,25 @@ def _check_names(doc: InputDoc, opened, headers, rule) -> None:
         suggestion = _closest(name, known or _ALL_NAMELISTS)
         if program is None and suggestion is None:
             continue
-        message = f"Namelist desconhecida &{name.upper()}"
+        message = _("Namelist desconhecida &{upper}").format(upper=name.upper())
         if suggestion:
-            message += f" (quis dizer &{suggestion.upper()}?)"
+            message += _(" (quis dizer &{upper}?)").format(upper=suggestion.upper())
         rule(line, token.start, token.end, message)
     if program is None:
         return
     for header, line in headers:
         if not header.known:
             suggestion = _closest(header.name, KNOWN_CARDS)
-            message = f"Card desconhecido {header.name}"
+            message = _("Card desconhecido {name}").format(name=header.name)
             if suggestion:
-                message += f" (quis dizer {suggestion}?)"
+                message += _(" (quis dizer {suggestion}?)").format(suggestion=suggestion)
             rule(line, header.start, header.end, message)
             continue
         options = CARD_OPTIONS.get(header.name)
         if options and header.option and header.option.lower() not in options:
-            message = f"Opção inválida para {header.name}: {header.option}"
+            message = _("Opção inválida para {name}: {option}").format(
+                name=header.name, option=header.option
+            )
             rule(line, header.option_start, header.option_end, message)
 
 

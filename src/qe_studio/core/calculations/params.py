@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import KW_ONLY, dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from ...i18n import N_, _
+
 if TYPE_CHECKING:
     from ..config import AppConfig
     from .base import CalculationModule
@@ -16,35 +18,39 @@ FieldKind = Literal["float", "int", "bool", "color", "choice", "text", "labels",
 
 @dataclass(frozen=True)
 class SectionDef:
-    name: str
+    """A group of the tuning panel. ``id`` is what ``ParamField.section``, the settings and the
+    code use; ``title`` is the (Portuguese) message the panel shows, translated at use."""
+
+    id: str
+    title: str
     export: bool = False  # the export section (formats, DPI): always the last one
 
 
 # Sections every plot has. Modules add their own with ``CalculationModule.sections``.
 SECTIONS = (
-    SectionDef("Energia"),
-    SectionDef("Eixo X"),
-    SectionDef("Estilo"),
-    SectionDef("Legenda"),
-    SectionDef("Figura"),
-    SectionDef("Exportar", export=True),
+    SectionDef("energy", N_("Energia")),
+    SectionDef("x_axis", N_("Eixo X")),
+    SectionDef("style", N_("Estilo")),
+    SectionDef("legend", N_("Legenda")),
+    SectionDef("figure", N_("Figura")),
+    SectionDef("export", N_("Exportar"), export=True),
 )
 
 
 def ordered_sections(module: CalculationModule) -> tuple[SectionDef, ...]:
-    """Common sections with the module's own inserted: ``(name, before)`` pairs.
+    """Common sections with the module's own inserted: ``(section, before)`` pairs.
 
-    ``before`` names the section the new one goes in front of; ``None`` or an unknown name puts it
-    just ahead of the export section, which always stays last.
+    ``before`` is the id of the section the new one goes in front of; ``None`` or an unknown id puts
+    it just ahead of the export section, which always stays last.
     """
     sections = list(SECTIONS)
-    for name, before in module.sections:
-        names = [s.name for s in sections]
-        if before in names:
-            index = names.index(before)
+    for section, before in module.sections:
+        ids = [s.id for s in sections]
+        if before in ids:
+            index = ids.index(before)
         else:
             index = next((i for i, s in enumerate(sections) if s.export), len(sections))
-        sections.insert(index, SectionDef(name))
+        sections.insert(index, section)
     return tuple(sections)
 
 
@@ -54,7 +60,7 @@ class ParamField:
     label: str
     section: str
     kind: FieldKind
-    _: KW_ONLY
+    __: KW_ONLY
     choices: tuple[tuple[object, str], ...] = ()  # (value, label)
     minimum: float | None = None
     maximum: float | None = None
@@ -121,43 +127,45 @@ def apply_common_config(params: CommonParams, config: AppConfig) -> None:
 
 
 LEGEND_LOCATIONS = (
-    ("best", "Automática"),
-    ("upper right", "Superior direita"),
-    ("upper left", "Superior esquerda"),
-    ("lower right", "Inferior direita"),
-    ("lower left", "Inferior esquerda"),
-    ("center right", "Centro direita"),
-    ("outside", "Fora (direita)"),
+    ("best", _("Automática")),
+    ("upper right", _("Superior direita")),
+    ("upper left", _("Superior esquerda")),
+    ("lower right", _("Inferior direita")),
+    ("lower left", _("Inferior esquerda")),
+    ("center right", _("Centro direita")),
+    ("outside", _("Fora (direita)")),
 )
 
 # Only the band and PDOS modules offer it (it is not in COMMON_FIELDS): a gap needs a spectrum.
 LEGEND_GAP_FIELD = ParamField(
     "legend_gap",
-    "Gap de energia na legenda",
-    "Legenda",
+    _("Gap de energia na legenda"),
+    "legend",
     "bool",
-    tooltip="Mostra o gap (CBM − VBM) na legenda. Sem efeito em sistema metálico.",
+    tooltip=_("Mostra o gap (CBM − VBM) na legenda. Sem efeito em sistema metálico."),
     requires="show_legend",
 )
 
 # How the gap of the legend and the footer is found (spec 34); only the band and PDOS modules.
 GAP_METHODS = (
-    ("auto", "Automático"),
-    ("homo_lumo", "HOMO/LUMO do SCF"),
-    ("janela", "Maior intervalo na janela"),
+    ("auto", _("Automático")),
+    ("homo_lumo", _("HOMO/LUMO do SCF")),
+    ("janela", _("Maior intervalo na janela")),
 )
 GAP_METHOD_FIELD = ParamField(
     "gap_method",
-    "Método do gap",
-    "Legenda",
+    _("Método do gap"),
+    "legend",
     "choice",
     choices=GAP_METHODS,
-    tooltip="Automático: nas bandas, pela contagem de elétrons; na PDOS, pelo HOMO/LUMO impresso "
-    "ou pela DOS total perto de E_F.\n"
-    "HOMO/LUMO do SCF: o par que o pw.x imprime (só com ocupações fixas e nbnd maior que as "
-    "bandas ocupadas).\n"
-    "Maior intervalo na janela: o maior vazio de pelo menos 0,05 eV entre as energias visíveis; "
-    "muda com E mín e E máx.",
+    tooltip=_(
+        "Automático: nas bandas, pela contagem de elétrons; na PDOS, pelo HOMO/LUMO impresso "
+        "ou pela DOS total perto de E_F.\n"
+        "HOMO/LUMO do SCF: o par que o pw.x imprime (só com ocupações fixas e nbnd maior que as "
+        "bandas ocupadas).\n"
+        "Maior intervalo na janela: o maior vazio de pelo menos 0,05 eV entre as energias visíveis; "
+        "muda com E mín e E máx."
+    ),
     requires="legend_gap",
 )
 
@@ -171,96 +179,116 @@ def gap_method_in_force(params: CommonParams) -> str:
 
 
 COMMON_FIELDS = (
-    ParamField("line_width", "Espessura", "Estilo", "float", minimum=0.1, maximum=6, step=0.1),
-    ParamField("show_legend", "Mostrar legenda", "Legenda", "bool"),
-    ParamField("legend_loc", "Posição", "Legenda", "choice", choices=LEGEND_LOCATIONS),
+    ParamField("line_width", _("Espessura"), "style", "float", minimum=0.1, maximum=6, step=0.1),
+    ParamField("show_legend", _("Mostrar legenda"), "legend", "bool"),
+    ParamField("legend_loc", _("Posição"), "legend", "choice", choices=LEGEND_LOCATIONS),
     ParamField(
         "legend_dx",
         "dx",
-        "Legenda",
+        "legend",
         "float",
         minimum=-1,
         maximum=1,
         step=0.05,
-        tooltip="Deslocamento horizontal da legenda, em fração da largura do gráfico (positivo: "
-        "direita). Com a posição Automática, qualquer deslocamento usa Superior direita.",
+        tooltip=_(
+            "Deslocamento horizontal da legenda, em fração da largura do gráfico (positivo: "
+            "direita). Com a posição Automática, qualquer deslocamento usa Superior direita."
+        ),
         requires="show_legend",
     ),
     ParamField(
         "legend_dy",
         "dy",
-        "Legenda",
+        "legend",
         "float",
         minimum=-1,
         maximum=1,
         step=0.05,
-        tooltip="Deslocamento vertical da legenda, em fração da altura do gráfico (positivo: "
-        "cima). Com a posição Automática, qualquer deslocamento usa Superior direita.",
+        tooltip=_(
+            "Deslocamento vertical da legenda, em fração da altura do gráfico (positivo: "
+            "cima). Com a posição Automática, qualquer deslocamento usa Superior direita."
+        ),
         requires="show_legend",
     ),
-    ParamField("legend_frame", "Moldura", "Legenda", "bool"),
+    ParamField("legend_frame", _("Moldura"), "legend", "bool"),
     ParamField(
         "legend_size",
-        "Tamanho",
-        "Legenda",
+        _("Tamanho"),
+        "legend",
         "float",
         minimum=4,
         maximum=40,
         step=1,
         suffix="pt",
         optional=True,
-        tooltip="Tamanho do texto da legenda. Automático = 85 % da fonte da figura.",
+        tooltip=_("Tamanho do texto da legenda. Automático = 85 % da fonte da figura."),
     ),
     ParamField(
         "legend_transparency",
-        "Transparência",
-        "Legenda",
+        _("Transparência"),
+        "legend",
         "float",
         minimum=0,
         maximum=1,
         step=0.05,
-        tooltip="0 = fundo da legenda opaco, 1 = invisível. Vale com a moldura ligada.",
+        tooltip=_("0 = fundo da legenda opaco, 1 = invisível. Vale com a moldura ligada."),
     ),
     ParamField(
         "tick_size",
-        "Marcações",
-        "Legenda",
+        _("Marcações"),
+        "legend",
         "float",
         minimum=4,
         maximum=40,
         step=1,
         suffix="pt",
         optional=True,
-        tooltip="Tamanho dos números nas marcações dos eixos. Automático = fonte da figura.",
+        tooltip=_("Tamanho dos números nas marcações dos eixos. Automático = fonte da figura."),
     ),
     ParamField(
         "label_size",
-        "Rotulagem dos eixos",
-        "Legenda",
+        _("Rotulagem dos eixos"),
+        "legend",
         "float",
         minimum=4,
         maximum=40,
         step=1,
         suffix="pt",
         optional=True,
-        tooltip="Tamanho dos rótulos dos eixos. Automático = fonte da figura.",
+        tooltip=_("Tamanho dos rótulos dos eixos. Automático = fonte da figura."),
     ),
-    ParamField("title", "Título", "Figura", "text"),
+    ParamField("title", _("Título"), "figure", "text"),
     ParamField(
-        "figure_width", "Largura", "Figura", "float", minimum=1, maximum=30, step=0.5, suffix="in"
+        "figure_width",
+        _("Largura"),
+        "figure",
+        "float",
+        minimum=1,
+        maximum=30,
+        step=0.5,
+        suffix="in",
     ),
     ParamField(
-        "figure_height", "Altura", "Figura", "float", minimum=1, maximum=30, step=0.5, suffix="in"
+        "figure_height",
+        _("Altura"),
+        "figure",
+        "float",
+        minimum=1,
+        maximum=30,
+        step=0.5,
+        suffix="in",
     ),
-    ParamField("font_size", "Fonte", "Figura", "float", minimum=5, maximum=30, step=1, suffix="pt"),
-    ParamField("background", "Cor de fundo", "Figura", "color", refreshes=True),
-    ParamField("export_png", "PNG", "Exportar", "bool"),
-    ParamField("export_svg", "SVG", "Exportar", "bool"),
-    ParamField("export_pdf", "PDF", "Exportar", "bool"),
+    ParamField(
+        "font_size", _("Fonte"), "figure", "float", minimum=5, maximum=30, step=1, suffix="pt"
+    ),
+    ParamField("background", _("Cor de fundo"), "figure", "color", refreshes=True),
+    ParamField("export_png", _("PNG"), "export", "bool"),
+    ParamField("export_svg", _("SVG"), "export", "bool"),
+    ParamField("export_pdf", _("PDF"), "export", "bool"),
     ParamField(
         "export_dpi",
-        "Resolução PNG",
-        "Exportar",
+        _("Resolução PNG"),
+        "export",
         "choice",
         choices=((300, "300 DPI"), (600, "600 DPI")),
     ),

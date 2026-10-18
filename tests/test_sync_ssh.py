@@ -62,7 +62,7 @@ def test_key_rejected_fails_without_a_password_prompt(qtbot, tmp_path, ssh_serve
     server.reject_auth = True
     report, local = pull(qtbot, tmp_path, ssh_server, timeout=15_000)
     assert report.status is SyncStatus.FAILED
-    assert "Autenticação" in report.error
+    assert "Autenticação" in report.error and report.auth_failed
     assert not report.connection_failed
     assert not local.exists()
     assert server.log == []
@@ -88,7 +88,7 @@ def test_wrong_password_fails_and_creates_nothing(qtbot, tmp_path, ssh_server):
     report, local = pull(qtbot, tmp_path, ssh_server, password="wrong", auth="password")
 
     assert report.status is SyncStatus.FAILED
-    assert "Autenticação" in report.error
+    assert "Autenticação" in report.error and report.auth_failed
     assert not report.connection_failed
     assert not local.exists()
     assert server.log == []

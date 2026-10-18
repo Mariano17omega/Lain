@@ -14,6 +14,8 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
+from ...i18n import _
+
 FermiKind = Literal["fermi", "spin_fermi", "homo_lumo", "homo"]
 
 _NUMBER = r"-?\d+\.\d+"
@@ -77,12 +79,12 @@ class PwOutput:
     def warnings(self) -> list[str]:
         out = []
         if not self.job_done:
-            out.append("execução incompleta (sem JOB DONE)")
+            out.append(_("execução incompleta (sem JOB DONE)"))
         if self.converged is False:
-            out.append("SCF não convergiu")
+            out.append(_("SCF não convergiu"))
         if self.fermi_kind == "spin_fermi":
             out.append(
-                "duas energias de Fermi (↑/↓): referência na média, linhas separadas no gráfico"
+                _("duas energias de Fermi (↑/↓): referência na média, linhas separadas no gráfico")
             )
         return out
 

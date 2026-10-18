@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from ....i18n import _
 from ...compounds import AtomChoices, GeometryDrift, geometry_drift, normalize_selection
 from ..base import Stores
 from .data import PdosDataset
 from .params import PdosParams
 
-CHECK_ATOMS = "Confira em ‘Átomos…’"
+CHECK_ATOMS = _("Confira em ‘Átomos…’")
 
 
 def atoms_of(dataset: PdosDataset) -> AtomChoices:
@@ -54,12 +55,10 @@ def notes(dataset: PdosDataset) -> tuple[str, ...]:
 def drift_note(drift: GeometryDrift) -> str:
     if drift.counts is not None:
         saved, current = drift.counts
-        return (
-            f"A seleção de átomos salva foi feita com outra estrutura ({saved} átomos; esta tem "
-            f"{current}). {CHECK_ATOMS}"
-        )
+        return _(
+            "A seleção de átomos salva foi feita com outra estrutura ({saved} átomos; esta tem {current}). {CHECK_ATOMS}"
+        ).format(saved=saved, current=current, CHECK_ATOMS=CHECK_ATOMS)
     distance = f"{drift.distance or 0.0:.1f}".replace(".", ",")
-    return (
-        "A seleção de átomos salva foi feita com outras coordenadas "
-        f"(átomo {drift.atom} moveu {distance} Å). {CHECK_ATOMS}"
-    )
+    return _(
+        "A seleção de átomos salva foi feita com outras coordenadas (átomo {atom} moveu {distance} Å). {CHECK_ATOMS}"
+    ).format(atom=drift.atom, distance=distance, CHECK_ATOMS=CHECK_ATOMS)

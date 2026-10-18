@@ -606,8 +606,8 @@ def test_readout_follows_the_plot_on_screen(qtbot, main_window, demo_project, no
 
 
 # -- the parameters panel keeps one body per open plot (spec 8, R5) -----------------------------
-def section_of(body, title):
-    return next(s for s in body.findChildren(Section) if s.title == title)
+def section_of(body, section_id):
+    return next(s for s in body.findChildren(Section) if s.id == section_id)
 
 
 def test_generating_a_plot_binds_the_panel_once(
@@ -631,7 +631,7 @@ def test_switching_plot_tabs_keeps_each_body_and_its_closed_sections(
     pdos_body = window.params.body
     assert pdos_body is not bands_body and window.params.session is pdos
 
-    section = section_of(bands_body, "Estilo")
+    section = section_of(bands_body, "style")
     assert section.header.isChecked()
     section.header.setChecked(False)
     window.workspace.set_current(window.workspace.widget_for(bands.key))
@@ -646,14 +646,27 @@ def test_section_state_is_remembered_per_kind_across_bodies(
 ):
     window = main_window
     first = generate(qtbot, window, demo_project / "03_bands", auto_export=False)
-    section_of(window.params.body, "Estilo").header.setChecked(False)
-    assert window.settings.value("params/sections/bands/Estilo", type=bool) is False
+    section_of(window.params.body, "style").header.setChecked(False)
+    assert window.settings.value("params/sections/bands/style", type=bool) is False
     window.workspace.close_key(first.key)  # the body dies with its tab
     assert window.params.session is None
     generate(qtbot, window, demo_project / "03_bands", auto_export=False)
-    assert not section_of(window.params.body, "Estilo").header.isChecked()
-    assert not section_of(window.params.body, "Arquivos").header.isChecked()  # closed by default
-    assert section_of(window.params.body, "Figura").header.isChecked()
+    assert not section_of(window.params.body, "style").header.isChecked()
+    assert not section_of(window.params.body, "files").header.isChecked()  # closed by default
+    assert section_of(window.params.body, "figure").header.isChecked()
+
+
+def test_a_section_state_saved_under_its_portuguese_title_is_still_read(
+    qtbot, main_window, demo_project, no_dialogs
+):
+    """Before the ids the state was kept under the title; the id's own key wins when it exists."""
+    window = main_window
+    window.settings.setValue("params/sections/bands/Estilo", False)
+    window.settings.setValue("params/sections/bands/Legenda", False)
+    window.settings.setValue("params/sections/bands/legend", True)
+    generate(qtbot, window, demo_project / "03_bands", auto_export=False)
+    assert not section_of(window.params.body, "style").header.isChecked()
+    assert section_of(window.params.body, "legend").header.isChecked()
 
 
 def test_regenerating_a_plot_builds_a_new_body(qtbot, main_window, demo_project, no_dialogs):

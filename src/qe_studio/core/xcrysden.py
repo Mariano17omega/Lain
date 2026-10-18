@@ -12,13 +12,14 @@ import os
 from pathlib import Path
 from typing import NamedTuple
 
+from ..i18n import _
 from .sniff import FileKind
 
 EXECUTABLE = "xcrysden"  # the launcher script at the top of an XCrySDen install
 # XCrySDen 1.6.2 (`xcrysden --help`): --pwi reads a pw.x input, --pwo a pw.x output.
 OPTIONS: dict[FileKind, str] = {FileKind.PW_IN: "--pwi", FileKind.PW_OUT: "--pwo"}
 
-NOT_SET = "Defina paths.xcrysden_path no config.yaml para abrir com o XCrysDen."
+NOT_SET = _("Defina paths.xcrysden_path no config.yaml para abrir com o XCrysDen.")
 
 
 class Located(NamedTuple):
@@ -37,18 +38,23 @@ def locate(configured: str | None) -> Located:
     if configured is None or not configured.strip():
         return Located(None, NOT_SET)
     target = Path(configured)
-    not_found = Located(None, f"XCrysDen não encontrado: {target}.")
+    not_found = Located(None, _("XCrysDen não encontrado: {target}.").format(target=target))
     try:
         if target.is_dir():
             candidate = target / EXECUTABLE
             if not candidate.is_file():
-                return Located(None, f"Não há o executável {EXECUTABLE} em {target}.")
+                return Located(
+                    None,
+                    _("Não há o executável {EXECUTABLE} em {target}.").format(
+                        EXECUTABLE=EXECUTABLE, target=target
+                    ),
+                )
         elif target.is_file():
             candidate = target
         else:
             return not_found
         if not os.access(candidate, os.X_OK):
-            return Located(None, f"{candidate} não é executável.")
+            return Located(None, _("{candidate} não é executável.").format(candidate=candidate))
     except OSError:
         return not_found
     return Located(candidate, "")

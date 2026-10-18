@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 
+from ...i18n import _
 from .rsync import DryRunItem
 
 MTIME_TOLERANCE = 2.0  # seconds; FAT/NTFS and rsync --modify-window slack
@@ -180,7 +181,7 @@ class ConflictResolver:
 
     def resolve(self, decision: Decision) -> None:
         if not self._pending:
-            raise RuntimeError("no pending conflict")
+            raise RuntimeError(_("no pending conflict"))
         item = self._pending.pop(0)
         if decision is Decision.CANCEL:
             self.cancelled = True

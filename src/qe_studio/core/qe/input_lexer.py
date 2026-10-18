@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum, StrEnum
 from typing import Literal
 
+from ...i18n import _
 from .pw_input import NUMBER
 
 Severity = Literal["error", "warning"]
@@ -204,9 +205,9 @@ def _classify(word: str) -> tuple[Kind | None, str]:
     if NUMBER.fullmatch(rest):
         return Kind.NUMBER, ""
     if _LOGICAL_LIKE.fullmatch(rest):
-        return Kind.LOGICAL, "Valor lógico inválido: use .true. ou .false."
+        return Kind.LOGICAL, _("Valor lógico inválido: use .true. ou .false.")
     if _NUMBERISH.match(rest):
-        return Kind.NUMBER, "Número inválido"
+        return Kind.NUMBER, _("Número inválido")
     return None, ""
 
 
@@ -271,10 +272,10 @@ def _namelist_content(
             q = p + 1
             while q < len(code) and not code[q].isspace() and code[q] not in "=,/":
                 q += 1
-            issue(p, q, "Parêntese não fechado")
+            issue(p, q, _("Parêntese não fechado"))
     for p in stray:
         if p >= start:
-            issue(p, p + 1, "Parêntese sem abertura")
+            issue(p, p + 1, _("Parêntese sem abertura"))
 
     atoms, closer = _atoms(code, start, strings, pairs)
     tokens = scan.tokens
@@ -294,7 +295,7 @@ def _namelist_content(
             return
         name = re.sub(r"\s+", "", code[key.start : key.end]).lower()
         if not values:
-            issue(key.start, eq.end, f"Valor ausente para {name}")
+            issue(key.start, eq.end, _("Valor ausente para {name}").format(name=name))
             start = end = eq.end
         else:
             start, end = values[0].start, values[-1].end
@@ -328,7 +329,7 @@ def _namelist_content(
                 mark_bad(atom.start, atom.end)
     finish()
     if bad:
-        issue(bad[0], bad[1], "Esperado 'chave = valor'")
+        issue(bad[0], bad[1], _("Esperado 'chave = valor'"))
 
     if closer is not None:
         tokens.append(Token(Kind.NAMELIST, *closer))
@@ -389,24 +390,24 @@ def scan_line(text: str, state: LexState | None = None, lineno: int = 0) -> Line
         name = amp.group(1) if amp else ""
         end = amp.end() if amp else first + 1
         if not name:
-            issue(first, end, "'&' sem nome de namelist", "warning")
+            issue(first, end, _("'&' sem nome de namelist"), "warning")
         elif name.lower() == "end":
             scan.tokens.append(Token(Kind.NAMELIST, first, end))
             if mode is Mode.NAMELIST:
                 scan.closed = True
                 scan.state = LexState()
             else:
-                issue(first, end, "'&end' sem namelist aberta", "warning")
+                issue(first, end, _("'&end' sem namelist aberta"), "warning")
         else:
             scan.opens = NamelistOpen(name, first, end)
             scan.tokens.append(Token(Kind.NAMELIST, first, end))
             scan.state = LexState(Mode.NAMELIST)
             if unclosed is not None:
-                issue(unclosed, len(text), "Aspas não fechadas")
+                issue(unclosed, len(text), _("Aspas não fechadas"))
             _namelist_content(scan, code, end, strings, lineno)
         return scan
     if mode is not Mode.NAMELIST and stripped == "/":
-        issue(first, first + 1, "'/' sem namelist aberta", "warning")
+        issue(first, first + 1, _("'/' sem namelist aberta"), "warning")
         return scan
 
     header = _card_header(code, first, mode is Mode.NAMELIST, state.comma)
@@ -420,12 +421,12 @@ def scan_line(text: str, state: LexState | None = None, lineno: int = 0) -> Line
 
     if mode is Mode.NAMELIST:
         if unclosed is not None:
-            issue(unclosed, len(text), "Aspas não fechadas")
+            issue(unclosed, len(text), _("Aspas não fechadas"))
         _namelist_content(scan, code, first, strings, lineno)
     elif mode is Mode.CARD:
         scan.body = stripped
         if unclosed is not None:
-            issue(unclosed, len(text), "Aspas não fechadas")
+            issue(unclosed, len(text), _("Aspas não fechadas"))
         for found in _BODY_NUMBER.finditer(code):
             scan.tokens.append(Token(Kind.NUMBER, found.start(), found.end()))
     return scan

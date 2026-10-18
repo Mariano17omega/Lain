@@ -21,6 +21,7 @@ from typing import Any
 
 import yaml
 
+from ...i18n import _
 from ..appdirs import atomic_write_text
 from ..plotting.plot_file import FORMAT_VERSION, plot_file_path, read_plot_file
 from .model import Structure
@@ -40,7 +41,7 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 VIEW_KIND = "view3d"
-HEADER = (
+HEADER = _(
     "# Lain: ajustes da visualização 3D, uma seção por arquivo. "
     "Gerado automaticamente; apague para voltar aos padrões.\n"
 )
@@ -91,10 +92,9 @@ def write_session(folder: str | Path, name: str, session: dict[str, Any]) -> str
     """Put ``session`` as the section of ``name``; None when written, else the warning for the user."""
     folder = Path(folder)
     if not folder.is_dir():
-        return (
-            f"A pasta {folder.name} não existe mais: a vista de {name} não foi salva em "
-            f"{view_file_path(folder).name}."
-        )
+        return _(
+            "A pasta {name} não existe mais: a vista de {name_2} não foi salva em {name_3}."
+        ).format(name=folder.name, name_2=name, name_3=view_file_path(folder).name)
     sections, _warnings = read_plot_file(folder, VIEW_KIND)  # unreadable: replaced
     sections = dict(sections) if sections is not None else {}
     sections[name] = session  # in place when it was there, else at the end
@@ -103,7 +103,9 @@ def write_session(folder: str | Path, name: str, session: dict[str, Any]) -> str
         atomic_write_text(path, _dump(sections))
     except (OSError, yaml.YAMLError) as exc:
         log.warning("writing %s failed: %s", path, exc)
-        return f"Não foi possível salvar {path.name} em {folder}: {_reason(exc)}"
+        return _("Não foi possível salvar {name} em {folder}: {reason}").format(
+            name=path.name, folder=folder, reason=_reason(exc)
+        )
     return None
 
 
@@ -126,5 +128,7 @@ def remove_session(folder: str | Path, name: str) -> str | None:
             path.unlink(missing_ok=True)
     except (OSError, yaml.YAMLError) as exc:
         log.warning("updating %s failed: %s", path, exc)
-        return f"Não foi possível atualizar {path.name} em {folder}: {_reason(exc)}"
+        return _("Não foi possível atualizar {name} em {folder}: {reason}").format(
+            name=path.name, folder=folder, reason=_reason(exc)
+        )
     return None

@@ -13,6 +13,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from ....i18n import _
 from . import SurfaceError
 from .model import Model
 
@@ -33,7 +34,9 @@ AXIS_NAMES = ("a", "b", "c")
 def repeat_problem(axis: int, n: int) -> str | None:
     """Why ``n`` repetitions along ``axis`` (0-based) are refused (None: they are fine)."""
     if not 1 <= n <= MAX_REPEAT:
-        return f"Repetições ao longo de {AXIS_NAMES[axis]}: de 1 a {MAX_REPEAT}"
+        return _("Repetições ao longo de {AXIS_NAMES}: de 1 a {MAX_REPEAT}").format(
+            AXIS_NAMES=AXIS_NAMES[axis], MAX_REPEAT=MAX_REPEAT
+        )
     return None
 
 
@@ -41,7 +44,9 @@ def size_problem(atoms: int, n: Sequence[int]) -> str | None:
     """Why a supercell of ``atoms`` atoms repeated ``n`` times is too big (None: it is not)."""
     total = atoms * int(np.prod(n))
     if total > MAX_ATOMS:
-        return f"Supercélula grande demais para o Lain: {total} átomos (máximo {MAX_ATOMS})"
+        return _(
+            "Supercélula grande demais para o Lain: {total} átomos (máximo {MAX_ATOMS})"
+        ).format(total=total, MAX_ATOMS=MAX_ATOMS)
     return None
 
 
@@ -58,6 +63,6 @@ def make_supercell(model: Model, n: Sequence[int]) -> Model:
     shifts = np.array(list(itertools.product(*(range(value) for value in n))), dtype=float)
     frac = ((model.frac[:, None, :] + shifts[None, :, :]) / scale).reshape(-1, 3)
     copies = len(shifts)
-    labels = tuple(label for label in model.labels for _ in range(copies))
-    flags = tuple(model.flag(i) for i in range(len(model)) for _ in range(copies))
+    labels = tuple(label for label in model.labels for __ in range(copies))
+    flags = tuple(model.flag(i) for i in range(len(model)) for __ in range(copies))
     return Model(model.cell * scale[:, None], labels, frac, flags)

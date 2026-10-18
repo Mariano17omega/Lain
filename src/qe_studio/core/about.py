@@ -9,6 +9,8 @@ from __future__ import annotations
 import platform
 from importlib import metadata
 
+from ..i18n import _
+
 PACKAGES = (("matplotlib", "matplotlib"), ("numpy", "numpy"), ("ASE", "ase"))
 
 
@@ -16,7 +18,7 @@ def package_version(distribution: str) -> str:
     try:
         return metadata.version(distribution)
     except metadata.PackageNotFoundError:
-        return "não instalado"
+        return _("não instalado")
 
 
 def package_versions() -> list[tuple[str, str]]:

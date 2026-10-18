@@ -8,32 +8,33 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+from ...i18n import _, ngettext
 from ..file_kinds import human_size
 from .planner import Action, PlanItem, SyncPlan, total_size
 from .push_plan import PushAction, PushItem, PushPlan
 
 ACTION_ORDER = (Action.NEW, Action.UPDATE, Action.LOCAL_NEWER)
 ACTION_TITLES = {
-    Action.NEW: "Novos",
-    Action.UPDATE: "A atualizar",
-    Action.LOCAL_NEWER: "Mais recentes no computador",
+    Action.NEW: _("Novos"),
+    Action.UPDATE: _("A atualizar"),
+    Action.LOCAL_NEWER: _("Mais recentes no computador"),
 }
 ACTION_NOTES = {
     Action.NEW: "",
-    Action.UPDATE: "pedirá confirmação",
-    Action.LOCAL_NEWER: "não será alterado",
+    Action.UPDATE: _("pedirá confirmação"),
+    Action.LOCAL_NEWER: _("não será alterado"),
 }
 PUSH_ORDER = (PushAction.NEW, PushAction.EXISTS)
 PUSH_TITLES = {
-    PushAction.NEW: "Serão enviados",
-    PushAction.EXISTS: "Já existem no cluster, não serão alterados",
+    PushAction.NEW: _("Serão enviados"),
+    PushAction.EXISTS: _("Já existem no cluster, não serão alterados"),
 }
-PUSH_NOTES = {PushAction.NEW: "", PushAction.EXISTS: "não será alterado"}
-SYNCED_FOLDER = "(pasta sincronizada)"  # label of the items right in the folder being pulled
-LARGE_TIP = "Arquivo grande: confira o espaço em disco antes de baixar"
-PUSH_LARGE_TIP = "Arquivo grande: confira a cota no cluster antes de enviar"
-PULL_DATE = "Data no cluster"
-PUSH_DATE = "Data local"
+PUSH_NOTES = {PushAction.NEW: "", PushAction.EXISTS: _("não será alterado")}
+SYNCED_FOLDER = _("(pasta sincronizada)")  # label of the items right in the folder being pulled
+LARGE_TIP = _("Arquivo grande: confira o espaço em disco antes de baixar")
+PUSH_LARGE_TIP = _("Arquivo grande: confira a cota no cluster antes de enviar")
+PULL_DATE = _("Data no cluster")
+PUSH_DATE = _("Data local")
 
 Item = PlanItem | PushItem
 
@@ -85,30 +86,46 @@ def plan_summary(plan: SyncPlan) -> str:
     (não serão alterados)"; parts without items are left out."""
     parts = []
     if new := plan.new:
-        what = "arquivo novo" if len(new) == 1 else "arquivos novos"
-        parts.append(f"{len(new)} {what} ({human_size(total_size(new))})")
+        parts.append(
+            ngettext(
+                "{count} arquivo novo ({size})", "{count} arquivos novos ({size})", len(new)
+            ).format(count=len(new), size=human_size(total_size(new)))
+        )
     if updates := plan.conflicts:
-        parts.append(f"{len(updates)} a atualizar ({human_size(total_size(updates))})")
+        parts.append(
+            _("{count} a atualizar ({human_size})").format(
+                count=len(updates), human_size=human_size(total_size(updates))
+            )
+        )
     if newer := plan.local_newer:
-        if len(newer) == 1:
-            parts.append("1 mais recente no computador (não será alterado)")
-        else:
-            parts.append(f"{len(newer)} mais recentes no computador (não serão alterados)")
-    return " · ".join(parts) or "Nada a transferir."
+        parts.append(
+            ngettext(
+                "{count} mais recente no computador (não será alterado)",
+                "{count} mais recentes no computador (não serão alterados)",
+                len(newer),
+            ).format(count=len(newer))
+        )
+    return " · ".join(parts) or _("Nada a transferir.")
 
 
 def push_summary(plan: PushPlan) -> str:
     """ "2 arquivos a enviar (3.1 MB) · 1 já existe no cluster (não será alterado)"."""
     parts = []
     if new := plan.new:
-        what = "arquivo a enviar" if len(new) == 1 else "arquivos a enviar"
-        parts.append(f"{len(new)} {what} ({human_size(plan.total_bytes)})")
+        parts.append(
+            ngettext(
+                "{count} arquivo a enviar ({size})", "{count} arquivos a enviar ({size})", len(new)
+            ).format(count=len(new), size=human_size(plan.total_bytes))
+        )
     if exists := plan.exists:
-        if len(exists) == 1:
-            parts.append("1 já existe no cluster (não será alterado)")
-        else:
-            parts.append(f"{len(exists)} já existem no cluster (não serão alterados)")
-    return " · ".join(parts) or "Nada a enviar."
+        parts.append(
+            ngettext(
+                "{count} já existe no cluster (não será alterado)",
+                "{count} já existem no cluster (não serão alterados)",
+                len(exists),
+            ).format(count=len(exists))
+        )
+    return " · ".join(parts) or _("Nada a enviar.")
 
 
 def large_summary(plan: SyncPlan | PushPlan) -> str | None:
@@ -117,9 +134,9 @@ def large_summary(plan: SyncPlan | PushPlan) -> str | None:
     if not large:
         return None
     size = human_size(sum(item.size for item in large))
-    if len(large) == 1:
-        return f"1 arquivo grande soma {size}"
-    return f"{len(large)} arquivos grandes somam {size}"
+    return ngettext(
+        "{count} arquivo grande soma {size}", "{count} arquivos grandes somam {size}", len(large)
+    ).format(count=len(large), size=size)
 
 
 def format_mtime(epoch: float | None) -> str:

@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
+from ....i18n import _, ngettext
 from ...qe.input_edit import InputEditor
 from ..edits import put_number, put_text
 from ..scf_info import ScfInfo
@@ -69,19 +70,19 @@ FIELD_OF_ROLE = {  # the field a ``SiteError`` marks
     "molecule": MOLECULE,
     "anchor": "anchor",
 }
-NOT_BUILT = "Estrutura não gerada"
-NO_MOLECULE = "falta o SCF da molécula"
-FIX_FIELDS = "corrija os campos marcados"
+NOT_BUILT = _("Estrutura não gerada")
+NO_MOLECULE = _("falta o SCF da molécula")
+FIX_FIELDS = _("corrija os campos marcados")
 Facts = list[tuple[str, str]]  # the lines of geracao.md
 
 
 class AdsorptionType(RelaxType):
     id: ClassVar[str] = "adsorption"
-    label: ClassVar[str] = "Molécula na superfície"
+    label: ClassVar[str] = _("Molécula na superfície")
     folder_prefix: ClassVar[str] = "Adsorption"
     script_stem: ClassVar[str] = "adsorption"
     script_template: ClassVar[str] = "qsub/relax.qsub.j2"
-    scf_label: ClassVar[str] = "SCF da superfície"
+    scf_label: ClassVar[str] = _("SCF da superfície")
     writes_report: ClassVar[bool] = True
 
     def check_scf(self, scf: ScfInfo) -> str | None:
@@ -102,7 +103,7 @@ class AdsorptionType(RelaxType):
 
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values
-        facts: Facts = [("SCF da superfície", scf.name)]
+        facts: Facts = [(_("SCF da superfície"), scf.name)]
         editor = work.editor()
         other = values.get(MOLECULE)
         placed: Adsorbed | None = None
@@ -133,11 +134,11 @@ class AdsorptionType(RelaxType):
     def _request(self, work: Work) -> SiteRequest | None:
         """The site asked for, or None with the bad numbers marked on their fields."""
         values = work.values
-        tol = check_positive(work, "site_tol", "A tolerância das coordenadas")
-        window = check_positive(work, "height_window", "A janela da superfície")
+        tol = check_positive(work, "site_tol", _("A tolerância das coordenadas"))
+        window = check_positive(work, "height_window", _("A janela da superfície"))
         species = labels_of(values["site_species"])
         if not species:
-            work.problem("site_species", "Preencha Espécies candidatas")
+            work.problem("site_species", _("Preencha Espécies candidatas"))
         if tol is None or window is None or not species:
             return None
         coords = None
@@ -151,20 +152,22 @@ class AdsorptionType(RelaxType):
         try:
             return molecule_of(other, anchor)
         except SurfaceError as exc:
-            raise SiteError(f"SCF da molécula: {exc}", "anchor" if anchor else "molecule") from exc
+            raise SiteError(
+                _("SCF da molécula: {exc}").format(exc=exc), "anchor" if anchor else "molecule"
+            ) from exc
 
     def _structure(
         self, work: Work, editor: InputEditor, other: ScfInfo, facts: Facts
     ) -> Adsorbed | None:
         scf, values = work.scf, work.values
         molecule = self._molecule(work, other)
-        facts.append(("SCF da molécula", _molecule_fact(other, molecule)))
+        facts.append((_("SCF da molécula"), _molecule_fact(other, molecule)))
         request = self._request(work)
-        distance = check_positive(work, "ads_distance", "A distância de adsorção")
-        clearance = check_positive(work, "h_clearance", "A folga mínima", True)
-        vacuum = check_positive(work, "vacuum_min", "O vácuo mínimo", True)
-        scale = check_positive(work, BOND_SCALE, "A tolerância de ligação")
-        check_positive(work, "symprec", "A tolerância de simetria")
+        distance = check_positive(work, "ads_distance", _("A distância de adsorção"))
+        clearance = check_positive(work, "h_clearance", _("A folga mínima"), True)
+        vacuum = check_positive(work, "vacuum_min", _("O vácuo mínimo"), True)
+        scale = check_positive(work, BOND_SCALE, _("A tolerância de ligação"))
+        check_positive(work, "symprec", _("A tolerância de simetria"))
         if request is None or distance is None or clearance is None or vacuum is None:
             facts.append((NOT_BUILT, FIX_FIELDS))
             return None
@@ -211,7 +214,7 @@ class AdsorptionType(RelaxType):
         sites = []
         for number in placed.sites:
             frac = " ".join(decimal(float(v), 5) for v in surface.frac[number - 1])
-            group = f"; grupo {groups[number]}" if number in groups else ""
+            group = _("; grupo {groups}").format(groups=groups[number]) if number in groups else ""
             sites.append(f"{surface.labels[number - 1]} {number} ({frac}{group})")
         anchor_label = model.labels[placed.anchor]
         distances = "; ".join(
@@ -220,36 +223,50 @@ class AdsorptionType(RelaxType):
         )
         position = ", ".join(decimal(float(v), 3) for v in model.cart[placed.anchor])
         molecule_atoms = len(model) - placed.n_slab
-        how = "coordenadas" if request.coords is not None else "lista de candidatos"
+        how = _("coordenadas") if request.coords is not None else _("lista de candidatos")
         facts: Facts = [
-            ("Coordenação", f"{values['mode']} (sítio pela {how})"),
-            ("Átomo âncora" if len(sites) == 1 else "Átomos âncora", ", ".join(sites)),
             (
-                "H removidos",
-                ", ".join(f"H {n}" for n in placed.removed) if placed.removed else "nenhum",
+                _("Coordenação"),
+                _("{values} (sítio pela {how})").format(values=values["mode"], how=how),
             ),
             (
-                "Átomos",
-                f"{len(model)} ({placed.n_slab} da superfície + {molecule_atoms} da molécula: "
-                f"{counts(model.labels)})",
+                ngettext("Átomo âncora", "Átomos âncora", len(sites)),
+                ", ".join(sites),
             ),
             (
-                "Posição do âncora",
-                f"{position} Å (erguido {decimal(placed.lift)} Å)",
+                _("H removidos"),
+                ", ".join(f"H {n}" for n in placed.removed) if placed.removed else _("nenhum"),
             ),
-            ("Distâncias âncora–sítio", distances),
+            (
+                _("Átomos"),
+                _(
+                    "{count} ({n_slab} da superfície + {molecule_atoms} da molécula: {counts})"
+                ).format(
+                    count=len(model),
+                    n_slab=placed.n_slab,
+                    molecule_atoms=molecule_atoms,
+                    counts=counts(model.labels),
+                ),
+            ),
+            (
+                _("Posição do âncora"),
+                _("{position} Å (erguido {decimal} Å)").format(
+                    position=position, decimal=decimal(placed.lift)
+                ),
+            ),
+            (_("Distâncias âncora–sítio"), distances),
         ]
         clear = [
             f"{text} {decimal(value)} Å"
             for text, value in (
-                ("âncora···H", placed.anchor_h),
-                ("molécula–superfície", placed.clearance),
+                (_("âncora···H"), placed.anchor_h),
+                (_("molécula–superfície"), placed.clearance),
             )
             if value is not None
         ]
         if clear:
-            facts.append(("Folgas", "; ".join(clear)))
-        facts.append(("Vácuo acima da molécula", f"{decimal(placed.vacuum)} Å"))
+            facts.append((_("Folgas"), "; ".join(clear)))
+        facts.append((_("Vácuo acima da molécula"), f"{decimal(placed.vacuum)} Å"))
         return facts
 
     def _kpoints(self, work: Work) -> tuple[str, str]:
@@ -257,8 +274,16 @@ class AdsorptionType(RelaxType):
         if typed is not None and typed != scf.kmesh:
             return ("k-points", f"{mesh_text(typed)} (digitada)")
         if scf.kmesh is not None:
-            return ("k-points", f"{mesh_text(scf.kmesh)} (da superfície: a célula não muda)")
-        return ("k-points", f"K_POINTS {scf.kpoints_option or '?'} da superfície mantido")
+            return (
+                "k-points",
+                _("{mesh_text} (da superfície: a célula não muda)").format(
+                    mesh_text=mesh_text(scf.kmesh)
+                ),
+            )
+        return (
+            "k-points",
+            _("K_POINTS {value} da superfície mantido").format(value=scf.kpoints_option or "?"),
+        )
 
 
 def _groups(work: Work, request: SiteRequest) -> dict[int, str]:
@@ -276,9 +301,12 @@ def _groups(work: Work, request: SiteRequest) -> dict[int, str]:
 
 def _molecule_fact(other: ScfInfo, molecule: Molecule) -> str:
     anchor = f"{molecule.labels[molecule.anchor]}{molecule.anchor + 1}"
-    turned = "; girada para o eixo ficar na normal" if molecule.rotated else ""
-    return (
-        f"{other.name}: {formula(molecule.labels)} ({counts(molecule.labels)}), altura "
-        f"{decimal(molecule.extent)} Å, "
-        f"âncora {anchor}{turned}"
+    turned = _("; girada para o eixo ficar na normal") if molecule.rotated else ""
+    return _("{name}: {formula} ({counts}), altura {decimal} Å, âncora {anchor}{turned}").format(
+        name=other.name,
+        formula=formula(molecule.labels),
+        counts=counts(molecule.labels),
+        decimal=decimal(molecule.extent),
+        anchor=anchor,
+        turned=turned,
     )

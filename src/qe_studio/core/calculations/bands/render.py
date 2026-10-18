@@ -9,6 +9,7 @@ from matplotlib.figure import FigureBase
 from matplotlib.lines import Line2D
 from matplotlib.ticker import AutoMinorLocator
 
+from ....i18n import _
 from ...plotting.draw import finish, finish_side, new_axes, side_axes
 from ...plotting.style import PlotStyle
 from ...qe.pw_input import format_kpoint_label
@@ -21,9 +22,9 @@ from .params import ENERGY_NAMES, Y_LABELS, BandsParams
 SYMBOL = {"up": "↑", "down": "↓"}
 FERMI_DASH = (0, (5, 3))
 DOWN_DASH = (0, (4, 2))  # the ↓ channel, when both share an axes
-ON_PATH = "(no caminho)"  # every band gap is the one along the k path (spec 27-6)
+ON_PATH = _("(no caminho)")  # every band gap is the one along the k path (spec 27-6)
 # Where the footer says each gap method measured it (spec 34).
-GAP_WHERE = {"auto": ON_PATH, "homo_lumo": "(HOMO/LUMO)", "janela": "(na janela)"}
+GAP_WHERE = {"auto": ON_PATH, "homo_lumo": "(HOMO/LUMO)", "janela": _("(na janela)")}
 
 
 def render_bands(
@@ -99,8 +100,8 @@ def draw_plain(
         valence = np.zeros(len(energies), dtype=bool)
     handles = []
     for mask, color, label in (
-        (valence, params.valence_color, "Valência"),
-        (~valence, params.conduction_color, "Condução"),
+        (valence, params.valence_color, _("Valência")),
+        (~valence, params.conduction_color, _("Condução")),
     ):
         if mask.any():
             segments = [np.column_stack([x, e]) for e in energies[mask]]
@@ -221,8 +222,8 @@ def _draw_channel(
     if params.spin_coloring == "occupation":
         valence = _valence(dataset, channel, band.energies)
         groups = [
-            (valence, params.valence_color, "Valência"),
-            (~valence, params.conduction_color, "Condução"),
+            (valence, params.valence_color, _("Valência")),
+            (~valence, params.conduction_color, _("Condução")),
         ]
     else:
         color = params.up_color if channel == "up" else params.down_color
@@ -318,13 +319,19 @@ def summary(dataset: BandsDataset, params: BandsParams | None = None) -> str:
     method = "auto" if params is None else gap_method_in_force(params)
     gaps = gap_entries(dataset, params)
     if dataset.spin:
-        parts.append("spin polarizado")
+        parts.append(_("spin polarizado"))
         parts += _gap_parts(dataset, gaps, method)
         if dataset.magnetization is not None:
-            parts.append(f"M = {dataset.magnetization:.2f} μB/célula")
+            parts.append(
+                _("M = {magnetization:.2f} μB/célula").format(magnetization=dataset.magnetization)
+            )
     else:
         parts += _gap_parts(dataset, gaps, method)
-    parts.append(f"{dataset.bands.n_bands} bandas × {dataset.bands.n_kpoints} pontos k")
+    parts.append(
+        _("{n_bands} bandas × {n_kpoints} pontos k").format(
+            n_bands=dataset.bands.n_bands, n_kpoints=dataset.bands.n_kpoints
+        )
+    )
     return " · ".join(parts)
 
 
@@ -340,12 +347,14 @@ def _gap_parts(dataset: BandsDataset, gaps: list[GapEntry], method: str) -> list
     when ``gap_note`` doubts the count); the other methods say where they found none."""
     if method != "auto":
         where = GAP_WHERE[method]
-        return [_gap_text(entry, where) for entry in gaps] or [f"sem gap {where}"]
+        return [_gap_text(entry, where) for entry in gaps] or [
+            _("sem gap {where}").format(where=where)
+        ]
     if dataset.spin or dataset.edges:  # a spin run, or one with the ↑ channel only
         return _spin_gaps(dataset, gaps)
     if gaps:
         return [_gap_text(gaps[0], ON_PATH)]
-    return ["metálico"] if dataset.fermi is not None and dataset.gap_note is None else []
+    return [_("metálico")] if dataset.fermi is not None and dataset.gap_note is None else []
 
 
 def _gap_text(entry: GapEntry, where: str) -> str:
@@ -365,7 +374,7 @@ def _spin_gaps(dataset: BandsDataset, gaps: list[GapEntry]) -> list[str]:
         if channel in by_channel:
             parts.append(_gap_text(by_channel[channel], ON_PATH))
         elif edges.metallic:
-            parts.append(f"{SYMBOL[channel]} metálico")
+            parts.append(_("{SYMBOL} metálico").format(SYMBOL=SYMBOL[channel]))
     if "global" in by_channel:
         parts.append(_gap_text(by_channel["global"], ON_PATH))
     return parts

@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
+from ...i18n import _
 from .measure import angle, distance
 from .model import AtomRef, Structure, atom_name
 
@@ -29,7 +30,7 @@ __all__ = [
 
 MeasureMode = Literal["distancia", "angulo"]
 NEEDED: dict[str, int] = {"distancia": 2, "angulo": 3}
-KIND_LABEL: dict[str, str] = {"distancia": "Distância", "angulo": "Ângulo"}
+KIND_LABEL: dict[str, str] = {"distancia": _("Distância"), "angulo": _("Ângulo")}
 DECIMALS: dict[str, int] = {"distancia": 3, "angulo": 2}
 UNIT: dict[str, str] = {"distancia": " Å", "angulo": "°"}
 DASH = "—"
@@ -85,7 +86,7 @@ def row_text(structure: Structure, m: Measurement) -> tuple[str, str]:
 
 def to_tsv(structure: Structure, measurements: Sequence[Measurement]) -> str:
     """Every measure as tab-separated text (pastes into a spreadsheet), in the order made."""
-    lines = ["Medida\tÁtomos\tValor"]
+    lines = [_("Medida\tÁtomos\tValor")]
     for m in measurements:
         atoms, _value = row_text(structure, m)
         lines.append(f"{KIND_LABEL[m.kind]}\t{atoms}\t{number_text(m)}")

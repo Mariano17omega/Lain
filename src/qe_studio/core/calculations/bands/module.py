@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from matplotlib.figure import FigureBase
 
+from ....i18n import N_, _
 from ...plotting.style import PlotStyle
 from ...sniff import FileKind, FileSniff
 from ..base import (
@@ -18,7 +19,7 @@ from ..base import (
     SniffFn,
     output_of,
 )
-from ..params import ParamField, RenderInfo
+from ..params import ParamField, RenderInfo, SectionDef
 from . import params as params_mod
 from . import render as render_mod
 from . import table as table_mod
@@ -37,59 +38,61 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
     badge: ClassVar[str] = "BANDS"
     badge_token: ClassVar[str | None] = "bands"
     view_fields: ClassVar[tuple[str, ...]] = ("emin", "emax", "xmin", "xmax")
-    sections: ClassVar[tuple[tuple[str, str | None], ...]] = (("Spin", "Estilo"),)
-    display_name: ClassVar[str] = "Estrutura de bandas"
-    description: ClassVar[str] = "bands.x/.gnu detectados"
+    sections: ClassVar[tuple[tuple[SectionDef, str | None], ...]] = (
+        (SectionDef("spin", N_("Spin")), "style"),
+    )
+    display_name: ClassVar[str] = _("Estrutura de bandas")
+    description: ClassVar[str] = _("bands.x/.gnu detectados")
     plottable: ClassVar[bool] = True
     has_table: ClassVar[bool] = True
     roles: ClassVar[tuple[FileRole, ...]] = (
         FileRole(
             "scf_out",
-            "Saída SCF (pw.x)",
+            _("Saída SCF (pw.x)"),
             output_of(FileKind.PW_OUT, "scf"),
             ("scf*.out",),
             required=True,
         ),
         FileRole(
             "bands_in",
-            "Entrada de bandas (pw.x, calculation='bands')",
+            _("Entrada de bandas (pw.x, calculation='bands')"),
             output_of(FileKind.PW_IN, "bands"),
             ("bands*.in",),
             anchor=True,
         ),
         FileRole(
             "bands_out",
-            "Saída de bandas (pw.x)",
+            _("Saída de bandas (pw.x)"),
             output_of(FileKind.PW_OUT, "bands"),
             ("bands*.out",),
             anchor=True,
         ),
         FileRole(
             "bandsx_in",
-            "Entrada do bands.x",
+            _("Entrada do bands.x"),
             output_of(FileKind.BANDSX_IN),
             ("bands*.in", "*band*x*.in"),
             multiple=True,
         ),
         FileRole(
             "bandsx_out",
-            "Saída do bands.x",
+            _("Saída do bands.x"),
             output_of(FileKind.BANDSX_OUT),
             ("bands*.out",),
             anchor=True,
         ),
-        FileRole("filband", "Dados de bandas (filband)", output_of(FileKind.FILBAND)),
-        FileRole("filband_down", "Dados de bandas ↓ (filband)", output_of(FileKind.FILBAND)),
+        FileRole("filband", _("Dados de bandas (filband)"), output_of(FileKind.FILBAND)),
+        FileRole("filband_down", _("Dados de bandas ↓ (filband)"), output_of(FileKind.FILBAND)),
         FileRole(
             "gnu",
-            "Dados de bandas (.gnu)",
+            _("Dados de bandas (.gnu)"),
             output_of(FileKind.GNU_DATA),
             ("*.gnu", "*.dat.gnu"),
             anchor=True,
         ),
         FileRole(
             "gnu_down",
-            "Dados de bandas ↓ (.gnu)",
+            _("Dados de bandas ↓ (.gnu)"),
             output_of(FileKind.GNU_DATA),
             ("*.gnu", "*.dat.gnu"),
         ),

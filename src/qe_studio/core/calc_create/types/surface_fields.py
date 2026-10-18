@@ -8,6 +8,7 @@ import re
 from collections import Counter
 from collections.abc import Sequence
 
+from ....i18n import _
 from ..scf_info import ScfInfo
 from ..surface import SurfaceError
 from ..surface.fixing import BOTTOM, SPECIES, FixResult, fixed_atoms
@@ -61,7 +62,7 @@ def molecule_field(group: str, label: str, hint: str, required: bool = False) ->
         None,
         required=required,
         group=group,
-        tooltip="Input de SCF da molécula (pw.x, calculation = 'scf'); é lido, nunca alterado",
+        tooltip=_("Input de SCF da molécula (pw.x, calculation = 'scf'); é lido, nunca alterado"),
         standard=True,
         hint=hint,
     )
@@ -70,13 +71,15 @@ def molecule_field(group: str, label: str, hint: str, required: bool = False) ->
 def bond_scale_field(group: str) -> FormField:
     return FormField(
         BOND_SCALE,
-        "Tolerância de ligação (× soma dos raios covalentes)",
+        _("Tolerância de ligação (× soma dos raios covalentes)"),
         "float",
         DEFAULT_BOND_SCALE,
         group=group,
         tooltip=(
-            "Dois átomos estão ligados quando a distância é até esta fração da soma dos raios "
-            "covalentes (tabela do ASE, a mesma dos scripts)"
+            _(
+                "Dois átomos estão ligados quando a distância é até esta fração da soma dos raios "
+                "covalentes (tabela do ASE, a mesma dos scripts)"
+            )
         ),
     )
 
@@ -91,39 +94,46 @@ def fix_fields(
     return [
         FormField(
             FIX_RULE,
-            "Átomos fixos (if_pos 0 0 0)",
+            _("Átomos fixos (if_pos 0 0 0)"),
             "choice",
             default_rule,
             group=group,
             choices=tuple(rules),
             tooltip=(
-                f"'{BOTTOM}': os átomos abaixo da fração da espessura; '{SPECIES}': as espécies "
-                "fixas e os vizinhos ligados a elas; 'nenhum': todos livres"
+                _(
+                    "'{BOTTOM}': os átomos abaixo da fração da espessura; '{SPECIES}': as espécies fixas e os vizinhos ligados a elas; 'nenhum': todos livres"
+                ).format(BOTTOM=BOTTOM, SPECIES=SPECIES)
             ),
         ),
         FormField(
             FIX_FRACTION,
-            "Fração fixa da espessura",
+            _("Fração fixa da espessura"),
             "float",
             0.5,
             group=group,
-            tooltip=f"'{BOTTOM}': fixa os átomos abaixo desta fração da espessura (0,5 = metade)",
+            tooltip=_(
+                "'{BOTTOM}': fixa os átomos abaixo desta fração da espessura (0,5 = metade)"
+            ).format(BOTTOM=BOTTOM),
         ),
         FormField(
             FIX_SPECIES,
-            "Espécies fixas",
+            _("Espécies fixas"),
             "text",
             species,
             group=group,
-            tooltip=f"'{SPECIES}': rótulos de ATOMIC_SPECIES, separados por espaço",
+            tooltip=_("'{SPECIES}': rótulos de ATOMIC_SPECIES, separados por espaço").format(
+                SPECIES=SPECIES
+            ),
         ),
         FormField(
             FIX_NEIGHBORS,
-            "Vizinhos fixos",
+            _("Vizinhos fixos"),
             "text",
             neighbors,
             group=group,
-            tooltip=f"'{SPECIES}': rótulos dos vizinhos ligados às espécies fixas que também ficam fixos",
+            tooltip=_(
+                "'{SPECIES}': rótulos dos vizinhos ligados às espécies fixas que também ficam fixos"
+            ).format(SPECIES=SPECIES),
         ),
     ]
 
@@ -134,8 +144,8 @@ def check_positive(work: Work, field_id: str, label: str, allow_zero: bool = Fal
     if value is None:
         return None
     if value < 0 or (value == 0 and not allow_zero):
-        limit = "maior ou igual a zero" if allow_zero else "maior que zero"
-        work.problem(field_id, f"{label} deve ser {limit}")
+        limit = _("maior ou igual a zero") if allow_zero else _("maior que zero")
+        work.problem(field_id, _("{label} deve ser {limit}").format(label=label, limit=limit))
         return None
     return float(value)
 
@@ -145,7 +155,12 @@ def check_labels(work: Work, scf: ScfInfo, field_id: str, label: str) -> tuple[s
     labels = labels_of(work.values.get(field_id))
     unknown = [name for name in labels if name not in scf.species]
     if unknown:
-        work.problem(field_id, f"{label}: {', '.join(unknown)} não está em ATOMIC_SPECIES do SCF")
+        work.problem(
+            field_id,
+            _("{label}: {join} não está em ATOMIC_SPECIES do SCF").format(
+                label=label, join=", ".join(unknown)
+            ),
+        )
     return labels
 
 
@@ -157,15 +172,15 @@ def fixed_for(
     cannot apply on ``fix_rule`` (None then)."""
     fraction = work.values[FIX_FRACTION]
     if rule == BOTTOM and fraction is not None and not 0 < fraction <= 1:
-        work.problem(FIX_FRACTION, "A fração fixa da espessura vai de 0 (exclusive) a 1")
+        work.problem(FIX_FRACTION, _("A fração fixa da espessura vai de 0 (exclusive) a 1"))
         fraction = None
     species: tuple[str, ...] = ()
     neighbors: tuple[str, ...] = ()
     if rule == SPECIES:
-        species = check_labels(work, work.scf, FIX_SPECIES, "Espécies fixas")
-        neighbors = check_labels(work, work.scf, FIX_NEIGHBORS, "Vizinhos fixos")
+        species = check_labels(work, work.scf, FIX_SPECIES, _("Espécies fixas"))
+        neighbors = check_labels(work, work.scf, FIX_NEIGHBORS, _("Vizinhos fixos"))
         if not species:
-            work.problem(FIX_SPECIES, "Preencha Espécies fixas")
+            work.problem(FIX_SPECIES, _("Preencha Espécies fixas"))
     try:
         fix = fixed_atoms(
             model,
@@ -186,4 +201,9 @@ def fixed_for(
 def fixed_fact(labels: Sequence[str], fix: FixResult, rule: str) -> tuple[str, str]:
     """The "Átomos fixos" line of ``geracao.md``: how many, by species, and the rule."""
     which = f" ({counts([labels[i] for i in fix.indices])})" if fix.indices else ""
-    return ("Átomos fixos", f"{len(fix.indices)}/{len(labels)}{which}, regra '{rule}'")
+    return (
+        _("Átomos fixos"),
+        _("{count}/{count_2}{which}, regra '{rule}'").format(
+            count=len(fix.indices), count_2=len(labels), which=which, rule=rule
+        ),
+    )

@@ -92,7 +92,7 @@ def test_the_push_window_previews_then_sends(qtbot, rig, boxes):
     report = blocker.args[0]
     assert report.status is SyncStatus.DONE, report.error
     assert boxes == [] and synced == []  # a toast, and nothing local to refresh
-    assert [n[:2] for n in notices] == [("2 arquivo(s) enviado(s).", "success")]
+    assert [n[:2] for n in notices] == [("2 arquivos enviados.", "success")]
     assert "Já existiam no cluster (não alterados) (1):\n  scf.out" in notices[0][2]
     assert not dialog.isVisible()
     assert (remote / "job/scf.qsub").read_text() == "qsub"

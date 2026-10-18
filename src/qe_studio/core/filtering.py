@@ -11,11 +11,14 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ..i18n import N_
+
 BADGES = ("BANDS", "PDOS", "RELAX", "SCF", "CALC")
-NO_BADGE = "sem tipo"  # a folder detection found nothing in
-STATES = ("OK", "INCOMPLETO", "AVISO", "SEM ERROS", "ERRO")  # file_kinds.status_label
-NO_STATE = "sem estado"
-VISUALS = ("inputs", "saídas", "dados", "imagens", "outros")
+# The filter's values are data (what the proxies compare); the widgets show them through ``_()``.
+NO_BADGE = N_("sem tipo")  # a folder detection found nothing in
+STATES = (N_("OK"), N_("INCOMPLETO"), N_("AVISO"), N_("SEM ERROS"), N_("ERRO"))  # status_label
+NO_STATE = N_("sem estado")
+VISUALS = (N_("inputs"), N_("saídas"), N_("dados"), N_("imagens"), N_("outros"))
 
 
 def name_matcher(text: str) -> Callable[[str], bool]:

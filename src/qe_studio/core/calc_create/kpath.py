@@ -13,6 +13,7 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
+from ...i18n import _
 from ..qe.bands_x import path_coordinates
 
 __all__ = [
@@ -49,9 +50,9 @@ class KMesh:
     def problems(self) -> list[str]:
         out = []
         if min(self.n) < 1:
-            out.append("a rede de k-points precisa de n1, n2, n3 ≥ 1")
+            out.append(_("a rede de k-points precisa de n1, n2, n3 ≥ 1"))
         if any(s not in (0, 1) for s in self.shift):
-            out.append("os deslocamentos da rede são 0 ou 1")
+            out.append(_("os deslocamentos da rede são 0 ou 1"))
         return out
 
     def card(self) -> tuple[str, list[str]]:
@@ -95,7 +96,7 @@ class KPath:
 
     def problems(self) -> list[str]:
         if len(self.points) < 2:
-            return ["Defina ao menos 2 pontos do caminho"]
+            return [_("Defina ao menos 2 pontos do caminho")]
         return []
 
 
@@ -199,11 +200,9 @@ def _name(path: KPath, index: int) -> str:
 
 def collapse_note(path: KPath, segment: CollapsedSegment) -> str:
     """The warning of a collapsed segment (plan note and row tooltip)."""
-    return (
-        f"Segmento {_name(path, segment.a)}→{_name(path, segment.b)} colapsa no eixo x do bands.x "
-        "(passo maior que 5× o anterior): aumente os pontos do segmento anterior, reduza os "
-        "deste ou use ‘Distribuir pelo comprimento’"
-    )
+    return _(
+        "Segmento {name}→{name_2} colapsa no eixo x do bands.x (passo maior que 5× o anterior): aumente os pontos do segmento anterior, reduza os deste ou use ‘Distribuir pelo comprimento’"
+    ).format(name=_name(path, segment.a), name_2=_name(path, segment.b))
 
 
 def distribute(path: KPath, cell, density: float, min_pts: int = 2) -> KPath:

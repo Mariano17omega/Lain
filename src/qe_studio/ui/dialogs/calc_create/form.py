@@ -20,6 +20,7 @@ from ....core.calc_create.kpath import KMesh
 from ....core.calc_create.preview import field_text
 from ....core.calc_create.types import FormField
 from ....core.qe.lattice import Crystal
+from ....i18n import _
 from ...theme.manager import ThemeManager
 from ...widgets.atom_table import AtomRow, AtomTable
 from ...widgets.common import set_variant
@@ -165,8 +166,11 @@ class FieldForm(QWidget):
         kind, default = form_field.kind, form_field.default
         if kind == "choice":
             combo = QComboBox()
-            combo.addItems(list(form_field.choices))
-            combo.setCurrentIndex(combo.findText(str(default)) if default is not None else -1)
+            for (
+                choice
+            ) in form_field.choices:  # the value is the Portuguese token, the text is shown
+                combo.addItem(_(choice), choice)
+            combo.setCurrentIndex(combo.findData(str(default)) if default is not None else -1)
             combo.activated.connect(self._edited)
             return combo
         if kind == "bool":
@@ -214,7 +218,7 @@ class FieldForm(QWidget):
             if isinstance(widget, QLineEdit):
                 out[field_id] = widget.text()
             elif isinstance(widget, QComboBox):
-                out[field_id] = widget.currentText() or None
+                out[field_id] = widget.currentData() or None
             elif isinstance(widget, QCheckBox):
                 out[field_id] = widget.isChecked()
             elif isinstance(widget, KMeshEditor | KPathEditor | AtomTable | ScfFileField):
