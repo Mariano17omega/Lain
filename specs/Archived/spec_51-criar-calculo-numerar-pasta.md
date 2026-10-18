@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 51 (independente das demais; mexe só no passo 1 da janela e no nome da pasta) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada. Ajuste ao R1.2 e ao R2.3: `writer.preview_names` devolve o nome pedido e o final numa só listagem do local (`target_text` e a aba "Arquivos" o usam), para o "já existe X" e o nome mostrado virem da mesma conta; `preview_name` continua (o "Criando …" do controlador). O teste da janela principal usa o `demo_project`, que já tem `01_relax` … `04_pdos`: a pasta criada é `5_PDOS_Al` (zeros à esquerda contam). O `CLAUDE.md` não mudou: ele guarda só as regras do projeto inteiro, não a descrição das funcionalidades. |
 | **Depende de** | spec 25/28 (`writer.folder_name`, `preview_name`, `create_folder`), spec 26 (a janela) |
 | **Usada por** | nenhuma |
 | **Esforço** | P |

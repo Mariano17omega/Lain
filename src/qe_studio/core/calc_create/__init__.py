@@ -8,6 +8,7 @@ cluster script of a calculation, never over existing files. Qt-free; the window 
 - ``kpath``: ``K_POINTS`` cards, and the checks of a typed band path (``collapsed_segments``, ``distribute``).
 - ``render``: the packaged Jinja2 templates (``resources/templates``).
 - ``writer``: ``validate_target``, ``preview_name`` and ``create_folder`` (worker).
+- ``numbering``: ``next_number``, the ``<N>_`` in front of a numbered folder (spec 51).
 
 ``jinja2`` is imported on first use only.
 """

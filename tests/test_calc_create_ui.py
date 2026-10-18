@@ -129,6 +129,22 @@ def test_a_file_edited_in_the_preview_is_written_as_typed(qtbot, main_window, de
     assert script == tabs.previews["script"].toPlainText()  # not edited: the fields' text
 
 
+def test_numbered_follows_the_project_folders(qtbot, main_window, demo_project):
+    """Spec 51: ``01_relax`` … ``04_pdos`` (zero-padded, any type) make the next folder ``5_``."""
+    window = main_window
+    dialog = open_dialog(window)
+    dialog.setup.number_check.setChecked(True)
+    tabs = to_files(qtbot, dialog, "pdos", location=demo_project)
+    with qtbot.waitSignal(window.calc_create.created, timeout=10_000) as blocker:
+        dialog.create_button.click()
+    created = blocker.args[0]
+    assert created.folder == demo_project / "5_PDOS_Al" and created.renamed_from is None
+    assert [p.name for p in created.files] == [f.name for f in tabs.plan.files]
+    notice = window.toast.current
+    assert notice is not None and notice.text == "Pasta 5_PDOS_Al criada com 4 arquivos"
+    assert window.settings.value("calc_create/numbered", type=bool) is True
+
+
 def test_the_mode_lives_in_the_window_settings(qtbot, main_window, window_factory, demo_project):
     """Spec 28 R5.2: QSettings ``calc_create/mode`` (the fixture's own file), "padrao" at first;
     an unnamed folder is the type's prefix alone."""

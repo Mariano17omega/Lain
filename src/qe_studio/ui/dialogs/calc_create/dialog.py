@@ -4,7 +4,8 @@ non-modal dialog, like the sync window's pages.
 Nothing is written here: "Criar" asks the controller (``create_requested``), which writes in a
 worker and closes the window on success. Esc, the close button and "Cancelar" never create
 anything; with fields edited, files edited or notes written they ask first. The "Padrão / Avançado"
-switch of step 2 (spec 28) is remembered in QSettings ``calc_create/mode``.
+switch of step 2 (spec 28) is remembered in QSettings ``calc_create/mode``, and the "Numerar" box of
+step 1 (spec 51) in ``calc_create/numbered``.
 
 "Continuar" is never silent (spec 39 R1): step 1 shows why it does not go on, and a step 2 that
 cannot be built is logged and said in a message, with the window left on step 1.
@@ -46,6 +47,7 @@ TITLE = "Criar cálculo"
 STEP_SETUP = "1 · Configuração"
 STEP_FILES = "2 · Arquivos"
 MODE_KEY = "calc_create/mode"
+NUMBERED_KEY = "calc_create/numbered"
 
 
 class CreateRequest(NamedTuple):
@@ -54,6 +56,7 @@ class CreateRequest(NamedTuple):
     suffix: str
     plan: CalcPlan
     notes: str
+    numbered: bool = False  # the place's next number in front of the folder (spec 51)
 
 
 def ask_discard(parent: QWidget) -> bool:
@@ -90,7 +93,8 @@ class CalcCreateDialog(QDialog):
         parent: QWidget | None = None,
         settings: QSettings | None = None,
     ):
-        """``settings``: where the mode is remembered (None: not remembered, ``padrao``)."""
+        """``settings``: where the mode and "Numerar" are remembered (None: not remembered,
+        ``padrao`` and unchecked)."""
         super().__init__(parent)
         self.setObjectName("calcCreateDialog")
         self.setWindowTitle(TITLE)
@@ -110,6 +114,8 @@ class CalcCreateDialog(QDialog):
         self.mode_switch = ModeSwitch(self._stored_mode())
         self.mode_switch.mode_changed.connect(self.set_mode)
         self.setup = SetupPage(root, start, busy)
+        self.setup.number_check.setChecked(self._stored_numbered())  # before ``_update`` can run
+        self.setup.number_check.toggled.connect(self._remember_numbered)
         self.setup.changed.connect(self._update)
         self.pages = QStackedWidget()
         self.pages.addWidget(self.setup)
@@ -162,6 +168,16 @@ class CalcCreateDialog(QDialog):
         if self.tabs is not None and self.tabs.mode != mode:
             self.tabs.set_mode(mode)
 
+    # -- numbering (spec 51) -------------------------------------------------------------------
+    def _stored_numbered(self) -> bool:
+        if self.settings is None:
+            return False
+        return bool(self.settings.value(NUMBERED_KEY, False, type=bool))
+
+    def _remember_numbered(self, checked: bool) -> None:
+        if self.settings is not None:
+            self.settings.setValue(NUMBERED_KEY, checked)
+
     # -- pages ---------------------------------------------------------------------------------
     def continue_(self) -> None:
         """Step 2, built again only when the type or the SCF changed (R2.3), or the folder's name
@@ -173,7 +189,10 @@ class CalcCreateDialog(QDialog):
         if self._stale(wanted) and not self._build_tabs(*wanted):
             return
         assert self.tabs is not None
-        self.tabs.set_target(self.setup.location, self.setup.suffix, self.setup.location_warnings())
+        setup = self.setup
+        self.tabs.set_target(
+            setup.location, setup.suffix, setup.location_warnings(), numbered=setup.numbered
+        )
         self._show_page(self.tabs)
 
     def _wanted(self) -> tuple[CalcType, ScfInfo, str] | None:
@@ -269,9 +288,15 @@ class CalcCreateDialog(QDialog):
         tabs.flush()  # the plan of what the fields hold now, not of 250 ms ago
         if tabs.blocking():
             return
+        setup = self.setup
         self.create_requested.emit(
             CreateRequest(
-                self.setup.location, calc_type, self.setup.suffix, tabs.plan, tabs.notes_text()
+                setup.location,
+                calc_type,
+                setup.suffix,
+                tabs.plan,
+                tabs.notes_text(),
+                setup.numbered,
             )
         )
 

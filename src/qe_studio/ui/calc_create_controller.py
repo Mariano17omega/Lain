@@ -157,7 +157,7 @@ class CalcCreateController(QObject):
         return creating if creating is not None and creating.is_relative_to(path) else None
 
     def create(self, request: CreateRequest) -> None:
-        name = preview_name(request.parent, request.calc_type, request.suffix)
+        name = preview_name(request.parent, request.calc_type, request.suffix, request.numbered)
         self._creating = request.parent
         self.busy.begin(BUSY_KEY, f"Criando {name}…")
         if self.dialog is not None:
@@ -169,6 +169,7 @@ class CalcCreateController(QObject):
             request.suffix,
             request.plan,
             request.notes,
+            request.numbered,  # the number is taken again in the worker (spec 51 R1.2)
             on_done=self._on_created,
             on_error=self._on_failed,
         )

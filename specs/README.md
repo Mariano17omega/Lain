@@ -84,7 +84,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 48 | [spec_48-configuracoes-do-projeto-em-pasta-oculta.md](Archived/spec_48-configuracoes-do-projeto-em-pasta-oculta.md) | `folders.json`, `grids.json`, `compounds.json` e `navigation.json` (favoritos e recentes) passam a `<local_root>/.lain/` (oculta, fora do dropdown e do sync): copiar a raiz leva as configurações; um arquivo por raiz, migração única do diretório do usuário, fallback se a raiz não é gravável; os `.plot` não mudam | 14, 16, 21, 23, 27-3, 31 | M | Opus 5.5 |
 | 49 | [spec_49-botoes-gerar-e-grids-na-barra-lateral.md](Archived/spec_49-botoes-gerar-e-grids-na-barra-lateral.md) | "Gerar Gráfico" e "Grids" passam da barra superior para a barra lateral; o botão "Plot" some; o caminho da barra superior ocupa um espaço fixo (o LED e os botões de painel não andam ao trocar de pasta) | 1, 16, 23, 33 | P | Sonnet 5.5 |
 | 50 | [spec_50-arvore-botao-de-arquivos-e-etiqueta-erro.md](Archived/spec_50-arvore-botao-de-arquivos-e-etiqueta-erro.md) | Árvore: botão "Mostrar arquivos" (`tree_show_files` em execução) entre "Recolher tudo" e "Atualizar"; etiqueta vermelha "ERRO" na pasta com `CRASH` ou `job.o<id>` não vazio | 4, 14, 15, 37 | M | Sonnet 5.5 |
-| 51 | [spec_51-criar-calculo-numerar-pasta.md](spec_51-criar-calculo-numerar-pasta.md) | "Criar cálculo": caixa "Numerar" põe `<N>_` na frente da pasta (`2_Bands_Al`), N = maior número das pastas irmãs + 1, qualquer tipo | 25, 26, 28 | P | Sonnet 5.5 |
+| 51 | [spec_51-criar-calculo-numerar-pasta.md](Archived/spec_51-criar-calculo-numerar-pasta.md) | "Criar cálculo": caixa "Numerar" põe `<N>_` na frente da pasta (`2_Bands_Al`), N = maior número das pastas irmãs + 1, qualquer tipo | 25, 26, 28 | P | Sonnet 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -300,7 +300,7 @@ As ideias vieram no pedido (não em `Ideias.md`); cada spec cita o trecho de ori
 | 3 | Pastas `<calculo>_<nome>` ou `<calculo>` (Bands, Relax, PDOS, Charge, Diff_Charge, SCF…) | spec 28, R1.1–R1.2; specs 29 e 30, R1 |
 | 4 | Inputs `scf/nscf/relax/vc-relax_<prefix>.in`; `bands_pp.in`, `projwfc.in`; saídas com `.out` | spec 28, R1.3–R1.4 |
 | 5 | `pp_<nome>_charge.in`, `pp_charge.in`, `pp_charge_diff.in` | spec 29, R1; spec 30, R1 |
-| 6 | Pastas `<numero>_Bands_<nome>` existentes continuam válidas, sem ser o padrão | spec 28, "Fora de escopo" (detecção por conteúdo) |
+| 6 | Pastas `<numero>_Bands_<nome>` existentes continuam válidas, sem ser o padrão | spec 28, "Fora de escopo" (detecção por conteúdo); spec 51 (a caixa "Numerar" as cria) |
 | 7 | Botão "Avançado/Padrão" na janela de criação | spec 28, R3–R5 |
 | 8 | Bandas Padrão: só `K_POINTS crystal_b`; `bands_pp.in` com `filband './band'`; NP 64, NK 4 | spec 28, R3.3 e R3.5; R2.3 |
 | 9 | PDOS Padrão: `projwfc.in` fixo (DeltaE, ngauss, degauss 0.000735), só Emin/Emax editáveis | spec 28, R3.3–R3.4 (malha do NSCF = a do SCF, oculta) |

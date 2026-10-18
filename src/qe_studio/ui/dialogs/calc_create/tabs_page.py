@@ -37,7 +37,7 @@ from ....core.calc_create.types import (
     PlannedFile,
     visible_fields,
 )
-from ....core.calc_create.writer import files_to_write, folder_name, preview_name
+from ....core.calc_create.writer import files_to_write, preview_names
 from ....core.config import JobsConfig
 from ...theme.manager import ThemeManager
 from .edit_bar import EditBar
@@ -78,7 +78,8 @@ class TabsPage(QWidget):
         self.plan: CalcPlan = self._base  # with the edits: what "Criar" writes
         self._edits: dict[str, str] = {}  # file key → the text typed in its preview
         self._edited = False
-        self._target: tuple[Path, str] | None = None  # where the folder goes (step 1)
+        # where the folder goes (step 1): the place, the name and "Numerar" (spec 51)
+        self._target: tuple[Path, str, bool] | None = None
         self._extra_warnings: tuple[str, ...] = ()
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -341,19 +342,22 @@ class TabsPage(QWidget):
     def warnings(self) -> list[str]:
         return list(dict.fromkeys([*self.plan.notes, *self._extra_warnings]))
 
-    def set_target(self, parent: Path, suffix: str, warnings: tuple[str, ...] = ()) -> None:
-        """Where the folder goes (step 1; the name may be empty): the "Arquivos" tab shows it."""
-        self._target, self._extra_warnings = (parent, suffix), warnings
+    def set_target(
+        self, parent: Path, suffix: str, warnings: tuple[str, ...] = (), numbered: bool = False
+    ) -> None:
+        """Where the folder goes (step 1; the name may be empty, the place's next number in front
+        of it when ``numbered``): the "Arquivos" tab shows it."""
+        self._target, self._extra_warnings = (parent, suffix, numbered), warnings
         self._show_files()
 
     def _show_files(self) -> None:
         if self._target is None:
             return
-        parent, suffix = self._target
-        name = preview_name(parent, self.calc_type, suffix)
+        parent, suffix, numbered = self._target
+        asked, name = preview_names(parent, self.calc_type, suffix, numbered)
         self.files_view.show_files(
             parent / name,
-            folder_name(self.calc_type, suffix),
+            asked,
             files_to_write(self.plan, self.notes_text()),
             self.warnings(),
             self.plan.errors,

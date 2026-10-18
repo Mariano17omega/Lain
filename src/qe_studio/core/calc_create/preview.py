@@ -13,7 +13,7 @@ from typing import Any
 from ..file_kinds import human_size
 from .kpath import KMesh
 from .types.base import CalcType, PlannedFile
-from .writer import Created, folder_name, preview_name
+from .writer import Created, preview_names
 
 __all__ = [
     "AT_ROOT",
@@ -94,10 +94,10 @@ def file_rows(files: Sequence[PlannedFile], edited: Collection[str] = ()) -> lis
     ]
 
 
-def target_text(parent: Path, type_: CalcType, suffix: str) -> str:
-    """ "Será criada: Bands_Al", or the ``_N`` name and why. Only ``stat``s."""
-    asked = folder_name(type_, suffix)
-    name = preview_name(parent, type_, suffix)
+def target_text(parent: Path, type_: CalcType, suffix: str, numbered: bool = False) -> str:
+    """ "Será criada: Bands_Al" (``2_Bands_Al`` numbered: spec 51), or the ``_N`` name and why.
+    Only ``stat``s, and lists ``parent`` when numbered."""
+    asked, name = preview_names(parent, type_, suffix, numbered)
     if name == asked:
         return f"Será criada: {name}"
     return f"Será criada: {name} — já existe {asked}"

@@ -2,7 +2,8 @@
 
 The folder is ``<folder_prefix>_<suffix>`` (``Bands_Al``), or ``<folder_prefix>`` alone when no name
 is given, in the chosen place, or ``…_1``, ``…_2`` when the name is taken: an existing folder is never
-reused or touched. Each file is created exclusively, and a write
+reused or touched. Numbered (spec 51), the name gets the place's next number in front (``2_Bands_Al``,
+``numbering.next_number``), taken again when the folder is made. Each file is created exclusively, and a write
 that fails removes only what this call created. Workers only (``run_task``).
 """
 
@@ -16,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..unique_names import make_new_dir, next_free_dir
+from .numbering import next_number
 from .types.base import CalcPlan, CalcType, PlannedFile
 
 __all__ = [
@@ -26,6 +28,7 @@ __all__ = [
     "files_to_write",
     "folder_name",
     "preview_name",
+    "preview_names",
     "validate_parent",
     "validate_suffix",
     "validate_target",
@@ -46,9 +49,16 @@ class Created:
     renamed_from: str | None = None  # the name asked for, when it was taken (a ``_N`` was added)
 
 
-def folder_name(type_: CalcType, suffix: str) -> str:
+def folder_name(type_: CalcType, suffix: str, number: int | None = None) -> str:
+    """``Bands_Al`` (``Bands`` with no name); with ``number``, ``2_Bands_Al`` (spec 51)."""
     suffix = suffix.strip()
-    return f"{type_.folder_prefix}_{suffix}" if suffix else type_.folder_prefix
+    name = f"{type_.folder_prefix}_{suffix}" if suffix else type_.folder_prefix
+    return name if number is None else f"{number}_{name}"
+
+
+def _asked(parent: Path, type_: CalcType, suffix: str, numbered: bool) -> str:
+    """The name asked for; ``numbered``, after the folders ``parent`` holds now."""
+    return folder_name(type_, suffix, next_number(parent) if numbered else None)
 
 
 def validate_suffix(suffix: str) -> list[str]:
@@ -73,9 +83,19 @@ def validate_target(parent: Path, suffix: str) -> list[str]:
     return validate_suffix(suffix) + validate_parent(parent)
 
 
-def preview_name(parent: Path, type_: CalcType, suffix: str) -> str:
+def preview_names(
+    parent: Path, type_: CalcType, suffix: str, numbered: bool = False
+) -> tuple[str, str]:
+    """The name asked for and the one ``create_folder`` would use now: ``Bands_Al`` and
+    ``Bands_Al_1`` if ``Bands_Al`` exists. ``numbered``, both carry the number ``parent`` gives now
+    (one listing); the folder takes it again when it is made."""
+    asked = _asked(parent, type_, suffix, numbered)
+    return asked, next_free_dir(parent / asked).name
+
+
+def preview_name(parent: Path, type_: CalcType, suffix: str, numbered: bool = False) -> str:
     """The name ``create_folder`` would use now (``Bands_Al_1`` if ``Bands_Al`` exists)."""
-    return next_free_dir(parent / folder_name(type_, suffix)).name
+    return preview_names(parent, type_, suffix, numbered)[1]
 
 
 def files_to_write(plan: CalcPlan, notes: str) -> list[PlannedFile]:
@@ -107,10 +127,16 @@ def _remove(created: list[Path], folder: Path) -> None:
 
 
 def create_folder(
-    parent: Path, type_: CalcType, suffix: str, plan: CalcPlan, notes: str = ""
+    parent: Path,
+    type_: CalcType,
+    suffix: str,
+    plan: CalcPlan,
+    notes: str = "",
+    numbered: bool = False,
 ) -> Created:
     """Create the folder and write the plan (and ``descricao.md``) into it. Raises
-    ``CreateError``; on failure, removes the files it wrote and the folder it made."""
+    ``CreateError``; on failure, removes the files it wrote and the folder it made. ``numbered``:
+    the number is the one ``parent`` gives at this moment, not the one the preview showed."""
     problems = validate_target(parent, suffix)
     if problems:
         raise CreateError(problems[0])
@@ -118,7 +144,7 @@ def create_folder(
         raise CreateError(plan.errors[0])
     files = files_to_write(plan, notes)
     _check_names(files)
-    asked = folder_name(type_, suffix)
+    asked = _asked(parent, type_, suffix, numbered)
     try:
         folder = make_new_dir(parent / asked)
     except OSError as exc:

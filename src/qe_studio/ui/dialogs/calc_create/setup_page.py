@@ -1,5 +1,6 @@
 """Step 1 of "Criar cálculo" (spec 26 R3, spec 28 R5.3): the type, the SCF input, the folder name
-(optional: the folder is then the type's prefix alone) and where it goes.
+(optional: the folder is then the type's prefix alone), "Numerar" (spec 51: the place's next number in
+front of the name, for every type) and where it goes.
 
 The SCF is checked on the GUI thread only by its head (``looks_like_input``) and read in a worker
 (``read_scf``); the file is never written. The name and the place are checked with ``stat`` only.
@@ -12,6 +13,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QGridLayout,
@@ -41,6 +43,10 @@ CHOOSE_SCF = "Escolha o input de SCF"
 REBUILD_NOTE = "Esta mudança refaz a próxima etapa: os campos voltam aos padrões"
 REBUILD_EDITS_NOTE = f"{REBUILD_NOTE} e as edições dos arquivos se perdem"  # spec 39 R2.5
 INPUT_FILTER = "Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)"
+NUMBER_TIP = (
+    "Põe um número antes do nome da pasta, seguindo as pastas que já existem aqui "
+    "(0_Relax, 1_Bands…)"
+)
 
 
 def choose_scf(parent: QWidget, start: Path) -> Path | None:
@@ -98,6 +104,11 @@ class SetupPage(QWidget):
         self.suffix_edit.setPlaceholderText("opcional, ex.: Al, Fe_teste")
         self.suffix_edit.textChanged.connect(self._update)
         self.suffix_message = message_label("error")
+        self.number_check = QCheckBox("Numerar")
+        self.number_check.setObjectName("numberCheck")
+        self.number_check.setAccessibleName("Numerar")
+        self.number_check.setToolTip(NUMBER_TIP)
+        self.number_check.toggled.connect(self._update)
         self.location_edit = set_variant(QLineEdit(str(start)), "mono")
         self.location_edit.setReadOnly(True)
         self.location_edit.setAccessibleName("Local")
@@ -113,25 +124,29 @@ class SetupPage(QWidget):
         grid = QGridLayout()
         grid.setColumnStretch(1, 1)
         grid.setVerticalSpacing(6)
-        rows = [
-            ("Tipo de cálculo", self.type_combo, None),
-            (self.scf_label, self._with_button(self.scf_edit, self.scf_button), self.scf_message),
-            ("Nome da pasta", self.suffix_edit, self.suffix_message),
+        rows: list[tuple[str | QLabel, QWidget, tuple[QWidget, ...]]] = [
+            ("Tipo de cálculo", self.type_combo, ()),
+            (
+                self.scf_label,
+                self._with_button(self.scf_edit, self.scf_button),
+                (self.scf_message,),
+            ),
+            ("Nome da pasta", self.suffix_edit, (self.suffix_message, self.number_check)),
             (
                 "Local",
                 self._with_button(self.location_edit, self.location_button),
-                self.location_message,
+                (self.location_message,),
             ),
         ]
         row = 0
-        for label, widget, message in rows:
+        for label, widget, below in rows:  # ``below``: under the field, in its column
             if isinstance(label, str):
                 label = set_variant(QLabel(label), "fieldLabel")
             grid.addWidget(label, row, 0)
             grid.addWidget(widget, row, 1)
             row += 1
-            if message is not None:
-                grid.addWidget(message, row, 1)
+            for extra in below:
+                grid.addWidget(extra, row, 1)
                 row += 1
         layout = QVBoxLayout(self)
         layout.addLayout(grid)
@@ -167,6 +182,10 @@ class SetupPage(QWidget):
     @property
     def suffix(self) -> str:
         return self.suffix_edit.text().strip()
+
+    @property
+    def numbered(self) -> bool:
+        return self.number_check.isChecked()
 
     @property
     def location(self) -> Path:
@@ -280,7 +299,7 @@ class SetupPage(QWidget):
         self.scf_edit.setAccessibleName(scf_label)
         preview = ""
         if calc_type is not None and not named and not place:
-            preview = target_text(self._location, calc_type, suffix)
+            preview = target_text(self._location, calc_type, suffix, self.numbered)
         show_message(self.name_preview, preview)
         if not self._reading:  # the type's refusal is the SCF's message too
             show_message(self.scf_message, self._scf_problem or self._refused(), "error")

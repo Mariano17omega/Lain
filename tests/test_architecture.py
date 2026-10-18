@@ -116,6 +116,7 @@ QT_FREE = [
     "qe_studio.core.calc_create.edits",
     "qe_studio.core.calc_create.unit",
     "qe_studio.core.calc_create.writer",
+    "qe_studio.core.calc_create.numbering",
     "qe_studio.core.calc_create.preview",
     "qe_studio.core.calc_create.types",
     "qe_studio.core.calc_create.types.base",
