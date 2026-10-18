@@ -49,6 +49,13 @@ def without_mnemonics(text: str) -> str:
     return "&".join(part.replace("&", "") for part in text.split("&&"))
 
 
+# Portuguese messages that are also an English text shown elsewhere, so the probe cannot tell the
+# translation from a leak. A new one needs its reason here.
+HOMOGRAPHS = {
+    "Data",  # the file grid's "Data" (date → "Date"); the About row "Dados" is "Data" in English
+}
+
+
 def leaks(texts: Iterable[str], catalog) -> list[str]:
     """The texts shown in Portuguese although the catalog translates them: equal to a msgid (either
     plural form) whose translation is not empty and differs from it."""
@@ -58,6 +65,7 @@ def leaks(texts: Iterable[str], catalog) -> list[str]:
         for source, string in zip(tool.sources(message), tool.forms(message), strict=False):
             if string and string != source:
                 translated.add(without_mnemonics(source))
+    translated -= HOMOGRAPHS
     return sorted({text for text in texts if without_mnemonics(text) in translated})
 
 

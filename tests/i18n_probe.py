@@ -14,6 +14,11 @@ A spec of the series adds its scenarios to ``SCENARIOS``: a function ``(window, 
 brings the window to what is checked, opening dialogs without ``exec()`` (a modal loop would wait
 forever). An unexpected exception ends the process with code 1 and the traceback on stderr: the
 app's excepthook would open a modal box instead. The last line of stdout is ``{scenario: [texts]}``.
+
+A scenario may also return a list of *facts*, what no widget shows: the order of the menus, the
+output of ``--help``, the text of an error, what the grid lists. They come in the same JSON as
+``{"<scenario>#facts": [...]}``, for the test to compare between languages. After each scenario the
+dialogs it opened are closed.
 """
 
 from __future__ import annotations
@@ -57,7 +62,195 @@ def plot_scenario(window, project: Path) -> None:
         raise RuntimeError(f"the band plot of 03_bands failed: {error}")
 
 
-SCENARIOS: dict[str, Callable[..., None]] = {"main": main_scenario, "plot": plot_scenario}
+# -- spec 53: the window, its menus and the general dialogs ---------------------------------------
+def shortcuts_scenario(window, project: Path) -> None:
+    window.help.show_shortcuts()
+
+
+def about_scenario(window, project: Path) -> None:
+    from qe_studio import APP_NAME, __version__
+    from qe_studio.ui.dialogs.about import AboutDialog
+
+    # ``help.show_about`` runs the dialog and schedules its deletion: build the same one.
+    AboutDialog(f"{APP_NAME} {__version__}", window.help.about_rows(), window).show()
+
+
+def palette_scenario(window, project: Path) -> None:
+    window.command_palette.open()
+
+
+def context_menu_scenario(window, project: Path) -> None:
+    """The menus of an input, an output and a folder, and of a selection: built, never run."""
+    items = window.item_actions
+    bands = project / "03_bands"
+    items.menu(bands / "bands.in", plot_kind="bands", structure=True, xcrysden="--pwi", push="")
+    items.menu(
+        bands / "bands.out", plot_kind="bands", summary=True, xcrysden="--pwo", scf="", push=""
+    )
+    items.menu(bands, favorite=False, push="")
+    items.menu(bands, favorite=True, push="")
+    items.multi_menu([bands / "bands.in", bands / "bands.out"])
+
+
+def open_with_scenario(window, project: Path) -> None:
+    from qe_studio.ui.dialogs.open_with import OpenWithDialog
+
+    OpenWithDialog("scf.in", window).show()
+
+
+def rename_scenario(window, project: Path) -> None:
+    from qe_studio.ui.dialogs.rename import RenameDialog
+
+    dialog = RenameDialog(project / "02_scf" / "scf.in", window)
+    dialog.show()
+    dialog.edit.setText("a/b")
+    dialog.accept()  # refused: the error line shows
+
+
+def new_project_scenario(window, project: Path) -> None:
+    from qe_studio.ui.dialogs.new_project import NewProjectDialog
+
+    dialog = NewProjectDialog(["01_relax"], ("tmp",), window)
+    dialog.show()
+    dialog.edit.setText("01_relax")  # an existing name: the error line shows
+
+
+def overwrite_scenario(window, project: Path) -> None:
+    from qe_studio.ui.dialogs.overwrite import OverwriteDialog
+
+    OverwriteDialog([project / "plots" / "bands.png"], "bands", window).show()
+
+
+def first_run_scenario(window, project: Path) -> None:
+    """The welcome state of a missing ``config.yaml`` and the two questions that follow it. The
+    overlay stays on: this scenario goes last."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    from qe_studio.core.config import LoadedConfig
+    from qe_studio.ui.dialogs import first_run as questions
+
+    window.loaded = LoadedConfig(window.config, None, first_run=True)
+    window.first_run.refresh()
+
+    def question(parent, title, text, buttons, default):  # QMessageBox.question without its loop
+        QMessageBox(QMessageBox.Icon.Question, title, text, buttons, parent).show()
+        return QMessageBox.StandardButton.No
+
+    QMessageBox.question = staticmethod(question)  # type: ignore[assignment]
+    questions.ask_create_config(window, project / "config.yaml")
+    questions.ask_create_with_folder(window, project)
+
+
+def toast_scenario(window, project: Path) -> None:
+    window.toast.show_message("falha ao gravar", "error", details="OSError")
+    window.toast.show_message("aviso", "warning")
+
+
+def tree_scenario(window, project: Path) -> list[str]:
+    """The tree with its files shown, and the text painted on a folder with a ``CRASH`` file: the
+    badges are drawn, not widgets, so ``paint_badge`` is asked what it was given (no pixel read)."""
+    from qe_studio.ui.widgets import explorer
+
+    folder = project / "02_scf"
+    (folder / "CRASH").write_text("")
+    window.explorer.set_files_shown(True)
+    window.service.detect_now(folder)
+    painted: list[str] = []
+    real = explorer.paint_badge
+
+    def recording(painter, right, center, text, *rest):
+        painted.append(text)
+        return real(painter, right, center, text, *rest)
+
+    explorer.paint_badge = recording
+    try:
+        window.explorer.tree.viewport().grab()
+    finally:
+        explorer.paint_badge = real
+    return painted
+
+
+# -- facts: what no widget shows (the order of the menus, the command line, an error message…) ------
+def menus_scenario(window, project: Path) -> list[str]:
+    return [action.text() for action in window.menuBar().actions()]
+
+
+def cli_scenario(window, project: Path) -> list[str]:
+    """``lain --help``: argparse prints it and exits."""
+    import contextlib
+    import io
+
+    from qe_studio.ui.app import parse_args
+
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.suppress(SystemExit):
+        parse_args(["--help"])
+    return out.getvalue().splitlines()
+
+
+def config_scenario(window, project: Path) -> list[str]:
+    """What ``load_config`` says of a ``config.yaml`` with an unknown key and an empty energy window."""
+    from qe_studio.core.config import ConfigError, load_config
+
+    with tempfile.TemporaryDirectory(prefix="lain-i18n-config-") as folder:
+        path = Path(folder) / "config.yaml"
+        path.write_text(
+            "ui:\n  bogus: 1\nplot:\n  energy_min: 5\n  energy_max: 1\n", encoding="utf-8"
+        )
+        try:
+            load_config(path)
+        except ConfigError as exc:
+            return str(exc).splitlines()
+    raise RuntimeError("the invalid config.yaml was accepted")
+
+
+def restart_scenario(window, project: Path) -> list[str]:
+    """The notice of a reload whose ``ui.language`` is not the running language."""
+    from qe_studio.core.language import ENV_LANGUAGE, ENV_LANGUAGE_ALIAS
+    from qe_studio.ui.language import restart_notice
+
+    for name in (ENV_LANGUAGE, ENV_LANGUAGE_ALIAS):  # a pinned language ignores the config
+        os.environ.pop(name, None)
+    return [restart_notice("pt_BR" if i18n.current_language() == "en" else "en")]
+
+
+def type_filter_scenario(window, project: Path) -> list[str]:
+    """What the grid of ``03_bands`` lists with the visual type "saídas" ticked (the stored value,
+    whatever its label says)."""
+    bar = window.files.filter_bar
+    bar.open()
+    bar._actions[("visuals", "saídas")].setChecked(True)
+    bar.flush()
+    proxy, root = window.files.proxy, window.files.view.rootIndex()
+    listed = [proxy.index(row, 0, root) for row in range(proxy.rowCount(root))]
+    names = [proxy.path(index).name for index in listed if not proxy.is_up(index)]
+    bar.dismiss()
+    return names
+
+
+# A scenario brings the window to what is checked; one that returns a list gives facts to compare
+# (they go in the JSON as ``<scenario>#facts``). They run in the order given on the command line,
+# on the same window: ``first_run`` leaves its overlay on, so it goes last.
+SCENARIOS: dict[str, Callable[..., list[str] | None]] = {
+    "main": main_scenario,
+    "plot": plot_scenario,
+    "shortcuts": shortcuts_scenario,
+    "about": about_scenario,
+    "palette": palette_scenario,
+    "context_menu": context_menu_scenario,
+    "open_with": open_with_scenario,
+    "rename": rename_scenario,
+    "new_project": new_project_scenario,
+    "overwrite": overwrite_scenario,
+    "first_run": first_run_scenario,
+    "toast": toast_scenario,
+    "tree": tree_scenario,
+    "menus": menus_scenario,
+    "cli": cli_scenario,
+    "config": config_scenario,
+    "restart": restart_scenario,
+    "type_filter": type_filter_scenario,
+}
 
 
 def header_texts(model) -> Iterator[object]:
@@ -110,6 +303,15 @@ def settle(window, app) -> None:
     app.processEvents()
 
 
+def close_dialogs(window) -> None:
+    """Close what a scenario opened (a dialog, a window of its own); the main window stays."""
+    from PyQt6.QtWidgets import QApplication
+
+    for widget in QApplication.topLevelWidgets():
+        if widget is not window and widget.isVisible():
+            widget.close()
+
+
 def crash(kind, value, traceback) -> None:
     """An unexpected error ends the probe: the app's own hook would open a modal box."""
     sys.__excepthook__(kind, value, traceback)
@@ -143,9 +345,12 @@ def main(argv: list[str] | None = None) -> int:
     window = screenshot.open_window(project, tmp, "dark", 1.0)
     texts = {}
     for name in args.scenario:
-        SCENARIOS[name](window, project)
+        facts = SCENARIOS[name](window, project)
         settle(window, app)
         texts[name] = visible_texts()
+        if facts is not None:
+            texts[f"{name}#facts"] = facts
+        close_dialogs(window)
     print(json.dumps(texts, ensure_ascii=False), flush=True)
     window.close()
     QThreadPool.globalInstance().waitForDone(2000)

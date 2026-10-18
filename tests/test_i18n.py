@@ -257,19 +257,39 @@ def test_dynamic_translations_are_declared():
 # -- R5: the leak probe -------------------------------------------------------------------------
 MENUS = ["Arquivo", "Navegar", "Cluster", "Gráficos", "Ferramentas", "Ajuda"]
 SIDE_BAR = ["Árvore", "Grade", "Plot", "Grids", "Rsync", "Criar", "Tema"]
+# The scenarios with texts to check for leaks: spec 52's two, then spec 53's eleven (the window, its
+# menus and the general dialogs). The next specs of the series add theirs.
+LEAK_SCENARIOS = [
+    "main",
+    "plot",
+    "shortcuts",
+    "about",
+    "palette",
+    "context_menu",
+    "open_with",
+    "rename",
+    "new_project",
+    "overwrite",
+    "toast",
+    "tree",
+    "first_run",
+]
+# What no widget shows (the probe's "facts"). They run before ``first_run``, whose overlay stays on.
+FACT_SCENARIOS = ["menus", "cli", "config", "restart", "type_filter"]
 
 
 @pytest.fixture(scope="module")
 def english():
-    return probe_texts("en", "main", "plot")
+    order = [*LEAK_SCENARIOS[:-1], *FACT_SCENARIOS, LEAK_SCENARIOS[-1]]
+    return probe_texts("en", *order)
 
 
 @pytest.fixture(scope="module")
 def portuguese():
-    return probe_texts("pt_BR", "main")
+    return probe_texts("pt_BR", "main", "tree", *FACT_SCENARIOS)
 
 
-@pytest.mark.parametrize("scenario", ["main", "plot"])
+@pytest.mark.parametrize("scenario", LEAK_SCENARIOS)
 def test_no_leaks_in_english(english, po, scenario):
     found = leaks(english[scenario], po)
     assert found == [], "translated but shown in Portuguese (no _() on the way):\n" + first_lines(
@@ -281,3 +301,60 @@ def test_no_leaks_in_english(english, po, scenario):
 def test_portuguese_unchanged(portuguese, scenario):
     texts = set(portuguese[scenario])
     assert [text for text in MENUS + SIDE_BAR if text not in texts] == []
+
+
+# -- spec 53: what the window says outside its widgets ---------------------------------------------
+def test_en_menus(english, portuguese):
+    assert english["menus#facts"] == ["File", "Navigate", "Cluster", "Plots", "Tools", "Help"]
+    assert portuguese["menus#facts"] == MENUS
+
+
+def test_the_help_option_follows_the_language(english, portuguese):
+    shown = "\n".join(english["cli#facts"])
+    assert "path to config.yaml" in shown and "detailed log" in shown
+    assert "caminho do config.yaml" not in shown
+    shown = "\n".join(portuguese["cli#facts"])
+    assert "caminho do config.yaml" in shown and "log detalhado" in shown
+
+
+def test_an_invalid_config_is_reported_in_the_language(english, portuguese):
+    """Our messages follow the language; the pydantic ones would stay as the library writes them."""
+    head, *problems = english["config#facts"]
+    assert head.startswith("Invalid configuration (")
+    assert problems == [
+        "• plot: energy_min must be less than energy_max",
+        "• ui.bogus: unknown key",
+    ]
+    head, *problems = portuguese["config#facts"]
+    assert head.startswith("Configuração inválida (")
+    assert problems == [
+        "• plot: energy_min deve ser menor que energy_max",
+        "• ui.bogus: chave desconhecida",
+    ]
+
+
+def test_a_reload_that_changes_the_language_says_to_restart(english, portuguese):
+    assert english["restart#facts"] == ["The language changes when Lain restarts."]
+    assert portuguese["restart#facts"] == ["O idioma muda ao reiniciar o Lain."]
+
+
+def test_the_painted_error_badge_is_translated(english, portuguese):
+    """The badge of a folder with a CRASH file is painted, not a widget: ask what was painted."""
+    assert "ERROR" in english["tree#facts"] and "ERRO" not in english["tree#facts"]
+    assert "ERRO" in portuguese["tree#facts"] and "ERROR" not in portuguese["tree#facts"]
+
+
+def test_the_type_filter_compares_the_data_not_the_label(english, portuguese):
+    """ "outputs" and "saídas" are the same stored value: both languages list the same files."""
+    assert english["type_filter#facts"] == portuguese["type_filter#facts"] != []
+    assert "outputs" in english["type_filter"] and "saídas" not in english["type_filter"]
+    assert "saídas" in portuguese["type_filter"]
+
+
+def test_the_plurals_of_the_area_have_both_forms(po):
+    forms = {tool.sources(message): tool.forms(message) for message in tool.messages(po)}
+    assert forms[("{n} item", "{n} itens")] == ("{n} item", "{n} items")
+    assert forms[("Copiado: {name}", "Copiados: {n} itens")] == (
+        "Copied: {name}",
+        "Copied: {n} items",
+    )

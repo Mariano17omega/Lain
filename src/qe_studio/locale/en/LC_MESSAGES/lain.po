@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-18 19:10-0400\n"
+"POT-Creation-Date: 2026-10-18 19:34-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -1455,7 +1455,7 @@ msgstr "Set paths.local_root to create calculations"
 
 #: core/xcrysden.py
 msgid "Defina paths.xcrysden_path no config.yaml para abrir com o XCrysDen."
-msgstr "Set paths.xcrysden_path in config.yaml to open with XCrySDen."
+msgstr "Set paths.xcrysden_path in config.yaml to open with XCrysDen."
 
 #: core/calc_create/fragments.py
 msgid "Deixe ao menos um átomo fora da seleção: o SCF clean ficaria vazio"
@@ -2516,30 +2516,30 @@ msgstr ""
 #: ui/rename_controller.py
 #, python-brace-format
 msgid "Há um SCF convergido sendo gerado a partir de {name}. Espere terminar."
-msgstr ""
+msgstr "A converged SCF is being generated from {name}. Wait for it to finish."
 
 #: ui/rename_controller.py
 #, python-brace-format
 msgid "Há um cálculo sendo criado em {name}. Espere terminar."
-msgstr ""
+msgstr "A calculation is being created in {name}. Wait for it to finish."
 
 #: ui/rename_controller.py
 #, python-brace-format
 msgid "Há um envio ao cluster em andamento em {where}. Espere terminar ou cancele."
-msgstr ""
+msgstr "An upload to the cluster is in progress in {where}. Wait for it to finish or cancel it."
 
 #: ui/rename_controller.py
 msgid "Há uma exportação de figura em andamento. Espere terminar e tente de novo."
-msgstr ""
+msgstr "A figure export is in progress. Wait for it to finish and try again."
 
 #: ui/rename_controller.py
 #, python-brace-format
 msgid "Há uma sincronização em andamento em {where}. Espere terminar ou cancele."
-msgstr ""
+msgstr "A sync is in progress in {where}. Wait for it to finish or cancel it."
 
 #: core/file_kinds.py core/filtering.py
 msgid "INCOMPLETO"
-msgstr ""
+msgstr "INCOMPLETE"
 
 #: ui/widgets/diff_view.py
 msgid "Ignorar espaços e comentários"
@@ -2560,11 +2560,11 @@ msgstr ""
 
 #: ui/palette_controller.py
 msgid "Indexando pastas…"
-msgstr ""
+msgstr "Indexing folders…"
 
 #: ui/dialogs/mapping.py
 msgid "Indique o tipo de cálculo e os arquivos de cada papel. Campos marcados com * são obrigatórios."
-msgstr ""
+msgstr "Specify the calculation type and the files for each role. Fields marked with * are required."
 
 #: core/calculations/params.py
 msgid "Inferior direita"
@@ -2611,7 +2611,7 @@ msgstr ""
 
 #: ui/widgets/workspace.py
 msgid "Inputs do QE (*.in *.inp *.pw*);;Todos os arquivos (*)"
-msgstr ""
+msgstr "QE inputs (*.in *.inp *.pw*);;All files (*)"
 
 #: ui/dialogs/calc_create/setup_page.py
 msgid "Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)"
@@ -2655,19 +2655,19 @@ msgstr ""
 
 #: ui/actions.py
 msgid "Ir para a grade"
-msgstr ""
+msgstr "Go to the grid"
 
 #: ui/actions.py
 msgid "Ir para a árvore"
-msgstr ""
+msgstr "Go to the tree"
 
 #: ui/actions.py
 msgid "Ir para o workspace"
-msgstr ""
+msgstr "Go to the workspace"
 
 #: ui/actions.py
 msgid "Ir para os ajustes"
-msgstr ""
+msgstr "Go to the plot settings"
 
 #: ui/widgets/text_viewer.py
 msgid "Ir à linha"
@@ -2704,7 +2704,7 @@ msgstr ""
 
 #: core/projects.py
 msgid "Já existe um projeto com esse nome"
-msgstr ""
+msgstr "A project with this name already exists"
 
 #: ui/dialogs/grid_dialog.py
 #, python-brace-format
@@ -2713,7 +2713,7 @@ msgstr ""
 
 #: core/projects.py
 msgid "Já existe uma pasta com esse nome"
-msgstr ""
+msgstr "A folder with this name already exists"
 
 #: ui/dialogs/calc_create/preview.py
 #, python-brace-format
@@ -2723,7 +2723,7 @@ msgstr ""
 #: core/file_ops.py
 #, python-brace-format
 msgid "Já existe “{name}” nesta pasta."
-msgstr ""
+msgstr "“{name}” already exists in this folder."
 
 #: core/sync/preview.py
 msgid "Já existem no cluster, não serão alterados"
@@ -2786,7 +2786,7 @@ msgstr ""
 
 #: ui/dialogs/mapping.py
 msgid "Lembrar este mapeamento para esta pasta"
-msgstr ""
+msgstr "Remember this mapping for this folder"
 
 #: ui/dialogs/calc_create/scf_field.py ui/dialogs/calc_create/setup_page.py
 msgid "Lendo SCF…"
@@ -2877,7 +2877,7 @@ msgstr ""
 
 #: ui/widgets/file_grid.py
 msgid "Lista"
-msgstr ""
+msgstr "List"
 
 #: core/sync/_process.py
 msgid "Listando arquivos no cluster…"
@@ -2900,7 +2900,7 @@ msgstr ""
 
 #: core/calculations/relax.py core/calculations/scf.py ui/excepthook.py ui/help_controller.py
 msgid "Log"
-msgstr ""
+msgstr "Log"
 
 #: core/calculations/bands/render.py core/calculations/pdos/render.py
 #, python-brace-format
@@ -2949,7 +2949,7 @@ msgstr ""
 
 #: ui/dialogs/mapping.py
 msgid "Mapear arquivos manualmente"
-msgstr ""
+msgstr "Map files manually"
 
 #: ui/widgets/kpath_editor.py
 msgid "Marcar quebra de segmento"
@@ -3011,7 +3011,7 @@ msgstr ""
 #: ui/help_controller.py
 #, python-brace-format
 msgid "Menu {menu}"
-msgstr ""
+msgstr "{menu} menu"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Metais da borda"
@@ -3057,11 +3057,11 @@ msgstr ""
 
 #: ui/widgets/project_combo.py
 msgid "Mostra só as pastas de um projeto (uma pasta da raiz)"
-msgstr ""
+msgstr "Shows only the folders of one project (a folder of the root)"
 
 #: ui/widgets/explorer.py
 msgid "Mostrar arquivos na árvore"
-msgstr ""
+msgstr "Show files in the tree"
 
 #: core/calculations/params.py
 msgid "Mostrar legenda"
@@ -3085,12 +3085,12 @@ msgstr ""
 
 #: ui/widgets/bars.py
 msgid "Mostrar/ocultar arquivos"
-msgstr ""
+msgstr "Show/hide files"
 
 #: ui/widgets/bars.py
 #, python-brace-format
 msgid "Mostrar/ocultar {name}"
-msgstr ""
+msgstr "Show/hide {name}"
 
 #: ui/widgets/plot_view.py
 msgid "Mover (arrastar)"
@@ -3136,11 +3136,11 @@ msgstr ""
 
 #: ui/actions.py
 msgid "Navegar"
-msgstr ""
+msgstr "Navigate"
 
 #: ui/navigation_controller.py
 msgid "Navegação"
-msgstr ""
+msgstr "Navigation"
 
 #: core/structure3d/options.py
 msgid "Nenhum"
@@ -3158,18 +3158,20 @@ msgstr ""
 msgid ""
 "Nenhum config.yaml encontrado. O Lain usa um arquivo de configuração (não há janela de "
 "configurações)."
-msgstr ""
+msgstr "No config.yaml found. Lain uses a configuration file (there is no settings window)."
 
 #: core/detection.py
 #, python-brace-format
 msgid "Nenhum cálculo de {name} completo em {name_2}."
-msgstr ""
+msgstr "No complete {name} calculation in {name_2}."
 
 #: core/detection.py
 msgid ""
 "Nenhum cálculo reconhecido nesta pasta (nomes e conteúdo). Indique o tipo de cálculo e os "
 "arquivos manualmente."
 msgstr ""
+"No calculation recognized in this folder (names and content). Specify the calculation type and "
+"the files manually."
 
 #: ui/plot_workflow.py
 msgid "Nenhum gráfico aberto."
@@ -3177,7 +3179,7 @@ msgstr ""
 
 #: ui/focus_controller.py
 msgid "Nenhum gráfico aberto: os ajustes aparecem junto com o gráfico."
-msgstr ""
+msgstr "No plot open: the settings appear together with the plot."
 
 #: core/calculations/scf.py
 msgid "Nenhum painel selecionado"
@@ -3194,11 +3196,11 @@ msgstr ""
 
 #: ui/widgets/context_menu.py
 msgid "Nenhum programa encontrado"
-msgstr ""
+msgstr "No program found"
 
 #: ui/widgets/search_bar.py
 msgid "Nenhum resultado"
-msgstr ""
+msgstr "No results"
 
 #: core/calc_create/surface/candidates.py
 #, python-brace-format
@@ -3221,7 +3223,7 @@ msgstr ""
 
 #: ui/dialogs/grid_dialog.py ui/widgets/file_grid.py
 msgid "Nome"
-msgstr ""
+msgstr "Name"
 
 #: ui/dialogs/calc_create/setup_page.py
 msgid "Nome da pasta"
@@ -3266,11 +3268,11 @@ msgstr ""
 
 #: ui/dialogs/new_project.py
 msgid "Nome do projeto"
-msgstr ""
+msgstr "Project name"
 
 #: core/file_ops.py
 msgid "Nome inválido."
-msgstr ""
+msgstr "Invalid name."
 
 #: ui/dialogs/sync_pages.py
 msgid "Nota"
@@ -3278,7 +3280,7 @@ msgstr ""
 
 #: ui/dialogs/overwrite.py
 msgid "Nova versão"
-msgstr ""
+msgstr "New version"
 
 #: core/sync/preview.py
 msgid "Novos"
@@ -3315,12 +3317,12 @@ msgstr ""
 #: ui/widgets/context_menu.py
 #, python-brace-format
 msgid "Não foi possível abrir {file} com {program}."
-msgstr ""
+msgstr "Could not open {file} with {program}."
 
 #: ui/help_controller.py
 #, python-brace-format
 msgid "Não foi possível abrir {folder}: {error}"
-msgstr ""
+msgstr "Could not open {folder}: {error}"
 
 #: ui/plot_settings.py
 #, python-brace-format
@@ -3345,12 +3347,12 @@ msgstr ""
 #: core/projects.py
 #, python-brace-format
 msgid "Não foi possível criar a pasta {path}: {value}"
-msgstr ""
+msgstr "Could not create the folder {path}: {value}"
 
 #: ui/first_run.py
 #, python-brace-format
 msgid "Não foi possível criar {path}: {error}"
-msgstr ""
+msgstr "Could not create {path}: {error}"
 
 #: core/qe/input_edit.py
 #, python-brace-format
@@ -3373,7 +3375,7 @@ msgstr ""
 
 #: ui/dialogs/mapping.py
 msgid "Não foi possível identificar todos os arquivos"
-msgstr ""
+msgstr "Could not identify all the files"
 
 #: core/calculations/pdos/data.py
 #, python-brace-format
@@ -3418,7 +3420,7 @@ msgstr ""
 #: ui/rename_controller.py
 #, python-brace-format
 msgid "Não foi possível renomear {name}: {error}"
-msgstr ""
+msgstr "Could not rename {name}: {error}"
 
 #: ui/widgets/structure3d/window.py
 #, python-brace-format
@@ -3443,11 +3445,11 @@ msgstr ""
 #: core/xcrysden.py
 #, python-brace-format
 msgid "Não há o executável {EXECUTABLE} em {target}."
-msgstr ""
+msgstr "There is no {EXECUTABLE} executable in {target}."
 
 #: ui/dialogs/overwrite.py
 msgid "Não perguntar novamente nesta sessão (sobrescrever)"
-msgstr ""
+msgstr "Don't ask again this session (overwrite)"
 
 #: core/calculations/relax.py
 msgid "Não relaxado"
@@ -3455,7 +3457,7 @@ msgstr ""
 
 #: ui/widgets/breadcrumb.py
 msgid "Níveis ocultos"
-msgstr ""
+msgstr "Hidden levels"
 
 #: core/qe/summary/build.py
 msgid "Nós"
@@ -3487,7 +3489,7 @@ msgstr ""
 
 #: ui/app.py
 msgid "O Lain já está aberto com esta configuração. Abrir mesmo assim?"
-msgstr ""
+msgstr "Lain is already open with this configuration. Open anyway?"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
@@ -3529,7 +3531,7 @@ msgstr ""
 
 #: ui/dialogs/open_with.py
 msgid "O arquivo é passado como último argumento; nenhum shell é usado."
-msgstr ""
+msgstr "The file is passed as the last argument; no shell is used."
 
 #: ui/widgets/kpath_editor.py
 msgid "O caminho salta deste ponto para o próximo (peso 1)"
@@ -3545,7 +3547,7 @@ msgstr ""
 
 #: ui/language.py
 msgid "O idioma muda ao reiniciar o Lain."
-msgstr ""
+msgstr "The language changes when Lain restarts."
 
 #: core/qe/scf_from_relax.py
 msgid "O input"
@@ -3553,7 +3555,7 @@ msgstr ""
 
 #: core/file_kinds.py
 msgid "O job registrou mensagens de erro (arquivo não vazio)"
-msgstr ""
+msgstr "The job logged error messages (non-empty file)"
 
 #: core/text_preview.py
 msgid "O job registrou mensagens de erro."
@@ -3561,19 +3563,19 @@ msgstr ""
 
 #: core/projects.py
 msgid "O nome não pode começar com ponto"
-msgstr ""
+msgstr "The name cannot start with a dot"
 
 #: core/file_ops.py
 msgid "O nome não pode conter “/” nem “\\”."
-msgstr ""
+msgstr "The name cannot contain “/” or “\\”."
 
 #: core/file_ops.py core/plotting/grid.py
 msgid "O nome não pode conter “/”."
-msgstr ""
+msgstr "The name cannot contain “/”."
 
 #: ui/dialogs/new_project.py
 msgid "O nome será o nome da pasta, criada na pasta raiz."
-msgstr ""
+msgstr "The name will be the name of the folder, created in the root folder."
 
 #: core/calc_create/surface/geometry.py
 #, python-brace-format
@@ -3617,7 +3619,7 @@ msgstr ""
 
 #: core/file_kinds.py core/filtering.py
 msgid "OK"
-msgstr ""
+msgstr "OK"
 
 #: ui/widgets/text_viewer.py
 msgid "Ocorrência anterior"
@@ -3625,7 +3627,7 @@ msgstr ""
 
 #: ui/widgets/explorer.py
 msgid "Ocultar arquivos da árvore"
-msgstr ""
+msgstr "Hide files from the tree"
 
 #: core/calc_create/types/pdos.py
 msgid "Ocupações (occupations)"
@@ -3637,7 +3639,7 @@ msgstr ""
 
 #: ui/dialogs/shortcuts.py
 msgid "Onde"
-msgstr ""
+msgstr "Where"
 
 #: ui/dialogs/calc_create/setup_page.py
 msgid "Onde criar a pasta"
@@ -3659,7 +3661,7 @@ msgstr ""
 
 #: ui/widgets/file_grid.py
 msgid "Ordenar"
-msgstr ""
+msgstr "Sort"
 
 #: core/calculations/pdos/params.py
 msgid "Orientação"
@@ -3688,7 +3690,7 @@ msgstr ""
 
 #: ui/widgets/context_menu.py
 msgid "Outro programa…"
-msgstr ""
+msgstr "Other program…"
 
 #: core/calculations/relax_panels.py
 #, python-brace-format
@@ -3721,7 +3723,7 @@ msgstr ""
 
 #: ui/actions.py
 msgid "Paleta de comandos"
-msgstr ""
+msgstr "Command palette"
 
 #: core/qe/summary/build.py
 msgid "Paralelização"
@@ -3773,17 +3775,17 @@ msgstr ""
 
 #: ui/palette_controller.py
 msgid "Pasta"
-msgstr ""
+msgstr "Folder"
 
 #: core/detection.py
 #, python-brace-format
 msgid "Pasta da DOS não encontrada: {folder}"
-msgstr ""
+msgstr "DOS folder not found: {folder}"
 
 #: core/detection.py
 #, python-brace-format
 msgid "Pasta das bandas não encontrada: {folder}"
-msgstr ""
+msgstr "Bands folder not found: {folder}"
 
 #: core/calc_create/types/charge_diff.py
 msgid "Pasta dos .xsf"
@@ -3796,7 +3798,7 @@ msgstr ""
 #: core/config.py
 #, python-brace-format
 msgid "Pasta local não encontrada: {local_root}"
-msgstr ""
+msgstr "Local folder not found: {local_root}"
 
 #: core/sync/report.py
 #, python-brace-format
@@ -3810,7 +3812,7 @@ msgstr ""
 #: core/detection.py
 #, python-brace-format
 msgid "Pasta não encontrada: {folder}"
-msgstr ""
+msgstr "Folder not found: {folder}"
 
 #: core/sync/request.py
 #, python-brace-format
@@ -3820,15 +3822,15 @@ msgstr ""
 #: ui/navigation_controller.py
 #, python-brace-format
 msgid "Pasta não existe mais: {names}"
-msgstr ""
+msgstr "Folder no longer exists: {names}"
 
 #: ui/first_run.py
 msgid "Pasta raiz não encontrada"
-msgstr ""
+msgstr "Root folder not found"
 
 #: ui/first_run.py
 msgid "Pasta temporária: para fixar, edite paths.local_root no config.yaml"
-msgstr ""
+msgstr "Temporary folder: to make it permanent, edit paths.local_root in config.yaml"
 
 #: core/calc_create/preview.py
 #, python-brace-format
@@ -3844,7 +3846,7 @@ msgstr ""
 
 #: core/fuzzy.py ui/widgets/explorer.py ui/widgets/file_grid.py
 msgid "Pastas"
-msgstr ""
+msgstr "Folders"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Pela lista: os átomos marcados na tabela. Por coordenadas: o átomo mais próximo de cada x y z"
@@ -3856,7 +3858,7 @@ msgstr ""
 
 #: ui/widgets/bars.py
 msgid "Plot"
-msgstr ""
+msgstr "Plot"
 
 #: core/calculations/grid/render.py
 #, python-brace-format
@@ -3865,21 +3867,23 @@ msgstr ""
 
 #: core/calculations/base.py ui/dialogs/mapping.py ui/widgets/context_menu.py
 msgid "Plotar"
-msgstr ""
+msgstr "Plot"
 
 #: core/calculations/scf.py ui/widgets/bars.py
 msgid "Plotar SCF"
-msgstr ""
+msgstr "Plot SCF"
 
 #: core/calculations/scf.py ui/widgets/bars.py
 msgid "Plotar a convergência do SCF do arquivo aberto"
-msgstr ""
+msgstr "Plot the SCF convergence of the open file"
 
 #: ui/widgets/bars.py
 msgid ""
 "Plotar a pasta selecionada (com uma pasta de bandas e uma de PDOS selecionadas na grade: Bandas "
 "com DOS); com a geração automática desligada (ui.auto_generate_plot) só abre os ajustes"
 msgstr ""
+"Plot the selected folder (with a bands folder and a PDOS folder selected in the grid: Bands with "
+"DOS); with automatic generation off (ui.auto_generate_plot) it only opens the settings"
 
 #: core/calculations/base.py
 msgid "Plotar o arquivo aberto"
@@ -3997,7 +4001,7 @@ msgstr ""
 
 #: ui/dialogs/open_with.py
 msgid "Procurar…"
-msgstr ""
+msgstr "Browse…"
 
 #: core/qe/summary/build.py
 msgid "Programa"
@@ -4005,22 +4009,22 @@ msgstr ""
 
 #: ui/widgets/project_combo.py
 msgid "Projeto"
-msgstr ""
+msgstr "Project"
 
 #: ui/project_controller.py
 #, python-brace-format
 msgid "Projeto {name} criado"
-msgstr ""
+msgstr "Project {name} created"
 
 #: ui/project_controller.py
 #, python-brace-format
 msgid "Projeto {name} não encontrado"
-msgstr ""
+msgstr "Project {name} not found"
 
 #: ui/project_controller.py
 #, python-brace-format
 msgid "Projeto: {name}"
-msgstr ""
+msgstr "Project: {name}"
 
 #: core/calculations/pdos/module.py
 msgid "Projeções"
@@ -4044,11 +4048,11 @@ msgstr ""
 
 #: ui/widgets/search_bar.py
 msgid "Próximo"
-msgstr ""
+msgstr "Next"
 
 #: ui/widgets/search_bar.py
 msgid "Próximo (Enter, F3)"
-msgstr ""
+msgstr "Next (Enter, F3)"
 
 #: ui/widgets/text_viewer.py
 msgid "Próximo problema de escrita"
@@ -4081,23 +4085,23 @@ msgstr ""
 #: ui/project_controller.py
 #, python-brace-format
 msgid "Raiz: {path}"
-msgstr ""
+msgstr "Root: {path}"
 
 #: ui/actions.py
 msgid "Recarregar config.yaml"
-msgstr ""
+msgstr "Reload config.yaml"
 
 #: ui/palette_controller.py
 msgid "Recente"
-msgstr ""
+msgstr "Recent"
 
 #: ui/widgets/explorer.py
 msgid "Recentes"
-msgstr ""
+msgstr "Recents"
 
 #: ui/widgets/explorer.py
 msgid "Recolher tudo"
-msgstr ""
+msgstr "Collapse all"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Reconectar H cortados"
@@ -4151,11 +4155,11 @@ msgstr ""
 
 #: ui/widgets/context_menu.py
 msgid "Remover dos favoritos"
-msgstr ""
+msgstr "Remove from favorites"
 
 #: ui/widgets/filter_bar.py
 msgid "Remover filtro"
-msgstr ""
+msgstr "Remove filter"
 
 #: core/calc_create/surface/adsorb.py
 msgid "Remover o H ligado ao átomo âncora"
@@ -4164,7 +4168,7 @@ msgstr ""
 #: ui/navigation_controller.py
 #, python-brace-format
 msgid "Removido dos favoritos: {name}"
-msgstr ""
+msgstr "Removed from favorites: {name}"
 
 #: ui/widgets/text_viewer.py
 msgid "Renderizado"
@@ -4173,16 +4177,16 @@ msgstr ""
 #: ui/rename_controller.py
 #, python-brace-format
 msgid "Renomeado: {old} → {new}"
-msgstr ""
+msgstr "Renamed: {old} → {new}"
 
 #: ui/dialogs/rename.py ui/rename_controller.py ui/widgets/context_menu.py
 msgid "Renomear"
-msgstr ""
+msgstr "Rename"
 
 #: ui/dialogs/rename.py
 #, python-brace-format
 msgid "Renomear {name}"
-msgstr ""
+msgstr "Rename {name}"
 
 #: core/calc_create/types/supercell.py
 msgid "Repetir ao longo do vácuo (c) empilha slabs: o vácuo entre eles não muda"
@@ -4253,16 +4257,16 @@ msgstr ""
 
 #: ui/widgets/context_menu.py
 msgid "Resumo"
-msgstr ""
+msgstr "Summary"
 
 #: ui/widgets/workspace.py
 #, python-brace-format
 msgid "Resumo · {name}"
-msgstr ""
+msgstr "Summary · {name}"
 
 #: ui/widgets/workspace.py
 msgid "Revelar no explorador"
-msgstr ""
+msgstr "Reveal in explorer"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Roda, + e -"
@@ -4278,7 +4282,7 @@ msgstr ""
 
 #: ui/widgets/bars.py
 msgid "Rsync"
-msgstr ""
+msgstr "Rsync"
 
 #: ui/widgets/kpath_editor.py
 msgid "Rótulo"
@@ -4344,7 +4348,7 @@ msgstr ""
 
 #: core/file_kinds.py core/filtering.py
 msgid "SEM ERROS"
-msgstr ""
+msgstr "NO ERRORS"
 
 #: core/calculations/params.py
 msgid "SVG"
@@ -4352,7 +4356,7 @@ msgstr ""
 
 #: ui/actions.py
 msgid "Sair"
-msgstr ""
+msgstr "Quit"
 
 #: ui/dialogs/atoms.py ui/dialogs/grid_dialog.py
 msgid "Salvar"
@@ -4431,7 +4435,7 @@ msgstr ""
 
 #: ui/dialogs/rename.py
 msgid "Se esta pasta também existe no cluster, a próxima sincronização trará de volta o nome original."
-msgstr ""
+msgstr "If this folder also exists on the cluster, the next sync will bring back the original name."
 
 #: ui/dialogs/calc_create/preview.py
 #, python-brace-format
@@ -4473,10 +4477,12 @@ msgid ""
 "Selecione um arquivo para visualizar\n"
 "ou use “Gerar Gráfico” em uma pasta de simulação."
 msgstr ""
+"Select a file to view\n"
+"or use “Generate plot” on a simulation folder."
 
 #: core/file_kinds.py
 msgid "Sem JOB DONE: job rodando ou interrompido"
-msgstr ""
+msgstr "No JOB DONE: job running or interrupted"
 
 #: core/qe/summary/build.py
 msgid "Sem convergência registrada"
@@ -4524,7 +4530,7 @@ msgstr ""
 
 #: core/config.py
 msgid "Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave."
-msgstr ""
+msgstr "Plain-text password in config.yaml; prefer password_env or key authentication."
 
 #: core/calculations/bands/params.py
 msgid "Separados por vírgula, ex.: G, X, W, L, G (G = Γ)"
@@ -4562,15 +4568,15 @@ msgstr ""
 
 #: ui/widgets/bars.py
 msgid "Sincronizando…"
-msgstr ""
+msgstr "Syncing…"
 
 #: ui/widgets/bars.py
 msgid "Sincronizar com o cluster"
-msgstr ""
+msgstr "Sync with the cluster"
 
 #: ui/actions.py
 msgid "Sincronizar pasta selecionada"
-msgstr ""
+msgstr "Sync selected folder"
 
 #: core/sync/request.py
 #, python-brace-format
@@ -4579,7 +4585,7 @@ msgstr ""
 
 #: core/sync/request.py ui/actions.py
 msgid "Sincronizar tudo"
-msgstr ""
+msgstr "Sync all"
 
 #: core/sync/request.py
 #, python-brace-format
@@ -4604,15 +4610,15 @@ msgstr ""
 
 #: ui/theme/manager.py
 msgid "Sistema (claro agora)"
-msgstr ""
+msgstr "System (light now)"
 
 #: ui/theme/manager.py
 msgid "Sistema (escuro agora)"
-msgstr ""
+msgstr "System (dark now)"
 
 #: ui/actions.py ui/dialogs/about.py
 msgid "Sobre o Lain"
-msgstr ""
+msgstr "About Lain"
 
 #: core/calculations/pdos/params.py
 msgid "Sobreposto"
@@ -4624,7 +4630,7 @@ msgstr ""
 
 #: ui/dialogs/overwrite.py
 msgid "Sobrescrever"
-msgstr ""
+msgstr "Overwrite"
 
 #: ui/dialogs/sync_dialog.py
 msgid "Sobrescrever este"
@@ -4633,7 +4639,7 @@ msgstr ""
 #: ui/dialogs/overwrite.py
 #, python-brace-format
 msgid "Sobrescrever ou salvar como nova versão ({stem})?"
-msgstr ""
+msgstr "Overwrite or save as a new version ({stem})?"
 
 #: ui/dialogs/sync_dialog.py
 msgid "Sobrescrever todos nesta pasta"
@@ -4661,7 +4667,7 @@ msgstr ""
 
 #: ui/widgets/file_grid.py
 msgid "Subir uma pasta"
-msgstr ""
+msgstr "Go up one folder"
 
 #: ui/dialogs/grid_dialog.py
 msgid "Substituir grade"
@@ -4753,7 +4759,7 @@ msgstr ""
 #: core/calculations/params.py ui/dialogs/calc_create/preview.py ui/dialogs/sync_pages.py
 #: ui/widgets/file_grid.py
 msgid "Tamanho"
-msgstr ""
+msgstr "Size"
 
 #: core/calculations/params.py
 #, python-format
@@ -4778,17 +4784,17 @@ msgstr ""
 
 #: ui/widgets/bars.py
 msgid "Tema"
-msgstr ""
+msgstr "Theme"
 
 #: ui/widgets/bars.py
 #, python-brace-format
 msgid "Tema: {theme} · Ctrl+T"
-msgstr ""
+msgstr "Theme: {theme} · Ctrl+T"
 
 #: ui/main_window.py
 #, python-brace-format
 msgid "Tema: {theme}."
-msgstr ""
+msgstr "Theme: {theme}."
 
 #: core/calc_create/render.py
 #, python-brace-format
@@ -4805,7 +4811,7 @@ msgstr ""
 
 #: ui/actions.py
 msgid "Testar conexão"
-msgstr ""
+msgstr "Test connection"
 
 #: ui/widgets/diff_view.py ui/widgets/text_viewer.py
 msgid "Texto"
@@ -4829,7 +4835,7 @@ msgstr ""
 
 #: ui/dialogs/mapping.py ui/plot_workflow.py
 msgid "Tipo de cálculo:"
-msgstr ""
+msgstr "Calculation type:"
 
 #: core/calc_create/types/charge.py
 msgid "Tipo de gráfico (iflag)"
@@ -4837,7 +4843,7 @@ msgstr ""
 
 #: ui/widgets/file_grid.py
 msgid "Tipo do arquivo"
-msgstr ""
+msgstr "File type"
 
 #: core/qe/summary/build.py
 msgid "Tipos atômicos"
@@ -4853,7 +4859,7 @@ msgstr ""
 
 #: ui/widgets/project_combo.py
 msgid "Todos os projetos"
-msgstr ""
+msgstr "All projects"
 
 #: core/calc_create/surface/fixing.py
 msgid "Todos os átomos ficariam fixos"
@@ -4912,11 +4918,11 @@ msgstr ""
 
 #: ui/widgets/bars.py
 msgid "Unir gráficos abertos numa grade N×M (uma só figura)"
-msgstr ""
+msgstr "Combine open plots in an N×M grid (a single figure)"
 
 #: core/calc_create/writer.py core/projects.py
 msgid "Use só letras sem acento, números, ponto, hífen e sublinhado no nome"
-msgstr ""
+msgstr "Use only unaccented letters, digits, dot, hyphen and underscore in the name"
 
 #: core/calc_create/preview.py
 msgid "Use ‘Enviar ao cluster’ para levar a pasta ao cluster"
@@ -4972,7 +4978,7 @@ msgstr ""
 
 #: ui/widgets/bars.py
 msgid "Verificando conexão…"
-msgstr ""
+msgstr "Checking connection…"
 
 #: ui/widgets/structure3d/window.py
 msgid "Vista"
@@ -5000,7 +5006,7 @@ msgstr ""
 
 #: ui/widgets/context_menu.py ui/widgets/structure3d/canvas.py ui/widgets/structure3d/window.py
 msgid "Visualização 3D"
-msgstr ""
+msgstr "3D view"
 
 #: ui/structure3d_controller.py
 #, python-brace-format
@@ -5021,11 +5027,11 @@ msgstr ""
 
 #: ui/actions.py ui/dialogs/calc_create/dialog.py
 msgid "Voltar"
-msgstr ""
+msgstr "Back"
 
 #: ui/widgets/bars.py
 msgid "Voltar (Alt+←)"
-msgstr ""
+msgstr "Back (Alt+←)"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Voltar as opções, a câmera e a rotação ao padrão"
@@ -5033,7 +5039,7 @@ msgstr ""
 
 #: ui/navigation_controller.py
 msgid "Voltar no histórico"
-msgstr ""
+msgstr "Back in history"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Voltar todas as opções e a câmera desta janela ao padrão?"
@@ -5103,7 +5109,7 @@ msgstr ""
 #: core/xcrysden.py
 #, python-brace-format
 msgid "XCrysDen não encontrado: {target}."
-msgstr ""
+msgstr "XCrysDen not found: {target}."
 
 #: core/calc_create/types/charge.py
 msgid "XSF para XCrySDen (3D, grade FFT inteira)"
@@ -5112,7 +5118,7 @@ msgstr ""
 #: core/config.py
 #, python-brace-format
 msgid "YAML inválido: {exc}"
-msgstr ""
+msgstr "invalid YAML: {exc}"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Zoom"
@@ -5154,7 +5160,7 @@ msgstr ""
 #: core/config.py
 #, python-brace-format
 msgid "arquivo indicado por {origin} não encontrado"
-msgstr ""
+msgstr "file given by {origin} not found"
 
 #: core/qe/bands_x.py
 msgid "arquivo sem dados"
@@ -5170,7 +5176,7 @@ msgstr ""
 #: core/config.py
 #, python-brace-format
 msgid "auth: password, mas a variável {value} não está definida."
-msgstr ""
+msgstr "auth: password, but the variable {value} is not set."
 
 #: core/calculations/bands/data.py
 msgid "autovalores lidos da saída do pw.x (bands.x não encontrado)"
@@ -5214,7 +5220,7 @@ msgstr ""
 
 #: ui/app.py
 msgid "caminho do config.yaml"
-msgstr ""
+msgstr "path to config.yaml"
 
 #: core/calculations/bands/data.py
 #, python-brace-format
@@ -5238,7 +5244,7 @@ msgstr ""
 
 #: core/config.py
 msgid "chave desconhecida"
-msgstr ""
+msgstr "unknown key"
 
 #: ui/sync_coordinator.py
 msgid "cluster não configurado"
@@ -5255,15 +5261,15 @@ msgstr ""
 
 #: ui/app.py ui/main_window.py
 msgid "config.yaml inválido"
-msgstr ""
+msgstr "Invalid config.yaml"
 
 #: core/config.py
 msgid "config.yaml não encontrado; usando valores padrão."
-msgstr ""
+msgstr "config.yaml not found; using default values."
 
 #: ui/main_window.py
 msgid "config.yaml recarregado."
-msgstr ""
+msgstr "config.yaml reloaded."
 
 #: core/qe/lattice.py
 msgid "conjunto de celldm"
@@ -5284,7 +5290,7 @@ msgstr ""
 #: core/config.py
 #, python-brace-format
 msgid "cor inválida: {value!r}"
-msgstr ""
+msgstr "invalid color: {value!r}"
 
 #: core/calc_create/types/adsorption.py
 msgid "corrija os campos marcados"
@@ -5308,7 +5314,7 @@ msgstr ""
 
 #: core/filtering.py
 msgid "dados"
-msgstr ""
+msgstr "data"
 
 #: core/calc_create/types/pdos.py
 msgid "degauss (em Ry; 0.000735 Ry ≈ 0,01 eV): ignorado com tetraedros"
@@ -5321,7 +5327,7 @@ msgstr ""
 
 #: ui/widgets/explorer.py ui/widgets/file_card.py
 msgid "detectando…"
-msgstr ""
+msgstr "detecting…"
 
 #: ui/widgets/diff_view.py
 msgid "diferente"
@@ -5366,7 +5372,7 @@ msgstr ""
 
 #: core/config.py
 msgid "energy_min deve ser menor que energy_max"
-msgstr ""
+msgstr "energy_min must be less than energy_max"
 
 #: core/calculations/relax.py
 msgid "entalpia indisponível neste passo"
@@ -5416,7 +5422,7 @@ msgstr ""
 
 #: core/qe/pw_output.py core/sniff.py
 msgid "execução incompleta (sem JOB DONE)"
-msgstr ""
+msgstr "incomplete run (no JOB DONE)"
 
 #: core/calc_create/types/adsorption.py
 msgid "falta o SCF da molécula"
@@ -5493,7 +5499,7 @@ msgstr ""
 
 #: core/filtering.py
 msgid "imagens"
-msgstr ""
+msgstr "images"
 
 #: core/calculations/base.py
 msgid "inferido"
@@ -5501,11 +5507,11 @@ msgstr ""
 
 #: core/config.py
 msgid "informe ao menos um formato"
-msgstr ""
+msgstr "give at least one format"
 
 #: core/filtering.py
 msgid "inputs"
-msgstr ""
+msgstr "inputs"
 
 #: core/calculations/scf.py
 #, python-brace-format
@@ -5518,7 +5524,7 @@ msgstr ""
 
 #: core/config.py
 msgid "largura e altura devem estar entre 0 e 50 polegadas"
-msgstr ""
+msgstr "width and height must be between 0 and 50 inches"
 
 #: core/calculations/scf.py
 msgid "limiar de convergência não encontrado no cabeçalho"
@@ -5553,7 +5559,7 @@ msgstr ""
 
 #: ui/app.py
 msgid "log detalhado"
-msgstr ""
+msgstr "detailed log"
 
 #: core/calculations/scf.py
 msgid "magnetização total"
@@ -5615,7 +5621,7 @@ msgstr ""
 #: core/calc_create/surface/fixing.py core/calc_create/surface/merge.py
 #: core/calc_create/types/adsorption.py ui/help_controller.py
 msgid "nenhum"
-msgstr ""
+msgstr "none"
 
 #: core/qe/projwfc.py
 msgid "nenhum arquivo pdos_atm# encontrado"
@@ -5623,7 +5629,7 @@ msgstr ""
 
 #: core/project_data.py
 msgid "nenhuma"
-msgstr ""
+msgstr "none"
 
 #: core/calc_create/types/pdos.py
 msgid "ngauss: ignorado com tetraedros"
@@ -5676,7 +5682,7 @@ msgstr ""
 
 #: ui/widgets/nav_sections.py
 msgid "não encontrada"
-msgstr ""
+msgstr "not found"
 
 #: ui/widgets/structure3d/print_image.py
 msgid "não foi possível codificar a imagem em PNG"
@@ -5696,11 +5702,11 @@ msgstr ""
 #: core/config.py
 #, python-brace-format
 msgid "não foi possível ler o arquivo: {exc}"
-msgstr ""
+msgstr "could not read the file: {exc}"
 
 #: core/about.py
 msgid "não instalado"
-msgstr ""
+msgstr "not installed"
 
 #: core/calc_create/types/slab.py
 msgid "não invertida"
@@ -5721,11 +5727,11 @@ msgstr ""
 
 #: core/config.py
 msgid "o arquivo deve conter um mapeamento YAML (chave: valor)"
-msgstr ""
+msgstr "the file must contain a YAML mapping (key: value)"
 
 #: core/compounds.py core/folder_memory.py core/grid_store.py core/nav_store.py
 msgid "o conteúdo não é um objeto JSON"
-msgstr ""
+msgstr "the content is not a JSON object"
 
 #: ui/dialogs/grid_cells.py
 msgid "o do gráfico"
@@ -5775,7 +5781,7 @@ msgstr ""
 
 #: core/filtering.py
 msgid "outros"
-msgstr ""
+msgstr "other"
 
 #: core/qe/relax.py
 msgid "padrão do QE"
@@ -5803,11 +5809,11 @@ msgstr ""
 
 #: ui/widgets/file_card.py
 msgid "pasta"
-msgstr ""
+msgstr "folder"
 
 #: ui/widgets/file_card.py
 msgid "pasta acima"
-msgstr ""
+msgstr "folder above"
 
 #: core/qe/projwfc.py
 msgid "pdos_tot ausente: total = soma das projeções"
@@ -5886,7 +5892,7 @@ msgstr ""
 #: core/config.py
 #, python-brace-format
 msgid "rótulo de elemento inválido: {label!r}"
-msgstr ""
+msgstr "invalid element label: {label!r}"
 
 #: core/calculations/pdos/module.py
 msgid "saída SCF não encontrada: E_F lida da saída NSCF"
@@ -5899,7 +5905,7 @@ msgstr ""
 
 #: core/filtering.py
 msgid "saídas"
-msgstr ""
+msgstr "outputs"
 
 #: core/calc_create/fragments.py core/qe/lattice.py
 msgid "sem ATOMIC_POSITIONS"
@@ -5907,7 +5913,7 @@ msgstr ""
 
 #: core/filtering.py
 msgid "sem estado"
-msgstr ""
+msgstr "no state"
 
 #: core/calc_create/surface/geometry.py core/calc_create/surface/model.py
 msgid "sem estrutura"
@@ -5924,7 +5930,7 @@ msgstr ""
 
 #: core/filtering.py
 msgid "sem tipo"
-msgstr ""
+msgstr "no type"
 
 #: core/calc_create/types/supercell.py
 msgid "sem vácuo (bulk)"
@@ -5975,7 +5981,7 @@ msgstr ""
 
 #: ui/rename_controller.py
 msgid "toda a pasta raiz"
-msgstr ""
+msgstr "the whole root folder"
 
 #: core/compounds.py
 msgid "todos"
@@ -6006,11 +6012,11 @@ msgstr ""
 #: core/compounds.py core/folder_memory.py core/grid_store.py core/nav_store.py
 #, python-brace-format
 msgid "versão de formato desconhecida: {data!r}"
-msgstr ""
+msgstr "unknown format version: {data!r}"
 
 #: ui/dialogs/mapping.py
 msgid "vários arquivos separados por ;"
-msgstr ""
+msgstr "several files separated by ;"
 
 #: core/calculations/bands/params.py
 msgid "x máx"
@@ -6038,7 +6044,7 @@ msgstr ""
 #: core/xcrysden.py
 #, python-brace-format
 msgid "{candidate} não é executável."
-msgstr ""
+msgstr "{candidate} is not executable."
 
 #: core/calc_create/surface/write.py
 #, python-brace-format
@@ -6223,17 +6229,17 @@ msgstr ""
 #: core/project_data.py
 #, python-brace-format
 msgid "{folder} não é gravável: as configurações do projeto ficam em {fallback}."
-msgstr ""
+msgstr "{folder} is not writable: the project settings are kept in {fallback}."
 
 #: core/project_data.py
 #, python-brace-format
 msgid "{folder} não é uma pasta: as configurações do projeto ficam em {fallback}."
-msgstr ""
+msgstr "{folder} is not a folder: the project settings are kept in {fallback}."
 
 #: i18n.py
 #, python-brace-format
 msgid "{items} ou {last}"
-msgstr ""
+msgstr "{items} or {last}"
 
 #: core/calc_create/fragments.py
 #, python-brace-format
@@ -6262,6 +6268,9 @@ msgid ""
 "\n"
 "Detalhes no log ({path})."
 msgstr ""
+"{kind}: {value}\n"
+"\n"
+"Details in the log ({path})."
 
 #: core/calc_create/types/surface_fields.py
 #, python-brace-format
@@ -6329,7 +6338,7 @@ msgstr ""
 #: ui/widgets/context_menu.py
 #, python-brace-format
 msgid "{name} (padrão)"
-msgstr ""
+msgstr "{name} (default)"
 
 #: core/calculations/bands_dos/render.py core/calculations/pdos/render.py
 #, python-brace-format
@@ -6349,12 +6358,12 @@ msgstr ""
 #: core/detection.py
 #, python-brace-format
 msgid "{name} e {name_2} não formam um par de bandas e DOS completos."
-msgstr ""
+msgstr "{name} and {name_2} do not form a complete bands and DOS pair."
 
 #: core/compounds.py core/folder_memory.py core/grid_store.py core/nav_store.py
 #, python-brace-format
 msgid "{name} estava corrompido; cópia salva em {copy}"
-msgstr ""
+msgstr "{name} was corrupted; copy saved at {copy}"
 
 #: core/calculations/relax.py
 #, python-brace-format
@@ -6364,7 +6373,7 @@ msgstr ""
 #: core/config.py
 #, python-brace-format
 msgid "{name} foi removido e é ignorado: apague a linha do config.yaml."
-msgstr ""
+msgstr "{name} was removed and is ignored: delete the line from config.yaml."
 
 #: core/plotting/plot_file.py
 #, python-brace-format
@@ -6392,6 +6401,8 @@ msgid ""
 "{name} ilegível e não pôde ser copiado ({value}): favoritos e recentes desta sessão não serão "
 "salvos"
 msgstr ""
+"{name} is unreadable and could not be copied ({value}): favorites and recents of this session "
+"will not be saved"
 
 #: core/folder_memory.py
 #, python-brace-format
@@ -6399,6 +6410,8 @@ msgid ""
 "{name} ilegível e não pôde ser copiado ({value}): mapeamentos e rótulos desta sessão não serão "
 "salvos"
 msgstr ""
+"{name} is unreadable and could not be copied ({value}): mappings and labels of this session will "
+"not be saved"
 
 #: core/plotting/plot_file.py
 #, python-brace-format
@@ -6413,7 +6426,7 @@ msgstr ""
 #: ui/widgets/workspace.py
 #, python-brace-format
 msgid "{name} não parece um input do Quantum ESPRESSO."
-msgstr ""
+msgstr "{name} does not look like a Quantum ESPRESSO input."
 
 #: core/calc_create/scf_info.py
 #, python-brace-format
@@ -6530,19 +6543,19 @@ msgstr ""
 #: core/compounds.py ui/widgets/search_bar.py
 #, python-brace-format
 msgid "{n} de {total}"
-msgstr ""
+msgstr "{n} of {total}"
 
 #: ui/widgets/context_menu.py ui/widgets/file_card.py
 #, python-brace-format
 msgid "{n} item"
 msgid_plural "{n} itens"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} item"
+msgstr[1] "{n} items"
 
 #: ui/main_window.py
 #, python-brace-format
 msgid "{n} itens selecionados"
-msgstr ""
+msgstr "{n} items selected"
 
 #: ui/widgets/input_view.py
 #, python-brace-format
@@ -6586,7 +6599,7 @@ msgstr ""
 #: ui/excepthook.py
 #, python-brace-format
 msgid "{title}: {kind}{short} (ver o log)"
-msgstr ""
+msgstr "{title}: {kind}{short} (see the log)"
 
 #: core/calculations/bands/params.py
 #, python-brace-format
@@ -6640,11 +6653,11 @@ msgstr ""
 
 #: ui/widgets/bars.py
 msgid "Árvore"
-msgstr ""
+msgstr "Tree"
 
 #: ui/widgets/explorer.py
 msgid "Árvore de pastas"
-msgstr ""
+msgstr "Folder tree"
 
 #: ui/widgets/structure3d/panel.py ui/widgets/structure3d/panel_atom.py
 msgid "Átomo"
