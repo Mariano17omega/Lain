@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | fim (por último: as specs anteriores ainda criam textos) |
-| **Status** | Rascunho para revisão |
+| **Status** | Parcialmente implementada (commits `6a61da0` e `bb3b5a6`: R1, R2 e R3 de `core/`; a `ui/` está embrulhada na árvore de trabalho, sem commit). **O restante foi dividido nas specs 52–60** (18/10/2026): esta fica como o desenho; arquivar quando a 60 sair. |
 | **Depende de** | todas as anteriores (os textos precisam estar estáveis) |
 | **Usada por** | nenhuma |
 | **Esforço** | G |

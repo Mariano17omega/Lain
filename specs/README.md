@@ -13,12 +13,12 @@ e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 
 **sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
 medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
-padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo"), em grupos de itens
-relacionados e em ordem de prioridade. A internacionalização (`spec_end`)
-fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem:
+padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez), em grupos de itens
+relacionados e em ordem de prioridade. A internacionalização (`spec_end`, agora as specs 52–60)
+fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem (a série do idioma segue a numeração, 52 primeiro):
 
 ```
-/plan implementar specs/spec_end-internacionalizacao.md
+/plan implementar specs/spec_52-i18n-base-e-cobertura-por-area.md
 ```
 
 ## Roadmap
@@ -85,7 +85,16 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 49 | [spec_49-botoes-gerar-e-grids-na-barra-lateral.md](Archived/spec_49-botoes-gerar-e-grids-na-barra-lateral.md) | "Gerar Gráfico" e "Grids" passam da barra superior para a barra lateral; o botão "Plot" some; o caminho da barra superior ocupa um espaço fixo (o LED e os botões de painel não andam ao trocar de pasta) | 1, 16, 23, 33 | P | Sonnet 5.5 |
 | 50 | [spec_50-arvore-botao-de-arquivos-e-etiqueta-erro.md](Archived/spec_50-arvore-botao-de-arquivos-e-etiqueta-erro.md) | Árvore: botão "Mostrar arquivos" (`tree_show_files` em execução) entre "Recolher tudo" e "Atualizar"; etiqueta vermelha "ERRO" na pasta com `CRASH` ou `job.o<id>` não vazio | 4, 14, 15, 37 | M | Sonnet 5.5 |
 | 51 | [spec_51-criar-calculo-numerar-pasta.md](Archived/spec_51-criar-calculo-numerar-pasta.md) | "Criar cálculo": caixa "Numerar" põe `<N>_` na frente da pasta (`2_Bands_Al`), N = maior número das pastas irmãs + 1, qualquer tipo | 25, 26, 28 | P | Sonnet 5.5 |
-| fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | Português (padrão) e inglês via gettext; `ui.language` | todas | G | — |
+| 52 | [spec_52-i18n-base-e-cobertura-por-area.md](spec_52-i18n-base-e-cobertura-por-area.md) | Base do idioma gradual: `.mo` parcial, portão de cobertura por área (`AREAS`/`DONE`), paridade de `{campos}` e tags, armadilhas do `_()`, detector de vazamento em subprocesso, `screenshot.py --language`, glossário | `spec_end` (infra no HEAD) | M | Opus 5.5 |
+| 53 | [spec_53-i18n-janela-principal-e-dialogos.md](spec_53-i18n-janela-principal-e-dialogos.md) | Inglês da janela, menus, árvore, grade, menu de contexto, diálogos gerais e `core/*.py` (181 mensagens pendentes) | 52 | M | Sonnet 5.5 |
+| 54 | [spec_54-i18n-visualizadores-e-leitura-das-saidas.md](spec_54-i18n-visualizadores-e-leitura-das-saidas.md) | Inglês dos visualizadores de texto/input/diff/Resumo e de `core/qe/` (158 pendentes); nomes do QE intactos | 52 | M | Sonnet 5.5 |
+| 55 | [spec_55-i18n-graficos-grids-e-atomos.md](spec_55-i18n-graficos-grids-e-atomos.md) | Inglês dos gráficos (texto dentro da figura), painel de ajustes, Grids e átomos (232 pendentes); CSV e `.plot` independentes do idioma | 52, 54 | G | Sonnet 5.5 |
+| 56 | [spec_56-i18n-criar-calculo-base-e-superficies.md](spec_56-i18n-criar-calculo-base-e-superficies.md) | Inglês da janela do "Criar cálculo", editor de caminho k e pacote `surface/` (129 pendentes); `geracao.md` no idioma da interface | 52 | M | Sonnet 5.5 |
+| 57 | [spec_57-i18n-criar-calculo-tipos.md](spec_57-i18n-criar-calculo-tipos.md) | Inglês dos 10 tipos do "Criar cálculo": campos, dicas com nomes do QE, validações (161 pendentes); `.in` e `.qsub` idênticos nos dois idiomas | 52, 54, 56 | M | Opus 5.5 |
+| 58 | [spec_58-i18n-cluster-e-sincronizacao.md](spec_58-i18n-cluster-e-sincronizacao.md) | Inglês da prévia, relatório, envio e falhas do ssh (59 pendentes); garantias de segurança do sync preservadas | 52 | P | Sonnet 5.5 |
+| 59 | [spec_59-i18n-visualizacao-3d.md](spec_59-i18n-visualizacao-3d.md) | Inglês da janela 3D (68 pendentes): ids de `view3d.plot` intactos, texto pintado e medidas copiadas, `_` local renomeado | 52 | P | Sonnet 5.5 |
+| 60 | [spec_60-i18n-fechamento.md](spec_60-i18n-fechamento.md) | Remove o portão, catálogo completo, dados guardados iguais nos dois idiomas, entrada real, README "Idioma", cabeçalho do `.po`, arquiva a `spec_end` | 52–59 | M | Sonnet 5.5 |
+| fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementação dividida nas specs 52–60 (infra e `core/` já no HEAD); arquivar quando a 60 sair | 52–60 | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
 outras specs (1, 2), depois a persistência que depende delas (3), os ganhos pequenos e independentes (4),
@@ -130,7 +139,10 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
     muda o lugar dos quatro arquivos do diretório do usuário, e os `.plot` (inclusive o `view3d.plot` da 47) ficam como estão.
 15. **Barras, árvore e numeração (49–51, decisão de 17/10/2026):** três specs independentes entre si e das demais abertas. A 49 só tira linhas de `ui/main_window.py`
     (450/450); a 50 não toca a janela; a 51 mexe só no passo 1 do "Criar cálculo". Podem sair em qualquer ordem; a 50 (R2) é a de mais uso diário.
-16. **Idioma (`spec_end`):** por último, quando os textos estiverem estáveis.
+16. **Idioma, em série (52–60, decisão de 18/10/2026):** a 52 primeiro (portão por área, `.mo` parcial, detector); 53–59 são
+    independentes entre si e podem sair em qualquer ordem (a 55 usa o vocabulário da 54, a 57 os termos da 56 e o vocabulário da 54);
+    a 60 por último, quando todas as áreas fecharam. O português continua o padrão e o único idioma que a 52 deixa "completo"; o inglês
+    é misto até a 60.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
@@ -442,6 +454,19 @@ As ideias vieram em `Ideias.md` (17/10/2026); cada spec cita o trecho de origem.
 | 5 | Etiqueta vermelha "ERRO" na pasta com `*.o*` não vazio ou `CRASH` | spec 50, R2 (só `.o`, como pedido; qualquer pasta, tenha selo de cálculo ou não; só na árvore) |
 | 6 | Caixa "Numerar" no "Criar cálculo": `<N>_` no prefixo da pasta, seguindo as pastas do local, de qualquer tipo | spec 51 (primeira pasta `0_`; maior + 1; lembrada entre aberturas) |
 
+## Rastreabilidade: ideias da décima segunda rodada (18/10/2026) → specs
+
+A ideia veio em `Ideias.md` (18/10/2026): o usuário interrompeu duas tentativas de implementar a `spec_end` e pediu uma série de specs.
+Medido na árvore de trabalho: a CI inteira passa (3979 testes), o erro **não se reproduz**; o que sobrou é trabalho sem commit,
+sem inglês compilado e sem teste.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Prosseguir com a localização para `pt_BR` e `en` "de forma gradual" | specs 53–59 (uma área cada, `AREAS`/`DONE` da 52) e 60 (fecha) |
+| 2 | Uma série de specs para concluir a internacionalização | specs 52–60; a `spec_end` vira o desenho (status: dividida) |
+| 3 | Solucionar os problemas das tentativas interrompidas | spec 52: R0 (erro não reproduzido; commitar a árvore), R1 (`.mo` parcial: hoje nada foi compilado e `en` mostra português), R2 (sem `test_i18n.py`), R3 (`screenshot.py` sem idioma; o fixture em processo da `spec_end` R4.2 é impossível) e R4 (`ERROR_BADGE = "ERRO"` sem `_()`, `_` local em `palette_controller.py:221`, seis `_(variável)` sem teste) |
+| 3a | …defeitos achados ao verificar | 55 R2 (CSV da PDOS mudaria de cabeçalho com o idioma), 56 R2 e 57 R2 (`geracao.md` e `.qsub` gravados em disco), 59 R4 (`_` local nos arquivos 3D) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -578,3 +603,11 @@ Decisões de 17/10/2026 (décima primeira rodada, specs 49–51):
   pasta sem selo de cálculo também recebe; `.e` não conta; só a árvore.
 - **Numerar:** vale para todos os tipos do "Criar cálculo" (PDOS inclusive); primeira pasta `0_`, próximo = maior número + 1 entre as pastas irmãs (`^[0-9]+_`, de qualquer tipo), sem zeros à esquerda, calculado de novo no worker ao criar; escolha lembrada.
 - **Modelo recomendado:** Sonnet 5.5 para 49, 50 e 51.
+
+Decisões de 18/10/2026 (décima segunda rodada, specs 52–60):
+- **Nove specs em série**, por área do código e não por tipo de tarefa: base (52), janela (53), visualizadores e `core/qe` (54), gráficos (55), "Criar cálculo" em duas (56 janela e `surface/`; 57 tipos), cluster (58), 3D (59) e fechamento (60). A divisão mede-se por mensagens pendentes (954 no total, 59 a 232 por área).
+- **Gradual de verdade:** `.mo` parcial commitado desde a 52; um teste falha se uma área marcada como feita (`DONE`) ainda tem mensagem sem tradução; o inglês é misto até a 60 (quem usa `auto` num sistema em português não vê diferença).
+- **Sondagem em subprocesso** (`tests/i18n_probe.py`) no lugar do fixture em processo da `spec_end` R4.2: o idioma é fixado antes dos imports e não troca na sessão.
+- **Dados que ficam fora do idioma:** CSV, `.plot`, `view3d.plot`, nomes de exportação, inputs `.in` e o cabeçalho do `.qsub` (em português nos dois idiomas). **Seguem a interface:** figuras e imagens exportadas, o `geracao.md` do "Criar cálculo" e o texto copiado das medidas 3D.
+- **Glossário** em `src/qe_studio/locale/README.md`, proposto na 52 (Pasta → Folder, Árvore → Tree, Grade → Grid, Baixar/Enviar → Pull/Push…) a confirmar pelo usuário na revisão da 52.
+- **Modelos:** Opus 5.5 na 52 (contrato de teste de oito specs) e na 57 (dicas que citam parâmetros do QE); Sonnet 5.5 nas demais.
