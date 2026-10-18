@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 52, primeira da série 52–60: as specs 53–59 traduzem uma área cada e usam o que esta entrega (o portão por área, o `.mo` parcial, o detector). Sem ela, o inglês só pode ser verificado no fim, que foi o que fez as duas tentativas de implementar a `spec_end` de uma vez travarem. |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (18/10/2026). Ponto de partida conferido no HEAD `8c20cad` (a árvore de trabalho já commitada): CI limpa, 3979 passed. Ajustes ao texto: **(a)** são **8** chamadas `_(não literal)`, não 6: `core/calc_create/types/adsorption.py:227` tem `_(FROM_COORDS)` e `_(FROM_LIST)` (os dois `N_` em `adsorption_fields.py:56`; teste de runtime na 57). **(b)** `test_no_local_underscore` vale **por módulo**: `palette_controller.execute` não chama `_()`, então a regra "na mesma função" não acharia a linha 221; a regra é "um módulo que importa `_` do `i18n` não liga `_` em escopo nenhum (função, classe, módulo), fora `lambda` e compreensões". **(c)** As tags da paridade são só nomes de tag HTML/Qt (`<b>`, `<a …>`…): nenhum `msgid` tem tag hoje, e `<pasta>/<nome>`, `<filband>` são palavras traduzidas. **(d)** O menu em `pt_BR` é "Gráficos" (`MENU_PLOTS`), não "Plots": `test_portuguese_unchanged` usa os rótulos de hoje. **(e)** `ERROR_BADGE = _("ERRO")` no módulo (como `FILES_SHOW_TIP` logo abaixo), em vez de `N_` e dois `_(ERROR_BADGE)`: mesma mensagem, nenhuma chamada dinâmica nova. **(f)** A busca por palavras achou mais um texto real, `core/config.py:310` `"(raiz)"` → `_("(raiz)")` ("(root)"), e `core/calc_create/surface/merge.py:145` `"nenhum"` → `_("nenhum")` (mensagem que já existia sem tradução: fica para as áreas); os dados ficaram em `EXCEPTIONS` com o motivo. O `.mo` tem 561 traduzidas (954 em português); as pendências por área são as da tabela de R2. **(g)** Saída do script e mensagens dos testes em inglês, como o resto de `scripts/` e `tests/`. **(h)** O probe sai com `os._exit` (1 no erro, 0 no fim, depois de imprimir e esvaziar o stdout): `sys.exit` dentro do hook que o PyQt chama num slot não encerra o processo. **(i)** A roda já trazia o `.mo` (a exceção do `.gitignore` basta): `pyproject.toml` não mudou. |
 | **Depende de** | `spec_end` (R1 e R2 já no HEAD: `i18n.py`, `core/language.py`, `ui/language.py`, `scripts/i18n.py`; R3 já aplicado em `core/` e na `ui/`, sem commit ainda) |
 | **Usada por** | 53, 54, 55, 56, 57, 58, 59, 60 |
 | **Esforço** | M |
@@ -201,10 +201,12 @@ Medido em 18/10/2026 na árvore de trabalho (HEAD `bb3b5a6` + 99 arquivos modifi
    entre duas áreas é exigida quando a **primeira** delas fecha.
 3. **A sondagem em subprocesso** substitui o fixture em processo da `spec_end` R4.2 (R3 de "Situação atual"); a
    alternativa, recarregar `qe_studio.*` na mesma sessão, quebra a identidade das classes PyQt e foi descartada sem teste.
-4. **Glossário proposto** (confirmar): Pasta → Folder, Arquivo → File, Árvore → Tree, Grade → Grid, Grids → Grids,
-   Projeto → Project, Raiz → Root, Cálculo → Calculation, Criar cálculo → New calculation, Entrada/Saída → Input/Output,
-   Gerar → Generate, Plotar → Plot, Sincronizar → Sync, Enviar → Push, Baixar → Pull, Selo → Badge. "Valência/Condução"
-   → Valence/Conduction.
+4. **Glossário** (decidido pelo usuário na revisão, 18/10/2026): Pasta → Folder, Arquivo → File, Árvore → Tree, Grade →
+   Grid, Grids → Grids, Projeto → Project, Raiz → Root, Cálculo → Calculation, **Criar cálculo → Create calculation**
+   (as 3 traduções existentes, como "Criar projeto" → "Create project"; a proposta era "New calculation"), Entrada/Saída
+   → Input/Output, Gerar → Generate, Plotar → Plot, Sincronizar → Sync, **Enviar → Upload, Baixar → Download** (as 7
+   existentes; a proposta era Push/Pull), Selo → Badge. "Valência/Condução" → Valence/Conduction. **"Generate Plot"** é a
+   única exceção à caixa de frase (o botão do painel; "Plot" nomeia a função, como em "Gerar Plot").
 5. As mensagens traduzidas até aqui (560) **não foram revisadas**: cada spec de área revisa as da sua.
 
 ## Notas de implementação

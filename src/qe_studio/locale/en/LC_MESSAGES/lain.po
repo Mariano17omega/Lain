@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-18 17:49-0400\n"
+"POT-Creation-Date: 2026-10-18 19:10-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -223,6 +223,10 @@ msgstr "(along the path)"
 #: core/sync/preview.py
 msgid "(pasta sincronizada)"
 msgstr "(synced folder)"
+
+#: core/config.py
+msgid "(raiz)"
+msgstr "(root)"
 
 #: ui/widgets/file_grid.py
 #, python-brace-format
@@ -1658,7 +1662,7 @@ msgstr "E min"
 msgid "E total"
 msgstr "Total E"
 
-#: core/file_kinds.py core/filtering.py
+#: core/file_kinds.py core/filtering.py ui/widgets/explorer.py
 msgid "ERRO"
 msgstr "ERROR"
 
@@ -5608,7 +5612,8 @@ msgstr ""
 msgid "nbnd removido: o pw.x escolhe pelo número de elétrons do fragmento"
 msgstr ""
 
-#: core/calc_create/surface/fixing.py core/calc_create/types/adsorption.py ui/help_controller.py
+#: core/calc_create/surface/fixing.py core/calc_create/surface/merge.py
+#: core/calc_create/types/adsorption.py ui/help_controller.py
 msgid "nenhum"
 msgstr ""
 

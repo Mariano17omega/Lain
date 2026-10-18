@@ -142,7 +142,7 @@ def difference_notes(
         if mine.lower() != theirs.lower():
             notes.append(
                 _("{key}: superfície '{value}', molécula '{value_2}'; vale o da superfície").format(
-                    key=key, value=mine or "nenhum", value_2=theirs or "nenhum"
+                    key=key, value=mine or _("nenhum"), value_2=theirs or _("nenhum")
                 )
             )
     if surface.nspin != molecule.nspin:

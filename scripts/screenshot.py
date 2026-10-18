@@ -1,6 +1,6 @@
 """Render the main window off-screen to PNG (both themes) for visual checks against the mockups.
 
-    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary] [--spin] [--nav] [--scale N]
+    uv run python scripts/screenshot.py [--out DIR] [--plot] [--text] [--input] [--diff] [--summary] [--spin] [--nav] [--scale N] [--language en]
 
 Builds a demo project from the test fixtures (01_relax, 02_scf, 03_bands, 04_pdos).
 """
@@ -13,6 +13,8 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+
+from qe_studio import i18n  # no texts: the language is installed before the modules that have them
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -78,6 +80,65 @@ def wait_for(signal, timeout_ms: int = 5000) -> None:
     loop.exec()
 
 
+def open_window(project: Path, tmp: Path, theme_name: str, scale: float):
+    """The main window on ``project`` as the screenshots show it: the theme applied, the folders
+    detected, ``03_bands`` selected and its ``bands.in`` open. A ``QApplication`` must exist; the
+    window's QSettings are an ini file in ``tmp``. No excepthook is installed: the caller chooses
+    (``tests/i18n_probe.py`` uses this too)."""
+    from PyQt6.QtCore import QSettings
+    from PyQt6.QtWidgets import QApplication
+
+    from qe_studio.core.config import LoadedConfig, parse_config
+    from qe_studio.ui.main_window import MainWindow
+    from qe_studio.ui.theme.manager import ThemeManager
+
+    config = parse_config(
+        {
+            "paths": {"local_root": str(project), "remote_root": "/scratch/usuario/MoS2"},
+            "cluster": {"host": "cluster.example.org", "user": "usuario"},
+            "ui": {"font_scale": scale},
+        }
+    )
+    theme = ThemeManager(theme_name, font_scale=config.ui.font_scale)
+    theme.apply(QApplication.instance())
+    settings = QSettings(str(tmp / f"{theme_name}.ini"), QSettings.Format.IniFormat)
+    window = MainWindow(LoadedConfig(config, None), theme, settings)
+    window.resize(1440, 900)
+    window.show()
+    for folder in sorted(p for p in project.iterdir() if p.is_dir()):
+        window.service.detect_now(folder)
+    window.explorer.select_path(project / "03_bands")
+    window.open_file(project / "03_bands" / "bands.in")
+    return window
+
+
+def generate_plot(window, folder: Path, timeout_ms: int = 15000) -> str | None:
+    """Plot ``folder`` (nothing exported) and wait for it: None once the plot is shown, else why
+    it is not."""
+    from PyQt6.QtCore import QEventLoop, QTimer
+
+    outcome: list[str | None] = []
+    loop = QEventLoop()
+
+    def ready(session: object) -> None:
+        outcome.append(None)
+        loop.quit()
+
+    def failed(message: str) -> None:
+        outcome.append(message or "the plot failed")
+        loop.quit()
+
+    window.plot_ready.connect(ready)
+    window.plot_failed.connect(failed)
+    QTimer.singleShot(timeout_ms, loop.quit)
+    window.generate_plot_for(folder, auto_export=False)
+    if not outcome:  # it may be done already
+        loop.exec()
+    window.plot_ready.disconnect(ready)
+    window.plot_failed.disconnect(failed)
+    return outcome[0] if outcome else f"no plot after {timeout_ms} ms"
+
+
 def show_navigation(window, project: Path, app) -> None:
     """Spec 16: a deep folder (narrow breadcrumb), favorites, recents, a filter and a selection."""
     from PyQt6.QtCore import QItemSelectionModel
@@ -131,7 +192,13 @@ def main() -> int:
         "--nav", action="store_true",
         help="breadcrumb, favorites, recents, grid filter and multi-selection (spec 16)",
     )  # fmt: skip
+    parser.add_argument(
+        "--language", choices=i18n.LANGUAGES, default=i18n.SOURCE_LANGUAGE,
+        help="the program's language; not pt_BR goes into the file names (main_dark_en.png)",
+    )  # fmt: skip
     args = parser.parse_args()
+    # Before the modules with texts are imported: they are translated while they load (spec end R1).
+    i18n.install(args.language)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -143,46 +210,19 @@ def main() -> int:
     if args.spin:
         shutil.copytree(FIXTURES / "qe731_ni_spin_bands", project / "05_spin_bands")
 
-    from PyQt6.QtCore import QSettings
     from PyQt6.QtWidgets import QApplication
 
-    from qe_studio.core.config import LoadedConfig, parse_config
     from qe_studio.core.plotting.style import register_fonts
     from qe_studio.ui.app import install_excepthook
-    from qe_studio.ui.main_window import MainWindow
-    from qe_studio.ui.theme.manager import ThemeManager
 
     app = QApplication(sys.argv[:1])
     install_excepthook()
     register_fonts()
-    config = parse_config(
-        {
-            "paths": {"local_root": str(project), "remote_root": "/scratch/usuario/MoS2"},
-            "cluster": {"host": "cluster.example.org", "user": "usuario"},
-            "ui": {"font_scale": args.scale},
-        }
-    )
+    suffix = "" if args.language == i18n.SOURCE_LANGUAGE else f"_{args.language}"
     for theme_name in ("dark", "light"):
-        theme = ThemeManager(theme_name, font_scale=config.ui.font_scale)
-        theme.apply(app)
-        settings = QSettings(str(tmp / f"{theme_name}.ini"), QSettings.Format.IniFormat)
-        window = MainWindow(LoadedConfig(config, None), theme, settings)
-        window.resize(1440, 900)
-        window.show()
-        for folder in sorted(p for p in project.iterdir() if p.is_dir()):
-            window.service.detect_now(folder)
-        window.explorer.select_path(project / "03_bands")
-        window.open_file(project / "03_bands" / "bands.in")
+        window = open_window(project, tmp, theme_name, args.scale)
         if args.plot or args.spin:
-            from PyQt6.QtCore import QEventLoop, QTimer
-
-            loop = QEventLoop()
-            window.plot_ready.connect(loop.quit)
-            window.plot_failed.connect(loop.quit)
-            QTimer.singleShot(15000, loop.quit)
-            target = "05_spin_bands" if args.spin else "03_bands"
-            window.generate_plot_for(project / target, auto_export=False)
-            loop.exec()
+            generate_plot(window, project / ("05_spin_bands" if args.spin else "03_bands"))
             if args.spin:
                 window.params.set_param("spin_layout", "side")
                 window.params.set_param("show_legend", True)
@@ -222,7 +262,7 @@ def main() -> int:
             app.processEvents()
         window.service.wait(3000)
         app.processEvents()
-        path = out / f"main_{theme_name}.png"
+        path = out / f"main_{theme_name}{suffix}.png"
         window.grab().save(str(path))
         print(path)
         window.close()

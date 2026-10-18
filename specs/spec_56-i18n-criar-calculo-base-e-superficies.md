@@ -46,7 +46,7 @@ Contagem da 52 (`check --area 56`, 18/10/2026): **187 mensagens, 129 sem traduç
 ### R1: Traduzir a área
 
 1. Traduzir as 129 mensagens de `scripts/i18n.py check --area 56` e revisar as 58 já traduzidas (glossário da 52). Termos
-   fixos do Criar cálculo (entram no `locale/README.md`): `Criar cálculo` → `New calculation`; `Continuar` → `Continue`;
+   fixos do Criar cálculo (entram no `locale/README.md`): `Criar cálculo` → `Create calculation` (decidido na 52); `Continuar` → `Continue`;
    `Criar` → `Create`; `Padrão`/`Avançado` → `Standard`/`Advanced`; `Numerar` → `Number`; `Prévia` → `Preview`;
    `Arquivos` → `Files`; `Caminho k` → `k-path`. Os nomes dos tipos (`Slab`, `Supercélula`, `Molécula na superfície`) são da 57.
 2. Mensagens compostas por fragmento (R3): traduzir o rótulo **e** a frase final juntos; se o inglês exigir outra

@@ -1,0 +1,107 @@
+# Translations
+
+The texts in the code are Portuguese, the source language: `pt_BR` needs no catalog. English lives in
+`en/LC_MESSAGES/lain.po`; `lain.mo` next to it is compiled from it and versioned, so `uv run lain`
+needs no build step. The language is chosen once, at startup (`ui.language`, `QE_STUDIO_LANGUAGE`):
+see `qe_studio/i18n.py`.
+
+## Workflow
+
+After changing a text in the code:
+
+```bash
+uv run python scripts/i18n.py update           # new messages go into lain.po, empty; a changed one is "fuzzy"
+# translate the empty entries; review each fuzzy one and delete its "#, fuzzy" line
+uv run python scripts/i18n.py compile          # lain.po → lain.mo, with the translated messages only
+uv run python scripts/i18n.py check            # per area: messages and untranslated ones
+uv run python scripts/i18n.py check --area 53  # the untranslated messages of one area, with their files
+```
+
+Commit `lain.po` and `lain.mo` together. A message left empty is shown in Portuguese. `compile`
+refuses a fuzzy message, a plural with an empty form and a translation that lost or gained a
+`{field}`, a rich-text tag or an `&` of its source.
+
+In the code:
+
+- `_("…")` for a text shown and `ngettext(singular, plural, n)` for a count.
+- `N_("…")` for a Portuguese token that is also data (compared or stored). It translates nothing, so
+  the code that shows the token calls `_(token)`.
+- Format after translating: `_("Abrir {name}").format(name=…)`, never `_(f"…")` nor `_("a" + b)`.
+- A module that imports `_` names nothing else `_` (use `_sep`, `_line`).
+
+## Checks (`tests/test_i18n.py`)
+
+- `tests/i18n_static.py`: no visible text outside `_()` (accented letters, common Portuguese words,
+  the arguments of `setText`-like calls). A Portuguese token that is data goes into its `EXCEPTIONS`,
+  with the reason.
+- The `.po` follows the code (`update` was run) and the `.mo` follows the `.po` (`compile` was run).
+- The per-area gate, until spec 60: `tests/i18n_areas.py` maps file prefixes to the spec of the
+  series (53–59) that translates them. A spec adds its number to `DONE` when its area is translated;
+  from then on, an untranslated message with a location there fails the test.
+- The leak probe: `tests/i18n_probe.py` opens the window in a language, in a process of its own, and
+  lists the texts of every widget. A text equal to a translated `msgid` is a leak: it reached the
+  screen without `_()`. Each spec adds the scenarios of its area to `SCENARIOS`. Painted text (the
+  badges of the tree and the grid, figures, the 3D view) belongs to no widget: the spec of its area
+  tests it through its model.
+- `uv run python scripts/screenshot.py --language en` renders the window in English
+  (`main_dark_en.png`).
+
+## Style of the English
+
+- US English: `color`, `favorite`.
+- Sentence case for menus, buttons, titles and labels: `Open data folder`, `Project settings`. One
+  exception: **Generate Plot**, the button of the adjustments panel ("Plot" names the feature, as in
+  the Portuguese "Gerar Plot").
+- Quantum ESPRESSO names stay as they are: programs (`pw.x`, `projwfc.x`, `bands.x`), files
+  (`scf.out`, `bands.dat.gnu`), namelists and variables (`&SYSTEM`, `ecutwfc`, `K_POINTS`),
+  `JOB DONE`. So do the product's and the files' names: `config.yaml`, `Rsync`, `XCrySDen`, `.lain`.
+- Keep the fields of the source (`{name}`, `{value:.2f}`), its tags and its `&`; their order may
+  change.
+- Keep the `…` of an action that asks something before acting and the keys shown in a text
+  (`Ctrl+G`).
+- Units and symbols as in the source: `eV`, `Ry/Bohr`, `Å`, `E_F`, `Γ`.
+
+## Glossary
+
+The fixed terms of the interface, the same in every message.
+
+| Português | English |
+|---|---|
+| Aba | Tab |
+| Abrir | Open |
+| Abrir com | Open with |
+| Abrir local de origem | Show in file manager |
+| Ajuste do gráfico | Plot settings |
+| Alargamento | Smearing |
+| Arquivo | File |
+| Árvore | Tree |
+| Atualizar | Refresh |
+| Aviso / AVISO | Warning / WARNING |
+| Bandas, estrutura de bandas | Bands, band structure |
+| Baixar (do cluster) | Download (from the cluster) |
+| Cálculo | Calculation |
+| Cancelar | Cancel |
+| Condução / Valência | Conduction / Valence |
+| Configurações | Settings |
+| Criar (barra lateral) | Create |
+| Criar cálculo | Create calculation |
+| Enviar (ao cluster) | Upload (to the cluster) |
+| Entrada / Saída (de um programa do QE) | Input / Output |
+| Erro / ERRO | Error / ERROR |
+| Excluir | Delete |
+| Explorador de pastas | Folder explorer |
+| Exportar | Export |
+| Favorito | Favorite |
+| Fechar | Close |
+| Gerar | Generate |
+| Gerar gráfico | Generate plot |
+| Gerar Plot | Generate Plot |
+| Gráfico, Gráficos (menu, painel) | Plot, Plots |
+| Grade (de arquivos) | Grid |
+| Grids (gráficos numa grade N×M) | Grids |
+| Pasta | Folder |
+| Plotar | Plot |
+| Projeto | Project |
+| Raiz, pasta raiz | Root, root folder |
+| Selo | Badge |
+| Sincronizar | Sync |

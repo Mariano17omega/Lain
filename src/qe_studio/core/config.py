@@ -307,7 +307,7 @@ def find_config(
 def _format_validation(exc: ValidationError) -> list[str]:
     problems = []
     for err in exc.errors():
-        loc = ".".join(str(part) for part in err["loc"]) or "(raiz)"
+        loc = ".".join(str(part) for part in err["loc"]) or _("(raiz)")
         msg = err["msg"].removeprefix("Value error, ")
         if err["type"] == "extra_forbidden":
             msg = _("chave desconhecida")

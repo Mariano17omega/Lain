@@ -18,7 +18,7 @@ relacionados e em ordem de prioridade. A internacionalização (`spec_end`, agor
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem (a série do idioma segue a numeração, 52 primeiro):
 
 ```
-/plan implementar specs/spec_52-i18n-base-e-cobertura-por-area.md
+/plan implementar specs/spec_53-i18n-janela-principal-e-dialogos.md
 ```
 
 ## Roadmap
@@ -85,7 +85,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 49 | [spec_49-botoes-gerar-e-grids-na-barra-lateral.md](Archived/spec_49-botoes-gerar-e-grids-na-barra-lateral.md) | "Gerar Gráfico" e "Grids" passam da barra superior para a barra lateral; o botão "Plot" some; o caminho da barra superior ocupa um espaço fixo (o LED e os botões de painel não andam ao trocar de pasta) | 1, 16, 23, 33 | P | Sonnet 5.5 |
 | 50 | [spec_50-arvore-botao-de-arquivos-e-etiqueta-erro.md](Archived/spec_50-arvore-botao-de-arquivos-e-etiqueta-erro.md) | Árvore: botão "Mostrar arquivos" (`tree_show_files` em execução) entre "Recolher tudo" e "Atualizar"; etiqueta vermelha "ERRO" na pasta com `CRASH` ou `job.o<id>` não vazio | 4, 14, 15, 37 | M | Sonnet 5.5 |
 | 51 | [spec_51-criar-calculo-numerar-pasta.md](Archived/spec_51-criar-calculo-numerar-pasta.md) | "Criar cálculo": caixa "Numerar" põe `<N>_` na frente da pasta (`2_Bands_Al`), N = maior número das pastas irmãs + 1, qualquer tipo | 25, 26, 28 | P | Sonnet 5.5 |
-| 52 | [spec_52-i18n-base-e-cobertura-por-area.md](spec_52-i18n-base-e-cobertura-por-area.md) | Base do idioma gradual: `.mo` parcial, portão de cobertura por área (`AREAS`/`DONE`), paridade de `{campos}` e tags, armadilhas do `_()`, detector de vazamento em subprocesso, `screenshot.py --language`, glossário | `spec_end` (infra no HEAD) | M | Opus 5.5 |
+| 52 | [spec_52-i18n-base-e-cobertura-por-area.md](Archived/spec_52-i18n-base-e-cobertura-por-area.md) | Base do idioma gradual: `.mo` parcial, portão de cobertura por área (`AREAS`/`DONE`), paridade de `{campos}` e tags, armadilhas do `_()`, detector de vazamento em subprocesso, `screenshot.py --language`, glossário | `spec_end` (infra no HEAD) | M | Opus 5.5 |
 | 53 | [spec_53-i18n-janela-principal-e-dialogos.md](spec_53-i18n-janela-principal-e-dialogos.md) | Inglês da janela, menus, árvore, grade, menu de contexto, diálogos gerais e `core/*.py` (181 mensagens pendentes) | 52 | M | Sonnet 5.5 |
 | 54 | [spec_54-i18n-visualizadores-e-leitura-das-saidas.md](spec_54-i18n-visualizadores-e-leitura-das-saidas.md) | Inglês dos visualizadores de texto/input/diff/Resumo e de `core/qe/` (158 pendentes); nomes do QE intactos | 52 | M | Sonnet 5.5 |
 | 55 | [spec_55-i18n-graficos-grids-e-atomos.md](spec_55-i18n-graficos-grids-e-atomos.md) | Inglês dos gráficos (texto dentro da figura), painel de ajustes, Grids e átomos (232 pendentes); CSV e `.plot` independentes do idioma | 52, 54 | G | Sonnet 5.5 |
@@ -609,5 +609,5 @@ Decisões de 18/10/2026 (décima segunda rodada, specs 52–60):
 - **Gradual de verdade:** `.mo` parcial commitado desde a 52; um teste falha se uma área marcada como feita (`DONE`) ainda tem mensagem sem tradução; o inglês é misto até a 60 (quem usa `auto` num sistema em português não vê diferença).
 - **Sondagem em subprocesso** (`tests/i18n_probe.py`) no lugar do fixture em processo da `spec_end` R4.2: o idioma é fixado antes dos imports e não troca na sessão.
 - **Dados que ficam fora do idioma:** CSV, `.plot`, `view3d.plot`, nomes de exportação, inputs `.in` e o cabeçalho do `.qsub` (em português nos dois idiomas). **Seguem a interface:** figuras e imagens exportadas, o `geracao.md` do "Criar cálculo" e o texto copiado das medidas 3D.
-- **Glossário** em `src/qe_studio/locale/README.md`, proposto na 52 (Pasta → Folder, Árvore → Tree, Grade → Grid, Baixar/Enviar → Pull/Push…) a confirmar pelo usuário na revisão da 52.
+- **Glossário** em `src/qe_studio/locale/README.md`, fechado na 52 (Pasta → Folder, Árvore → Tree, Grade → Grid, Criar cálculo → Create calculation, Baixar/Enviar → Download/Upload…; "Generate Plot" é a única exceção à caixa de frase), decidido pelo usuário na revisão da 52.
 - **Modelos:** Opus 5.5 na 52 (contrato de teste de oito specs) e na 57 (dicas que citam parâmetros do QE); Sonnet 5.5 nas demais.

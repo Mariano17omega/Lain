@@ -33,7 +33,8 @@ uv run pytest -m perf -s                         # latency budgets (prints the n
 QE_STUDIO_REAL_DATA=/runs:/other uv run pytest -m realdata   # the user's own QE runs (off by default)
 uv run ruff check . && uv run ruff format --check .
 uv run pyright
-uv run python scripts/screenshot.py --plot       # off-screen PNGs of both themes → screenshots/
+uv run python scripts/screenshot.py --plot       # off-screen PNGs of both themes → screenshots/ (--language en)
+uv run python scripts/i18n.py update|compile|check [--area N]   # the English catalog (locale/README.md)
 uv run python scripts/fetch_assets.py            # refresh vendored fonts/icons
 uv run python scripts/build_icons.py             # re-render app icon PNGs from ui/resources/app/lain.svg
 uv run python scripts/install_desktop.py         # optional: .desktop + icons for the user (--prefix DIR)
@@ -43,8 +44,9 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 
 ## Conventions
 
-- **Language:** user-facing strings (labels, dialogs, errors, even enum values like `"conteúdo"`) are
-  **Portuguese**. Code, comments, docstrings and commit messages are **English**.
+- **Language:** user-facing strings are written in **Portuguese inside `_()`** (or `N_()` for a Portuguese
+  token that is also data, like `"conteúdo"`); English lives in `locale/en/LC_MESSAGES/lain.po` (workflow in
+  `src/qe_studio/locale/README.md`). Code, comments, docstrings and commit messages are **English**.
 - **Old internal names, on purpose** (existing configs keep working): package `qe_studio`, `QE_STUDIO_*` env vars,
   `~/.config/qe-studio`, `~/.cache/qe-studio`, QSettings keys, `qe-studio-askpass`. Product and CLI are `lain`.
   Never rename them.
@@ -157,6 +159,8 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 - Hypothesis profiles `dev` / `ci` (`HYPOTHESIS_PROFILE=ci` in CI). Timing checks are marked `perf`.
 - Goldens (`test_figure_regression.py`, `tests/*_golden.json`) guard default behaviour: a change must pass them, not
   regenerate them.
+- `test_i18n.py` fails when a text is outside `_()`, the `.po` lags the code (`scripts/i18n.py update`), the `.mo` lags
+  the `.po` (`compile`) or a translated text still shows in Portuguese (the probe runs the window in its own process).
 
 ## Keeping this file lean
 

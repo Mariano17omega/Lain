@@ -36,7 +36,7 @@ from .nav_sections import NavSection
 from .project_combo import ProjectCombo
 
 ROW_HEIGHT = 22
-ERROR_BADGE = "ERRO"  # a folder with a CRASH file or a job log with content (spec 50)
+ERROR_BADGE = _("ERRO")  # a folder with a CRASH file or a job log with content (spec 50)
 FILES_SHOW_TIP = _("Mostrar arquivos na árvore")
 FILES_HIDE_TIP = _("Ocultar arquivos da árvore")
 

@@ -218,7 +218,7 @@ class PaletteController(QObject):
     def execute(self, key: str) -> None:
         self._clock += 1
         self._recency[key] = self._clock
-        kind, _, value = key.partition(":")
+        kind, _sep, value = key.partition(":")
         if kind == "action":
             action = self._actions().get(value)
             if action is not None and action.isEnabled():

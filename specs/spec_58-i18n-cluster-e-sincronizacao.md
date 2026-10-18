@@ -44,8 +44,8 @@ Contagem da 52 (`check --area 58`, 18/10/2026): **104 mensagens, 59 sem traduç�
 ### R1: Traduzir a área
 
 1. Traduzir as 59 mensagens de `scripts/i18n.py check --area 58` e revisar as 45 já traduzidas. Termos (glossário da 52):
-   `Sincronizar` → `Sync`; `baixar` (pull) → `pull`/`download`: **um só** nos dois lugares em que aparece (menu e prévia),
-   `enviar` (push) → `push`/`upload` idem; escolher o par no `locale/README.md` e usá-lo em toda a área. `Cluster`, `rsync`,
+   `Sincronizar` → `Sync`; `Baixar` → `Download` e `Enviar` → `Upload` (par decidido na revisão da 52, já no
+   `locale/README.md`), os mesmos nos dois lugares em que aparecem (menu e prévia) e em toda a área. `Cluster`, `rsync`,
    `ssh`, `config.yaml`, `cluster.host`, `SSH_ASKPASS`, `StrictHostKeyChecking` ficam como estão.
 2. As frases que dizem o que **não** acontece (`Já existem no cluster, não serão alterados`, `não será alterado`, `pedirá
    confirmação`) mantêm a negação e o sujeito: `Already on the cluster, will not be changed`, `will not be changed`, `will
@@ -85,8 +85,8 @@ Contagem da 52 (`check --area 58`, 18/10/2026): **104 mensagens, 59 sem traduç�
 
 ## Decisões assumidas (confirmar na revisão)
 
-1. `pull`/`push` (ou `download`/`upload`) são escolhidos uma vez: a proposta é `Pull` e `Push` nos menus e na prévia, porque
-   o CLAUDE.md e as specs usam esses termos; o usuário confirma.
+1. `Download`/`Upload` nos menus e na prévia (decidido pelo usuário na revisão da 52, 18/10/2026): mais claro para quem
+   usa o programa que `Pull`/`Push`, que seguem só como nomes internos (código, CLAUDE.md, specs).
 2. O teste de ponta a ponta de R3.3 roda só um pull e um envio: o resto da matriz do sync já é testada em `pt_BR` e o texto
    não participa da lógica (R2 de "Situação atual").
 
