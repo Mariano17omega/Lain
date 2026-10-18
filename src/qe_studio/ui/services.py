@@ -8,6 +8,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 
+from ..core import cancel
 from ..core.calculations import DetectionResult, drop_cached
 from ..core.calculations.base import feeds_parent, reads_from
 from ..core.detection import detect_folder
@@ -19,13 +20,28 @@ from ..core.tasks import TaskGroup
 log = logging.getLogger(__name__)
 
 
+class _DetectionFailed(Exception):
+    """The detection of a folder raised (the cause); ``error`` is its run error all the same."""
+
+    def __init__(self, error: RunError | None):
+        super().__init__("detection failed")
+        self.error = error
+
+
 def _detect(
     folder: Path, sniff: SniffCache, memory: FolderMemory | None
 ) -> tuple[list[DetectionResult], RunError | None]:
-    # No ``except`` here: a failure reaches ``DetectionService._on_error``, which marks the folder
-    # as failed instead of caching "no calculation here" (spec 27-8 R5). The run error (a CRASH
-    # file, a job log with content: spec 50) is the folder's, whether or not a module matched.
-    return detect_folder(folder, sniff=sniff.sniff, memory=memory), run_error(folder)
+    # The run error (a CRASH file, a job log with content: spec 50) is the folder's, whether or not
+    # a module matched, so it comes first and survives a detection that raises. That failure
+    # reaches ``DetectionService._on_error``, which marks the folder as failed instead of caching
+    # "no calculation here" (spec 27-8 R5).
+    error = run_error(folder, sniff.sniff)
+    try:
+        return detect_folder(folder, sniff=sniff.sniff, memory=memory), error
+    except cancel.Cancelled:
+        raise  # a cancelled task never calls back
+    except Exception as exc:
+        raise _DetectionFailed(error) from exc
 
 
 def _affected(key: str, folder: Path | None, parent: Path | None = None) -> bool:
@@ -97,7 +113,7 @@ class DetectionService(QObject):
         """Synchronous detection refreshing the cache (blocks: scripts and tests only)."""
         key = str(folder)
         results = detect_folder(Path(folder), sniff=self.sniff_cache.sniff, memory=self.memory)
-        error = run_error(Path(folder))
+        error = run_error(Path(folder), self.sniff_cache.sniff)
         self._tasks.cancel(key)  # a task started earlier must not overwrite this
         with self._lock:
             self._results[key] = results
@@ -156,10 +172,10 @@ class DetectionService(QObject):
     def _on_error(self, key: str, exc: Exception) -> None:
         """The detection raised: the folder shows no calculation, but the failure is logged and
         said once (until F5 clears it), so it is not mistaken for an empty folder."""
-        log.error("detecção falhou: %s", key, exc_info=exc)
+        log.error("detecção falhou: %s", key, exc_info=exc)  # the traceback shows the cause
         with self._lock:
             self._results[key] = []  # ends the busy state and the wait of ``results()``
-            self._errors[key] = None
+            self._errors[key] = exc.error if isinstance(exc, _DetectionFailed) else None
             first = key not in self._failed
             self._failed.add(key)
         self.detected.emit(key)

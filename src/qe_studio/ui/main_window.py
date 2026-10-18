@@ -377,7 +377,7 @@ class MainWindow(QMainWindow):
         return self.plot_workflow.current_plot()
 
     def plot_button(self) -> None:
-        self.plot_workflow.plot_button(self.current_folder())
+        self.plot_workflow.button.click(self.current_folder())
 
     def generate_plot(self) -> None:
         self.generate_plot_for(self.current_folder())

@@ -181,11 +181,10 @@ def parse_pw_output(head: str, tail: str | None = None) -> PwOutput:
     nelec_spin = _NELEC_SPIN.search(head)
     alat = _ALAT.search(head)
     version = _VERSION.search(head)
-    converged = None
-    if "convergence NOT achieved" in tail:
-        converged = False
-    elif "convergence has been achieved" in tail:
-        converged = True
+    # The last marker wins: a relax with ``scf_must_converge = .false.`` goes on after a failed SCF.
+    failed = tail.rfind("convergence NOT achieved")
+    achieved = tail.rfind("convergence has been achieved")
+    converged = None if failed < 0 and achieved < 0 else achieved > failed
 
     total_mag, abs_mag = _magnetization(tail)
     return PwOutput(

@@ -1,8 +1,15 @@
+import shutil
 import threading
 from pathlib import Path
 
+import pytest
+
 from qe_studio.core import sniff as sniff_module
+from qe_studio.core.cancel import Cancelled
+from qe_studio.core.sniff import SniffCache
 from qe_studio.ui import services
+
+from conftest import FIXTURES
 
 
 def test_invalidate_drops_results_of_running_tasks(qtbot, demo_project, monkeypatch):
@@ -378,12 +385,35 @@ def test_a_folder_that_has_no_calculation_still_gets_its_error(qtbot, tmp_path):
     assert service.wait()
 
 
-def test_a_failed_detection_caches_no_error(qtbot, tmp_path, monkeypatch):
+def test_a_failed_detection_keeps_the_error_of_its_folder(qtbot, tmp_path, monkeypatch):
+    from qe_studio.core.run_errors import RunError
+
     folder = _detected_empty(tmp_path, ["calc"])["calc"]
-    (folder / "CRASH").write_text("")
+    (folder / "CRASH").write_text("")  # the run that crashed is the one detection may choke on
     monkeypatch.setattr(services, "detect_folder", _raise)
     service = services.DetectionService()
     with qtbot.waitSignal(service.detected, timeout=5000):
         service.request(folder)
-    assert service.peek_results(folder) == [] and service.peek_error(folder) is None
+    assert service.peek_results(folder) == []
+    assert service.peek_error(folder) == RunError("crash", "CRASH")
+    assert service.wait()
+
+
+def test_a_cancelled_detection_is_not_a_failure(tmp_path, monkeypatch):
+    def cancelled(*args, **kwargs):
+        raise Cancelled
+
+    monkeypatch.setattr(services, "detect_folder", cancelled)
+    with pytest.raises(Cancelled):
+        services._detect(tmp_path, SniffCache(), None)
+
+
+def test_a_job_log_holding_a_finished_qe_output_is_no_error(qtbot, tmp_path):
+    folder = _detected_empty(tmp_path, ["scf"])["scf"]
+    shutil.copy(FIXTURES / "al_bands" / "al.scf.out", folder / "job.o12")  # no "> scf.out"
+    service = services.DetectionService()
+    with qtbot.waitSignal(service.detected, timeout=5000):
+        service.request(folder)
+    assert service.peek_error(folder) is None
+    assert service.detect_now(folder) is not None and service.peek_error(folder) is None
     assert service.wait()

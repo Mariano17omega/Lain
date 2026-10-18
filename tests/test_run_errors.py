@@ -4,6 +4,9 @@ import pytest
 
 from qe_studio.core.file_kinds import is_job_log, is_job_stdout
 from qe_studio.core.run_errors import RunError, run_error
+from qe_studio.core.sniff import SniffCache
+
+from conftest import FIXTURES
 
 
 def put(folder, name, text=""):
@@ -70,6 +73,23 @@ def test_a_missing_folder_or_a_file_is_no_error(tmp_path):
     assert run_error(tmp_path / "nao_existe") is None
     put(tmp_path, "file.txt", "x")
     assert run_error(tmp_path / "file.txt") is None
+
+
+def test_a_log_holding_a_finished_qe_output_is_no_error(tmp_path):
+    """A job without ``> scf.out`` prints pw.x into its log: finished, its grid row reads OK."""
+    text = (FIXTURES / "al_bands" / "al.scf.out").read_text(encoding="utf-8")
+    put(tmp_path, "job.o1", text)
+    assert run_error(tmp_path, SniffCache().sniff) is None
+    assert run_error(tmp_path) == RunError("job_log", "job.o1")  # no sniff: any content counts
+
+
+def test_a_log_holding_a_truncated_qe_output_or_plain_text_is_an_error(tmp_path):
+    text = (FIXTURES / "al_bands" / "al.scf.out").read_text(encoding="utf-8")
+    put(tmp_path, "job.o1", text[: text.index("JOB DONE")])  # killed at the walltime
+    put(tmp_path, "job.o2", "Segmentation fault\n")
+    assert run_error(tmp_path, SniffCache().sniff) == RunError("job_log", "job.o1")
+    (tmp_path / "job.o1").unlink()
+    assert run_error(tmp_path, SniffCache().sniff) == RunError("job_log", "job.o2")
 
 
 def test_a_broken_link_named_like_a_log_is_skipped(tmp_path):

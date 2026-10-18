@@ -101,6 +101,11 @@ class RenameController:
     def for_window(cls, window) -> RenameController:
         """The controller of a ``MainWindow``: the panels, tabs and stores a rename has to tell."""
 
+        def flush_settings(path: Path) -> None:
+            window.plot_settings.flush_now(inside=path)
+            # A 3D view still being written lands before the move, not in the middle of it.
+            window.structure3d.wait_saves()
+
         def moved(old: Path, new: Path, old_resolved: Path, new_resolved: Path) -> None:
             window.navigation.rename(old, new)
             window.memory.rename(old_resolved, new_resolved)
@@ -117,7 +122,7 @@ class RenameController:
             window,
             blockers,
             wait_for_exports=window.plot_workflow.wait_for_exports,
-            flush_settings=lambda path: window.plot_settings.flush_now(inside=path),
+            flush_settings=flush_settings,
             current_folder=window.current_folder,
             tree_path=window.explorer.current_path,
             close_tabs_under=window.workspace.close_tabs_under,

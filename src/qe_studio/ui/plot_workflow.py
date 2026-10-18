@@ -40,11 +40,11 @@ from ..core.detection import (
 )
 from ..core.folder_memory import FolderMemory
 from ..core.grid_store import GridStore
-from ..core.plotting.saved import was_plotted
 from ..core.plotting.session import PlotSession, build_session, load_plot, target_key
 from ..core.tasks import TaskGroup
 from .busy import BusyTracker
 from .dialogs.mapping import ask_mapping
+from .plot_button import PlotButton
 from .plot_export import EXPORT_WAIT_MS, PlotExporter
 from .plot_settings import PlotSettingsStore
 from .services import DetectionService
@@ -71,6 +71,7 @@ class _Loading:
     """A plot being loaded: its data first (load pool), then its ``.plot`` (settings queue)."""
 
     auto_export: bool
+    preview: bool = False  # of one output file ("Plotar", "Plotar SCF"), not of its folder
     result: DetectionResult | None = None
     dataset: Any = None
 
@@ -109,8 +110,9 @@ class PlotWorkflow(QObject):
         self._dialog_parent = dialog_parent
         self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
         self._loading: dict[str, _Loading] = {}  # by plot key
+        self._previews: set[str] = set()  # keys of the open tabs that ``plot_file`` showed
         self._loads = TaskGroup()  # by plot key, in the global pool
-        self._saved = TaskGroup()  # by folder: "was it plotted before?" of the Plot button
+        self.button = PlotButton(self, config)  # the activity bar's "Plot"
         self._replacing: str | None = None  # key of the tab a new session is about to replace
         self._plot_file_source: tuple[Path, str] | None = None  # what the "Plotar …" button plots
         # Busy indicator (spec 15 R2): counted by name, so a task that never ends cannot leave a
@@ -142,10 +144,16 @@ class PlotWorkflow(QObject):
 
     def plot_of(self, folder: Path) -> PlotView | None:
         """The open plot of ``folder``: the current tab first. A figure of several folders (bands
-        + DOS) is not the plot of its first one."""
+        + DOS) is not the plot of its first one, nor is the preview of one of its outputs
+        (``plot_file``: the SCF of a bands folder)."""
 
         def shows(view: PlotView) -> bool:
-            return view.session.folder == folder and not view.session.composite
+            session = view.session
+            return (
+                session.folder == folder
+                and not session.composite
+                and session.key not in self._previews
+            )
 
         view = self.current_plot()
         if view is not None and shows(view):
@@ -167,30 +175,6 @@ class PlotWorkflow(QObject):
         self.busy.begin(f"detect:{key}", "Detectando cálculo…")
         self.service.request(Path(folder), fresh=True)
 
-    def plot_button(self, folder: Path) -> None:
-        """The activity bar's "Plot". An open plot of ``folder`` is brought to front. Else, a folder
-        plotted before (``was_plotted``) is plotted again as it was left, without exporting, so no
-        overwrite question; a new one is plotted and saved when ``ui.auto_generate_plot`` is on, and
-        with it off only the panels open ("Gerar Plot" plots)."""
-        view = self.plot_of(folder)
-        if view is not None:
-            self._show_panels()
-            self.workspace.set_current(view)
-            return
-        if not self._config().ui.auto_generate_plot:
-            self._show_panels()
-        self._saved.submit(str(folder), was_plotted, folder, on_done=self._on_plotted_before)
-
-    def _show_panels(self) -> None:
-        self.panel_requested.emit("workspace")
-        self.panel_requested.emit("params")
-
-    def _on_plotted_before(self, key: str, plotted: bool) -> None:
-        if plotted:
-            self.generate(Path(key), auto_export=False)
-        elif self._config().ui.auto_generate_plot:
-            self.generate(Path(key))
-
     def plot_file(self, path: Path, kind: str) -> None:
         """Preview the plot of one output file (context-menu "Plotar", "Plotar SCF" button).
 
@@ -199,9 +183,8 @@ class PlotWorkflow(QObject):
         module = module_for(kind)
         assert module.single_file_role is not None
         mapping = {module.single_file_role: [path]}
-        self._load(
-            ManualTarget(module, path.parent, mapping, self.service.sniff_cache.sniff), False
-        )
+        target = ManualTarget(module, path.parent, mapping, self.service.sniff_cache.sniff)
+        self._load(target, False, preview=True)
 
     def plot_pair(self, bands: Path, dos: Path) -> None:
         """ "Bandas com DOS" (spec 22): both folders are detected and paired in the load worker.
@@ -241,7 +224,7 @@ class PlotWorkflow(QObject):
     def cancel_loads(self) -> None:
         """Window close: the datasets being loaded are not wanted any more."""
         self._loads.cancel_all()
-        self._saved.cancel_all()
+        self.button.cancel()
 
     def shutdown(self, timeout_ms: int = EXPORT_WAIT_MS) -> bool:
         """Window close: loads are dropped, exports finish (no half-written files)."""
@@ -290,18 +273,25 @@ class PlotWorkflow(QObject):
         return ManualTarget(module, folder, mapping, self.service.sniff_cache.sniff)
 
     # -- loading ------------------------------------------------------------------------------------
-    def _load(self, target: DetectionResult | ManualTarget | PairTarget, auto_export: bool) -> None:
+    def _load(
+        self,
+        target: DetectionResult | ManualTarget | PairTarget,
+        auto_export: bool,
+        preview: bool = False,
+    ) -> None:
         """Load the plot of ``target``. A request for a plot already loading replaces the running
         one (a "Remapear" meanwhile must win): both of its stages are cancelled, so only the newest
-        reaches the tab, and an export asked by the first request is kept."""
+        reaches the tab, and an export asked by the first request is kept. ``preview``: a
+        ``plot_file`` of one output, not the plot of its folder (unless both asked for it)."""
         self.stores.set_root(self._config().paths.local_root)  # the atoms read by build_session
         key = target_key(target)
         previous = self._loading.get(key)
         if previous is not None:
             auto_export = auto_export or previous.auto_export
+            preview = preview and previous.preview
             self.settings.cancel_read(key)  # the load task itself is cancelled by ``submit``
         self.settings.flush(key)  # queued before the read of this plot's .plot
-        self._loading[key] = _Loading(auto_export)
+        self._loading[key] = _Loading(auto_export, preview)
         if previous is None:  # busy once per plot, until the newest request ends
             self.busy.begin(f"load:{key}", f"Carregando {target.module.display_name.lower()}…")
             self.workspace.set_busy(key, True)  # an open tab of this plot, until it is replaced
@@ -324,6 +314,8 @@ class PlotWorkflow(QObject):
         loading = self._finish_load(key)
         if loading is not None and loading.result is not None:
             self.show_loaded(loading.result, loading.dataset, stored, loading.auto_export)
+            if loading.preview:  # after the tab it replaced was closed (which drops the mark)
+                self._previews.add(key)
 
     def _on_load_failed(self, key: str, error: Exception) -> None:
         if self._finish_load(key) is None:
@@ -406,6 +398,7 @@ class PlotWorkflow(QObject):
             self.busy.end(f"draw:{key}")
             self.settings.flush(key)
             self.params.discard(key)
+            self._previews.discard(key)
             # Closing the tab ends a load of it still pending (a regenerate): nothing opens later.
             self._loads.cancel(key)
             self._finish_load(key)

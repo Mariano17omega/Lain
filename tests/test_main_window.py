@@ -489,6 +489,9 @@ def test_activity_bar_holds_generate_and_grids(main_window):
 
 def test_the_sidebar_button_is_called_plot(main_window):
     assert main_window.activity.generate.text() == "Plot"
+    # Ctrl+G is "Gerar Plot", which always saves: the button that may only open the panels has none
+    assert "Ctrl+G" not in main_window.activity.generate.toolTip()
+    assert "Ctrl+G" in main_window.params.generate_button.toolTip()
 
 
 def test_generate_button_plots_and_saves(qtbot, main_window, demo_project):

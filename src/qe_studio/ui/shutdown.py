@@ -83,7 +83,8 @@ class ShutdownSequence:
 
 
 def steps_for(window: MainWindow) -> list[Step]:
-    """The steps of closing ``window``, in order (cancel, sync, exports, ``.plot``, state, workers)."""
+    """The steps of closing ``window``, in order (cancel, sync, exports, ``.plot``, 3D views, state,
+    workers)."""
 
     def cancel(_ms: int) -> None:
         window.plot_workflow.cancel_loads()
@@ -105,6 +106,8 @@ def steps_for(window: MainWindow) -> list[Step]:
         Step("sync", window.sync.shutdown, cap_ms=SYNC_MS),
         Step("exportações", window.plot_workflow.shutdown, cap_ms=EXPORT_WAIT_MS, own_budget=True),
         Step(".plot", window.plot_settings.close),
+        # the views of the 3D windows ``close_dialogs`` closed, queued for writing (spec 47 R3)
+        Step("vistas 3D", window.structure3d.shutdown),
         Step("estado", save_state),
         Step("detecção", window.service.shutdown, cap_ms=DETECTION_MS),
         # last: the panels' filters stop (``current_folder`` needs them above)

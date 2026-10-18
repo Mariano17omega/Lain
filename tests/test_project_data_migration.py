@@ -94,10 +94,49 @@ def test_a_version_1_file_imports_the_folders_inside_the_root(roots, tmp_path):
 def test_legacy_folders_is_pure_and_takes_an_exists_check(tmp_path):
     root = tmp_path / "r"
     data = {"version": 2, "folders": {"x": {}, "y": {}, f"abs:{root}/z": {}, "abs:/o": {}}}
-    kept = legacy_folders(data, root, lambda path: path.name == "x")
+    kept = legacy_folders(data, root, lambda path: path.name == "x", bool)
     assert kept == {"version": 2, "folders": {"x": {}, f"abs:{root}/z": {}}}
-    assert legacy_folders({"version": 9, "folders": {}}, root, bool)["folders"] == {}
-    assert legacy_folders([1, 2], root, bool)["folders"] == {}
+    assert legacy_folders({"version": 9, "folders": {}}, root, bool, bool)["folders"] == {}
+    assert legacy_folders([1, 2], root, bool, bool)["folders"] == {}
+
+
+def mapping(*files: str) -> dict:
+    return {"mappings": {"bands": {"gnu": list(files)}}}
+
+
+def test_an_entry_whose_mapped_files_are_not_in_the_root_is_not_imported(roots):
+    """The old file was shared by every root: a folder of the same name is not proof enough."""
+    a, b = roots
+    (a / "ilita" / "Bandas" / "a.gnu").write_text("")
+    folders = {"ilita/Bandas": mapping("a.gnu"), "so_b": mapping("b.gnu")}
+    old_file(FOLDERS_FILE, {"version": 2, "folders": folders})
+    assert FolderMemory(root=b).mapping(b / "ilita" / "Bandas", "bands") is None
+    assert FolderMemory(root=b).mapping(b / "so_b", "bands") is None
+    (b / "so_b" / "b.gnu").write_text("")  # its mapped file is there: the entry is this root's
+    assert FolderMemory(root=b).mapping(b / "so_b", "bands") == {"gnu": [b / "so_b" / "b.gnu"]}
+    bands = a / "ilita" / "Bandas"
+    assert FolderMemory(root=a).mapping(bands, "bands") == {"gnu": [bands / "a.gnu"]}
+
+
+def test_the_root_entry_is_imported_only_when_it_maps_files_of_the_root(roots):
+    """Every root has a ``"."``: one with labels only, or files elsewhere, is another root's."""
+    a, b = roots
+    (a / "a.gnu").write_text("")
+    old_file(FOLDERS_FILE, {"version": 2, "folders": {".": {**mapping("a.gnu"), "labels": ["G"]}}})
+    assert FolderMemory(root=b).labels(b) is None
+    assert FolderMemory(root=a).labels(a) == ["G"]
+    old_file(FOLDERS_FILE, {"version": 2, "folders": {".": {"labels": ["G"]}}})
+    assert FolderMemory(root=b).labels(b) is None
+
+
+def test_an_entry_with_odd_mappings_is_not_imported(roots):
+    a, _b = roots
+    odd = {"mappings": {"bands": {"gnu": "a.gnu"}}, "labels": ["G"]}  # a string, not a list
+    folders = {"ilita/Bandas": odd, "outro/Relax": {"mappings": [1], "labels": ["R"]}}
+    old_file(FOLDERS_FILE, {"version": 2, "folders": folders})
+    memory = FolderMemory(root=a)
+    assert memory.labels(a / "ilita" / "Bandas") is None
+    assert memory.labels(a / "outro" / "Relax") is None
 
 
 def test_grids_of_the_root_and_without_cells_are_imported(roots):

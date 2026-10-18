@@ -69,6 +69,15 @@ def test_unconverged_and_aborted_runs():
     assert aborted.calculation == "bands"
 
 
+def test_the_last_scf_decides_the_convergence():
+    failed = "     convergence NOT achieved after 100 iterations: stopping\n"
+    achieved = "     convergence has been achieved in   9 iterations\n"
+    later_converged = parse_pw_output(f"number of bfgs steps = 1\n{failed}{achieved}   JOB DONE.\n")
+    assert later_converged.converged is True and "SCF não convergiu" not in later_converged.warnings
+    assert parse_pw_output(f"{achieved}{failed}   JOB DONE.\n").converged is False
+    assert parse_pw_output("head\n", f"{failed}{achieved}").converged is True  # head + tail
+
+
 def test_vc_relax_detected():
     text = "number of bfgs steps = 1\nnew unit-cell volume = 1.0\nFinal enthalpy = -1.0 Ry\n"
     assert parse_pw_output(text).calculation == "vc-relax"

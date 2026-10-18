@@ -129,7 +129,8 @@ a pull.
    (`job.o12345`, `job.e12345`) show `SEM ERROS` when empty and `ERRO` otherwise; they and the
    submission scripts (`.qsub`, `.slurm`, `.pbs`) open read-only in a tab. A folder in the tree
    that holds a `CRASH` file or a non-empty `job.o<id>` gets a red `ERRO` tag (hover for the file
-   that caused it); the file icon in the tree's header lists the files in the tree too. The grid
+   that caused it), unless that log is a QE output that finished (`JOB DONE`: a job without
+   `> scf.out`); the file icon in the tree's header lists the files in the tree too. The grid
    cards show only that state (list mode also shows sizes); `..`, Backspace or Alt+↑ go up a folder.
    The path in the top bar is clickable (long ones fold their middle levels into **…**; right-click
    copies it), and **Alt+←** / **Alt+→**, the ◀ ▶ buttons or the mouse side buttons walk back and

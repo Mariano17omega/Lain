@@ -6,9 +6,10 @@ the GUI never reads them), under the footer spinner "Lendo estrutura…"; then a
 with the saved view (spec 47 R2). A file that cannot be shown gives a warning toast and no window. The open
 windows are kept here and dropped by their own ``closed`` signal, which is also when their view is saved
 (R3): written only when the user changed it, its section removed after "Restaurar padrões", nothing for an
-untouched window. Closing the main window closes them all, so they save then too. Only this controller
-writes ``view3d.plot``, on the GUI thread (about 1 KB, like ``PlotSettingsStore.flush_now``): with two
-windows of one file, the last to close wins.
+untouched window. Closing the main window closes them all, so they save then too, and its shutdown step
+waits for the writes. Only this controller writes ``view3d.plot``, in a queue of its own, one write at a
+time and in the order the windows closed (the GUI thread never reads or writes it): with two windows of one
+file, the last to close wins.
 
 The second viewer, the external XCrySDen ("Abrir com XCrysDen", spec 45), is launched by ``ItemActions``;
 ``for_window`` only tells it where the program is (``paths.xcrysden_path``).
@@ -18,10 +19,11 @@ from __future__ import annotations
 
 import itertools
 import logging
+import time
 from collections.abc import Callable
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QSettings, pyqtSignal
+from PyQt6.QtCore import QObject, QSettings, QThreadPool, pyqtSignal
 
 from ..core.structure3d.options import DisplayOptions, background_of_theme
 from ..core.structure3d.source import StructureReadError
@@ -37,11 +39,13 @@ log = logging.getLogger(__name__)
 
 KEY_PREFIX = "structure3d:"  # of the busy label and the task: ``structure3d:<path>:<n>``
 BUSY_LABEL = "Lendo estrutura…"
+SAVE_WAIT_MS = 5000  # ``wait_saves``: a rename waits this long for the views being written
 
 
 class Structure3DController(QObject):
     opened = pyqtSignal(object)  # StructureWindow (tests and scripts wait on it)
     failed = pyqtSignal(str)  # the message shown
+    saved = pyqtSignal(object)  # Path of the file whose view was written or removed
 
     def __init__(
         self,
@@ -59,6 +63,9 @@ class Structure3DController(QObject):
         self.windows: list[StructureWindow] = []
         self._tasks = TaskGroup()
         self._paths: dict[str, Path] = {}
+        self._save_pool = QThreadPool()  # no Qt parent: see core/tasks.py, "private pools"
+        self._save_pool.setMaxThreadCount(1)  # one at a time: the sections of a folder share a file
+        self._saves = TaskGroup(self._save_pool)  # by file: a newer save of it wins
         self._count = itertools.count(1)
 
     @classmethod
@@ -129,20 +136,43 @@ class Structure3DController(QObject):
 
     def _save(self, window: StructureWindow) -> None:
         """Spec 47 R3: the view of a window that closes. Changed (also after a restore) → its section is
-        written; restored and left alone → its section goes; untouched → the file is not touched."""
+        written; restored and left alone → its section goes; untouched → the file is not touched. The
+        view is taken here; the file is read and written in the save queue."""
         source = window.structure.source.path
         if not source:
             return
         path, canvas = Path(source), window.canvas
         if canvas.dirty:
-            warning = write_session(path.parent, path.name, window.view_session())
+            job, args = write_session, (path.parent, path.name, window.view_session())
         elif canvas.restored:
-            warning = remove_session(path.parent, path.name)
+            job, args = remove_session, (path.parent, path.name)
         else:
             return
+        self._saves.submit(str(path), job, *args, on_done=self._on_saved)
+
+    def _on_saved(self, key: str, warning: str | None) -> None:
         if warning:
             log.warning("%s", warning)
             self.toast.show_message(warning, "warning")
+        self.saved.emit(Path(key))
+
+    @property
+    def saving(self) -> bool:
+        """A view is still being written (or its result not delivered yet)."""
+        return len(self._saves) > 0
+
+    def wait_saves(self, timeout_ms: int = SAVE_WAIT_MS) -> bool:
+        """Block until the queued views are written (before a rename moves their folder); False on
+        timeout."""
+        return self._saves.wait(timeout_ms)
+
+    def shutdown(self, timeout_ms: int) -> bool:
+        """Window close, after ``close_dialog``: the views of the windows just closed are written within
+        ``timeout_ms``; what is still queued then is dropped (a slow disk must not hold the exit)."""
+        deadline = time.monotonic() + timeout_ms / 1000
+        drained = self._saves.wait(timeout_ms)
+        left = max(0, int((deadline - time.monotonic()) * 1000))
+        return self._saves.shutdown(left) and drained
 
     def close_dialog(self) -> bool:
         """The main window is closing: every 3D window closes (and saves its view: ``_on_closed``)."""

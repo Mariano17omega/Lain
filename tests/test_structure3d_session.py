@@ -4,6 +4,7 @@ saves it there, a section per file, only when the user changed something. Every 
 
 import os
 import shutil
+import threading
 
 import numpy as np
 import pytest
@@ -21,6 +22,7 @@ from structure3d_helpers import (
     camera_state,
     click_atom,
     clickable_atoms,
+    close_view,
     same_camera,
     wheel,
 )
@@ -182,7 +184,7 @@ def test_a_changed_view_is_saved_on_close_and_restored(qtbot, window, si_folder)
     wheel(view.canvas, 2)
     panel.rotation.buttons["x+"].click()
     camera = camera_state(view.canvas)
-    view.close()
+    close_view(qtbot, window, view)
 
     saved = sections_of(si_folder)[NAME]
     assert saved["options"]["radius_scale"] == 1.75 and saved["options"]["style"] == "vareta"
@@ -197,7 +199,7 @@ def test_a_changed_view_is_saved_on_close_and_restored(qtbot, window, si_folder)
 
 
 def test_open_and_close_without_a_change_writes_nothing(qtbot, window, si_folder):
-    open_view(qtbot, window, si_folder / NAME).close()
+    close_view(qtbot, window, open_view(qtbot, window, si_folder / NAME))
     assert not (si_folder / "view3d.plot").exists()
 
 
@@ -211,14 +213,14 @@ def test_clicks_and_measures_are_no_change(qtbot, window, si_folder):
         click_atom(qtbot, view.canvas, ref)
     assert len(view.panel.measures.tables["distancia"].texts()) == 1
     assert view.canvas.current is not None and not view.canvas.dirty
-    view.close()
+    close_view(qtbot, window, view)
     assert not (si_folder / "view3d.plot").exists()
 
 
 def test_an_untouched_saved_view_leaves_the_file_as_it_was(qtbot, window, si_folder):
     write_view(si_folder, {NAME: SAVED})
     before = stamp(si_folder / "view3d.plot")
-    open_view(qtbot, window, si_folder / NAME).close()
+    close_view(qtbot, window, open_view(qtbot, window, si_folder / NAME))
     assert stamp(si_folder / "view3d.plot") == before
 
 
@@ -230,7 +232,7 @@ def test_resetting_the_view_is_a_change(qtbot, window, si_folder, how):
         qtbot.keyClick(view.canvas, Qt.Key.Key_R)
     else:
         view.reset_button.click()
-    view.close()
+    close_view(qtbot, window, view)
     camera = sections_of(si_folder)[NAME]["camera"]
     np.testing.assert_allclose(camera["rotation"], ISOMETRIC, atol=1e-12)
     assert camera["zoom"] != 33.0
@@ -243,7 +245,7 @@ def test_opening_a_section_of_the_panel_is_no_change(qtbot, window, si_folder):
     view = open_view(qtbot, window, si_folder / NAME)
     view.panel.sections["Célula"].header.click()
     assert view.panel.sections["Célula"].header.isChecked()
-    view.close()
+    close_view(qtbot, window, view)
     assert not (si_folder / "view3d.plot").exists()
 
 
@@ -251,7 +253,7 @@ def test_a_folder_renamed_while_open_is_not_created_again(qtbot, window, si_fold
     view = open_view(qtbot, window, si_folder / NAME)
     view.panel.radius.setValue(1.75)
     renamed = rename_item(si_folder, "06_si")
-    view.close()
+    close_view(qtbot, window, view)
     assert toasts == [(GONE, "warning")]
     assert not si_folder.exists()
     assert not (renamed / "view3d.plot").exists()
@@ -263,7 +265,7 @@ def test_a_folder_without_write_permission_gives_a_toast(qtbot, window, si_folde
     view.panel.radius.setValue(1.75)
     si_folder.chmod(0o500)
     try:
-        view.close()
+        close_view(qtbot, window, view)
     finally:
         si_folder.chmod(0o700)
     assert len(toasts) == 1 and toasts[0][1] == "warning"
@@ -271,6 +273,26 @@ def test_a_folder_without_write_permission_gives_a_toast(qtbot, window, si_folde
     assert sip.isdeleted(view) or not view.isVisible()
     assert window.structure3d.windows == []
     assert not (si_folder / "view3d.plot").exists()
+
+
+def test_the_view_is_written_off_the_gui_thread(qtbot, window, si_folder, monkeypatch):
+    from qe_studio.ui import structure3d_controller
+
+    threads = []
+
+    def write(*args):
+        threads.append(threading.current_thread())
+        return real(*args)
+
+    real = structure3d_controller.write_session
+    monkeypatch.setattr(structure3d_controller, "write_session", write)
+    view = open_view(qtbot, window, si_folder / NAME)
+    view.panel.radius.setValue(1.75)
+    with qtbot.waitSignal(window.structure3d.saved, timeout=10_000) as saved:
+        view.close()
+    assert saved.args == [si_folder / NAME]
+    assert len(threads) == 1 and threads[0] is not threading.main_thread()
+    assert sections_of(si_folder)[NAME]["options"]["radius_scale"] == 1.75
 
 
 def test_closing_the_main_window_saves_a_changed_view(qtbot, main_window, si_folder):
@@ -300,7 +322,7 @@ def test_restoring_and_closing_removes_the_section(qtbot, window, si_folder, res
     restore_defaults(view)
     assert restore_yes and view.canvas.restored and not view.canvas.dirty
     assert (si_folder / "view3d.plot").exists()  # removed on close, not on the click
-    view.close()
+    close_view(qtbot, window, view)
     assert not (si_folder / "view3d.plot").exists()  # it was the only section
     again = open_view(qtbot, window, si_folder / NAME)
     assert again.canvas.options.radius_scale == 1.0
@@ -313,7 +335,7 @@ def test_restoring_removes_only_the_section_of_its_file(qtbot, window, si_folder
     write_view(si_folder, {NAME: SAVED, "si.scf2.in": other})
     view = open_view(qtbot, window, si_folder / NAME)
     restore_defaults(view)
-    view.close()
+    close_view(qtbot, window, view)
     assert sections_of(si_folder) == {"si.scf2.in": other}
 
 
@@ -322,7 +344,7 @@ def test_restoring_then_changing_saves_the_new_view(qtbot, window, si_folder, re
     view = open_view(qtbot, window, si_folder / NAME)
     restore_defaults(view)
     view.panel.radius.setValue(1.75)
-    view.close()
+    close_view(qtbot, window, view)
     saved = sections_of(si_folder)[NAME]
     assert saved["options"]["radius_scale"] == 1.75
     assert saved["options"]["style"] == "bola-vareta" and saved["options"]["species_colors"] == {}
@@ -333,7 +355,7 @@ def test_restoring_a_window_without_a_file_creates_nothing(qtbot, window, si_fol
     view = open_view(qtbot, window, si_folder / NAME)
     view.panel.radius.setValue(1.75)
     restore_defaults(view)
-    view.close()
+    close_view(qtbot, window, view)
     assert not (si_folder / "view3d.plot").exists()
 
 
@@ -344,7 +366,7 @@ def test_restoring_answered_no_leaves_the_file(qtbot, window, si_folder, monkeyp
     view = open_view(qtbot, window, si_folder / NAME)
     restore_defaults(view)
     assert not view.canvas.restored
-    view.close()
+    close_view(qtbot, window, view)
     assert stamp(si_folder / "view3d.plot") == before
 
 
@@ -356,7 +378,7 @@ def test_restoring_in_a_renamed_folder_creates_nothing(
     restore_defaults(view)
     renamed = rename_item(si_folder, "06_si")
     before = stamp(renamed / "view3d.plot")
-    view.close()
+    close_view(qtbot, window, view)
     assert not si_folder.exists()
     assert stamp(renamed / "view3d.plot") == before
     assert toasts == []
@@ -378,7 +400,7 @@ def test_two_inputs_of_one_folder_keep_their_own_views(qtbot, window, si_folder)
         view.panel.swatches[0].color_changed.emit(color)
         wheel(view.canvas, steps)
         cameras[path.name] = camera_state(view.canvas)
-        view.close()
+        close_view(qtbot, window, view)
     assert list(sections_of(si_folder)) == [NAME, "si.scf2.in"]
 
     for path, radius, rgb in ((si_folder / NAME, 1.5, (255, 0, 0)), (second, 0.5, (0, 0, 255))):
@@ -386,12 +408,12 @@ def test_two_inputs_of_one_folder_keep_their_own_views(qtbot, window, si_folder)
         assert view.canvas.options.radius_scale == radius
         assert view.canvas.options.species_colors == {0: rgb}
         assert same_camera(camera_state(view.canvas), cameras[path.name])
-        view.close()  # untouched: nothing written
+        close_view(qtbot, window, view)  # untouched: nothing written
 
     kept = sections_of(si_folder)["si.scf2.in"]
     view = open_view(qtbot, window, si_folder / NAME)
     view.panel.radius.setValue(2.0)
-    view.close()
+    close_view(qtbot, window, view)
     assert sections_of(si_folder)["si.scf2.in"] == kept
     assert sections_of(si_folder)[NAME]["options"]["radius_scale"] == 2.0
 
@@ -403,7 +425,7 @@ def test_the_same_name_in_another_folder_has_no_section(qtbot, window, si_folder
     view = open_view(qtbot, window, other / NAME)
     assert view.canvas.options.radius_scale == 1.0
     view.panel.radius.setValue(0.5)
-    view.close()
+    close_view(qtbot, window, view)
     assert sections_of(other)[NAME]["options"]["radius_scale"] == 0.5
     assert sections_of(si_folder) == {NAME: SAVED}
 
@@ -413,7 +435,7 @@ def test_a_name_with_a_space_and_an_accent_makes_the_round_trip(qtbot, window, s
     shutil.copy(si_folder / NAME, path)
     view = open_view(qtbot, window, path)
     view.panel.radius.setValue(1.75)
-    view.close()
+    close_view(qtbot, window, view)
     assert list(sections_of(si_folder)) == ["cálculo 2.in"]
     assert open_view(qtbot, window, path).canvas.options.radius_scale == 1.75
 
@@ -422,6 +444,6 @@ def test_the_section_of_a_file_that_is_gone_stays(qtbot, window, si_folder):
     write_view(si_folder, {"apagado.in": SAVED})
     view = open_view(qtbot, window, si_folder / NAME)
     view.panel.radius.setValue(1.75)
-    view.close()
+    close_view(qtbot, window, view)
     assert list(sections_of(si_folder)) == ["apagado.in", NAME]
     assert sections_of(si_folder)["apagado.in"] == SAVED

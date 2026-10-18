@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 
 FORMAT_VERSION = 2  # {"version": 2, "folders": {key: entry}}; version 1 was {absolute path: entry}
 OUTSIDE = "abs:"  # key prefix of a folder outside the root
+Exists = Callable[[Path], bool]  # ``os.path.isdir`` / ``isfile``, injected in the legacy filter
 
 
 def _resolved(path: Path | None) -> Path | None:
@@ -33,10 +34,40 @@ def _empty() -> dict:
     return {"version": FORMAT_VERSION, "folders": {}}
 
 
-def legacy_folders(data: object, root: Path, is_dir: Callable[[Path], bool]) -> dict:
+def _mapped_files(folder: Path, entry: dict) -> list[Path] | None:
+    """The files ``entry`` maps, resolved as ``FolderMemory._file_path`` does; None when its
+    mappings are not ``{kind: {role: [file, …]}}``."""
+    mappings = entry.get("mappings", {})
+    if not isinstance(mappings, dict):
+        return None
+    files = []
+    for roles in mappings.values():
+        if not isinstance(roles, dict):
+            return None
+        for values in roles.values():
+            if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+                return None
+            files += [Path(os.path.normpath(folder / value)) for value in values]
+    return files
+
+
+def _ours(root: Path, key: str, entry: dict, is_dir: Exists, is_file: Exists) -> bool:
+    """Whether the relative ``key`` of the old shared file is the entry of a folder of ``root``.
+    The file was shared by every root, so its folder existing is not enough: the files it maps
+    must be there too, and ``"."`` (any root has one) needs at least one of them."""
+    folder = root / key
+    if not is_dir(folder):
+        return False
+    files = _mapped_files(folder, entry)
+    if files is None or (key == "." and not files):
+        return False
+    return all(is_file(file) for file in files)
+
+
+def legacy_folders(data: object, root: Path, is_dir: Exists, is_file: Exists) -> dict:
     """What an old per-user ``folders.json`` holds for ``root`` (resolved), in the current format
-    (spec 48 R3): relative keys whose folder ``is_dir`` under the root (``"."`` is the root) and
-    ``abs:`` keys inside it. A version 1 file (absolute keys) keeps the keys inside the root as
+    (spec 48 R3): relative keys that are ``_ours`` and ``abs:`` keys inside the root (they name
+    their folder without doubt). A version 1 file (absolute keys) keeps the keys inside the root as
     ``abs:`` ones, which ``_rehome`` turns relative like any other. Anything else: nothing."""
     if not isinstance(data, dict):
         return _empty()
@@ -53,7 +84,7 @@ def legacy_folders(data: object, root: Path, is_dir: Callable[[Path], bool]) -> 
         if key.startswith(OUTSIDE):
             keep = Path(key.removeprefix(OUTSIDE)).is_relative_to(root)
         else:
-            keep = is_dir(root / key)
+            keep = _ours(root, key, entry, is_dir, is_file)
         if keep:
             kept[key] = entry
     return {"version": FORMAT_VERSION, "folders": kept}
@@ -148,7 +179,7 @@ class FolderMemory:
         legacy = self._file.read_legacy()
         if legacy is None or self._root is None:
             return _empty()
-        data = legacy_folders(legacy, self._root, os.path.isdir)
+        data = legacy_folders(legacy, self._root, os.path.isdir, os.path.isfile)
         self._file.log_import(len(data["folders"]))
         return data
 

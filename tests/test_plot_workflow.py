@@ -764,3 +764,41 @@ def test_plot_button_with_auto_generation_on_does_not_ask_again(
     with qtbot.waitSignal(window.plot_ready, timeout=10_000):
         window.activity.generate.click()
     assert no_dialogs["overwrite"] == []
+
+
+def test_plot_button_plots_the_folder_not_the_preview_of_one_of_its_outputs(
+    qtbot, main_window, demo_project, no_dialogs
+):
+    window = main_window
+    folder = demo_project / "03_bands"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        window.plot_file(folder / "scf.out", "scf")  # "Plotar SCF": a preview, not the folder's
+    preview = window.current_plot()
+    assert window.plot_workflow.plot_of(folder) is None
+    window.set_left_mode("tree")
+    window.explorer.select_path(folder)
+    with qtbot.waitSignals([window.plot_ready, window.export_finished], timeout=10_000) as blocker:
+        window.activity.generate.click()
+    ready = next(e for e in blocker.all_signals_and_args if "plot_ready" in e.signal_name)
+    bands = window.current_plot()
+    assert ready.args[0].kind == "bands" and bands is not preview
+    assert window.workspace.widget_for(preview.session.key) is preview  # still open
+    assert window.plot_workflow.plot_of(folder) is bands
+
+    window.workspace.set_current(preview)
+    with qtbot.assertNotEmitted(window.plot_ready, wait=200):
+        window.activity.generate.click()  # now there is the folder's plot: brought to front
+    assert window.current_plot() is bands
+
+
+def test_a_preview_replaced_by_the_plot_of_its_folder_is_the_folder_plot(
+    qtbot, main_window, demo_project, no_dialogs
+):
+    """A relax output plotted alone and as its folder is one tab (one key): the folder's wins."""
+    window = main_window
+    folder = demo_project / "01_relax"
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        window.plot_file(folder / "si.rel.out", "relax")
+    assert window.plot_workflow.plot_of(folder) is None
+    generate(qtbot, window, folder, auto_export=False)
+    assert window.plot_workflow.plot_of(folder) is window.current_plot()

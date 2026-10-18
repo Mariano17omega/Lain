@@ -115,11 +115,12 @@ class ActivityBar(QWidget):
         layout.setSpacing(4)
         self.tree = ActivityButton(theme, "account_tree", "Árvore", "Explorador de pastas", True)
         self.grid = ActivityButton(theme, "grid_view", "Grade", "Mostrar/ocultar arquivos", True)
+        # No shortcut: Ctrl+G is "Gerar Plot" (``plot.generate``), which always plots and saves.
         self.generate = ActivityButton(
             theme,
             "bolt",
             "Plot",
-            "Plotar a pasta selecionada (Ctrl+G); com a geração automática desligada "
+            "Plotar a pasta selecionada; com a geração automática desligada "
             "(ui.auto_generate_plot) só abre os ajustes",
         )
         # A grid of the open plots in one figure (spec 23).

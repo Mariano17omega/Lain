@@ -25,3 +25,13 @@ def test_the_3d_window_and_grids_are_not_plots_of_the_folder(tmp_path):
     for name in ("a-scf-3d.png", "a-scf-3d_2.png", "grid_um.png"):
         (tmp_path / "plots" / name).write_bytes(b"")
     assert not was_plotted(tmp_path)
+
+
+def test_only_figures_in_plots_count(tmp_path):
+    plots = tmp_path / "plots"
+    (plots / "old.png").mkdir(parents=True)  # a folder named like a figure
+    for name in (".x-bands.png.tmp", "notes.txt", "x-bands.csv", ".hidden.png"):
+        (plots / name).write_bytes(b"")
+    assert not was_plotted(tmp_path)
+    (plots / "x-bands.SVG").write_bytes(b"")
+    assert was_plotted(tmp_path)

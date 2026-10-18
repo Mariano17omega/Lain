@@ -109,6 +109,14 @@ class Windows:
                 window.close()
 
 
+def close_view(qtbot, main_window, view) -> None:
+    """Close a 3D window of ``main_window`` and wait for its view: ``view3d.plot`` is written in the
+    controller's save queue, and the toast of a failed write comes back after it (spec 47 R3)."""
+    controller = main_window.structure3d
+    view.close()
+    qtbot.waitUntil(lambda: not controller.saving, timeout=10_000)
+
+
 def camera_state(canvas) -> tuple:
     camera = canvas.camera
     return float(camera.zoom), camera.pan.copy(), camera.rotation.copy()
