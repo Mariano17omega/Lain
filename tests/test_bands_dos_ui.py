@@ -1,4 +1,5 @@
-"""Spec 22 in the window: "Bandas com DOS" in the grid's menu, its tab, settings and export."""
+"""Spec 22 in the window: "Bandas com DOS" in the grid's menu and from "Gerar Plot" with the two folders
+selected, its tab, settings and export."""
 
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from PyQt6.QtWidgets import QMenu, QMessageBox, QPushButton
 from grid_helpers import menu_texts, select_names, show_folder
 from qe_studio.core.plotting.export import plan_export
 from qe_studio.core.plotting.plot_file import read_plot_file
+from qe_studio.ui.dialogs.overwrite import OverwriteChoice
 from qe_studio.ui.widgets.plot_view import PlotView
 
 
@@ -110,7 +112,7 @@ def test_edits_are_saved_in_the_bands_folder_on_close(qtbot, main_window, projec
     values, warnings = read_plot_file(bands, "bands_dos")
     assert warnings == [] and values is not None
     assert values["dos_width_ratio"] == 0.5 and values["dos_folder"] == "../04_pdos"
-    assert not (project / "04_pdos" / "bands_dos.plot").exists()
+    assert not (project / "04_pdos" / "plots" / "bands_dos.plot").exists()
 
     reopened = open_pair(qtbot, main_window, menus, "03_bands", "04_pdos")
     assert reopened.params.dos_width_ratio == 0.5
@@ -146,3 +148,114 @@ def test_a_dos_folder_that_is_gone_is_reported(qtbot, main_window, project, monk
         main_window.plot_workflow.plot_pair(project / "03_bands", project / "gone")
     assert blocker.args[0].startswith("Pasta da DOS não encontrada")
     assert warnings == [blocker.args[0]]
+
+
+# -- "Gerar Plot" with a bands folder and a PDOS folder selected in the grid -----------------------------
+
+
+def gerar_plot(qtbot, window):
+    """Click the panel's "Gerar Plot"; the session it opened and the files it saved."""
+    window.set_left_mode("params")
+    with (  # ready is waited for first: the export is asked once the tab is shown
+        qtbot.waitSignal(window.export_finished, timeout=20_000) as done,
+        qtbot.waitSignal(window.plot_ready, timeout=10_000) as ready,
+    ):
+        window.params.generate_button.click()
+    return ready.args[0], done.args[0]
+
+
+def test_gerar_plot_makes_and_saves_the_figure_of_the_selected_pair(
+    qtbot, main_window, project, monkeypatch
+):
+    asked = []
+    monkeypatch.setattr(
+        "qe_studio.ui.plot_export.ask_overwrite",
+        lambda parent, existing, stem: asked.append(stem) or (OverwriteChoice.OVERWRITE, False),
+    )
+    bands, pdos = project / "03_bands", project / "04_pdos"
+    select_names(main_window.files, "04_pdos", "03_bands")
+    session, written = gerar_plot(qtbot, main_window)
+    assert session.kind == "bands_dos" and session.paths == (bands, pdos)
+    assert bands / "plots" / "03_bands-bands_dos.png" in written
+    assert not (pdos / "plots").exists()
+    assert "Detectando cálculo…" not in main_window.plot_workflow.busy.labels
+
+    main_window.params.set_param("dos_width_ratio", 0.5)
+    again, _written = gerar_plot(qtbot, main_window)  # the same tab, redrawn with its edits
+    assert again.key == session.key and again.params.dos_width_ratio == 0.5
+    plots = [w for _k, w in main_window.workspace.items() if isinstance(w, PlotView)]
+    assert len(plots) == 1 and asked == ["03_bands-bands_dos_2"]
+
+
+def test_gerar_plot_with_two_folders_that_make_no_pair_plots_the_selected_folder(
+    qtbot, main_window, project, monkeypatch
+):
+    asked = []
+    monkeypatch.setattr(main_window.plot_workflow, "generate", lambda folder: asked.append(folder))
+    select_names(main_window.files, "01_relax", "02_scf")
+    main_window.params.generate_button.click()
+    qtbot.waitUntil(lambda: asked == [project], timeout=10_000)
+    assert main_window.current_plot() is None
+
+
+# -- the activity bar's "Plot" with a bands folder and a PDOS folder selected ---------------------------
+
+
+def test_plot_makes_the_selected_pair_then_shows_it_without_saving_again(
+    qtbot, main_window, project, monkeypatch
+):
+    asked = []
+    monkeypatch.setattr(
+        "qe_studio.ui.plot_export.ask_overwrite",
+        lambda *args: asked.append(args) or (OverwriteChoice.CANCEL, False),
+    )
+    bands = project / "03_bands"
+    select_names(main_window.files, "03_bands", "04_pdos")
+    with (
+        qtbot.waitSignal(main_window.export_finished, timeout=20_000) as done,
+        qtbot.waitSignal(main_window.plot_ready, timeout=10_000) as ready,
+    ):
+        main_window.activity.generate.click()  # never plotted: plotted and saved
+    session = ready.args[0]
+    assert (
+        session.kind == "bands_dos" and bands / "plots" / "03_bands-bands_dos.png" in done.args[0]
+    )
+    assert main_window.left.currentIndex() == 1  # the adjustments panel
+
+    view = main_window.current_plot()
+    main_window.open_file(bands / "bands.in")
+    with qtbot.assertNotEmitted(main_window.plot_ready, wait=300):
+        main_window.activity.generate.click()  # open: brought to front
+    qtbot.waitUntil(lambda: main_window.current_plot() is view, timeout=5_000)
+
+    main_window.workspace.close_key(session.key)
+    with qtbot.waitSignal(main_window.plot_ready, timeout=10_000) as ready:
+        main_window.activity.generate.click()  # plotted before: shown again, not saved
+    assert ready.args[0].kind == "bands_dos" and asked == []
+    assert "Detectando cálculo…" not in main_window.plot_workflow.busy.labels
+
+
+def test_plot_with_auto_generation_off_opens_the_panel_and_gerar_plot_makes_the_pair(
+    qtbot, window_factory, demo_project
+):
+    window = window_factory(ui={"auto_generate_plot": False})
+    show_folder(qtbot, window, demo_project, up=False)
+    select_names(window.files, "04_pdos", "03_bands")
+    with qtbot.assertNotEmitted(window.plot_ready, wait=500):
+        window.activity.generate.click()
+    qtbot.waitUntil(lambda: window.left.currentIndex() == 1, timeout=5_000)
+    assert window.current_plot() is None and not (demo_project / "03_bands" / "plots").exists()
+    session, _written = gerar_plot(qtbot, window)
+    assert session.kind == "bands_dos"
+
+
+def test_plot_with_two_folders_that_make_no_pair_plots_the_selected_folder(
+    qtbot, main_window, project, monkeypatch
+):
+    asked = []
+    monkeypatch.setattr(
+        main_window.plot_workflow, "generate", lambda folder, auto_export=True: asked.append(folder)
+    )
+    select_names(main_window.files, "01_relax", "02_scf")
+    main_window.activity.generate.click()
+    qtbot.waitUntil(lambda: asked == [project], timeout=10_000)

@@ -15,6 +15,7 @@ from PyQt6.QtCore import Qt
 from qe_studio.core.file_ops import rename_item
 from qe_studio.core.plotting.plot_file import read_plot_file
 from qe_studio.core.structure3d.camera import frame_from
+from qe_studio.core.structure3d.view_file import view_file_path
 from structure3d_helpers import (
     SI_SCF,
     SLAB_2X1,
@@ -94,7 +95,14 @@ def open_view(qtbot, main_window, path):
 
 def write_view(folder, sections) -> None:
     data = {"lain_plot": 1, "kind": "view3d", "params": sections}
-    (folder / "view3d.plot").write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    put_view(folder, yaml.safe_dump(data, sort_keys=False))
+
+
+def put_view(folder, text: str) -> None:
+    """``text`` as the folder's ``plots/view3d.plot``, written by hand."""
+    path = view_file_path(folder)
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(text, encoding="utf-8")
 
 
 def sections_of(folder) -> dict:
@@ -152,7 +160,7 @@ def test_a_saved_background_wins_over_the_theme(qtbot, window, si_folder):
 
 
 def test_an_unreadable_file_gives_a_toast_and_the_defaults(qtbot, window, si_folder, toasts):
-    (si_folder / "view3d.plot").write_text("params: [unclosed", encoding="utf-8")
+    put_view(si_folder, "params: [unclosed")
     view = open_view(qtbot, window, si_folder / NAME)
     assert toasts == [("view3d.plot inválido; usando ajustes padrão.", "warning")]
     assert view.canvas.options.radius_scale == 1.0
@@ -200,7 +208,7 @@ def test_a_changed_view_is_saved_on_close_and_restored(qtbot, window, si_folder)
 
 def test_open_and_close_without_a_change_writes_nothing(qtbot, window, si_folder):
     close_view(qtbot, window, open_view(qtbot, window, si_folder / NAME))
-    assert not (si_folder / "view3d.plot").exists()
+    assert not view_file_path(si_folder).exists()
 
 
 def test_clicks_and_measures_are_no_change(qtbot, window, si_folder):
@@ -214,14 +222,14 @@ def test_clicks_and_measures_are_no_change(qtbot, window, si_folder):
     assert len(view.panel.measures.tables["distancia"].texts()) == 1
     assert view.canvas.current is not None and not view.canvas.dirty
     close_view(qtbot, window, view)
-    assert not (si_folder / "view3d.plot").exists()
+    assert not view_file_path(si_folder).exists()
 
 
 def test_an_untouched_saved_view_leaves_the_file_as_it_was(qtbot, window, si_folder):
     write_view(si_folder, {NAME: SAVED})
-    before = stamp(si_folder / "view3d.plot")
+    before = stamp(view_file_path(si_folder))
     close_view(qtbot, window, open_view(qtbot, window, si_folder / NAME))
-    assert stamp(si_folder / "view3d.plot") == before
+    assert stamp(view_file_path(si_folder)) == before
 
 
 @pytest.mark.parametrize("how", ["key", "button"])
@@ -246,7 +254,7 @@ def test_opening_a_section_of_the_panel_is_no_change(qtbot, window, si_folder):
     view.panel.sections["Célula"].header.click()
     assert view.panel.sections["Célula"].header.isChecked()
     close_view(qtbot, window, view)
-    assert not (si_folder / "view3d.plot").exists()
+    assert not view_file_path(si_folder).exists()
 
 
 def test_a_folder_renamed_while_open_is_not_created_again(qtbot, window, si_folder, toasts):
@@ -256,7 +264,7 @@ def test_a_folder_renamed_while_open_is_not_created_again(qtbot, window, si_fold
     close_view(qtbot, window, view)
     assert toasts == [(GONE, "warning")]
     assert not si_folder.exists()
-    assert not (renamed / "view3d.plot").exists()
+    assert not view_file_path(renamed).exists()
 
 
 @NOT_ROOT
@@ -272,7 +280,7 @@ def test_a_folder_without_write_permission_gives_a_toast(qtbot, window, si_folde
     assert toasts[0][0].startswith(f"Não foi possível salvar view3d.plot em {si_folder}: ")
     assert sip.isdeleted(view) or not view.isVisible()
     assert window.structure3d.windows == []
-    assert not (si_folder / "view3d.plot").exists()
+    assert not view_file_path(si_folder).exists()
 
 
 def test_the_view_is_written_off_the_gui_thread(qtbot, window, si_folder, monkeypatch):
@@ -310,7 +318,7 @@ def test_a_window_without_the_controller_writes_nothing_into_the_fixtures(qtbot)
         assert view.canvas.dirty
     finally:
         windows.close_all()
-    assert not (FIXTURES / "si_bands" / "view3d.plot").exists()
+    assert not view_file_path(FIXTURES / "si_bands").exists()
 
 
 # -- R3.5: "Restaurar padrões" removes the section on close --------------------------------------------
@@ -321,9 +329,9 @@ def test_restoring_and_closing_removes_the_section(qtbot, window, si_folder, res
     view = open_view(qtbot, window, si_folder / NAME)
     restore_defaults(view)
     assert restore_yes and view.canvas.restored and not view.canvas.dirty
-    assert (si_folder / "view3d.plot").exists()  # removed on close, not on the click
+    assert view_file_path(si_folder).exists()  # removed on close, not on the click
     close_view(qtbot, window, view)
-    assert not (si_folder / "view3d.plot").exists()  # it was the only section
+    assert not view_file_path(si_folder).exists()  # it was the only section
     again = open_view(qtbot, window, si_folder / NAME)
     assert again.canvas.options.radius_scale == 1.0
     np.testing.assert_allclose(again.canvas.camera.rotation, ISOMETRIC, atol=1e-12)
@@ -356,18 +364,18 @@ def test_restoring_a_window_without_a_file_creates_nothing(qtbot, window, si_fol
     view.panel.radius.setValue(1.75)
     restore_defaults(view)
     close_view(qtbot, window, view)
-    assert not (si_folder / "view3d.plot").exists()
+    assert not view_file_path(si_folder).exists()
 
 
 def test_restoring_answered_no_leaves_the_file(qtbot, window, si_folder, monkeypatch):
     monkeypatch.setattr("qe_studio.ui.widgets.structure3d.panel.ask_restore", lambda parent: False)
     write_view(si_folder, {NAME: SAVED})
-    before = stamp(si_folder / "view3d.plot")
+    before = stamp(view_file_path(si_folder))
     view = open_view(qtbot, window, si_folder / NAME)
     restore_defaults(view)
     assert not view.canvas.restored
     close_view(qtbot, window, view)
-    assert stamp(si_folder / "view3d.plot") == before
+    assert stamp(view_file_path(si_folder)) == before
 
 
 def test_restoring_in_a_renamed_folder_creates_nothing(
@@ -377,10 +385,10 @@ def test_restoring_in_a_renamed_folder_creates_nothing(
     view = open_view(qtbot, window, si_folder / NAME)
     restore_defaults(view)
     renamed = rename_item(si_folder, "06_si")
-    before = stamp(renamed / "view3d.plot")
+    before = stamp(view_file_path(renamed))
     close_view(qtbot, window, view)
     assert not si_folder.exists()
-    assert stamp(renamed / "view3d.plot") == before
+    assert stamp(view_file_path(renamed)) == before
     assert toasts == []
 
 

@@ -29,6 +29,8 @@ Requires Python ≥ 3.11 and [uv](https://docs.astral.sh/uv/). Cluster sync also
 (≥ 3.1) and `ssh` on `PATH`.
 
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc
 uv sync
 cp config.example.yaml config.yaml   # then edit paths and cluster settings
 uv run lain                           # or: uv run lain --config /path/to/config.yaml
@@ -188,7 +190,7 @@ a pull.
    **Restaurar padrões**, at the foot of the panel, asks and then puts the options and the camera back
    to a new window's (the measures and the current atom stay).
    The view is remembered: closing a window whose options or camera you changed saves them in
-   `view3d.plot`, in the calculation's folder, one section per file (two inputs of the same folder keep
+   `view3d.plot`, in `plots/` of the calculation's folder, one section per file (two inputs of the same folder keep
    their own views), and the next window on that file opens as you left it. Opening and closing without
    a change writes nothing; **Restaurar padrões** followed by closing removes that file's section, and
    deleting `view3d.plot` brings every file of the folder back to the defaults. The measures are not saved.
@@ -200,14 +202,16 @@ a pull.
    `.plot` file or figures in `plots/`) as it was, without saving again; a folder never plotted is plotted
    and saved, or, with `ui.auto_generate_plot: false`, only the adjustments panel opens and its
    **Gerar Plot** button (also Ctrl+G) plots. Generating saves the figure into `plots/` and switches the left
-   panel to the plot parameters (toggle back with **Árvore**). The tab area starts hidden and
+   panel to the plot parameters (toggle back with **Árvore**). With a bands folder and a PDOS folder selected
+   in the grid, **Plot** and **Gerar Plot** do the same with their **Bandas com DOS** figure (the one the
+   right-click menu opens), saved into the bands folder's `plots/`. The tab area starts hidden and
    opens when a plot is generated or a file is opened. **Grids** (also in the
    activity bar) joins open plots in one figure; hide the plots with the **Gráficos** toggle.
 3. Tune the plot. Zooming or panning with the toolbar updates the energy window, and
    **Exportar** (Ctrl+E) saves again. Hovering the plot shows the values under the cursor in the
    toolbar (k and energy with the nearest high-symmetry point, PDOS, relax step, SCF iteration). Your settings are kept in `<kind>.plot` (e.g. `bands.plot`)
-   inside the simulation folder and come back the next time you plot it; **Restaurar padrões**
-   deletes it.
+   in the simulation's `plots/` folder and come back the next time you plot it; **Restaurar padrões**
+   deletes it. A `.plot` that older versions left in the simulation folder itself is no longer read.
 4. **Rsync** pulls the folder from the cluster.
 
 ## Development

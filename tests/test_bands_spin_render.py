@@ -197,7 +197,8 @@ def test_default_spin_parameters():
 
 def test_an_old_bands_plot_file_without_spin_fields_loads_the_defaults(tmp_path, spin):
     module, dataset, params = spin
-    (tmp_path / "bands.plot").write_text(
+    (tmp_path / "plots").mkdir()
+    (tmp_path / "plots" / "bands.plot").write_text(
         "lain_plot: 1\nkind: bands\nparams:\n  emin: -3.0\n  emax: 3.0\n  reference: absolute\n"
     )
     stored, warnings = read_plot_file(tmp_path, "bands")

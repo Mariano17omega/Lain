@@ -1,4 +1,6 @@
-"""Plot settings saved next to the simulation as ``<kind>.plot`` (YAML), one file per plot kind.
+"""Plot settings saved in the simulation's ``plots/`` as ``<kind>.plot`` (YAML), one file per
+plot kind, next to the exported figures. A ``.plot`` that older versions left in the simulation
+folder itself is not read.
 
 The file holds every field of the module's parameter dataclass except those kept in a user store
 (``stored_elsewhere``). It is read in the load worker and applied over ``default_params`` field by
@@ -24,6 +26,7 @@ from matplotlib.colors import is_color_like
 
 from ..appdirs import atomic_write_text
 from ..calculations.params import ParamField
+from .names import PLOTS_DIR
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +65,8 @@ class WriteOrder:
 
 
 def plot_file_path(folder: Path, kind: str) -> Path:
-    return Path(folder) / f"{kind}{SUFFIX}"
+    """``<folder>/plots/<kind>.plot``: the write creates ``plots/`` when it is missing."""
+    return Path(folder) / PLOTS_DIR / f"{kind}{SUFFIX}"
 
 
 def read_plot_file(folder: Path, kind: str) -> tuple[dict[str, Any] | None, list[str]]:

@@ -176,7 +176,7 @@ def test_closing_a_plot_tab_from_the_menu_saves_its_settings(
     with qtbot.waitSignal(window.plot_ready, timeout=10_000):
         window.generate_plot_for(folder, auto_export=False)
     window.params.set_param("emin", -3.0)  # pending: the debounce has not written it yet
-    assert not (folder / "bands.plot").exists()
+    assert not (folder / "plots" / "bands.plot").exists()
     menu_choice[0][0] = "Fechar todas"
     window.workspace.tabs.bar.menu_requested.emit(0, QPoint())
     assert window.workspace.current() is None

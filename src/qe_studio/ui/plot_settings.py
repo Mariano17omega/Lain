@@ -1,4 +1,4 @@
-"""Plot settings files ``<simulation>/<kind>.plot``: written after edits, off the GUI thread.
+"""Plot settings files ``<simulation>/plots/<kind>.plot``: written after edits, off the GUI thread.
 
 Every read, write and removal runs in one private single-thread pool, so they happen in the order
 they were asked for (a regenerate reads what closing the tab just wrote) and the GUI thread never

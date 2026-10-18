@@ -246,8 +246,8 @@ def test_an_old_plot_file_with_atoms_is_ignored_quietly(two_al, tmp_path):
     ignored = apply_stored(params, {"atoms": [1], "emin": -3.0}, module.param_schema(dataset))
     assert params.atoms is None and params.emin == -3.0 and ignored == []
     folder = tmp_path / "old"
-    folder.mkdir()
-    (folder / "pdos.plot").write_text(
+    (folder / "plots").mkdir(parents=True)
+    (folder / "plots" / "pdos.plot").write_text(
         "lain_plot: 1\nkind: pdos\nparams:\n  atoms: [1]\n  emin: -2.0\n"
     )
     stored, warnings = read_plot_file(folder, "pdos")

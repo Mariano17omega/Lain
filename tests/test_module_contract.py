@@ -147,7 +147,7 @@ def test_dummy_is_detected_loaded_plotted_saved_and_exported(dummy_folder):
     session = PlotSession(result, dataset, params)
 
     params.color = "#00ff00"
-    assert write_plot_file(dummy_folder, "dummy", params) == dummy_folder / "dummy.plot"
+    assert write_plot_file(dummy_folder, "dummy", params) == dummy_folder / "plots" / "dummy.plot"
     stored, warnings = read_plot_file(dummy_folder, "dummy")
     stored["color"] = "nope"  # a hand-edited file: dropped, the default stays
     fresh = DUMMY.default_params(AppConfig(), dataset)
@@ -436,7 +436,7 @@ def test_the_window_offers_and_saves_a_store_backed_parameter(
     assert seen == [(5, [2, 3])] and session.params.pick == [4]
     assert window.compounds.selection(STORE_KEY) == [4]
     window.plot_settings.flush_now()
-    assert not (dummy_folder / "dummy.plot").exists()  # not a plot edit
+    assert not (dummy_folder / "plots" / "dummy.plot").exists()  # not a plot edit
 
 
 def test_modules_without_atoms_have_neutral_hooks(dummy_folder):

@@ -17,7 +17,7 @@ FieldKind = Literal["float", "int", "bool", "color", "choice", "text", "labels",
 @dataclass(frozen=True)
 class SectionDef:
     name: str
-    export: bool = False  # the section that gets the "Salvar em plots/" button
+    export: bool = False  # the export section (formats, DPI): always the last one
 
 
 # Sections every plot has. Modules add their own with ``CalculationModule.sections``.

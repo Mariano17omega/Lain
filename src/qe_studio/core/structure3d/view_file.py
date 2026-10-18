@@ -2,14 +2,14 @@
 
 A member of the ``<kind>.plot`` family (``lain_plot: 1``, ``kind: view3d``, read by
 ``plot_file.read_plot_file``) whose ``params`` map a file name (``scf.in``) to its section
-(``view_state.session_of``). The key is the name, not the path: the file lives in the folder of its
-``view3d.plot``, so a moved or renamed folder takes its views along.
+(``view_state.session_of``). The key is the name, not the path: the file lives in the folder whose
+``plots/`` holds the ``view3d.plot``, so a moved or renamed folder takes its views along.
 
 Writing touches only its own section: the others stay as they were read (order and unknown keys), and an
 unreadable file or one of another version is replaced, like ``write_plot_file`` does with a ``.plot``. A
-folder that is gone is never created again (``atomic_write_text`` would make it: a window closed after
-its folder was renamed would leave a ghost folder under the old name). Nothing here raises: what went
-wrong comes back as a sentence for the user.
+folder that is gone is never created again (``atomic_write_text`` would make it and its ``plots/``:
+a window closed after its folder was renamed would leave a ghost folder under the old name). Nothing
+here raises: what went wrong comes back as a sentence for the user.
 """
 
 from __future__ import annotations

@@ -237,7 +237,7 @@ class CalculationModule(Generic[D, P]):
     plot_file_tip: ClassVar[str] = "Plotar o arquivo aberto"
     # Offered in the manual mapping dialog. False for figures built from other results (spec 22).
     selectable: ClassVar[bool] = True
-    # Parameters kept in ``<folder>/<kind>.plot``. False: every edit goes to ``save_stored`` (a grid).
+    # Parameters kept in ``<folder>/plots/<kind>.plot``. False: edits go to ``save_stored`` (grid).
     plot_file: ClassVar[bool] = True
     # Can be a cell of a grid (spec 23); a grid cannot.
     grid_cell: ClassVar[bool] = True

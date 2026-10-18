@@ -168,7 +168,7 @@ def test_restore_defaults_removes_the_file_after_queued_writes(
     )
     rig.workflow.restore_defaults()  # …and the removal after it
     rig.settings.flush_now()
-    assert not (folder / "bands.plot").exists() and session.params == session.defaults
+    assert not (folder / "plots" / "bands.plot").exists() and session.params == session.defaults
 
 
 # -- a repeated request for a plot that is loading replaces it (spec 27-9 R2) ----------------------

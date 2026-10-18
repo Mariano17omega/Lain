@@ -40,7 +40,6 @@ class ParamsBody(QWidget):
     """
 
     changed = pyqtSignal(str)  # parameter name
-    export_requested = pyqtSignal()
     remap_requested = pyqtSignal()
     restore_requested = pyqtSignal()
 
@@ -76,10 +75,6 @@ class ParamsBody(QWidget):
             section = self._section(definition.name)
             for field in fields:
                 self._add_field(section, field)
-            if definition.export:
-                button = set_variant(QPushButton("Salvar em plots/"), "primary")
-                button.clicked.connect(self.export_requested)
-                section.add_full(button)
             column.addWidget(section)
         if module.plot_file:  # what "Restaurar padrões" removes; a grid keeps its settings
             restore = QPushButton("Restaurar padrões")

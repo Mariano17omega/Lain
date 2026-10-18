@@ -120,8 +120,9 @@ class ActivityBar(QWidget):
             theme,
             "bolt",
             "Plot",
-            "Plotar a pasta selecionada; com a geração automática desligada "
-            "(ui.auto_generate_plot) só abre os ajustes",
+            "Plotar a pasta selecionada (com uma pasta de bandas e uma de PDOS selecionadas na "
+            "grade: Bandas com DOS); com a geração automática desligada (ui.auto_generate_plot) "
+            "só abre os ajustes",
         )
         # A grid of the open plots in one figure (spec 23).
         self.grids = ActivityButton(

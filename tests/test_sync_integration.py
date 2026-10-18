@@ -284,9 +284,10 @@ def test_temp_cleanup_lists_each_folder_once(tmp_path, monkeypatch):
     real = os.scandir
     monkeypatch.setattr(os, "scandir", lambda path: scanned.append(path) or real(path))
     controller._remove_temp_files()
+    # Checked before the listings below: ``Path.iterdir`` calls ``os.scandir`` too (Python 3.13).
+    assert sorted(scanned) == [tmp_path / "other", tmp_path / "run"]
     assert sorted(p.name for p in (tmp_path / "run").iterdir()) == [".keep.out.Ab12Cd", "f1.out"]
     assert list((tmp_path / "other").iterdir()) == []
-    assert len(scanned) == 2
 
 
 # -- files that change while the preview is open (spec 27-3 R3.1) ---------------------------------

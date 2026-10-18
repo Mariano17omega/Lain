@@ -44,6 +44,7 @@ from ..core.plotting.session import PlotSession, build_session, load_plot, targe
 from ..core.tasks import TaskGroup
 from .busy import BusyTracker
 from .dialogs.mapping import ask_mapping
+from .generate_plot import GeneratePlot
 from .plot_button import PlotButton
 from .plot_export import EXPORT_WAIT_MS, PlotExporter
 from .plot_settings import PlotSettingsStore
@@ -113,6 +114,7 @@ class PlotWorkflow(QObject):
         self._previews: set[str] = set()  # keys of the open tabs that ``plot_file`` showed
         self._loads = TaskGroup()  # by plot key, in the global pool
         self.button = PlotButton(self, config)  # the activity bar's "Plot"
+        self.generator = GeneratePlot(self)  # the panel's "Gerar Plot" and Ctrl+G
         self._replacing: str | None = None  # key of the tab a new session is about to replace
         self._plot_file_source: tuple[Path, str] | None = None  # what the "Plotar …" button plots
         # Busy indicator (spec 15 R2): counted by name, so a task that never ends cannot leave a
@@ -132,7 +134,6 @@ class PlotWorkflow(QObject):
         workspace.current_changed.connect(self._on_tab_changed)
         workspace.tab_closing.connect(self._on_tab_closing)
         params.changed.connect(self._on_param_changed)
-        params.export_requested.connect(self.export)
         params.remap_requested.connect(self.remap)
         params.restore_requested.connect(self.restore_defaults)
         settings.warning.connect(self._on_settings_warning)
@@ -178,7 +179,7 @@ class PlotWorkflow(QObject):
     def plot_file(self, path: Path, kind: str) -> None:
         """Preview the plot of one output file (context-menu "Plotar", "Plotar SCF" button).
 
-        Not saved to plots/: "Salvar em plots/" / Ctrl+E does that.
+        Not saved to plots/: "Exportar" / Ctrl+E does that.
         """
         module = module_for(kind)
         assert module.single_file_role is not None
@@ -186,11 +187,11 @@ class PlotWorkflow(QObject):
         target = ManualTarget(module, path.parent, mapping, self.service.sniff_cache.sniff)
         self._load(target, False, preview=True)
 
-    def plot_pair(self, bands: Path, dos: Path) -> None:
+    def plot_pair(self, bands: Path, dos: Path, auto_export: bool = False) -> None:
         """ "Bandas com DOS" (spec 22): both folders are detected and paired in the load worker.
-        Not saved to plots/; an open figure of the same pair is replaced, keeping its edits."""
+        Saved to plots/ for "Gerar Plot" only; an open figure of the pair is redone, edits kept."""
         sniff = self.service.sniff_cache.sniff
-        self._load(PairTarget(bands, dos, sniff, self.memory), auto_export=False)
+        self._load(PairTarget(bands, dos, sniff, self.memory), auto_export)
 
     def plot_open_file(self) -> None:
         if self._plot_file_source is not None:
@@ -225,6 +226,7 @@ class PlotWorkflow(QObject):
         """Window close: the datasets being loaded are not wanted any more."""
         self._loads.cancel_all()
         self.button.cancel()
+        self.generator.cancel()
 
     def shutdown(self, timeout_ms: int = EXPORT_WAIT_MS) -> bool:
         """Window close: loads are dropped, exports finish (no half-written files)."""

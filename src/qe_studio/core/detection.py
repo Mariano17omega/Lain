@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,7 +15,7 @@ from .calculations import (
     describe_plottable,
     module_for,
 )
-from .calculations.bands_dos import ordered_pair, pair_result
+from .calculations.bands_dos import bands_dos_pair, ordered_pair, pair_result
 from .calculations.base import LoadError, SniffFn
 from .folder_memory import FolderMemory
 from .plotting.grid import PlotRef
@@ -162,13 +162,26 @@ class PairTarget:
     def from_plot_file(
         cls, bands: Path, sniff: SniffFn, memory: FolderMemory | None = None
     ) -> PairTarget | None:
-        """The pair saved in ``bands/bands_dos.plot`` (its ``dos_folder``), to reopen the figure
-        from the bands folder alone; None without one. Reads a file: worker only."""
+        """The pair saved in ``bands/plots/bands_dos.plot`` (its ``dos_folder``), to reopen the
+        figure from the bands folder alone; None without one. Reads a file: worker only."""
         values, _warnings = read_plot_file(bands, PAIR_KIND)
         partner = (values or {}).get("dos_folder")
         if not isinstance(partner, str) or not partner:
             return None
         return cls(bands, Path(os.path.normpath(bands / partner)), sniff, memory)
+
+    @classmethod
+    def from_selection(
+        cls, paths: Sequence[Path], sniff: SniffFn, memory: FolderMemory | None = None
+    ) -> PairTarget | None:
+        """The pair two selected folders make, in either order (what the grid menu's "Bandas com
+        DOS" offers, here for "Gerar Plot"); None for any other selection: not two folders, or two
+        that make no pair. Detects both folders: worker only."""
+        if len(paths) != 2 or not all(path.is_dir() for path in paths):
+            return None
+        once = sniff_once(sniff)
+        found = bands_dos_pair(*(detect_folder(path, once, memory) for path in paths))
+        return None if found is None else cls(found.bands.folder, found.dos.folder, sniff, memory)
 
 
 @dataclass(frozen=True)

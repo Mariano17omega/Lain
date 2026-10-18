@@ -53,7 +53,7 @@ def test_the_panel_offers_the_spin_section_and_rerenders_on_edit(qtbot, main_win
     )
     assert view.toolbar.message.text().startswith("k = ")
 
-    qtbot.waitUntil(lambda: (folder / "bands.plot").exists(), timeout=5000)
+    qtbot.waitUntil(lambda: (folder / "plots" / "bands.plot").exists(), timeout=5000)
     stored, _ = read_plot_file(folder, "bands")
     assert stored["spin_layout"] == "side" and stored["xmin"] == 0.5
 

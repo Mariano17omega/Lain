@@ -32,7 +32,7 @@ def pdos_schema():
 def test_round_trip_bands(tmp_path):
     params = BandsParams(emin=-6.0, xmin=0.5, labels="W, G, X", background="#123456")
     path = write_plot_file(tmp_path, "bands", params)
-    assert path == tmp_path / "bands.plot" and path.read_text().startswith(HEADER)
+    assert path == tmp_path / "plots" / "bands.plot" and path.read_text().startswith(HEADER)
     stored, warnings = read_plot_file(tmp_path, "bands")
     assert warnings == []
     fresh = BandsParams()
@@ -56,7 +56,20 @@ def test_round_trip_pdos(tmp_path):
 
 
 def test_missing_file_is_silent(tmp_path):
+    assert read_plot_file(tmp_path, "bands") == (None, [])  # no plots/ either
+    (tmp_path / "plots").mkdir()
     assert read_plot_file(tmp_path, "bands") == (None, [])
+
+
+def test_a_plot_file_in_the_simulation_folder_itself_is_not_read(tmp_path):
+    """Older versions wrote ``<folder>/<kind>.plot``: it is ignored and left as it is."""
+    old = tmp_path / "bands.plot"
+    old.write_text("lain_plot: 1\nkind: bands\nparams: {emin: -1.0}\n")
+    assert read_plot_file(tmp_path, "bands") == (None, [])
+    write_plot_file(tmp_path, "bands", BandsParams(emin=-2.0))  # creates plots/
+    assert read_plot_file(tmp_path, "bands")[0]["emin"] == -2.0
+    delete_plot_file(tmp_path, "bands")
+    assert old.exists() and not (tmp_path / "plots" / "bands.plot").exists()
 
 
 @pytest.mark.parametrize(
@@ -70,7 +83,9 @@ def test_missing_file_is_silent(tmp_path):
     ],
 )
 def test_unusable_files_are_ignored(tmp_path, text, fragment):
-    plot_file_path(tmp_path, "bands").write_text(text)
+    path = plot_file_path(tmp_path, "bands")
+    path.parent.mkdir()
+    path.write_text(text)
     stored, warnings = read_plot_file(tmp_path, "bands")
     assert stored is None and len(warnings) == 1 and fragment in warnings[0]
 

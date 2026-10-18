@@ -253,11 +253,18 @@ def test_a_valid_camera_comes_back_and_no_mapping_is_none():
 # -- the file ------------------------------------------------------------------------------------------
 
 
+def put_view(folder, text: str) -> None:
+    """``text`` as the folder's ``plots/view3d.plot``, written by hand."""
+    path = view_file_path(folder)
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
 def test_write_session_creates_the_file_of_the_plot_family(tmp_path):
     session = a_session()
     assert write_session(tmp_path, "scf.in", session) is None
     text = view_file_path(tmp_path).read_text(encoding="utf-8")
-    assert view_file_path(tmp_path) == tmp_path / "view3d.plot"
+    assert view_file_path(tmp_path) == tmp_path / "plots" / "view3d.plot"
     assert text.startswith(HEADER)
     data = yaml.safe_load(text)
     assert (data["lain_plot"], data["kind"]) == (1, "view3d")
@@ -291,7 +298,7 @@ def test_a_second_name_adds_a_section_and_the_same_name_replaces_only_its_own(tm
     ids=["broken", "version-2"],
 )
 def test_an_unreadable_file_is_replaced(tmp_path, text):
-    view_file_path(tmp_path).write_text(text, encoding="utf-8")
+    put_view(tmp_path, text)
     session, warnings = read_session(tmp_path, "scf.in")
     assert session is None and len(warnings) == 1
     assert write_session(tmp_path, "scf.in", a_session()) is None
@@ -299,9 +306,7 @@ def test_an_unreadable_file_is_replaced(tmp_path, text):
 
 
 def test_a_section_that_is_no_mapping_reads_as_none(tmp_path):
-    view_file_path(tmp_path).write_text(
-        "lain_plot: 1\nkind: view3d\nparams: {scf.in: [1, 2]}\n", encoding="utf-8"
-    )
+    put_view(tmp_path, "lain_plot: 1\nkind: view3d\nparams: {scf.in: [1, 2]}\n")
     assert read_session(tmp_path, "scf.in") == (None, [])
 
 
@@ -347,7 +352,8 @@ def test_removing_the_last_section_removes_the_file(tmp_path):
     write_session(tmp_path, "scf.in", a_session())
     assert remove_session(tmp_path, "scf.in") is None
     assert not view_file_path(tmp_path).exists()
-    assert list(tmp_path.iterdir()) == []
+    assert list(tmp_path.iterdir()) == [tmp_path / "plots"]  # made by the write, left empty
+    assert list((tmp_path / "plots").iterdir()) == []
 
 
 def test_nothing_to_remove_creates_or_changes_nothing(tmp_path):
@@ -376,15 +382,16 @@ def test_a_removal_without_write_permission_gives_a_warning(tmp_path, names):
     for name in names:
         write_session(folder, name, a_session())
     before = stamp(view_file_path(folder))
-    folder.chmod(0o500)
+    plots = view_file_path(folder).parent
+    plots.chmod(0o500)
     try:
         message = remove_session(folder, "scf.in")
         assert message is not None
         assert message.startswith(f"Não foi possível atualizar view3d.plot em {folder}: ")
         assert stamp(view_file_path(folder)) == before
-        assert sorted(p.name for p in folder.iterdir()) == ["view3d.plot"]
+        assert sorted(p.name for p in plots.iterdir()) == ["view3d.plot"]
     finally:
-        folder.chmod(0o700)
+        plots.chmod(0o700)
 
 
 def test_load_view_reads_the_structure_and_the_section_of_its_file(tmp_path):

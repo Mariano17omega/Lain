@@ -33,7 +33,6 @@ class ParamsPanel(QWidget):
     changed = pyqtSignal(str)  # parameter name
     back_requested = pyqtSignal()
     remap_requested = pyqtSignal()
-    export_requested = pyqtSignal()
     generate_requested = pyqtSignal()
     restore_requested = pyqtSignal()
 
@@ -58,11 +57,13 @@ class ParamsPanel(QWidget):
         self.back_button = header.add_button(IconButton(theme, "account_tree", "Voltar à árvore"))
         self.back_button.clicked.connect(self.back_requested)
         layout.addWidget(header)
-        # Plots the selected folder whatever ``ui.auto_generate_plot`` says (the sidebar "Plot").
+        # Plots and saves the selected folder whatever ``ui.auto_generate_plot`` says (the sidebar
+        # "Plot"), or the bands + DOS figure of two folders selected in the grid (``GeneratePlot``).
         self.generate_button = set_variant(QPushButton("Gerar Plot"), "primary")
         self.generate_button.setObjectName("generatePlotButton")
         self.generate_button.setToolTip(
-            "Detectar o tipo de cálculo e plotar a pasta selecionada (Ctrl+G)"
+            "Detectar o tipo de cálculo, plotar a pasta selecionada e salvar em plots/ (Ctrl+G).\n"
+            "Com uma pasta de bandas e uma de PDOS selecionadas na grade: Bandas com DOS."
         )
         self.generate_button.clicked.connect(self.generate_requested)
         bar = QWidget()
@@ -138,7 +139,6 @@ class ParamsPanel(QWidget):
     def _build(self, session: PlotSession[Dataset, CommonParams]) -> ParamsBody:
         body = ParamsBody(self.theme, session, self.settings)
         body.changed.connect(self.changed)
-        body.export_requested.connect(self.export_requested)
         body.remap_requested.connect(self.remap_requested)
         body.restore_requested.connect(self.restore_requested)
         scroll = QScrollArea()

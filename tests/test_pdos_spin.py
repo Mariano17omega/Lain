@@ -214,7 +214,8 @@ def test_spin_mode_is_offered_only_for_a_spin_polarized_pdos(spin):
 
 def test_an_old_pdos_plot_file_loads_with_the_mirror_mode(tmp_path, spin):
     module, dataset, params = spin
-    (tmp_path / "pdos.plot").write_text(
+    (tmp_path / "plots").mkdir()
+    (tmp_path / "plots" / "pdos.plot").write_text(
         "lain_plot: 1\nkind: pdos\nparams:\n  emin: -3.0\n  grouping: species\n"
     )
     stored, warnings = read_plot_file(tmp_path, "pdos")

@@ -228,7 +228,7 @@ def test_the_choice_is_saved_for_the_compound_and_replots(
     assert CompoundStore(window.compounds.path).selection(key) == [2]
     qtbot.waitUntil(lambda: "1 de 2 átomos" in (session.info.summary if session.info else ""))
     window.plot_settings.flush_now()
-    assert not (folders[0] / "pdos.plot").exists()  # picking atoms is not a plot edit
+    assert not (folders[0] / "plots" / "pdos.plot").exists()  # picking atoms is not a plot edit
 
 
 def test_the_button_with_the_real_window_filters_the_plot(qtbot, window_factory, folders):

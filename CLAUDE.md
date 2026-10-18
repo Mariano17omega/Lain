@@ -53,8 +53,9 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
   pydantic field in `core/config.py` plus both copies of `config.example.yaml` (root and
   `src/qe_studio/resources/`, kept identical by `tests/test_config.py`).
 - **Where state lives:** UI state in QSettings; per-root data (folder mappings, grids, PDOS atom selections,
-  favorites/recents) in `<local_root>/.lain/` (only `core/project_data.py` names that folder); plot settings in
-  `<simulation>/<kind>.plot`; exports in `<simulation>/plots/`. Nothing else is written into simulation folders.
+  favorites/recents) in `<local_root>/.lain/` (only `core/project_data.py` names that folder); plot settings
+  (`<kind>.plot`, `view3d.plot`) and exports in `<simulation>/plots/`. Nothing else is written into simulation
+  folders.
 - **Data integrity:** never overwrite a user file without asking (`core/unique_names.py`, `_2` suffixes; the export
   asks first). Data files are written whole with `core/appdirs.py:atomic_write_text`.
 

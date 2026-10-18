@@ -1,10 +1,12 @@
 """Whether a simulation folder was plotted before: what the sidebar "Plot" shows without asking.
 
-Two things say so: a ``<kind>.plot`` (the settings of a plot the user edited) and figures in
-``plots/`` (what "Gerar Plot" and Ctrl+E write: a file in an export format). The 3D window's
+Two things in its ``plots/`` say so: a ``<kind>.plot`` (the settings of a plot the user edited) and
+figures (what "Gerar Plot" and Ctrl+E write: a file in an export format). The 3D window's
 ``view3d.plot`` and its prints (``…-3d.png``), a grid's exports (``grid_*``, in the project root) and
-whatever else is in ``plots/`` (the ``.….tmp`` of an export that crashed, a CSV, a note, a folder) are
-not plots of the folder. Reads the folder, so it runs in a worker.
+whatever else is there (the ``.….tmp`` of an export that crashed, a CSV, a note, a folder) are not
+plots of the folder, nor is a ``.plot`` that older versions left in the folder itself (not read any
+more). Asked for one kind (the bands + DOS figure of two selected folders, kept in the bands folder),
+only that kind's ``<kind>.plot`` and figures count. Reads the folder, so it runs in a worker.
 """
 
 from __future__ import annotations
@@ -23,15 +25,24 @@ GRID_PREFIX = "grid_"
 PRINT = re.compile(r"-3d(_\d+)?$")  # image_file.print_stem: ``<prefix>-3d``, ``…_2`` if taken
 
 
-def was_plotted(folder: Path) -> bool:
-    """True when ``folder`` has a ``.plot`` file or an exported figure of its own. Never raises."""
+def was_plotted(folder: Path, kind: str | None = None) -> bool:
+    """True when ``folder/plots`` has a ``.plot`` file or an exported figure of the folder's own;
+    with ``kind``, of that kind: its ``<kind>.plot`` or a figure named after it (``…-<kind>``, the
+    default ``export_stem``, or ``…-<kind>_2``). Never raises."""
+    named = None if kind is None else re.compile(rf"(^|-){re.escape(kind)}(_\d+)?$")
     try:
-        for entry in Path(folder).iterdir():
-            if entry.name.endswith(SUFFIX) and entry.name not in NOT_A_PLOT and entry.is_file():
-                return True
-        return any(_is_figure(e) for e in (Path(folder) / PLOTS_DIR).iterdir())
+        return any(
+            _is_settings(e, kind) or (_is_figure(e) and (named is None or named.search(e.stem)))
+            for e in (Path(folder) / PLOTS_DIR).iterdir()
+        )
     except OSError:
         return False
+
+
+def _is_settings(entry: Path, kind: str | None = None) -> bool:
+    if kind is not None and entry.name != kind + SUFFIX:
+        return False
+    return entry.name.endswith(SUFFIX) and entry.name not in NOT_A_PLOT and entry.is_file()
 
 
 def _is_figure(entry: Path) -> bool:

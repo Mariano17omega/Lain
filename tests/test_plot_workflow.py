@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QCheckBox, QDoubleSpinBox, QLabel, QMessageBox, QPus
 
 from qe_studio.core import detection as detection_module
 from qe_studio.core.calculations.base import Method
-from qe_studio.core.plotting.plot_file import read_plot_file
+from qe_studio.core.plotting.plot_file import plot_file_path, read_plot_file
 from qe_studio.ui.dialogs.overwrite import OverwriteChoice
 from qe_studio.ui.widgets.param_widgets import Section, SeriesList
 from qe_studio.ui.widgets.plot_view import PlotView
@@ -478,7 +478,7 @@ def test_legacy_labels_only_without_plot_file(qtbot, main_window, demo_project, 
 def test_plot_settings_persist(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     folder = demo_project / "03_bands"
-    path = folder / "bands.plot"
+    path = folder / "plots" / "bands.plot"
     session = generate(qtbot, window, folder, auto_export=False)
     window.plot_settings.flush_now()
     assert not path.exists()  # generating alone never writes
@@ -501,7 +501,7 @@ def test_pan_zoom_is_saved(qtbot, main_window, demo_project, no_dialogs):
     ax.set_xlim(0.5, 2.0)
     window.current_plot()._on_release(None)
     window.plot_settings.flush_now()
-    stored = yaml.safe_load((folder / "bands.plot").read_text())["params"]
+    stored = yaml.safe_load(plot_file_path(folder, "bands").read_text())["params"]
     assert (stored["emin"], stored["emax"], stored["xmin"], stored["xmax"]) == (-2.0, 1.0, 0.5, 2.0)
 
 
@@ -523,17 +523,19 @@ def test_restore_defaults(qtbot, main_window, demo_project, no_dialogs, monkeypa
     )
     button.click()
     assert "bands.plot" in asked[0]
-    assert session.params == session.defaults and not (folder / "bands.plot").exists()
+    assert session.params == session.defaults and not plot_file_path(folder, "bands").exists()
     figure = window.current_plot().figure
     assert figure.axes[0].get_ylim() == (-5.0, 5.0) and to_hex(figure.get_facecolor()) == "#ffffff"
     window.plot_settings.flush_now()
-    assert not (folder / "bands.plot").exists()
+    assert not plot_file_path(folder, "bands").exists()
 
 
 def test_invalid_plot_file_is_reported(qtbot, main_window, demo_project, no_dialogs):
     window = main_window
     folder = demo_project / "03_bands"
-    (folder / "bands.plot").write_text("lain_plot: 1\nkind: bands\nparams: [broken")
+    path = plot_file_path(folder, "bands")
+    path.parent.mkdir()
+    path.write_text("lain_plot: 1\nkind: bands\nparams: [broken")
     session = generate(qtbot, window, folder, auto_export=False)
     assert session.params == session.defaults
     assert window.status.message.text() == "bands.plot inválido; usando ajustes padrão."
@@ -556,7 +558,7 @@ def test_read_only_folder_warns_once(qtbot, main_window, demo_project, no_dialog
         assert window.status.message.text() == ""  # once per plot and run
     finally:
         folder.chmod(0o755)
-    assert not (folder / "bands.plot").exists()
+    assert not plot_file_path(folder, "bands").exists()
 
 
 def test_generate_plot_button_generates_and_saves(qtbot, main_window, demo_project, no_dialogs):
@@ -569,6 +571,8 @@ def test_generate_plot_button_generates_and_saves(qtbot, main_window, demo_proje
     with qtbot.waitSignals([window.plot_ready, window.export_finished], timeout=10_000):
         button.click()
     assert (folder / "plots" / "03_bands-bands.png").exists()
+    texts = [b.text() for b in window.params.body.findChildren(QPushButton)]
+    assert "Salvar em plots/" not in texts  # "Gerar Plot" saves; so do Ctrl+E and "Exportar"
 
 
 def test_readout_follows_the_plot_on_screen(qtbot, main_window, demo_project, no_dialogs):

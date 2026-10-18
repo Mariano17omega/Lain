@@ -122,6 +122,31 @@ def test_the_pair_target_refuses_folders_that_no_longer_pair(demo_project):
         PairTarget(pdos, bands, SniffCache().sniff).build()  # the roles swapped
 
 
+def test_a_selection_of_a_bands_and_a_pdos_folder_is_their_pair(demo_project):
+    """ "Gerar Plot" with two folders selected in the grid: either order gives the same figure."""
+    bands, pdos = demo_project / "03_bands", demo_project / "04_pdos"
+    sniff = SniffCache().sniff
+    for selection in ([bands, pdos], [pdos, bands]):
+        target = PairTarget.from_selection(selection, sniff)
+        assert target is not None and (target.bands, target.dos) == (bands, pdos)
+        assert target.sniff is sniff and target_key(target) == f"plot:bands_dos:{bands}|{pdos}"
+
+
+@pytest.mark.parametrize(
+    "names",
+    [
+        ("01_relax", "02_scf"),  # two folders, no pair
+        ("03_bands",),
+        ("01_relax", "03_bands", "04_pdos"),
+        ("03_bands/bands.in", "04_pdos"),  # a file
+        ("03_bands", "gone"),
+    ],
+)
+def test_any_other_selection_is_no_pair(demo_project, names):
+    paths = [demo_project / name for name in names]
+    assert PairTarget.from_selection(paths, SniffCache().sniff) is None
+
+
 def test_the_module_is_never_detected_nor_offered_for_mapping(demo_project):
     for folder in sorted(p for p in demo_project.iterdir() if p.is_dir()):
         assert all(r.kind != "bands_dos" for r in results(folder)), folder.name

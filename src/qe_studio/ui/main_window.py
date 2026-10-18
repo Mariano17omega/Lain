@@ -377,10 +377,10 @@ class MainWindow(QMainWindow):
         return self.plot_workflow.current_plot()
 
     def plot_button(self) -> None:
-        self.plot_workflow.button.click(self.current_folder())
+        self.plot_workflow.button.click(self.current_folder(), self.files.selected_paths())
 
     def generate_plot(self) -> None:
-        self.generate_plot_for(self.current_folder())
+        self.plot_workflow.generator.click(self.current_folder(), self.files.selected_paths())
 
     def generate_plot_for(self, folder: Path, auto_export: bool = True) -> None:
         self.plot_workflow.generate(folder, auto_export)
