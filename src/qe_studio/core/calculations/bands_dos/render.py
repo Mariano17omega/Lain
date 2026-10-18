@@ -105,4 +105,6 @@ def format_coordinates(
     if axes_index == 0:
         return bands_render.format_coordinates(x, y, 0, dataset.bands, bands_view(params))
     name = ENERGY_NAMES.get(params.reference, ENERGY_NAMES["absolute"])
-    return f"{name} = {signed(y, '.3f')} eV · PDOS = {signed(x, '.3f')} est./eV"
+    return _("{name} = {energy} eV · PDOS = {dos} est./eV").format(
+        name=name, energy=signed(y, ".3f"), dos=signed(x, ".3f")
+    )

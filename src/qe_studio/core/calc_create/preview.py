@@ -47,7 +47,7 @@ AT_ROOT = _(
     "A pasta será criada fora de um projeto e aparecerá como um projeto novo."
 )  # spec 31 R6.2
 # After the tab label and the kind of a file edited by hand (spec 39 R2.4).
-EDITED_MARK = " (editado)"
+EDITED_MARK = _(" (editado)")
 
 
 @dataclass(frozen=True)

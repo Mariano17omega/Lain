@@ -10,12 +10,13 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QButtonGroup, QHBoxLayout, QToolButton, QWidget
 
 from ....core.calc_create.types import DEFAULT_MODE, MODES, Mode
+from ....i18n import _
 from ...widgets.common import set_variant
 
-LABELS: dict[Mode, str] = {"padrao": "Padrão", "avancado": "Avançado"}
+LABELS: dict[Mode, str] = {"padrao": _("Padrão"), "avancado": _("Avançado")}
 TIPS: dict[Mode, str] = {
-    "padrao": "Só os campos do padrão do tipo; o resto segue o SCF e o config.yaml",
-    "avancado": "Todos os campos, os nomes dos arquivos e a prévia editável",
+    "padrao": _("Só os campos do padrão do tipo; o resto segue o SCF e o config.yaml"),
+    "avancado": _("Todos os campos, os nomes dos arquivos e a prévia editável"),
 }
 
 
@@ -24,7 +25,7 @@ class ModeSwitch(QWidget):
 
     def __init__(self, mode: Mode = DEFAULT_MODE, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setAccessibleName("Modo dos campos")
+        self.setAccessibleName(_("Modo dos campos"))
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
         self.buttons: dict[Mode, QToolButton] = {}

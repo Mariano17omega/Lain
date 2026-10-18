@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.filtering import CategoryFilter
+from ...i18n import _
 from .common import set_variant
 from .flow_layout import FlowLayout
 
@@ -58,8 +59,8 @@ class FilterBar(QWidget):
         self.field.setPlaceholderText(placeholder)
         self.field.setClearButtonEnabled(True)
         self.menu_button = set_variant(QToolButton(), "filterTool")
-        self.menu_button.setText("Filtrar ▾")
-        self.menu_button.setToolTip("Filtrar por tipo ou estado")
+        self.menu_button.setText(_("Filtrar ▾"))
+        self.menu_button.setToolTip(_("Filtrar por tipo ou estado"))
         self.menu_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.menu_button.setMenu(self._build_menu(groups))
         row.addWidget(self.field, 1)
@@ -88,7 +89,9 @@ class FilterBar(QWidget):
             assert header is not None
             header.setEnabled(False)
             for value in values:
-                action = menu.addAction(value)
+                action = menu.addAction(
+                    _(value)
+                )  # the values are data, marked N_ in core/filtering
                 assert action is not None
                 action.setCheckable(True)
                 action.toggled.connect(self._on_category_toggled)
@@ -161,8 +164,8 @@ class FilterBar(QWidget):
             if not action.isChecked():
                 continue
             chip = set_variant(QToolButton(), "chip")
-            chip.setText(f"{value} ×")
-            chip.setToolTip("Remover filtro")
+            chip.setText(f"{_(value)} ×")
+            chip.setToolTip(_("Remover filtro"))
             chip.clicked.connect(lambda _checked=False, a=action: a.setChecked(False))
             self.chips_layout.addWidget(chip)
         self.chips_host.setVisible(self.chips_layout.count() > 0)

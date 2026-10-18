@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.calculations import CalculationModule, DetectionResult
+from ...i18n import _
 from ..widgets.common import set_variant
 
 
@@ -35,7 +36,7 @@ class ManualMappingDialog(QDialog):
         message: str = "",
     ):
         super().__init__(parent)
-        self.setWindowTitle("Mapear arquivos manualmente")
+        self.setWindowTitle(_("Mapear arquivos manualmente"))
         self.setModal(True)
         self.setMinimumWidth(620)
         self.folder = folder
@@ -44,17 +45,21 @@ class ManualMappingDialog(QDialog):
         self.edits: dict[str, QLineEdit] = {}
 
         layout = QVBoxLayout(self)
-        title = set_variant(QLabel("Não foi possível identificar todos os arquivos"), "dialogTitle")
+        title = set_variant(
+            QLabel(_("Não foi possível identificar todos os arquivos")), "dialogTitle"
+        )
         text = message or (
-            "Indique o tipo de cálculo e os arquivos de cada papel. "
-            "Campos marcados com * são obrigatórios."
+            _(
+                "Indique o tipo de cálculo e os arquivos de cada papel. "
+                "Campos marcados com * são obrigatórios."
+            )
         )
         layout.addWidget(title)
         layout.addWidget(set_variant(QLabel(text), "dialogText"))
         layout.addWidget(set_variant(QLabel(str(folder)), "mono"))
 
         kind_row = QHBoxLayout()
-        kind_row.addWidget(QLabel("Tipo de cálculo:"))
+        kind_row.addWidget(QLabel(_("Tipo de cálculo:")))
         self.kind = QComboBox()
         for module in modules:
             self.kind.addItem(module.display_name, module.kind)
@@ -68,14 +73,14 @@ class ManualMappingDialog(QDialog):
         self.grid = QGridLayout(self.grid_host)
         self.grid.setContentsMargins(0, 8, 0, 8)
         layout.addWidget(self.grid_host)
-        self.remember = QCheckBox("Lembrar este mapeamento para esta pasta")
+        self.remember = QCheckBox(_("Lembrar este mapeamento para esta pasta"))
         self.remember.setChecked(True)
         layout.addWidget(self.remember)
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        self._button(QDialogButtonBox.StandardButton.Ok).setText("Plotar")
-        self._button(QDialogButtonBox.StandardButton.Cancel).setText("Cancelar")
+        self._button(QDialogButtonBox.StandardButton.Ok).setText(_("Plotar"))
+        self._button(QDialogButtonBox.StandardButton.Cancel).setText(_("Cancelar"))
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         layout.addWidget(self.buttons)
@@ -113,7 +118,7 @@ class ManualMappingDialog(QDialog):
             label = QLabel(role.label + (" *" if role.required else ""))
             edit = set_variant(QLineEdit(), "mono")
             if role.multiple:
-                edit.setPlaceholderText("vários arquivos separados por ;")
+                edit.setPlaceholderText(_("vários arquivos separados por ;"))
             if found and role.id in found.files:
                 edit.setText(";".join(str(p) for p in found.files[role.id]))
             browse = QPushButton("…")
@@ -128,11 +133,11 @@ class ManualMappingDialog(QDialog):
 
     def _browse(self, role, edit: QLineEdit) -> None:
         if role.multiple:
-            paths, _ = QFileDialog.getOpenFileNames(self, role.label, str(self.folder))
+            paths, _filter = QFileDialog.getOpenFileNames(self, role.label, str(self.folder))
             if paths:
                 edit.setText(";".join(paths))
         else:
-            path, _ = QFileDialog.getOpenFileName(self, role.label, str(self.folder))
+            path, _filter = QFileDialog.getOpenFileName(self, role.label, str(self.folder))
             if path:
                 edit.setText(path)
 

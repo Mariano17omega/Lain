@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...i18n import _
 from ..widgets.common import set_variant
 
 
@@ -22,15 +23,17 @@ class OpenWithDialog(QDialog):
     def __init__(self, name: str, parent: QWidget | None = None):
         super().__init__(parent)
         self.argv: list[str] | None = None
-        self.setWindowTitle("Abrir com")
+        self.setWindowTitle(_("Abrir com"))
         self.setModal(True)
         layout = QVBoxLayout(self)
-        layout.addWidget(set_variant(QLabel(f"Abrir {name} com"), "dialogTitle"))
+        layout.addWidget(
+            set_variant(QLabel(_("Abrir {name} com").format(name=name)), "dialogTitle")
+        )
         row = QHBoxLayout()
         self.edit = QLineEdit()
         self.edit.setMinimumWidth(380)
-        self.edit.setPlaceholderText("Comando, ex.: gedit ou /opt/app/bin/app --flag")
-        browse = QPushButton("Procurar…")
+        self.edit.setPlaceholderText(_("Comando, ex.: gedit ou /opt/app/bin/app --flag"))
+        browse = QPushButton(_("Procurar…"))
         browse.clicked.connect(self._browse)
         row.addWidget(self.edit, 1)
         row.addWidget(browse)
@@ -39,15 +42,15 @@ class OpenWithDialog(QDialog):
         self.error.hide()
         layout.addWidget(self.error)
         note = set_variant(
-            QLabel("O arquivo é passado como último argumento; nenhum shell é usado."),
+            QLabel(_("O arquivo é passado como último argumento; nenhum shell é usado.")),
             "dialogText",
         )
         layout.addWidget(note)
         buttons = QHBoxLayout()
         buttons.addStretch(1)
-        cancel = QPushButton("Cancelar")
+        cancel = QPushButton(_("Cancelar"))
         cancel.clicked.connect(self.reject)
-        self.ok = set_variant(QPushButton("Abrir"), "primary")
+        self.ok = set_variant(QPushButton(_("Abrir")), "primary")
         self.ok.setDefault(True)
         self.ok.clicked.connect(self.accept)
         buttons.addWidget(cancel)
@@ -61,7 +64,7 @@ class OpenWithDialog(QDialog):
         self.ok.setEnabled(bool(text.strip()))
 
     def _browse(self) -> None:
-        program, _ = QFileDialog.getOpenFileName(self, "Escolher programa")
+        program, _filter = QFileDialog.getOpenFileName(self, _("Escolher programa"))
         if program:
             self.edit.setText(shlex.quote(program))
 
@@ -71,7 +74,7 @@ class OpenWithDialog(QDialog):
         except ValueError:
             argv = []
         if not argv:
-            self.error.setText("Comando inválido (confira as aspas).")
+            self.error.setText(_("Comando inválido (confira as aspas)."))
             self.error.show()
             return
         self.argv = argv

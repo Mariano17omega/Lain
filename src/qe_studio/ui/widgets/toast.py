@@ -34,6 +34,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...i18n import _
 from ..dialogs.details import DetailsDialog, show_details
 from ..theme.manager import ThemeManager
 
@@ -129,7 +130,7 @@ class Toast(QFrame):
         self.text = QLabel()
         self.text.setObjectName("toastText")
         self.text.setWordWrap(True)
-        self.details_button = QPushButton("Detalhes")
+        self.details_button = QPushButton(_("Detalhes"))
         self.details_button.setObjectName("toastAction")
         self.details_button.clicked.connect(self.open_details)
         self.countdown = Countdown(theme)
@@ -190,7 +191,7 @@ class Toast(QFrame):
         notice = self.current
         if notice is None or not notice.details:
             return
-        self.details_dialog = show_details(self.parentWidget(), "Detalhes", notice.details)
+        self.details_dialog = show_details(self.parentWidget(), _("Detalhes"), notice.details)
         self.dismiss()
 
     def shutdown(self) -> None:

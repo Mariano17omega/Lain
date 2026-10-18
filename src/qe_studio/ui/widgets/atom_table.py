@@ -26,10 +26,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...i18n import _
 from ..painting import mono_font
 from .common import set_variant
 
-COUNT_FORMAT = "{n} de {m} átomos"
+COUNT_FORMAT = _("{n} de {m} átomos")
 COORDINATE_WIDTH = 96
 STRETCH = QHeaderView.ResizeMode.Stretch
 
@@ -63,10 +64,10 @@ class AtomTable(QWidget):
         self.checks: dict[int, QCheckBox] = {}  # by atom number
         self._quiet = False  # a button flips many marks: one ``changed`` at its end
 
-        self.mark_all = QPushButton("Marcar todos")
-        self.unmark_all = QPushButton("Desmarcar todos")
-        self.invert = QPushButton("Inverter")
-        self.species_button = QPushButton("Só espécie ▸")
+        self.mark_all = QPushButton(_("Marcar todos"))
+        self.unmark_all = QPushButton(_("Desmarcar todos"))
+        self.invert = QPushButton(_("Inverter"))
+        self.species_button = QPushButton(_("Só espécie ▸"))
         self.species_menu = QMenu(self.species_button)
         self._fill_menu()
         self.species_button.setMenu(self.species_menu)
@@ -98,7 +99,7 @@ class AtomTable(QWidget):
 
     def headers(self) -> tuple[str, ...]:
         coordinates = tuple(f"{axis} ({self.unit})" for axis in "xyz")
-        return ("", "#", "Elemento", *coordinates, *(("Sítio",) if self.has_notes else ()))
+        return ("", "#", _("Elemento"), *coordinates, *((_("Sítio"),) if self.has_notes else ()))
 
     def _setup_table(self) -> None:
         table = self.table
@@ -139,7 +140,9 @@ class AtomTable(QWidget):
         self.checks = {}
         for row_number, row in enumerate(self.rows):
             check = QCheckBox()
-            check.setAccessibleName(f"Átomo {row.index} {row.species}")
+            check.setAccessibleName(
+                _("Átomo {index} {species}").format(index=row.index, species=row.species)
+            )
             check.setChecked(chosen is None or row.index in chosen)
             check.toggled.connect(self._toggled)
             self.checks[row.index] = check

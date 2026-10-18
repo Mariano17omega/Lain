@@ -20,6 +20,7 @@ from ..core.calc_create.preview import created_notice
 from ..core.calc_create.writer import Created, CreateError, create_folder, preview_name
 from ..core.config import JobsConfig
 from ..core.tasks import run_task
+from ..i18n import _
 from .busy import BusyTracker
 from .dialogs.calc_create import CalcCreateDialog, CreateRequest
 from .theme.manager import ThemeManager
@@ -27,9 +28,9 @@ from .widgets.toast import Toast
 
 log = logging.getLogger(__name__)
 
-TITLE = "Criar cálculo"
-AVAILABLE_TIP = "Criar cálculo (scripts e inputs)"
-MISSING_ROOT_TIP = "Defina paths.local_root para criar cálculos"
+TITLE = _("Criar cálculo")
+AVAILABLE_TIP = _("Criar cálculo (scripts e inputs)")
+MISSING_ROOT_TIP = _("Defina paths.local_root para criar cálculos")
 BUSY_KEY = "calc:create"
 
 
@@ -159,7 +160,7 @@ class CalcCreateController(QObject):
     def create(self, request: CreateRequest) -> None:
         name = preview_name(request.parent, request.calc_type, request.suffix, request.numbered)
         self._creating = request.parent
-        self.busy.begin(BUSY_KEY, f"Criando {name}…")
+        self.busy.begin(BUSY_KEY, _("Criando {name}…").format(name=name))
         if self.dialog is not None:
             self.dialog.set_busy(True)
         run_task(
@@ -192,7 +193,7 @@ class CalcCreateController(QObject):
             reason = str(exc)
         else:
             log.error("creating the calculation folder failed", exc_info=exc)
-            reason = f"Erro inesperado: {exc}"
+            reason = _("Erro inesperado: {error}").format(error=exc)
         dialog = self.dialog
         if dialog is not None:
             dialog.set_busy(False)

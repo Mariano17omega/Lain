@@ -99,7 +99,7 @@ def k_points_text(card: Card) -> str:
             shift = f" ({' '.join(first[3:6])})" if len(first) >= 6 else ""
             return f"{mode} {'×'.join(first[:3])}{shift}"
     elif mode != "gamma" and len(first) == 1 and first[0].isdigit():
-        return f"{mode} {first[0]} pontos"
+        return _("{mode} {n} pontos").format(mode=mode, n=first[0])
     return mode
 
 

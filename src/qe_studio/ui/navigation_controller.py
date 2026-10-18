@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import QApplication, QWidget
 
 from ..core.nav_store import NavigationStore
 from ..core.navigation import NavigationHistory
+from ..i18n import _
 from .widgets.bars import TopBar
 from .widgets.explorer import ExplorerPanel
 from .widgets.nav_sections import NavEntry, NavSection
@@ -135,7 +136,9 @@ class NavigationController(QObject):
         target, skipped = move(self.exists)
         if skipped:
             names = ", ".join(path.name or str(path) for path in skipped)
-            self.message.emit(f"Pasta não existe mais: {names}", "warning", 4000)
+            self.message.emit(
+                _("Pasta não existe mais: {names}").format(names=names), "warning", 4000
+            )
         if target is not None:
             self.go_to(target)
         self._sync_buttons()
@@ -149,15 +152,21 @@ class NavigationController(QObject):
         changed = (self.store.add_favorite if favorite else self.store.remove_favorite)(folder)
         if changed:
             self._refresh_sections()
-            verb = "Adicionado aos" if favorite else "Removido dos"
-            self.message.emit(f"{verb} favoritos: {folder.name or folder}", "info", 3000)
+            template = (
+                _("Adicionado aos favoritos: {name}")
+                if favorite
+                else _("Removido dos favoritos: {name}")
+            )
+            self.message.emit(template.format(name=folder.name or folder), "info", 3000)
 
     def open_entry(self, folder: Path) -> None:
         """A click on a favorite or recent folder."""
         if self.exists(folder):
             self.go_to(folder)
         else:
-            self.message.emit(f"Pasta não existe mais: {folder.name}", "warning", 4000)
+            self.message.emit(
+                _("Pasta não existe mais: {names}").format(names=folder.name), "warning", 4000
+            )
 
     def _sections(self) -> dict[str, NavSection]:
         return {"favorites": self.explorer.favorites, "recents": self.explorer.recents}
@@ -189,14 +198,14 @@ class NavigationController(QObject):
         self.top_bar.set_history(self.history.can_back, self.history.can_forward)
 
     def _on_path_copied(self, path: str) -> None:
-        self.message.emit(f"Copiado: {path}", "info", 4000)
+        self.message.emit(_("Copiado: {path}").format(path=path), "info", 4000)
 
     @staticmethod
     def shortcut_help() -> list[tuple[str, str, str]]:
         """(action, keys, where) of the mouse buttons (Alt+←/→ are menu actions)."""
         return [
-            ("Voltar no histórico", "Botão lateral (voltar)", "Navegação"),
-            ("Avançar no histórico", "Botão lateral (avançar)", "Navegação"),
+            (_("Voltar no histórico"), _("Botão lateral (voltar)"), _("Navegação")),
+            (_("Avançar no histórico"), _("Botão lateral (avançar)"), _("Navegação")),
         ]
 
     def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:

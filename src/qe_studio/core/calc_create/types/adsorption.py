@@ -273,7 +273,7 @@ class AdsorptionType(RelaxType):
     def _kpoints(self, work: Work) -> tuple[str, str]:
         scf, typed = work.scf, work.values.get("kmesh")
         if typed is not None and typed != scf.kmesh:
-            return ("k-points", f"{mesh_text(typed)} (digitada)")
+            return ("k-points", _("{mesh} (digitada)").format(mesh=mesh_text(typed)))
         if scf.kmesh is not None:
             return (
                 "k-points",

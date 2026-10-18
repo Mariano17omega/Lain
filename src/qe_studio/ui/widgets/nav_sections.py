@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from ..theme.scale import scaled
 from .common import set_variant, viewport_of
@@ -98,7 +99,7 @@ class NavSection(QWidget):
             if entry.exists:
                 item.setToolTip(str(entry.path))
             else:
-                item.setToolTip("não encontrada")
+                item.setToolTip(_("não encontrada"))
                 item.setForeground(self.theme.color("text_meta"))
             self.list.addItem(item)
         self.header.setText(f"{self.title.upper()} ({len(self._entries)})")

@@ -20,11 +20,17 @@ from ...core.file_kinds import human_size
 from ...core.sync.planner import SyncPlan
 from ...core.sync.preview import Preview, PreviewRow, PreviewSection, describe_plan
 from ...core.sync.push_plan import PushPlan
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from ..widgets.common import set_variant
 from ..widgets.spinner import CircularProgress
 
-COLUMNS = ("Arquivo", "Tamanho", "Data no cluster", "Nota")  # the date's header: the plan's
+COLUMNS = (
+    _("Arquivo"),
+    _("Tamanho"),
+    _("Data no cluster"),
+    _("Nota"),
+)  # the date's header: the plan's
 SIZE_COLUMN = 1
 RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 
@@ -49,7 +55,7 @@ class SearchPage(QWidget):
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
         self.spinner = CircularProgress(theme)
-        self.stage = _stage_label("Preparando…")
+        self.stage = _stage_label(_("Preparando…"))
         self.detail = _detail_label()
         text = QVBoxLayout()
         text.addWidget(self.stage)
@@ -168,7 +174,7 @@ class TransferPage(QWidget):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.stage = _stage_label("Preparando transferência…")
+        self.stage = _stage_label(_("Preparando transferência…"))
         self.bar = QProgressBar()
         self.bar.setObjectName("syncProgress")
         self.bar.setRange(0, 100)

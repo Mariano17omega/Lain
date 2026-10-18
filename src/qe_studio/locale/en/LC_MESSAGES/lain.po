@@ -1,0 +1,6738 @@
+# English translations for Lain: QE Studio.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the Lain: QE Studio project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Lain: QE Studio VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-18 17:49-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: core/textfile.py
+msgid ""
+"\n"
+"\n"
+"    [ … trecho omitido pelo visualizador … ]\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"    [ … section omitted by the viewer … ]\n"
+"\n"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "  … e mais {value}"
+msgstr "  … and {value} more"
+
+#: core/calc_create/types/bandas.py
+msgid " (_up / _dw por canal de spin)"
+msgstr " (_up / _dw per spin channel)"
+
+#: core/calc_create/preview.py
+msgid " (editado)"
+msgstr " (edited)"
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid " (limiar {threshold_ry:.1e})"
+msgstr " (threshold {threshold_ry:.1e})"
+
+#: ui/widgets/search_bar.py
+msgid " (no trecho carregado)"
+msgstr " (in the loaded excerpt)"
+
+#: core/qe/input_extract.py
+msgid " (padrão)"
+msgstr " (default)"
+
+#: ui/dialogs/grid_cells.py
+msgid " (pasta não encontrada)"
+msgstr " (folder not found)"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid " (quis dizer &{upper}?)"
+msgstr " (did you mean &{upper}?)"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid " (quis dizer {suggestion}?)"
+msgstr " (did you mean {suggestion}?)"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid " (só no bidentado)"
+msgstr " (bidentate only)"
+
+#: core/structure3d/view_file.py
+msgid ""
+"# Lain: ajustes da visualização 3D, uma seção por arquivo. Gerado automaticamente; apague para "
+"voltar aos padrões.\n"
+msgstr ""
+"# Lain: 3D view settings, one section per file. Generated automatically; delete to go back to the"
+" defaults.\n"
+
+#: core/plotting/plot_file.py
+msgid "# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.\n"
+msgstr "# Lain: plot settings. Generated automatically; delete to go back to the defaults.\n"
+
+#: core/calc_create/surface/report.py
+msgid "# Relatório da geração"
+msgstr "# Generation report"
+
+#: core/calc_create/types/script.py
+msgid "#$ -N: nome exibido no scheduler (até 15 caracteres, sem espaços)"
+msgstr "#$ -N: name shown by the scheduler (up to 15 characters, no spaces)"
+
+#: core/calc_create/types/script.py
+msgid "#$ -pe: número de núcleos do job"
+msgstr "#$ -pe: number of cores of the job"
+
+#: core/qsub_lint.py
+#, python-brace-format
+msgid "${ sem } na linha"
+msgstr "${ without } on the line"
+
+#: core/calc_create/types/slab_fields.py
+msgid "&CELL cell_dofree; '2Dxy' relaxa só o plano e a altura do vácuo não encolhe"
+msgstr "&CELL cell_dofree; '2Dxy' relaxes only the plane, and the vacuum height does not shrink"
+
+#: core/calc_create/types/vc_relax.py
+msgid "&CELL press: pressão externa alvo, em kbar"
+msgstr "&CELL press: target external pressure, in kbar"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "&CONTROL etot_conv_thr, em Ry"
+msgstr "&CONTROL etot_conv_thr, in Ry"
+
+#: core/calc_create/types/relax.py
+msgid "&CONTROL forc_conv_thr, em Ry/Bohr"
+msgstr "&CONTROL forc_conv_thr, in Ry/Bohr"
+
+#: core/calc_create/types/relax.py
+msgid "&CONTROL nstep: número máximo de passos da otimização"
+msgstr "&CONTROL nstep: maximum number of optimization steps"
+
+#: core/calc_create/types/charge.py
+msgid "&INPUTPP plot_num: 0 = densidade de carga eletrônica (pseudo)"
+msgstr "&INPUTPP plot_num: 0 = electronic charge density (pseudo)"
+
+#: core/calc_create/types/charge_diff.py
+msgid ""
+"&PLOT fileout dos quatro pp.x: <pasta>/<nome>.xsf. Relativa e dentro da pasta; o script cria a "
+"pasta"
+msgstr ""
+"&PLOT fileout of the four pp.x: <folder>/<name>.xsf. Relative and inside the folder; the script "
+"creates the folder"
+
+#: core/calc_create/types/charge.py
+msgid "&PLOT fileout: relativo e dentro da pasta; o script cria a pasta dele"
+msgstr "&PLOT fileout: relative and inside the folder; the script creates its folder"
+
+#: core/calc_create/types/charge.py
+#, python-brace-format
+msgid "&PLOT iflag: dimensão do gráfico; 3 = grade 3D{note}"
+msgstr "&PLOT iflag: dimension of the plot; 3 = 3D grid{note}"
+
+#: core/calc_create/types/charge.py
+#, python-brace-format
+msgid ""
+"&PLOT output_format: 5 = XSF 3D para o XCrySDen (exige iflag = 3); o pp.x ignora o formato nos "
+"gráficos 1D e polar{note}"
+msgstr ""
+"&PLOT output_format: 5 = 3D XSF for XCrySDen (requires iflag = 3); pp.x ignores the format in 1D "
+"and polar plots{note}"
+
+#: core/calc_create/types/pdos.py
+msgid ""
+"&SYSTEM occupations do NSCF (tetraedros dão uma DOS mais limpa; com tetraedros o projwfc.in sai "
+"sem ngauss/degauss, e o projwfc.x usa o método dos tetraedros)"
+msgstr ""
+"&SYSTEM occupations of the NSCF (tetrahedra give a cleaner DOS; with tetrahedra projwfc.in is "
+"written without ngauss/degauss, and projwfc.x uses the tetrahedron method)"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "&{name} não foi fechada com '/'"
+msgstr "&{name} was not closed with '/'"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "&{upper} repetida: o pw.x lê só a primeira"
+msgstr "&{upper} repeated: pw.x reads only the first one"
+
+#: core/qe/input_lexer.py
+msgid "'&' sem nome de namelist"
+msgstr "'&' without a namelist name"
+
+#: core/qe/input_lexer.py
+msgid "'&end' sem namelist aberta"
+msgstr "'&end' without an open namelist"
+
+#: core/qe/input_lexer.py
+msgid "'/' sem namelist aberta"
+msgstr "'/' without an open namelist"
+
+#: core/calc_create/types/surface_fields.py
+#, python-brace-format
+msgid "'{BOTTOM}': fixa os átomos abaixo desta fração da espessura (0,5 = metade)"
+msgstr "'{BOTTOM}': fixes the atoms below this fraction of the thickness (0.5 = half)"
+
+#: core/calc_create/types/surface_fields.py
+#, python-brace-format
+msgid ""
+"'{BOTTOM}': os átomos abaixo da fração da espessura; '{SPECIES}': as espécies fixas e os vizinhos"
+" ligados a elas; 'nenhum': todos livres"
+msgstr ""
+"'{BOTTOM}': the atoms below the fraction of the thickness; '{SPECIES}': the fixed species and the"
+" neighbors bonded to them; 'nenhum': all free"
+
+#: core/calc_create/types/surface_fields.py
+#, python-brace-format
+msgid "'{SPECIES}': rótulos de ATOMIC_SPECIES, separados por espaço"
+msgstr "'{SPECIES}': ATOMIC_SPECIES labels, separated by spaces"
+
+#: core/calc_create/types/surface_fields.py
+#, python-brace-format
+msgid "'{SPECIES}': rótulos dos vizinhos ligados às espécies fixas que também ficam fixos"
+msgstr "'{SPECIES}': labels of the neighbors bonded to the fixed species that are also fixed"
+
+#: ui/widgets/params_body.py
+#, python-brace-format
+msgid "(detectado por {method})"
+msgstr "(detected by {method})"
+
+#: core/calculations/bands/render.py core/calculations/pdos/render.py
+msgid "(na janela)"
+msgstr "(in the window)"
+
+#: core/calculations/bands/render.py
+msgid "(no caminho)"
+msgstr "(along the path)"
+
+#: core/sync/preview.py
+msgid "(pasta sincronizada)"
+msgstr "(synced folder)"
+
+#: ui/widgets/file_grid.py
+#, python-brace-format
+msgid "({rows} de {total})"
+msgstr "({rows} of {total})"
+
+#: core/qsub_lint.py
+msgid "-N pede o nome do job"
+msgstr "-N asks for the job name"
+
+#: core/qsub_lint.py
+msgid "-pe pede o ambiente paralelo e o número de slots (por exemplo: -pe physica 64)"
+msgstr "-pe asks for the parallel environment and the number of slots (for example: -pe physica 64)"
+
+#: core/calc_create/types/charge_diff.py
+msgid ". Vale para os quatro inputs do pp.x"
+msgstr ". Applies to the four pp.x inputs"
+
+#: core/calculations/params.py
+msgid "0 = fundo da legenda opaco, 1 = invisível. Vale com a moldura ligada."
+msgstr "0 = opaque legend background, 1 = invisible. Applies with the frame on."
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "1 · Configuração"
+msgstr "1 · Setup"
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "2 · Arquivos"
+msgstr "2 · Files"
+
+#: core/calc_create/types/slab.py
+msgid "; girada para o eixo ficar em +z"
+msgstr "; rotated so the axis ends up along +z"
+
+#: core/calc_create/types/adsorption.py
+msgid "; girada para o eixo ficar na normal"
+msgstr "; rotated so the axis ends up along the normal"
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid "; grupo {groups}"
+msgstr "; group {groups}"
+
+#: core/calc_create/types/fields.py
+msgid "; vazio = mantém o K_POINTS do SCF"
+msgstr "; empty = keeps the K_POINTS of the SCF"
+
+#: ui/widgets/diff_view.py
+msgid "A"
+msgstr "A"
+
+#: core/sync/preview.py
+msgid "A atualizar"
+msgstr "To update"
+
+#: core/calc_create/surface/slab.py
+msgid "A célula do slab ficou com volume ≤ 0"
+msgstr "The slab cell ended up with volume ≤ 0"
+
+#: core/sync/report.py
+msgid "A cópia local é mais recente que a do cluster: nenhuma transferência realizada."
+msgstr "The local copy is newer than the cluster's: no transfer was made."
+
+#: core/qe/lattice.py
+msgid "A deve ser positivo"
+msgstr "A must be positive"
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
+msgid "A distância de adsorção"
+msgstr "The adsorption distance"
+
+#: core/calc_create/types/adsorption.py
+msgid "A folga mínima"
+msgstr "The minimum clearance"
+
+#: core/calc_create/types/surface_fields.py
+msgid "A fração fixa da espessura vai de 0 (exclusive) a 1"
+msgstr "The fixed fraction of the thickness goes from 0 (exclusive) to 1"
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
+msgid "A janela da superfície"
+msgstr "The surface window"
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "A molécula de {name} não parece isolada: só {decimal} Å de vácuo na caixa dela"
+msgstr "The {name} molecule does not look isolated: only {decimal} Å of vacuum in its box"
+
+#: core/calc_create/types/charge_diff.py
+#, python-brace-format
+msgid "A pasta dos .xsf deve ser relativa e ficar dentro da pasta (sem .. nem / inicial): {folder}"
+msgstr "The folder of the .xsf files must be relative and inside the folder (no .. or leading /): {folder}"
+
+#: ui/first_run.py
+#, python-brace-format
+msgid "A pasta raiz não foi encontrada: {root}"
+msgstr "The root folder was not found: {root}"
+
+#: core/calc_create/preview.py
+msgid "A pasta será criada fora de um projeto e aparecerá como um projeto novo."
+msgstr "The folder will be created outside a project and will show up as a new project."
+
+#: core/structure3d/view_file.py
+#, python-brace-format
+msgid "A pasta {name} não existe mais: a vista de {name_2} não foi salva em {name_3}."
+msgstr "The folder {name} no longer exists: the view of {name_2} was not saved in {name_3}."
+
+#: core/calc_create/writer.py
+#, python-brace-format
+msgid "A pasta {parent} não existe"
+msgstr "The folder {parent} does not exist"
+
+#: core/qe/scf_from_relax.py
+msgid "A saída não traz a célula final (CELL_PARAMETERS) do vc-relax"
+msgstr "The output has no final cell (CELL_PARAMETERS) from the vc-relax"
+
+#: core/calculations/pdos/atoms.py
+#, python-brace-format
+msgid ""
+"A seleção de átomos salva foi feita com outra estrutura ({saved} átomos; esta tem {current}). "
+"{CHECK_ATOMS}"
+msgstr ""
+"The saved atom selection was made with another structure ({saved} atoms; this one has {current})."
+" {CHECK_ATOMS}"
+
+#: core/calculations/pdos/atoms.py
+#, python-brace-format
+msgid ""
+"A seleção de átomos salva foi feita com outras coordenadas (átomo {atom} moveu {distance} Å). "
+"{CHECK_ATOMS}"
+msgstr ""
+"The saved atom selection was made with other coordinates (atom {atom} moved {distance} Å). "
+"{CHECK_ATOMS}"
+
+#: ui/dialogs/atoms.py
+msgid "A seleção vale para todo gráfico deste composto (mesma sequência de espécies), em qualquer pasta."
+msgstr "The selection applies to every plot of this compound (same sequence of species), in any folder."
+
+#: core/calc_create/types/adsorption_fields.py
+msgid ""
+"A superfície: os átomos até esta distância abaixo do mais alto, ao longo da normal. Vale para a "
+"lista e para aceitar o átomo escolhido"
+msgstr ""
+"The surface: the atoms up to this distance below the highest one, along the normal. Applies to "
+"the list and to accepting the chosen atom"
+
+#: core/calc_create/types/adsorption.py
+msgid "A tolerância das coordenadas"
+msgstr "The coordinate tolerance"
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
+#: core/calc_create/types/slab.py core/calc_create/types/supercell.py
+msgid "A tolerância de ligação"
+msgstr "The bond tolerance"
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
+msgid "A tolerância de simetria"
+msgstr "The symmetry tolerance"
+
+#: core/calc_create/fragments.py core/qe/lattice.py
+#, python-brace-format
+msgid "ATOMIC_POSITIONS {unit} não é suportado"
+msgstr "ATOMIC_POSITIONS {unit} is not supported"
+
+#: core/file_kinds.py core/filtering.py
+msgid "AVISO"
+msgstr "WARNING"
+
+#: ui/palette_controller.py
+msgid "Aba"
+msgstr "Tab"
+
+#: core/fuzzy.py ui/widgets/workspace.py
+msgid "Abas"
+msgstr "Tabs"
+
+#: ui/dialogs/open_with.py
+msgid "Abrir"
+msgstr "Open"
+
+#: ui/dialogs/open_many.py
+msgid "Abrir arquivos"
+msgstr "Open files"
+
+#: ui/dialogs/open_with.py ui/widgets/context_menu.py
+msgid "Abrir com"
+msgstr "Open with"
+
+#: ui/widgets/context_menu.py
+msgid "Abrir com XCrysDen"
+msgstr "Open with XCrysDen"
+
+#: ui/first_run.py
+msgid "Abrir config"
+msgstr "Open config"
+
+#: ui/actions.py
+msgid "Abrir config.yaml"
+msgstr "Open config.yaml"
+
+#: ui/widgets/context_menu.py
+msgid "Abrir local de origem"
+msgstr "Show in file manager"
+
+#: ui/actions.py
+msgid "Abrir log"
+msgstr "Open log"
+
+#: ui/widgets/text_viewer.py
+msgid "Abrir no editor externo"
+msgstr "Open in external editor"
+
+#: ui/widgets/summary_view.py
+msgid "Abrir o arquivo no visualizador de texto"
+msgstr "Open the file in the text viewer"
+
+#: ui/widgets/file_grid.py
+msgid "Abrir os arquivos selecionados"
+msgstr "Open the selected files"
+
+#: ui/actions.py
+msgid "Abrir pasta de dados"
+msgstr "Open data folder"
+
+#: ui/actions.py
+msgid "Abrir pasta no gerenciador de arquivos"
+msgstr "Open folder in file manager"
+
+#: ui/widgets/summary_view.py
+msgid "Abrir saída"
+msgstr "Open output"
+
+#: ui/dialogs/open_with.py
+#, python-brace-format
+msgid "Abrir {name} com"
+msgstr "Open {name} with"
+
+#: ui/dialogs/open_many.py
+#, python-brace-format
+msgid "Abrir {n} arquivos?"
+msgstr "Open {n} files?"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Abrir…"
+msgstr "Open…"
+
+#: core/calculations/bands/params.py
+msgid "Absoluta"
+msgstr "Absolute"
+
+#: ui/navigation_controller.py
+#, python-brace-format
+msgid "Adicionado aos favoritos: {name}"
+msgstr "Added to favorites: {name}"
+
+#: ui/widgets/kpath_editor.py
+msgid "Adicionar"
+msgstr "Add"
+
+#: ui/widgets/context_menu.py
+msgid "Adicionar aos favoritos"
+msgstr "Add to favorites"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Adicionar célula"
+msgstr "Add cell"
+
+#: core/plotting/grid.py
+msgid "Adicione ao menos uma célula."
+msgstr "Add at least one cell."
+
+#: core/calculations/pdos/params.py
+msgid "Agrupar por"
+msgstr "Group by"
+
+#: core/sync/_process.py
+msgid "Aguardando confirmação…"
+msgstr "Waiting for confirmation…"
+
+#: core/sync/controller.py ui/dialogs/sync_dialog.py
+msgid "Aguardando sua decisão…"
+msgstr "Waiting for your decision…"
+
+#: ui/help_controller.py
+#, python-brace-format
+msgid "Ainda não há arquivo de log: {path}"
+msgstr "There is no log file yet: {path}"
+
+#: ui/actions.py
+msgid "Ajuda"
+msgstr "Help"
+
+#: ui/widgets/kpath_editor.py
+msgid "Ajusta a coluna Pontos ao comprimento de cada segmento (pontos por Å⁻¹)"
+msgstr "Fits the Points column to the length of each segment (points per Å⁻¹)"
+
+#: ui/widgets/plot_params.py
+msgid "Ajuste do gráfico"
+msgstr "Plot settings"
+
+#: core/calc_create/types/pdos.py
+msgid "Alargamento (degauss, Ry)"
+msgstr "Smearing (degauss, Ry)"
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Alternar perspectiva"
+msgstr "Toggle perspective"
+
+#: ui/actions.py
+msgid "Alternar tema"
+msgstr "Toggle theme"
+
+#: ui/widgets/bars.py
+msgid "Alternar tema (Ctrl+T)"
+msgstr "Toggle theme (Ctrl+T)"
+
+#: core/calculations/params.py
+msgid "Altura"
+msgstr "Height"
+
+#: core/calculations/grid/params.py
+msgid "Altura da célula"
+msgstr "Cell height"
+
+#: core/calculations/bands/params.py core/calculations/relax.py core/structure3d/options.py
+msgid "Ambos"
+msgstr "Both"
+
+#: core/calc_create/preview.py
+msgid "Anotações"
+msgstr "Notes"
+
+#: ui/dialogs/calc_create/tabs_page.py
+msgid "Anotações sobre este cálculo (opcional)"
+msgstr "Notes about this calculation (optional)"
+
+#: ui/widgets/search_bar.py
+msgid "Anterior"
+msgstr "Previous"
+
+#: ui/widgets/search_bar.py
+msgid "Anterior (Shift+Enter, Shift+F3)"
+msgstr "Previous (Shift+Enter, Shift+F3)"
+
+#: ui/widgets/structure3d/window.py
+#, python-brace-format
+msgid "Ao longo de {axis} ({key})"
+msgstr "Along {axis} ({key})"
+
+#: ui/widgets/structure3d/measures.py
+msgid "Apagar"
+msgstr "Delete"
+
+#: ui/widgets/structure3d/measures.py
+msgid "Apagar a última medida"
+msgstr "Delete the last measurement"
+
+#: ui/widgets/structure3d/measures.py
+msgid "Apagar todas as medidas"
+msgstr "Delete all measurements"
+
+#: core/qe/summary/build.py ui/actions.py ui/dialogs/calc_create/preview.py ui/dialogs/sync_pages.py
+msgid "Arquivo"
+msgstr "File"
+
+#: core/text_preview.py
+#, python-brace-format
+msgid "Arquivo completo ({human_size})."
+msgstr "Complete file ({human_size})."
+
+#: core/calc_create/types/bandas.py
+msgid "Arquivo das bandas (filband)"
+msgstr "Bands file (filband)"
+
+#: core/calc_create/types/charge.py
+msgid "Arquivo de saída (fileout)"
+msgstr "Output file (fileout)"
+
+#: core/text_preview.py
+#, python-brace-format
+msgid "Arquivo grande ({human_size}): exibindo o primeiro {human_size_2} e os últimos {human_size_3}."
+msgstr "Large file ({human_size}): showing the first {human_size_2} and the last {human_size_3}."
+
+#: ui/widgets/text_viewer.py
+msgid "Arquivo grande demais para o visualizador: use o editor externo"
+msgstr "File too large for the viewer: use the external editor"
+
+#: ui/widgets/text_viewer.py
+msgid "Arquivo grande demais para renderizar (mais de 1 MB): mostrado como texto"
+msgstr "File too large to render (over 1 MB): shown as text"
+
+#: core/sync/preview.py
+msgid "Arquivo grande: confira a cota no cluster antes de enviar"
+msgstr "Large file: check the quota on the cluster before uploading"
+
+#: core/sync/preview.py
+msgid "Arquivo grande: confira o espaço em disco antes de baixar"
+msgstr "Large file: check the disk space before downloading"
+
+#: core/detection.py
+#, python-brace-format
+msgid "Arquivo não encontrado: {path}"
+msgstr "File not found: {path}"
+
+#: core/calc_create/writer.py
+#, python-brace-format
+msgid "Arquivo repetido no plano: {name}"
+msgstr "Repeated file in the plan: {name}"
+
+#: core/file_kinds.py
+msgid "Arquivo vazio: o job não registrou erros"
+msgstr "Empty file: the job logged no errors"
+
+#: core/text_preview.py
+msgid "Arquivo vazio: o job não registrou erros."
+msgstr "Empty file: the job logged no errors."
+
+#: ui/dialogs/calc_create/tabs_page.py ui/widgets/file_grid.py ui/widgets/params_body.py
+msgid "Arquivos"
+msgstr "Files"
+
+#: ui/dialogs/overwrite.py
+msgid "Arquivos com este nome já existem em plots/"
+msgstr "Files with this name already exist in plots/"
+
+#: core/qe/summary/build.py
+msgid "Arquivos escritos"
+msgstr "Files written"
+
+#: ui/dialogs/overwrite.py
+msgid "Arquivos já existem"
+msgstr "Files already exist"
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Arrastar"
+msgstr "Drag"
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid ""
+"As coordenadas {number_text} estão a {decimal} Å do átomo mais próximo ({name}): nenhum átomo a "
+"até {decimal_2} Å"
+msgstr ""
+"The coordinates {number_text} are {decimal} Å from the nearest atom ({name}): no atom within "
+"{decimal_2} Å"
+
+#: core/qe/input_lexer.py
+msgid "Aspas não fechadas"
+msgstr "Unclosed quotes"
+
+#: core/qsub_lint.py
+#, python-brace-format
+msgid "Aspas {quote} abertas e não fechadas até o fim do arquivo"
+msgstr "Quote {quote} opened and not closed until the end of the file"
+
+#: ui/dialogs/shortcuts.py
+msgid "Atalho"
+msgstr "Shortcut"
+
+#: ui/actions.py ui/dialogs/shortcuts.py
+msgid "Atalhos de teclado"
+msgstr "Keyboard shortcuts"
+
+#: core/qe/summary/build.py
+msgid "Ativa"
+msgstr "Active"
+
+#: ui/main_window.py
+msgid "Atualizado."
+msgstr "Refreshed."
+
+#: ui/actions.py ui/widgets/summary_view.py
+msgid "Atualizar"
+msgstr "Refresh"
+
+#: ui/widgets/explorer.py
+msgid "Atualizar (F5)"
+msgstr "Refresh (F5)"
+
+#: core/sync/rsync.py
+msgid "Autenticação recusada pelo cluster (verifique usuário, chave ou senha)."
+msgstr "Authentication refused by the cluster (check the user, key or password)."
+
+#: core/calculations/params.py
+msgid "Automática"
+msgstr "Automatic"
+
+#: core/calculations/params.py
+msgid "Automático"
+msgstr "Automatic"
+
+#: core/calculations/params.py
+msgid ""
+"Automático: nas bandas, pela contagem de elétrons; na PDOS, pelo HOMO/LUMO impresso ou pela DOS "
+"total perto de E_F.\n"
+"HOMO/LUMO do SCF: o par que o pw.x imprime (só com ocupações fixas e nbnd maior que as bandas "
+"ocupadas).\n"
+"Maior intervalo na janela: o maior vazio de pelo menos 0,05 eV entre as energias visíveis; muda "
+"com E mín e E máx."
+msgstr ""
+"Automatic: in the bands, from the electron count; in the PDOS, from the printed HOMO/LUMO or from"
+" the total DOS near E_F.\n"
+"SCF HOMO/LUMO: the pair pw.x prints (only with fixed occupations and nbnd greater than the "
+"occupied bands).\n"
+"Largest gap in the window: the largest gap of at least 0.05 eV between the visible energies; it "
+"changes with E min and E max."
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Avançado"
+msgstr "Advanced"
+
+#: ui/actions.py
+msgid "Avançar"
+msgstr "Forward"
+
+#: ui/widgets/bars.py
+msgid "Avançar (Alt+→)"
+msgstr "Forward (Alt+→)"
+
+#: ui/navigation_controller.py
+msgid "Avançar no histórico"
+msgstr "Forward in history"
+
+#: core/qe/summary/build.py
+msgid "Avisos e erros"
+msgstr "Warnings and errors"
+
+#: ui/dialogs/shortcuts.py ui/palette_controller.py
+msgid "Ação"
+msgstr "Action"
+
+#: core/fuzzy.py
+msgid "Ações"
+msgstr "Actions"
+
+#: ui/widgets/diff_view.py
+msgid "B"
+msgstr "B"
+
+#: core/sync/report.py
+msgid "Baixados"
+msgstr "Downloaded"
+
+#: core/sync/request.py
+msgid "Baixar"
+msgstr "Download"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Baixar do cluster: {label}"
+msgstr "Download from the cluster: {label}"
+
+#: core/calculations/bands/table.py
+#, python-brace-format
+msgid "Banda {number}{mark} ({unit})"
+msgstr "Band {number}{mark} ({unit})"
+
+#: core/calc_create/types/bandas.py core/calculations/bands_dos/pair.py
+msgid "Bandas"
+msgstr "Bands"
+
+#: core/calculations/bands_dos/render.py
+#, python-brace-format
+msgid ""
+"Bandas ({formula}) e DOS ({formula_2}) são de compostos diferentes: a seleção de átomos vale para"
+" o composto da DOS"
+msgstr ""
+"Bands ({formula}) and DOS ({formula_2}) are of different compounds: the atom selection applies to"
+" the DOS compound"
+
+#: core/calculations/bands_dos/module.py
+msgid "Bandas + DOS"
+msgstr "Bands + DOS"
+
+#: core/calc_create/types/fields.py
+msgid "Bandas calculadas: inclua as de condução que quer ver"
+msgstr "Calculated bands: include the conduction bands you want to see"
+
+#: ui/widgets/context_menu.py
+msgid "Bandas com DOS"
+msgstr "Bands with DOS"
+
+#: core/calculations/bands_dos/data.py
+msgid "Bandas com DOS precisa de uma pasta de bandas e uma de PDOS."
+msgstr "Bands with DOS needs a bands folder and a PDOS folder."
+
+#: core/calculations/bands_dos/params.py
+msgid "Bandas ▸ Cores"
+msgstr "Bands ▸ Colors"
+
+#: core/calculations/bands_dos/params.py
+msgid "Bandas ▸ Eixo k"
+msgstr "Bands ▸ k axis"
+
+#: core/calculations/bands_dos/params.py
+msgid "Bandas ▸ Spin"
+msgstr "Bands ▸ Spin"
+
+#: ui/first_run.py
+msgid "Bem-vindo ao Lain"
+msgstr "Welcome to Lain"
+
+#: core/calc_create/surface/adsorb.py
+msgid "Bidentado: marque dois átomos"
+msgstr "Bidentate: mark two atoms"
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "Bidentado: os dois átomos são o mesmo ({name})"
+msgstr "Bidentate: the two atoms are the same ({name})"
+
+#: core/structure3d/options.py
+msgid "Bola e vareta"
+msgstr "Ball and stick"
+
+#: ui/widgets/workspace.py
+msgid "Botão do meio"
+msgstr "Middle button"
+
+#: ui/navigation_controller.py
+msgid "Botão lateral (avançar)"
+msgstr "Side button (forward)"
+
+#: ui/navigation_controller.py
+msgid "Botão lateral (voltar)"
+msgstr "Side button (back)"
+
+#: ui/dialogs/shortcuts.py
+msgid "Buscar ação, atalho ou lugar…"
+msgstr "Search action, shortcut or place…"
+
+#: ui/widgets/search_bar.py ui/widgets/text_viewer.py
+msgid "Buscar no texto"
+msgstr "Search in text"
+
+#: core/qe/scf_from_relax.py
+msgid "CELL_PARAMETERS (alat) sem o valor de alat na saída"
+msgstr "CELL_PARAMETERS (alat) without the alat value in the output"
+
+#: core/qe/lattice.py
+msgid "CELL_PARAMETERS alat sem celldm(1) ou A"
+msgstr "CELL_PARAMETERS alat without celldm(1) or A"
+
+#: ui/dialogs/grid_dialog.py
+msgid ""
+"Cada célula mostra um gráfico aberto, com os ajustes que ele tem agora. A grade é salva por nome "
+"e pode ser gerada de novo depois."
+msgstr ""
+"Each cell shows an open plot, with the settings it has now. The grid is saved by name and can be "
+"generated again later."
+
+#: ui/widgets/structure3d/panel.py
+msgid "Caixa da célula"
+msgstr "Cell box"
+
+#: core/calc_create/types/bandas.py
+msgid "Caminho de alta simetria"
+msgstr "High-symmetry path"
+
+#: core/calculations/bands/params.py
+msgid "Canais"
+msgstr "Channels"
+
+#: core/calculations/bands/params.py
+msgid "Canal"
+msgstr "Channel"
+
+#: core/sync/_process.py ui/dialogs/sync_dialog.py
+msgid "Cancelando…"
+msgstr "Cancelling…"
+
+#: ui/dialogs/atoms.py ui/dialogs/calc_create/dialog.py ui/dialogs/mapping.py ui/dialogs/new_project.py
+#: ui/dialogs/open_with.py ui/dialogs/overwrite.py ui/dialogs/rename.py ui/dialogs/sync_dialog.py
+msgid "Cancelar"
+msgstr "Cancel"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Cancelar sincronização"
+msgstr "Cancel sync"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "Card desconhecido {name}"
+msgstr "Unknown card {name}"
+
+#: core/calc_create/types/charge.py
+msgid "Carga"
+msgstr "Charge"
+
+#: ui/grid_loader.py
+msgid "Carregando grid…"
+msgstr "Loading grid…"
+
+#: ui/plot_workflow.py
+#, python-brace-format
+msgid "Carregando {name}…"
+msgstr "Loading {name}…"
+
+#: ui/widgets/code_view.py
+msgid "Carregando…"
+msgstr "Loading…"
+
+#: ui/widgets/text_viewer.py
+msgid "Carregar tudo"
+msgstr "Load everything"
+
+#: core/calculations/params.py
+msgid "Centro direita"
+msgstr "Center right"
+
+#: core/config.py
+#, python-brace-format
+msgid "Chave SSH não encontrada: {key_path}"
+msgstr "SSH key not found: {key_path}"
+
+#: core/sync/rsync.py
+msgid ""
+"Chave do host desconhecida. Conecte-se uma vez pelo terminal (ssh usuario@host) para confirmar a "
+"identidade do cluster."
+msgstr ""
+"Unknown host key. Connect once from the terminal (ssh user@host) to confirm the cluster's "
+"identity."
+
+#: core/structure3d/options.py ui/theme/manager.py
+msgid "Claro"
+msgstr "Light"
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Clique"
+msgstr "Click"
+
+#: ui/widgets/structure3d/measures.py
+msgid "Clique em dois átomos."
+msgstr "Click two atoms."
+
+#: ui/widgets/structure3d/measures.py
+msgid "Clique em três átomos; o segundo é o vértice."
+msgstr "Click three atoms; the second one is the vertex."
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Clique em um átomo para ver os dados."
+msgstr "Click an atom to see its data."
+
+#: ui/actions.py
+msgid "Cluster"
+msgstr "Cluster"
+
+#: ui/widgets/bars.py
+msgid "Cluster acessível"
+msgstr "Cluster reachable"
+
+#: ui/widgets/bars.py
+msgid "Cluster inacessível"
+msgstr "Cluster unreachable"
+
+#: core/sync/rsync.py
+msgid "Cluster inacessível (sem rota; verifique a rede/VPN)."
+msgstr "Cluster unreachable (no route; check the network/VPN)."
+
+#: core/sync/rsync.py
+msgid "Cluster inacessível (tempo de conexão esgotado)."
+msgstr "Cluster unreachable (connection timed out)."
+
+#: ui/widgets/bars.py
+msgid "Cluster não configurado (config.yaml)"
+msgstr "Cluster not configured (config.yaml)"
+
+#: core/config.py
+msgid "Cluster não configurado (host/user/remote_root): sincronização desativada."
+msgstr "Cluster not configured (host/user/remote_root): sync disabled."
+
+#: ui/dialogs/sync_dialog.py
+msgid "Cluster:"
+msgstr "Cluster:"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "Cluster: {remote}"
+msgstr "Cluster: {remote}"
+
+#: ui/dialogs/grid_cells.py
+msgid "Coluna"
+msgstr "Column"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Colunas"
+msgstr "Columns"
+
+#: ui/dialogs/open_with.py
+msgid "Comando inválido (confira as aspas)."
+msgstr "Invalid command (check the quotes)."
+
+#: ui/dialogs/open_with.py
+msgid "Comando, ex.: gedit ou /opt/app/bin/app --flag"
+msgstr "Command, e.g.: gedit or /opt/app/bin/app --flag"
+
+#: core/sync/push.py
+msgid "Comparando com o cluster…"
+msgstr "Comparing with the cluster…"
+
+#: core/sync/_process.py
+msgid "Comparando datas de modificação…"
+msgstr "Comparing modification dates…"
+
+#: ui/widgets/diff_view.py
+msgid "Comparando…"
+msgstr "Comparing…"
+
+#: ui/widgets/context_menu.py
+msgid "Comparar"
+msgstr "Compare"
+
+#: ui/widgets/input_view.py ui/widgets/workspace.py
+msgid "Comparar com…"
+msgstr "Compare with…"
+
+#: ui/widgets/input_view.py
+msgid "Comparar este input com outro"
+msgstr "Compare this input with another"
+
+#: ui/widgets/workspace.py
+msgid "Comparar inputs"
+msgstr "Compare inputs"
+
+#: core/calc_create/types/slab_fields.py
+msgid "Completar poliedros de borda (O + H)"
+msgstr "Complete edge polyhedra (O + H)"
+
+#: core/calc_create/surface/slab.py
+msgid "Completar poliedros precisa de O e H no SCF"
+msgstr "Completing polyhedra needs O and H in the SCF"
+
+#: core/calc_create/surface/slab.py
+msgid "Completar poliedros: sem H no bulk para medir o O–H"
+msgstr "Completing polyhedra: no H in the bulk to measure the O–H"
+
+#: core/qe/summary/build.py
+msgid "Concluído"
+msgstr "Finished"
+
+#: core/calculations/bands/params.py core/calculations/bands/render.py
+msgid "Condução"
+msgstr "Conduction"
+
+#: core/sync/rsync.py
+msgid "Conexão interrompida (o cluster encerrou a conexão durante a transferência)."
+msgstr "Connection interrupted (the cluster closed the connection during the transfer)."
+
+#: core/sync/rsync.py
+msgid "Conexão interrompida (sem resposta do cluster)."
+msgstr "Connection interrupted (no response from the cluster)."
+
+#: core/sync/rsync.py
+msgid "Conexão recusada pelo cluster (verifique a porta SSH)."
+msgstr "Connection refused by the cluster (check the SSH port)."
+
+#: core/sync/controller.py core/sync/push.py
+msgid "Conferindo arquivos locais…"
+msgstr "Checking local files…"
+
+#: ui/help_controller.py
+msgid "Config"
+msgstr "Config"
+
+#: core/config.py
+#, python-brace-format
+msgid "Configuração inválida{where}:\n"
+msgstr "Invalid configuration{where}:\n"
+
+#: ui/help_controller.py
+msgid "Configurações do projeto"
+msgstr "Project settings"
+
+#: core/sync/request.py
+msgid "Configure cluster.host, cluster.user e paths.remote_root no config.yaml para sincronizar."
+msgstr "Set cluster.host, cluster.user and paths.remote_root in config.yaml to sync."
+
+#: core/calculations/pdos/atoms.py
+msgid "Confira em ‘Átomos…’"
+msgstr "Check in ‘Atoms…’"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Conflito de sincronização"
+msgstr "Sync conflict"
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "Continuar"
+msgstr "Continue"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Convergiu ({detail})"
+msgstr "Converged ({detail})"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Convergiu em {count} iteração"
+msgid_plural "Convergiu em {count} iterações"
+msgstr[0] "Converged in {count} iteration"
+msgstr[1] "Converged in {count} iterations"
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "Convergiu ✓ em {count} iteração"
+msgid_plural "Convergiu ✓ em {count} iterações"
+msgstr[0] "Converged ✓ in {count} iteration"
+msgstr[1] "Converged ✓ in {count} iterations"
+
+#: core/calculations/scf.py
+msgid "Convergência"
+msgstr "Convergence"
+
+#: core/calculations/scf.py
+msgid "Convergência SCF"
+msgstr "SCF convergence"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Convergência da energia (etot_conv_thr)"
+msgstr "Energy convergence (etot_conv_thr)"
+
+#: core/calc_create/types/relax.py
+msgid "Convergência das forças (forc_conv_thr)"
+msgstr "Force convergence (forc_conv_thr)"
+
+#: core/calc_create/types/adsorption_fields.py
+#, python-brace-format
+msgid "Coordenadas do átomo {k} (crystal)"
+msgstr "Coordinates of atom {k} (crystal)"
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "Coordenadas do átomo {value}: escreva três números, x y z"
+msgstr "Coordinates of atom {value}: write three numbers, x y z"
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Coordenação"
+msgstr "Coordination"
+
+#: ui/widgets/context_menu.py
+#, python-brace-format
+msgid "Copiado: {name}"
+msgid_plural "Copiados: {n} itens"
+msgstr[0] "Copied: {name}"
+msgstr[1] "Copied: {n} items"
+
+#: ui/navigation_controller.py
+#, python-brace-format
+msgid "Copiado: {path}"
+msgstr "Copied: {path}"
+
+#: ui/widgets/context_menu.py ui/widgets/structure3d/measures.py ui/widgets/summary_view.py
+msgid "Copiar"
+msgstr "Copy"
+
+#: ui/widgets/structure3d/measures.py
+msgid "Copiar as medidas como texto (cola numa planilha)"
+msgstr "Copy the measurements as text (pastes into a spreadsheet)"
+
+#: ui/widgets/breadcrumb.py ui/widgets/workspace.py
+msgid "Copiar caminho"
+msgstr "Copy path"
+
+#: ui/dialogs/about.py
+msgid "Copiar informações"
+msgstr "Copy information"
+
+#: ui/widgets/summary_view.py
+msgid "Copiar o resumo como texto"
+msgstr "Copy the summary as text"
+
+#: core/calculations/params.py
+msgid "Cor de fundo"
+msgstr "Background color"
+
+#: core/calculations/scf.py
+msgid "Cor energia"
+msgstr "Energy color"
+
+#: core/calculations/relax.py
+msgid "Cor força"
+msgstr "Force color"
+
+#: core/calculations/scf.py
+msgid "Cor limiar"
+msgstr "Threshold color"
+
+#: core/calculations/relax.py
+msgid "Cor limiares"
+msgstr "Thresholds color"
+
+#: core/calculations/scf.py
+msgid "Cor magnetização"
+msgstr "Magnetization color"
+
+#: core/calculations/scf.py
+msgid "Cor precisão"
+msgstr "Accuracy color"
+
+#: core/calculations/relax.py
+msgid "Cor pressão"
+msgstr "Pressure color"
+
+#: core/calculations/relax.py
+msgid "Cor volume"
+msgstr "Volume color"
+
+#: core/calculations/relax.py
+msgid "Cor |ΔE| / |ΔH|"
+msgstr "|ΔE| / |ΔH| color"
+
+#: core/calculations/bands/params.py
+msgid "Cor ↑"
+msgstr "↑ color"
+
+#: core/calculations/bands/params.py
+msgid "Cor ↓"
+msgstr "↓ color"
+
+#: ui/widgets/param_widgets.py
+#, python-brace-format
+msgid "Cor: {color}"
+msgstr "Color: {color}"
+
+#: core/calculations/bands/params.py
+msgid "Cores por"
+msgstr "Colors by"
+
+#: ui/project_controller.py
+msgid "Criando projeto…"
+msgstr "Creating project…"
+
+#: ui/calc_create_controller.py
+#, python-brace-format
+msgid "Criando {name}…"
+msgstr "Creating {name}…"
+
+#: ui/dialogs/calc_create/dialog.py ui/dialogs/new_project.py ui/widgets/bars.py
+msgid "Criar"
+msgstr "Create"
+
+#: ui/dialogs/first_run.py
+msgid "Criar config.yaml"
+msgstr "Create config.yaml"
+
+#: ui/dialogs/first_run.py
+#, python-brace-format
+msgid ""
+"Criar config.yaml com esta pasta como raiz?\n"
+"\n"
+"{folder}"
+msgstr ""
+"Create config.yaml with this folder as the root?\n"
+"\n"
+"{folder}"
+
+#: ui/first_run.py
+msgid "Criar config…"
+msgstr "Create config…"
+
+#: ui/calc_create_controller.py ui/dialogs/calc_create/dialog.py
+msgid "Criar cálculo"
+msgstr "Create calculation"
+
+#: ui/calc_create_controller.py ui/widgets/bars.py
+msgid "Criar cálculo (scripts e inputs)"
+msgstr "Create calculation (scripts and inputs)"
+
+#: ui/actions.py
+msgid "Criar cálculo…"
+msgstr "Create calculation…"
+
+#: ui/dialogs/first_run.py
+#, python-brace-format
+msgid ""
+"Criar o arquivo de configuração?\n"
+"\n"
+"{path}"
+msgstr ""
+"Create the configuration file?\n"
+"\n"
+"{path}"
+
+#: ui/dialogs/new_project.py ui/project_controller.py
+msgid "Criar projeto"
+msgstr "Create project"
+
+#: ui/actions.py ui/widgets/project_combo.py
+msgid "Criar projeto…"
+msgstr "Create project…"
+
+#: core/qe/summary/build.py
+msgid "Cutoff da densidade de carga"
+msgstr "Charge density cutoff"
+
+#: core/qe/summary/build.py
+msgid "Cutoff da função de onda"
+msgstr "Wavefunction cutoff"
+
+#: core/qe/summary/build.py
+msgid "Cálculo"
+msgstr "Calculation"
+
+#: core/calculations/info.py
+msgid "Cálculo QE"
+msgstr "QE calculation"
+
+#: core/calculations/scf.py
+msgid "Cálculo SCF (pw.x)"
+msgstr "SCF calculation (pw.x)"
+
+#: core/qe/scf_from_relax.py
+msgid ""
+"Cálculo vc-relax: a célula foi escrita com ibrav = 0; o pw.x detecta a simetria pela tolerância "
+"numérica da célula final."
+msgstr ""
+"vc-relax calculation: the cell was written with ibrav = 0; pw.x detects the symmetry from the "
+"numerical tolerance of the final cell."
+
+#: ui/widgets/structure3d/panel.py
+msgid "Célula"
+msgstr "Cell"
+
+#: core/calculations/grid/render.py
+#, python-brace-format
+msgid "Célula ({row}, {col}): {error}"
+msgstr "Cell ({row}, {col}): {error}"
+
+#: core/plotting/grid.py
+#, python-brace-format
+msgid "Célula {number}: escolha um gráfico."
+msgstr "Cell {number}: choose a plot."
+
+#: core/plotting/grid.py
+#, python-brace-format
+msgid "Célula {number}: posição {where} fora da grade {rows} × {cols}."
+msgstr "Cell {number}: position {where} is outside the {rows} × {cols} grid."
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Célula {n}"
+msgstr "Cell {n}"
+
+#: core/plotting/grid.py
+#, python-brace-format
+msgid "Células {first} e {number} estão na mesma posição {where}."
+msgstr "Cells {first} and {number} are at the same position {where}."
+
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid "Cópias da célula do SCF ao longo de {axis} (1 a 8)"
+msgstr "Copies of the SCF cell along {axis} (1 to 8)"
+
+#: core/calculations/bands_dos/pair.py
+msgid "DOS"
+msgstr "DOS"
+
+#: core/calculations/pdos/params.py
+msgid "DOS máx"
+msgstr "DOS max"
+
+#: core/calculations/pdos/params.py
+msgid "DOS total"
+msgstr "Total DOS"
+
+#: core/calculations/pdos/module.py
+msgid "DOS total (pdos_tot)"
+msgstr "Total DOS (pdos_tot)"
+
+#: core/calculations/bands_dos/params.py
+msgid "DOS ▸ Eixo"
+msgstr "DOS ▸ Axis"
+
+#: core/calculations/bands_dos/params.py
+msgid "DOS ▸ Projeções"
+msgstr "DOS ▸ Projections"
+
+#: core/calculations/bands_dos/render.py
+#, python-brace-format
+msgid "DOS: {count} projeções"
+msgstr "DOS: {count} projections"
+
+#: ui/help_controller.py
+msgid "Dados"
+msgstr "Data"
+
+#: core/calculations/bands/module.py
+msgid "Dados de bandas (.gnu)"
+msgstr "Band data (.gnu)"
+
+#: core/calculations/bands/module.py
+msgid "Dados de bandas (filband)"
+msgstr "Band data (filband)"
+
+#: core/calculations/bands/module.py
+msgid "Dados de bandas ↓ (.gnu)"
+msgstr "↓ band data (.gnu)"
+
+#: core/calculations/bands/module.py
+msgid "Dados de bandas ↓ (filband)"
+msgstr "↓ band data (filband)"
+
+#: ui/widgets/file_grid.py
+msgid "Data"
+msgstr "Date"
+
+#: core/sync/preview.py
+msgid "Data local"
+msgstr "Local date"
+
+#: core/sync/preview.py ui/dialogs/sync_pages.py
+msgid "Data no cluster"
+msgstr "Date on the cluster"
+
+#: core/calc_create/kpath.py
+msgid "Defina ao menos 2 pontos do caminho"
+msgstr "Define at least 2 points of the path"
+
+#: core/calc_create/unit.py
+msgid "Defina jobs.pseudo_dir no config.yaml para fixar os pseudopotenciais"
+msgstr "Set jobs.pseudo_dir in config.yaml to pin the pseudopotentials"
+
+#: ui/calc_create_controller.py
+msgid "Defina paths.local_root para criar cálculos"
+msgstr "Set paths.local_root to create calculations"
+
+#: core/xcrysden.py
+msgid "Defina paths.xcrysden_path no config.yaml para abrir com o XCrysDen."
+msgstr "Set paths.xcrysden_path in config.yaml to open with XCrySDen."
+
+#: core/calc_create/fragments.py
+msgid "Deixe ao menos um átomo fora da seleção: o SCF clean ficaria vazio"
+msgstr "Leave at least one atom out of the selection: the clean SCF would be empty"
+
+#: core/calculations/pdos/module.py
+msgid "Densidade de estados projetada"
+msgstr "Projected density of states"
+
+#: ui/first_run.py
+msgid "Depois de editar, use Ferramentas ▸ Recarregar config.yaml"
+msgstr "After editing, use Tools ▸ Reload config.yaml"
+
+#: ui/dialogs/calc_create/edit_bar.py
+msgid "Descarta a edição e volta ao texto que os campos geram"
+msgstr "Discards the edit and goes back to the text the fields generate"
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "Descartar o que foi preenchido?"
+msgstr "Discard what was filled in?"
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Descartar os átomos de uma medida"
+msgstr "Discard the atoms of a measurement"
+
+#: ui/widgets/kpath_editor.py
+msgid "Descer"
+msgstr "Move down"
+
+#: core/structure3d/elements.py ui/widgets/structure3d/panel_atom.py
+msgid "Desconhecido"
+msgstr "Unknown"
+
+#: core/calc_create/writer.py ui/dialogs/calc_create/tabs_page.py
+msgid "Descrição"
+msgstr "Description"
+
+#: ui/plot_workflow.py
+msgid "Desenhando…"
+msgstr "Drawing…"
+
+#: core/calculations/params.py
+msgid ""
+"Deslocamento horizontal da legenda, em fração da largura do gráfico (positivo: direita). Com a "
+"posição Automática, qualquer deslocamento usa Superior direita."
+msgstr ""
+"Horizontal shift of the legend, as a fraction of the plot width (positive: right). With the "
+"Automatic position, any shift uses Upper right."
+
+#: core/calculations/params.py
+msgid ""
+"Deslocamento vertical da legenda, em fração da altura do gráfico (positivo: cima). Com a posição "
+"Automática, qualquer deslocamento usa Superior direita."
+msgstr ""
+"Vertical shift of the legend, as a fraction of the plot height (positive: up). With the Automatic"
+" position, any shift uses Upper right."
+
+#: ui/widgets/atom_table.py
+msgid "Desmarcar todos"
+msgstr "Unmark all"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Desprotona o sítio: o único H ligado a cada átomo âncora sai, e a molécula toma o lugar dele"
+msgstr ""
+"Deprotonates the site: the only H bonded to each anchor atom leaves, and the molecule takes its "
+"place"
+
+#: ui/widgets/toast.py
+msgid "Detalhes"
+msgstr "Details"
+
+#: ui/generate_plot.py ui/plot_button.py ui/plot_workflow.py
+msgid "Detectando cálculo…"
+msgstr "Detecting calculation…"
+
+#: ui/widgets/plot_params.py
+msgid ""
+"Detectar o tipo de cálculo, plotar a pasta selecionada e salvar em plots/ (Ctrl+G).\n"
+"Com uma pasta de bandas e uma de PDOS selecionadas na grade: Bandas com DOS."
+msgstr ""
+"Detect the calculation type, plot the selected folder and save it to plots/ (Ctrl+G).\n"
+"With a bands folder and a PDOS folder selected in the grid: Bands with DOS."
+
+#: ui/widgets/search_bar.py
+msgid "Diferenciar maiúsculas"
+msgstr "Match case"
+
+#: core/calc_create/types/charge_diff.py
+msgid "Diferença de carga"
+msgstr "Charge difference"
+
+#: ui/widgets/diff_view.py
+#, python-brace-format
+msgid "Diff · {left} ↔ {right}"
+msgstr "Diff · {left} ↔ {right}"
+
+#: ui/widgets/command_palette.py
+msgid "Digite um comando…   > ações   / pastas   @ abas"
+msgstr "Type a command…   > actions   / folders   @ tabs"
+
+#: core/projects.py
+msgid "Digite um nome para o projeto"
+msgstr "Type a name for the project"
+
+#: core/file_ops.py
+msgid "Digite um nome."
+msgstr "Type a name."
+
+#: core/calc_create/types/vc_relax.py
+msgid "Dinâmica da célula (cell_dynamics)"
+msgstr "Cell dynamics (cell_dynamics)"
+
+#: core/calc_create/types/relax.py
+msgid "Dinâmica dos íons (ion_dynamics)"
+msgstr "Ion dynamics (ion_dynamics)"
+
+#: core/calculations/bands/params.py
+msgid "Disposição"
+msgstr "Layout"
+
+#: ui/widgets/kpath_editor.py
+msgid "Distribuir pelo comprimento"
+msgstr "Distribute by length"
+
+#: core/structure3d/measurements.py ui/widgets/structure3d/measures.py
+msgid "Distância"
+msgstr "Distance"
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Distância (Å)"
+msgstr "Distance (Å)"
+
+#: core/calc_create/types/adsorption_fields.py core/calc_create/types/slab_fields.py
+msgid "Distância de adsorção (Å)"
+msgstr "Adsorption distance (Å)"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Distância máxima entre as coordenadas e o átomo que elas escolhem"
+msgstr "Maximum distance between the coordinates and the atom they pick"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid ""
+"Distância mínima do âncora a cada átomo da superfície: acima de um átomo, a altura; entre dois, o"
+" âncora sobe até ficar a esta distância de todos"
+msgstr ""
+"Minimum distance from the anchor to each surface atom: above one atom, the height; between two, "
+"the anchor rises until it is this far from all of them"
+
+#: ui/widgets/structure3d/measures.py
+msgid "Distâncias"
+msgstr "Distances"
+
+#: core/calc_create/types/adsorption.py
+msgid "Distâncias âncora–sítio"
+msgstr "Anchor–site distances"
+
+#: core/qe/summary/build.py
+msgid "Divisão R & G (proc/nbgrp/npool/nimage)"
+msgstr "R & G division (proc/nbgrp/npool/nimage)"
+
+#: core/qe/summary/build.py
+msgid "Divisão de k-pontos (npool)"
+msgstr "k-point division (npool)"
+
+#: core/calc_create/types/surface_fields.py
+msgid ""
+"Dois átomos estão ligados quando a distância é até esta fração da soma dos raios covalentes "
+"(tabela do ASE, a mesma dos scripts)"
+msgstr ""
+"Two atoms are bonded when their distance is up to this fraction of the sum of the covalent radii "
+"(ASE table, the same as in the scripts)"
+
+#: ui/widgets/summary_widgets.py
+#, python-brace-format
+msgid "Duplo clique: abrir a saída na linha {line}"
+msgstr "Double click: open the output at line {line}"
+
+#: core/plotting/grid.py
+msgid "Dê um nome à grade."
+msgstr "Give the grid a name."
+
+#: core/qe/summary/build.py
+msgid "E final"
+msgstr "Final E"
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "E final (SCF final) {final_scf_energy:.6f} Ry"
+msgstr "Final E (final SCF) {final_scf_energy:.6f} Ry"
+
+#: core/qe/summary/build.py
+msgid "E inicial"
+msgstr "Initial E"
+
+#: core/calculations/bands/params.py core/calculations/pdos/params.py
+msgid "E máx"
+msgstr "E max"
+
+#: core/calculations/bands/params.py core/calculations/pdos/params.py
+msgid "E mín"
+msgstr "E min"
+
+#: core/calculations/scf.py
+msgid "E total"
+msgstr "Total E"
+
+#: core/file_kinds.py core/filtering.py
+msgid "ERRO"
+msgstr "ERROR"
+
+#: core/calculations/bands/params.py
+msgid "E_F (SCF)"
+msgstr "E_F (SCF)"
+
+#: core/calculations/bands_dos/render.py
+#, python-brace-format
+msgid "E_F da DOS difere do das bandas em {delta:.3f} eV"
+msgstr "The DOS E_F differs from the bands' by {delta:.3f} eV"
+
+#: core/calculations/pdos/params.py
+msgid "E_F de"
+msgstr "E_F from"
+
+#: core/calculations/bands/data.py
+msgid "E_F não encontrado: gap pela contagem de elétrons"
+msgstr "E_F not found: gap from the electron count"
+
+#: ui/dialogs/calc_create/edit_bar.py
+msgid "Editado manualmente. Os campos deste arquivo não o alteram mais."
+msgstr "Edited by hand. The fields no longer change this file."
+
+#: core/calculations/params.py
+msgid "Eixo X"
+msgstr "X axis"
+
+#: core/calc_create/surface/slab.py
+#, python-brace-format
+msgid "Eixo de superfície desconhecido: {axis}"
+msgstr "Unknown surface axis: {axis}"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Eixos a, b, c"
+msgstr "a, b, c axes"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Eixos x, y, z"
+msgstr "x, y, z axes"
+
+#: ui/widgets/atom_table.py ui/widgets/structure3d/panel_atom.py
+msgid "Elemento"
+msgstr "Element"
+
+#: core/qe/summary/build.py
+msgid "Elétrons"
+msgstr "Electrons"
+
+#: core/calculations/relax.py core/qe/summary/build.py
+msgid "Em andamento"
+msgstr "In progress"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Em andamento ({count} iteração)"
+msgid_plural "Em andamento ({count} iterações)"
+msgstr[0] "In progress ({count} iteration)"
+msgstr[1] "In progress ({count} iterations)"
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "Em andamento · {iterations} · {accuracy}"
+msgstr "In progress · {iterations} · {accuracy}"
+
+#: core/calc_create/types/pdos.py
+msgid "Emin deve ser menor que Emax"
+msgstr "Emin must be less than Emax"
+
+#: core/calc_create/types/pdos.py
+msgid ""
+"Emin/Emax são energias absolutas em eV; acima da energia da última banda calculada (nbnd) a DOS é"
+" zero. Aumente nbnd ou reduza Emax"
+msgstr ""
+"Emin/Emax are absolute energies in eV; above the energy of the last calculated band (nbnd) the "
+"DOS is zero. Increase nbnd or reduce Emax"
+
+#: core/sync/rsync.py
+msgid "Endereço do cluster não encontrado (verifique cluster.host)."
+msgstr "Cluster address not found (check cluster.host)."
+
+#: core/calculations/params.py core/calculations/scf.py
+msgid "Energia"
+msgstr "Energy"
+
+#: core/calculations/relax.py
+msgid "Energia / entalpia"
+msgstr "Energy / enthalpy"
+
+#: core/calculations/scf.py
+msgid "Energia como"
+msgstr "Energy as"
+
+#: core/qe/summary/build.py
+msgid "Energia de Fermi"
+msgstr "Fermi energy"
+
+#: core/qe/summary/build.py
+msgid "Energia de Fermi (↑ / ↓)"
+msgstr "Fermi energy (↑ / ↓)"
+
+#: core/qe/summary/build.py
+msgid "Energia final (BFGS)"
+msgstr "Final energy (BFGS)"
+
+#: core/calc_create/types/pdos.py
+msgid "Energia máxima (Emax, eV)"
+msgstr "Maximum energy (Emax, eV)"
+
+#: core/calc_create/types/pdos.py
+msgid "Energia mínima (Emin, eV)"
+msgstr "Minimum energy (Emin, eV)"
+
+#: core/calculations/pdos/params.py
+msgid "Energia no eixo x"
+msgstr "Energy on the x axis"
+
+#: core/calculations/pdos/params.py
+msgid "Energia no eixo y"
+msgstr "Energy on the y axis"
+
+#: core/qe/summary/build.py
+msgid "Energia total"
+msgstr "Total energy"
+
+#: core/calculations/scf.py
+msgid "Energia total (Ry)"
+msgstr "Total energy (Ry)"
+
+#: core/qe/summary/build.py
+msgid "Entalpia final"
+msgstr "Final enthalpy"
+
+#: core/calculations/bands/module.py
+msgid "Entrada de bandas (pw.x, calculation='bands')"
+msgstr "Bands input (pw.x, calculation='bands')"
+
+#: core/calculations/bands/module.py
+msgid "Entrada do bands.x"
+msgstr "bands.x input"
+
+#: core/calculations/relax.py
+msgid "Entrada relax/vc-relax (pw.x)"
+msgstr "relax/vc-relax input (pw.x)"
+
+#: core/sync/report.py
+msgid "Enviados"
+msgstr "Uploaded"
+
+#: core/sync/request.py
+msgid "Enviando para o cluster"
+msgstr "Uploading to the cluster"
+
+#: core/sync/push.py
+#, python-brace-format
+msgid "Enviando {count} arquivo…"
+msgid_plural "Enviando {count} arquivos…"
+msgstr[0] "Uploading {count} file…"
+msgstr[1] "Uploading {count} files…"
+
+#: core/sync/request.py
+msgid "Enviar"
+msgstr "Upload"
+
+#: ui/widgets/context_menu.py
+msgid "Enviar ao cluster"
+msgstr "Upload to cluster"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Enviar para o cluster: {label}"
+msgstr "Upload to the cluster: {label}"
+
+#: core/sync/request.py ui/actions.py
+msgid "Enviar pasta ao cluster…"
+msgstr "Upload folder to cluster…"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Enviar {elide_start} ao cluster…"
+msgstr "Upload {elide_start} to cluster…"
+
+#: ui/sync_coordinator.py
+msgid "Envio ao cluster"
+msgstr "Upload to cluster"
+
+#: core/sync/report.py
+msgid "Envio cancelado."
+msgstr "Upload cancelled."
+
+#: core/qe/summary/build.py
+msgid "Erro"
+msgstr "Error"
+
+#: core/run_errors.py
+#, python-brace-format
+msgid "Erro de simulação: arquivo {name}"
+msgstr "Simulation error: file {name}"
+
+#: core/run_errors.py
+#, python-brace-format
+msgid "Erro de simulação: {name} não está vazio"
+msgstr "Simulation error: {name} is not empty"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Erro em {routine}"
+msgstr "Error in {routine}"
+
+#: ui/excepthook.py
+msgid "Erro inesperado"
+msgstr "Unexpected error"
+
+#: ui/calc_create_controller.py ui/derive_controller.py ui/project_controller.py
+#: ui/structure3d_controller.py
+#, python-brace-format
+msgid "Erro inesperado: {error}"
+msgstr "Unexpected error: {error}"
+
+#: core/calculations/relax.py core/calculations/scf.py
+msgid "Escala Y"
+msgstr "Y scale"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Escala do raio dos átomos"
+msgstr "Scale of the atom radius"
+
+#: ui/widgets/structure3d/measures.py
+msgid "Escolha Distância ou Ângulos para medir."
+msgstr "Choose Distance or Angles to measure."
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Escolha o input de SCF"
+msgstr "Choose the SCF input"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Escolha o tipo de cálculo"
+msgstr "Choose the calculation type"
+
+#: core/sync/request.py
+msgid "Escolha uma pasta de cálculo; a pasta raiz inteira não é enviada."
+msgstr "Choose a calculation folder; the whole root folder is not uploaded."
+
+#: core/sync/request.py
+msgid "Escolha uma pasta de cálculo; o projeto inteiro não é enviado."
+msgstr "Choose a calculation folder; the whole project is not uploaded."
+
+#: ui/dialogs/first_run.py
+msgid "Escolher a pasta raiz"
+msgstr "Choose the root folder"
+
+#: ui/widgets/param_widgets.py
+msgid "Escolher cor"
+msgstr "Choose color"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Escolher input de SCF"
+msgstr "Choose SCF input"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Escolher o sítio por"
+msgstr "Choose the site by"
+
+#: ui/widgets/params_body.py
+msgid "Escolher os átomos cujos orbitais são plotados"
+msgstr "Choose the atoms whose orbitals are plotted"
+
+#: ui/first_run.py
+msgid "Escolher pasta…"
+msgstr "Choose folder…"
+
+#: ui/dialogs/open_with.py
+msgid "Escolher programa"
+msgstr "Choose program"
+
+#: ui/widgets/context_menu.py
+msgid "Escolher programa…"
+msgstr "Choose program…"
+
+#: ui/dialogs/calc_create/scf_field.py ui/dialogs/calc_create/setup_page.py
+msgid "Escolher…"
+msgstr "Choose…"
+
+#: core/structure3d/options.py ui/theme/manager.py
+msgid "Escuro"
+msgstr "Dark"
+
+#: core/structure3d/options.py
+msgid "Espaço cheio"
+msgstr "Space filling"
+
+#: core/calculations/pdos/params.py
+msgid "Espelhado (↓ negativo)"
+msgstr "Mirrored (↓ negative)"
+
+#: core/qe/input_lexer.py
+msgid "Esperado 'chave = valor'"
+msgstr "Expected 'key = value'"
+
+#: core/calculations/params.py
+msgid "Espessura"
+msgstr "Thickness"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Espessura a, b, c"
+msgstr "a, b, c thickness"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Espessura das setas a, b, c"
+msgstr "Thickness of the a, b, c arrows"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Espessura do triedro x, y, z"
+msgstr "Thickness of the x, y, z triad"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Espessura x, y, z"
+msgstr "x, y, z thickness"
+
+#: core/calculations/pdos/params.py ui/widgets/structure3d/panel_atom.py
+msgid "Espécie"
+msgstr "Species"
+
+#: core/calculations/pdos/params.py
+msgid "Espécie + orbital"
+msgstr "Species + orbital"
+
+#: core/calc_create/surface/elements.py
+#, python-brace-format
+msgid "Espécie sem elemento conhecido: {label}"
+msgstr "Species with no known element: {label}"
+
+#: core/structure3d/source.py
+#, python-brace-format
+msgid "Espécie sem elemento conhecido: {label} (cinza, raio {radius} Å)"
+msgstr "Species with no known element: {label} (gray, radius {radius} Å)"
+
+#: core/calc_create/surface/write.py
+#, python-brace-format
+msgid "Espécie sem linha em ATOMIC_SPECIES: {join}"
+msgstr "Species with no line in ATOMIC_SPECIES: {join}"
+
+#: core/structure3d/source.py
+#, python-brace-format
+msgid "Espécie {label} sem linha em ATOMIC_SPECIES (massa e pseudopotencial vazios)"
+msgstr "Species {label} has no line in ATOMIC_SPECIES (empty mass and pseudopotential)"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Espécies"
+msgstr "Species"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Espécies candidatas"
+msgstr "Candidate species"
+
+#: core/calc_create/types/surface_fields.py
+msgid "Espécies fixas"
+msgstr "Fixed species"
+
+#: core/calc_create/surface/write.py
+#, python-brace-format
+msgid "Espécies sem átomo removidas de ATOMIC_SPECIES: {join}"
+msgstr "Species with no atoms removed from ATOMIC_SPECIES: {join}"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Esta mudança refaz a próxima etapa: os campos voltam aos padrões"
+msgstr "This change redoes the next step: the fields go back to their defaults"
+
+#: core/detection.py
+#, python-brace-format
+msgid ""
+"Esta pasta foi identificada como {join}, que não tem gráfico próprio. Para plotar "
+"{describe_plottable}, indique os arquivos."
+msgstr ""
+"This folder was identified as {join}, which has no plot of its own. To plot {describe_plottable},"
+" specify the files."
+
+#: core/qe/summary/build.py ui/widgets/diff_view.py
+msgid "Estado"
+msgstr "Status"
+
+#: ui/widgets/file_grid.py
+msgid "Estado do arquivo"
+msgstr "File status"
+
+#: core/qe/summary/build.py
+msgid "Estados de Kohn-Sham"
+msgstr "Kohn-Sham states"
+
+#: core/projects.py
+msgid "Este nome é reservado: a pasta não apareceria como projeto"
+msgstr "This name is reserved: the folder would not show up as a project"
+
+#: core/calculations/params.py ui/widgets/structure3d/panel.py
+msgid "Estilo"
+msgstr "Style"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Estrutura"
+msgstr "Structure"
+
+#: core/calculations/bands/module.py
+msgid "Estrutura de bandas"
+msgstr "Band structure"
+
+#: core/calculations/bands_dos/module.py
+msgid "Estrutura de bandas e PDOS de duas pastas, com o mesmo eixo de energia"
+msgstr "Band structure and PDOS of two folders, with the same energy axis"
+
+#: core/structure3d/source.py
+#, python-brace-format
+msgid "Estrutura de {name} ilegível: {exc}"
+msgstr "Structure of {name} unreadable: {exc}"
+
+#: core/calc_create/surface/geometry.py core/calc_create/surface/model.py
+#, python-brace-format
+msgid "Estrutura de {name} ilegível: {value}"
+msgstr "Structure of {name} unreadable: {value}"
+
+#: ui/widgets/kpath_editor.py
+msgid "Estrutura do SCF não legível"
+msgstr "SCF structure not readable"
+
+#: core/calc_create/types/bandas.py
+#, python-brace-format
+msgid ""
+"Estrutura do SCF não lida ({structure_problem}): digite o caminho à mão; checagem do eixo x das "
+"bandas não feita"
+msgstr ""
+"SCF structure not read ({structure_problem}): type the path by hand; the check of the bands x "
+"axis was not done"
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
+#: core/calc_create/types/supercell.py
+msgid "Estrutura não gerada"
+msgstr "Structure not generated"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Excluir"
+msgstr "Delete"
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Excluir a grade salva “{name}”?"
+msgstr "Delete the saved grid “{name}”?"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Excluir grade"
+msgstr "Delete grid"
+
+#: core/file_kinds.py
+msgid "Execução concluída (JOB DONE)"
+msgstr "Run finished (JOB DONE)"
+
+#: core/file_kinds.py
+msgid "Execução concluída com avisos"
+msgstr "Run finished with warnings"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Exibição"
+msgstr "Display"
+
+#: ui/widgets/explorer.py
+msgid "Explorador"
+msgstr "Explorer"
+
+#: ui/widgets/bars.py
+msgid "Explorador de pastas"
+msgstr "Folder explorer"
+
+#: ui/plot_export.py
+msgid "Exportando…"
+msgstr "Exporting…"
+
+#: core/calculations/params.py ui/widgets/plot_view.py
+msgid "Exportar"
+msgstr "Export"
+
+#: ui/actions.py
+msgid "Exportar gráfico"
+msgstr "Export plot"
+
+#: ui/plot_export.py
+msgid "Exportação cancelada."
+msgstr "Export cancelled."
+
+#: ui/widgets/input_view.py
+msgid "Extrato"
+msgstr "Extract"
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "F final {force_ry_bohr:.1e} Ry/Bohr"
+msgstr "Final F {force_ry_bohr:.1e} Ry/Bohr"
+
+#: ui/plot_workflow.py
+msgid "Falha ao carregar os dados do gráfico."
+msgstr "Failed to load the plot data."
+
+#: ui/services.py
+#, python-brace-format
+msgid "Falha ao detectar {name} (veja o log)"
+msgstr "Failed to detect {name} (see the log)"
+
+#: ui/plot_export.py
+msgid "Falha ao exportar"
+msgstr "Export failed"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "Falha na sincronização: {error}"
+msgstr "Sync failed: {error}"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "Falha no envio: {error}"
+msgstr "Upload failed: {error}"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Falhou ({detail})"
+msgstr "Failed ({detail})"
+
+#: core/qsub_lint.py
+msgid "Falta o #! na primeira linha (por exemplo: #!/usr/bin/env bash)"
+msgstr "Missing #! on the first line (for example: #!/usr/bin/env bash)"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Fator de ligação"
+msgstr "Bond factor"
+
+#: core/calc_create/types/slab.py
+msgid "Fator f"
+msgstr "Factor f"
+
+#: ui/palette_controller.py
+msgid "Favorito"
+msgstr "Favorite"
+
+#: ui/widgets/explorer.py
+msgid "Favoritos"
+msgstr "Favorites"
+
+#: core/calc_create/types/slab_fields.py
+msgid "Fecha cada ligação metal–O cortada com um O novo e o seu H: Al–OH, Si–OH"
+msgstr "Closes each cut metal–O bond with a new O and its H: Al–OH, Si–OH"
+
+#: ui/dialogs/about.py ui/dialogs/grid_dialog.py ui/widgets/search_bar.py ui/widgets/workspace.py
+msgid "Fechar"
+msgstr "Close"
+
+#: ui/widgets/search_bar.py
+msgid "Fechar (Esc)"
+msgstr "Close (Esc)"
+
+#: ui/widgets/workspace.py
+msgid "Fechar a aba"
+msgstr "Close tab"
+
+#: ui/widgets/text_viewer.py
+msgid "Fechar a busca"
+msgstr "Close the search"
+
+#: ui/actions.py
+msgid "Fechar aba"
+msgstr "Close tab"
+
+#: ui/widgets/workspace.py
+msgid "Fechar outras"
+msgstr "Close others"
+
+#: ui/widgets/workspace.py
+msgid "Fechar todas"
+msgstr "Close all"
+
+#: ui/widgets/workspace.py
+msgid "Fechar à direita"
+msgstr "Close to the right"
+
+#: core/calculations/bands/params.py core/calculations/pdos/params.py
+msgid "Fermi"
+msgstr "Fermi"
+
+#: ui/actions.py
+msgid "Ferramentas"
+msgstr "Tools"
+
+#: core/calculations/params.py
+msgid "Figura"
+msgstr "Figure"
+
+#: ui/widgets/file_grid.py
+msgid "Filtrar a grade"
+msgstr "Filter the grid"
+
+#: ui/widgets/explorer.py
+msgid "Filtrar a árvore"
+msgstr "Filter the tree"
+
+#: ui/widgets/file_grid.py
+msgid "Filtrar por nome (* e ?)"
+msgstr "Filter by name (* and ?)"
+
+#: ui/widgets/explorer.py
+msgid "Filtrar por nome (pastas já abertas)"
+msgstr "Filter by name (folders already opened)"
+
+#: ui/widgets/filter_bar.py
+msgid "Filtrar por tipo ou estado"
+msgstr "Filter by type or status"
+
+#: ui/widgets/filter_bar.py
+msgid "Filtrar ▾"
+msgstr "Filter ▾"
+
+#: core/qsub_lint.py
+msgid "Fim de linha CRLF: o bash do cluster lê o \\r como parte do comando"
+msgstr "CRLF line ending: the cluster's bash reads the \\\\r as part of the command"
+
+#: core/structure3d/options.py
+msgid "Fio"
+msgstr "Wire"
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Fixo (if_pos)"
+msgstr "Fixed (if_pos)"
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "Folga abaixo de {decimal} Å: {parts}; o relax ajusta"
+msgstr "Clearance below {decimal} Å: {parts}; the relax adjusts it"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Folga mínima (Å)"
+msgstr "Minimum clearance (Å)"
+
+#: core/calc_create/types/adsorption.py
+msgid "Folgas"
+msgstr "Clearances"
+
+#: core/calculations/params.py
+msgid "Fonte"
+msgstr "Font"
+
+#: core/calculations/grid/params.py
+msgid "Fonte dos títulos"
+msgstr "Title source"
+
+#: core/calculations/params.py
+msgid "Fora (direita)"
+msgstr "Outside (right)"
+
+#: core/calc_create/preview.py
+msgid "Fora da pasta raiz: a detecção e a sincronização só enxergam pastas dentro dela"
+msgstr "Outside the root folder: detection and sync only see folders inside it"
+
+#: core/calc_create/types/charge.py
+msgid "Formato de saída (output_format)"
+msgstr "Output format (output_format)"
+
+#: core/calculations/relax.py
+msgid "Força"
+msgstr "Force"
+
+#: core/qe/summary/build.py
+msgid "Força total"
+msgstr "Total force"
+
+#: core/calculations/relax.py
+msgid "Força total (Ry/Bohr)"
+msgstr "Total force (Ry/Bohr)"
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Fracionária"
+msgstr "Fractional"
+
+#: core/calc_create/types/surface_fields.py
+msgid "Fração fixa da espessura"
+msgstr "Fixed fraction of the thickness"
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Frações x y z: escolhem o átomo mais próximo, até a tolerância"
+msgstr "Fractions x y z: pick the nearest atom, up to the tolerance"
+
+#: core/qe/summary/build.py
+msgid "Funcional (XC)"
+msgstr "Functional (XC)"
+
+#: ui/widgets/structure3d/panel.py
+msgid "Fundo"
+msgstr "Background"
+
+#: core/qe/summary/build.py ui/widgets/structure3d/panel.py
+msgid "Fórmula"
+msgstr "Formula"
+
+#: core/qe/summary/build.py
+msgid "GPU"
+msgstr "GPU"
+
+#: core/calculations/params.py
+msgid "Gap de energia na legenda"
+msgstr "Energy gap in the legend"
+
+#: core/qe/summary/build.py
+msgid "Geral"
+msgstr "General"
+
+#: ui/derive_controller.py
+msgid "Gerando SCF convergido…"
+msgstr "Generating converged SCF…"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Gerar"
+msgstr "Generate"
+
+#: ui/widgets/plot_params.py
+msgid "Gerar Plot"
+msgstr "Generate Plot"
+
+#: ui/derive_controller.py ui/widgets/context_menu.py
+msgid "Gerar SCF convergido"
+msgstr "Generate converged SCF"
+
+#: ui/actions.py ui/plot_workflow.py
+msgid "Gerar gráfico"
+msgstr "Generate plot"
+
+#: ui/widgets/plot_params.py
+msgid ""
+"Gere um gráfico (botão “Gerar Plot”)\n"
+"para ajustar os parâmetros."
+msgstr ""
+"Generate a plot (“Generate Plot” button)\n"
+"to adjust the parameters."
+
+#: ui/widgets/structure3d/rotation.py
+#, python-brace-format
+msgid "Girar a estrutura 45° em torno de {axis} (regra da mão direita)"
+msgstr "Rotate the structure 45° about {axis} (right-hand rule)"
+
+#: ui/widgets/structure3d/rotation.py
+#, python-brace-format
+msgid "Girar a estrutura 45° em torno de {axis}, no sentido contrário"
+msgstr "Rotate the structure 45° about {axis}, in the opposite direction"
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Girar a vista"
+msgstr "Rotate the view"
+
+#: ui/widgets/bars.py ui/widgets/file_grid.py
+msgid "Grade"
+msgstr "Grid"
+
+#: ui/widgets/file_grid.py
+msgid "Grade de arquivos"
+msgstr "File grid"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Grade de gráficos"
+msgstr "Plot grid"
+
+#: core/calculations/grid/module.py
+msgid "Grade de gráficos já plotados numa só figura"
+msgstr "Grid of already plotted graphs in a single figure"
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Grade “{name}” aberta."
+msgstr "Grid “{name}” opened."
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Grade “{name}” excluída."
+msgstr "Grid “{name}” deleted."
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Grade “{name}” salva."
+msgstr "Grid “{name}” saved."
+
+#: core/calc_create/types/charge.py
+msgid "Grandeza (plot_num)"
+msgstr "Quantity (plot_num)"
+
+#: core/calc_create/types/slab_fields.py
+msgid "Graus de liberdade da célula (cell_dofree)"
+msgstr "Cell degrees of freedom (cell_dofree)"
+
+#: ui/dialogs/grid_dialog.py ui/widgets/bars.py
+msgid "Grids"
+msgstr "Grids"
+
+#: ui/actions.py
+msgid "Grids…"
+msgstr "Grids…"
+
+#: ui/dialogs/grid_cells.py
+msgid "Gráfico"
+msgstr "Plot"
+
+#: ui/actions.py ui/widgets/bars.py
+msgid "Gráficos"
+msgstr "Plots"
+
+#: core/calc_create/types/slab.py
+msgid "H reconectados"
+msgstr "H reattached"
+
+#: core/calc_create/types/adsorption.py
+msgid "H removidos"
+msgstr "H removed"
+
+#: core/calc_create/surface/slab.py
+#, python-brace-format
+msgid "H {value} sem vizinho ligado: não reconectado"
+msgstr "H {value} has no bonded neighbor: not reattached"
+
+#: core/calculations/params.py
+msgid "HOMO/LUMO do SCF"
+msgstr "SCF HOMO/LUMO"
+
+#: core/calc_create/species_keys.py
+msgid "HUBBARD sem linhas neste fragmento: o card foi removido"
+msgstr "HUBBARD has no lines in this fragment: the card was removed"
+
+#: core/calc_create/species_keys.py
+#, python-brace-format
+msgid "HUBBARD: linha V removida (cita um átomo fora do fragmento): {row}"
+msgstr "HUBBARD: V line removed (it cites an atom outside the fragment): {row}"
+
+#: core/calc_create/species_keys.py
+msgid "HUBBARD: índice de átomo vizinho (maior que nat) renumerado pela supercélula 3×3×3; confira"
+msgstr "HUBBARD: neighbor atom index (greater than nat) renumbered by the 3×3×3 supercell; check it"
+
+#: core/structure3d/elements.py
+msgid ""
+"Hidrogênio Hélio Lítio Berílio Boro Carbono Nitrogênio Oxigênio Flúor Neônio Sódio Magnésio "
+"Alumínio Silício Fósforo Enxofre Cloro Argônio Potássio Cálcio Escândio Titânio Vanádio Cromo "
+"Manganês Ferro Cobalto Níquel Cobre Zinco Gálio Germânio Arsênio Selênio Bromo Criptônio Rubídio "
+"Estrôncio Ítrio Zircônio Nióbio Molibdênio Tecnécio Rutênio Ródio Paládio Prata Cádmio Índio "
+"Estanho Antimônio Telúrio Iodo Xenônio Césio Bário Lantânio Cério Praseodímio Neodímio Promécio "
+"Samário Európio Gadolínio Térbio Disprósio Hólmio Érbio Túlio Itérbio Lutécio Háfnio Tântalo "
+"Tungstênio Rênio Ósmio Irídio Platina Ouro Mercúrio Tálio Chumbo Bismuto Polônio Astato Radônio "
+"Frâncio Rádio Actínio Tório Protactínio Urânio Netúnio Plutônio Amerício Cúrio Berquélio "
+"Califórnio Einstênio Férmio Mendelévio Nobélio Laurêncio Rutherfórdio Dúbnio Seabórgio Bóhrio "
+"Hássio Meitnério Darmstádio Roentgênio Copernício Nihônio Fleróvio Moscóvio Livermório Tenessino "
+"Oganessônio"
+msgstr ""
+
+#: ui/rename_controller.py
+#, python-brace-format
+msgid "Há um SCF convergido sendo gerado a partir de {name}. Espere terminar."
+msgstr ""
+
+#: ui/rename_controller.py
+#, python-brace-format
+msgid "Há um cálculo sendo criado em {name}. Espere terminar."
+msgstr ""
+
+#: ui/rename_controller.py
+#, python-brace-format
+msgid "Há um envio ao cluster em andamento em {where}. Espere terminar ou cancele."
+msgstr ""
+
+#: ui/rename_controller.py
+msgid "Há uma exportação de figura em andamento. Espere terminar e tente de novo."
+msgstr ""
+
+#: ui/rename_controller.py
+#, python-brace-format
+msgid "Há uma sincronização em andamento em {where}. Espere terminar ou cancele."
+msgstr ""
+
+#: core/file_kinds.py core/filtering.py
+msgid "INCOMPLETO"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "Ignorar espaços e comentários"
+msgstr ""
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Imagem"
+msgstr ""
+
+#: ui/widgets/structure3d/window.py
+#, python-brace-format
+msgid "Imagem salva em plots/{name}"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Incompleto"
+msgstr ""
+
+#: ui/palette_controller.py
+msgid "Indexando pastas…"
+msgstr ""
+
+#: ui/dialogs/mapping.py
+msgid "Indique o tipo de cálculo e os arquivos de cada papel. Campos marcados com * são obrigatórios."
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Inferior direita"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Inferior esquerda"
+msgstr ""
+
+#: core/calc_create/types/base.py
+msgid "Input de SCF"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+msgid "Input de SCF da molécula (pw.x, calculation = 'scf'); é lido, nunca alterado"
+msgstr ""
+
+#: core/calc_create/preview.py
+msgid "Input do QE"
+msgstr ""
+
+#: core/calc_create/preview.py
+msgid "Input do pw.x"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+msgid "Input do relax não encontrado na pasta"
+msgstr ""
+
+#: core/text_preview.py
+#, python-brace-format
+msgid "Input grande ({human_size}): a escrita não foi verificada, só o realce."
+msgstr ""
+
+#: core/qe/input_edit.py
+#, python-brace-format
+msgid "Input não pôde ser lido: {exc}"
+msgstr ""
+
+#: core/calc_create/fragments.py
+#, python-brace-format
+msgid "Input não pôde ser lido: {issues}"
+msgstr ""
+
+#: ui/widgets/workspace.py
+msgid "Inputs do QE (*.in *.inp *.pw*);;Todos os arquivos (*)"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)"
+msgstr ""
+
+#: ui/widgets/atom_table.py
+msgid "Inverter"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Inverter a superfície"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Início"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Ir ao fim"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Ir ao fim (Ctrl+End)"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Ir ao início"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Ir ao início (Ctrl+Home)"
+msgstr ""
+
+#: ui/widgets/input_view.py
+msgid "Ir ao primeiro"
+msgstr ""
+
+#: ui/widgets/input_view.py
+msgid "Ir ao primeiro problema (F8: próximo, Shift+F8: anterior)"
+msgstr ""
+
+#: ui/actions.py
+msgid "Ir para a grade"
+msgstr ""
+
+#: ui/actions.py
+msgid "Ir para a árvore"
+msgstr ""
+
+#: ui/actions.py
+msgid "Ir para o workspace"
+msgstr ""
+
+#: ui/actions.py
+msgid "Ir para os ajustes"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Ir à linha"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Ir à linha (Ctrl+L)"
+msgstr ""
+
+#: ui/widgets/input_view.py
+#, python-brace-format
+msgid "Ir à linha {line}"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Ir à linha…"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Iteração SCF"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Iteração máx."
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Iteração mín."
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Janela da superfície (Å)"
+msgstr ""
+
+#: core/projects.py
+msgid "Já existe um projeto com esse nome"
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Já existe uma grade “{name}”. Substituir?"
+msgstr ""
+
+#: core/projects.py
+msgid "Já existe uma pasta com esse nome"
+msgstr ""
+
+#: ui/dialogs/calc_create/preview.py
+#, python-brace-format
+msgid "Já existe {asked}: a nova pasta será {name}"
+msgstr ""
+
+#: core/file_ops.py
+#, python-brace-format
+msgid "Já existe “{name}” nesta pasta."
+msgstr ""
+
+#: core/sync/preview.py
+msgid "Já existem no cluster, não serão alterados"
+msgstr ""
+
+#: core/sync/report.py
+msgid "Já existiam no cluster (não alterados)"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+#, python-brace-format
+msgid "K_POINTS automatic {of}. {hint}"
+msgstr ""
+
+#: core/calc_create/types/fields.py
+#, python-brace-format
+msgid "K_POINTS automatic: n1 n2 n3 e os deslocamentos s1 s2 s3 (0 ou 1){keep}"
+msgstr ""
+
+#: core/calc_create/types/bandas.py
+msgid "K_POINTS crystal_b: pontos de alta simetria e pontos até o próximo"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+msgid "K_POINTS gamma do SCF mantido: confira se basta para a célula do slab"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "K_POINTS gamma do SCF mantido: confira se basta para a supercélula"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid "K_POINTS {value} da superfície mantido"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Lado a lado"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Largura"
+msgstr ""
+
+#: core/calculations/bands_dos/params.py
+msgid "Largura da DOS"
+msgstr ""
+
+#: core/calculations/grid/params.py
+msgid "Largura da célula"
+msgstr ""
+
+#: core/calculations/bands_dos/params.py
+msgid "Largura do painel da DOS em relação ao das bandas"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Legenda"
+msgstr ""
+
+#: ui/dialogs/mapping.py
+msgid "Lembrar este mapeamento para esta pasta"
+msgstr ""
+
+#: ui/dialogs/calc_create/scf_field.py ui/dialogs/calc_create/setup_page.py
+msgid "Lendo SCF…"
+msgstr ""
+
+#: ui/structure3d_controller.py
+msgid "Lendo estrutura…"
+msgstr ""
+
+#: ui/widgets/summary_view.py
+#, python-brace-format
+msgid "Lendo {name}…"
+msgstr ""
+
+#: ui/widgets/summary_view.py
+msgid "Ler o arquivo de novo (o job pode estar rodando)"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Ligação: d < fator × (r₁ + r₂)"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Ligações"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+msgid "Ligações a O cortadas"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "Ligações {bonds} cortadas não foram completadas: {metals} não está em '{label}'"
+msgid_plural "Ligações {bonds} cortadas não foram completadas: {metals} não estão em '{label}'"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ui/widgets/params_body.py
+#, python-brace-format
+msgid "Ligue “{name}” para usar este campo."
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Limiar"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Limiares"
+msgstr ""
+
+#: ui/dialogs/calc_create/scf_field.py ui/widgets/structure3d/measures.py
+msgid "Limpar"
+msgstr ""
+
+#: core/calculations/relax.py core/calculations/scf.py
+msgid "Linear"
+msgstr ""
+
+#: ui/dialogs/grid_cells.py
+msgid "Linha"
+msgstr ""
+
+#: core/calculations/bands/params.py core/calculations/pdos/params.py
+msgid "Linha de Fermi"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Linha:"
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py
+msgid "Linhas"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Linhas de alta simetria"
+msgstr ""
+
+#: core/plotting/grid.py
+#, python-brace-format
+msgid "Linhas e colunas vão de 1 a {MAX_SIZE}."
+msgstr ""
+
+#: ui/widgets/markdown_view.py
+#, python-brace-format
+msgid "Link não aberto: {target}"
+msgstr ""
+
+#: ui/widgets/file_grid.py
+msgid "Lista"
+msgstr ""
+
+#: core/sync/_process.py
+msgid "Listando arquivos no cluster…"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Local"
+msgstr ""
+
+#: ui/dialogs/sync_dialog.py
+msgid "Local:"
+msgstr ""
+
+#: ui/dialogs/sync_dialog.py
+#, python-brace-format
+msgid ""
+"Local: {local}\n"
+"Cluster: {remote}"
+msgstr ""
+
+#: core/calculations/relax.py core/calculations/scf.py ui/excepthook.py ui/help_controller.py
+msgid "Log"
+msgstr ""
+
+#: core/calculations/bands/render.py core/calculations/pdos/render.py
+#, python-brace-format
+msgid "M = {magnetization:.2f} μB/célula"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Magnetização"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Magnetização (μB/célula)"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Magnetização absoluta"
+msgstr ""
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Magnetização inicial"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Magnetização total"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Maior intervalo na janela"
+msgstr ""
+
+#: core/sync/preview.py core/sync/report.py
+msgid "Mais recentes no computador"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Malha k"
+msgstr ""
+
+#: ui/dialogs/sync_dialog.py
+msgid "Manter local"
+msgstr ""
+
+#: core/sync/report.py
+msgid "Mantidos na versão local"
+msgstr ""
+
+#: ui/dialogs/mapping.py
+msgid "Mapear arquivos manualmente"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "Marcar quebra de segmento"
+msgstr ""
+
+#: ui/widgets/atom_table.py
+msgid "Marcar todos"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Marcações"
+msgstr ""
+
+#: core/text_preview.py
+#, python-brace-format
+msgid "Markdown grande ({human_size}): exibido como texto, sem renderizar."
+msgstr ""
+
+#: ui/dialogs/atoms.py
+msgid "Marque ao menos um átomo"
+msgstr ""
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Massa"
+msgstr ""
+
+#: core/structure3d/measurements.py
+msgid "Medida\tÁtomos\tValor"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Medidas"
+msgstr ""
+
+#: ui/widgets/structure3d/measures.py
+msgid "Medidas copiadas"
+msgstr ""
+
+#: ui/widgets/structure3d/measures.py
+msgid "Medir a distância entre dois átomos"
+msgstr ""
+
+#: ui/widgets/structure3d/measures.py
+msgid "Medir o ângulo de três átomos (vértice no segundo)"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Meio do gap"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Memória disponível"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Mensagens"
+msgstr ""
+
+#: ui/help_controller.py
+#, python-brace-format
+msgid "Menu {menu}"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Metais da borda"
+msgstr ""
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Modo dos campos"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Moldura"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py core/calc_create/types/slab.py
+msgid "Molécula"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+msgid "Molécula na superfície"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+msgid "Monodentado: marque um átomo"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid ""
+"Monodentado: marque um átomo. Bidentado: marque dois. Mesma letra = sítios equivalentes por "
+"simetria"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Monodentado: o âncora sobre um átomo. Bidentado: entre dois átomos, no ponto médio"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Mostra o gap (CBM − VBM) na legenda. Sem efeito em sistema metálico."
+msgstr ""
+
+#: core/calculations/grid/params.py
+msgid "Mostra o título de cada célula no lugar do título do gráfico"
+msgstr ""
+
+#: ui/widgets/project_combo.py
+msgid "Mostra só as pastas de um projeto (uma pasta da raiz)"
+msgstr ""
+
+#: ui/widgets/explorer.py
+msgid "Mostrar arquivos na árvore"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Mostrar legenda"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Mostrar o Markdown renderizado"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Mostrar o texto do arquivo"
+msgstr ""
+
+#: ui/widgets/input_view.py
+msgid "Mostrar ou ocultar o extrato do input"
+msgstr ""
+
+#: ui/widgets/summary_widgets.py
+msgid "Mostrar ou ocultar os detalhes"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Mostrar/ocultar arquivos"
+msgstr ""
+
+#: ui/widgets/bars.py
+#, python-brace-format
+msgid "Mostrar/ocultar {name}"
+msgstr ""
+
+#: ui/widgets/plot_view.py
+msgid "Mover (arrastar)"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Mover a vista"
+msgstr ""
+
+#: core/sync/report.py
+msgid "Mudaram localmente (não baixados)"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Método do gap"
+msgstr ""
+
+#: core/calc_create/types/script.py
+#, python-brace-format
+msgid "NP = {np} não é múltiplo de nk = {nk}: o pw.x para com erro (mp_start_pools)"
+msgstr ""
+
+#: core/calc_create/types/script.py
+msgid "NP deve ser ao menos 1"
+msgstr ""
+
+#: core/sync/preview.py core/sync/report.py
+msgid "Nada a enviar."
+msgstr ""
+
+#: core/sync/preview.py
+msgid "Nada a transferir."
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "Namelist"
+msgstr ""
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "Namelist desconhecida &{upper}"
+msgstr ""
+
+#: ui/actions.py
+msgid "Navegar"
+msgstr ""
+
+#: ui/navigation_controller.py
+msgid "Navegação"
+msgstr ""
+
+#: core/structure3d/options.py
+msgid "Nenhum"
+msgstr ""
+
+#: ui/dialogs/calc_create/scf_field.py ui/dialogs/calc_create/setup_page.py
+msgid "Nenhum arquivo escolhido"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Nenhum aviso ou erro"
+msgstr ""
+
+#: ui/first_run.py
+msgid ""
+"Nenhum config.yaml encontrado. O Lain usa um arquivo de configuração (não há janela de "
+"configurações)."
+msgstr ""
+
+#: core/detection.py
+#, python-brace-format
+msgid "Nenhum cálculo de {name} completo em {name_2}."
+msgstr ""
+
+#: core/detection.py
+msgid ""
+"Nenhum cálculo reconhecido nesta pasta (nomes e conteúdo). Indique o tipo de cálculo e os "
+"arquivos manualmente."
+msgstr ""
+
+#: ui/plot_workflow.py
+msgid "Nenhum gráfico aberto."
+msgstr ""
+
+#: ui/focus_controller.py
+msgid "Nenhum gráfico aberto: os ajustes aparecem junto com o gráfico."
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Nenhum painel selecionado"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Nenhum passo completo de relaxamento encontrado."
+msgstr ""
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "Nenhum passo de relaxamento completo em {name}."
+msgstr ""
+
+#: ui/widgets/context_menu.py
+msgid "Nenhum programa encontrado"
+msgstr ""
+
+#: ui/widgets/search_bar.py
+msgid "Nenhum resultado"
+msgstr ""
+
+#: core/calc_create/surface/candidates.py
+#, python-brace-format
+msgid "Nenhum átomo de {join} a até {decimal} Å do topo"
+msgstr ""
+
+#: core/calc_create/surface/fixing.py
+#, python-brace-format
+msgid "Nenhum átomo ficou fixo pela regra '{rule}'"
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py
+msgid "Nenhuma grade salva"
+msgstr ""
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "Nenhuma iteração SCF completa em {name}."
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py ui/widgets/file_grid.py
+msgid "Nome"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Nome da pasta"
+msgstr ""
+
+#: core/calc_create/writer.py
+#, python-brace-format
+msgid "Nome de arquivo inválido: {name!r}"
+msgstr ""
+
+#: core/calc_create/types/files.py
+#, python-brace-format
+msgid "Nome de arquivo inválido: {name} (só letras sem acento, números, ponto, hífen e sublinhado)"
+msgstr ""
+
+#: core/calc_create/types/files.py
+#, python-brace-format
+msgid "Nome de arquivo inválido: {name} (use <nome>.in)"
+msgstr ""
+
+#: core/calc_create/types/files.py
+#, python-brace-format
+msgid "Nome de arquivo repetido: {name}"
+msgstr ""
+
+#: core/calc_create/types/files.py
+msgid "Nome do arquivo"
+msgstr ""
+
+#: core/calc_create/types/files.py
+msgid "Nome do input na pasta nova (termina em .in); a saída tem o mesmo nome com .out"
+msgstr ""
+
+#: core/calc_create/types/script.py
+msgid "Nome do job"
+msgstr ""
+
+#: core/calc_create/types/script.py
+#, python-brace-format
+msgid "Nome do job ajustado para {name} (até 15 caracteres: letras, números, . _ -)"
+msgstr ""
+
+#: ui/dialogs/new_project.py
+msgid "Nome do projeto"
+msgstr ""
+
+#: core/file_ops.py
+msgid "Nome inválido."
+msgstr ""
+
+#: ui/dialogs/sync_pages.py
+msgid "Nota"
+msgstr ""
+
+#: ui/dialogs/overwrite.py
+msgid "Nova versão"
+msgstr ""
+
+#: core/sync/preview.py
+msgid "Novos"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Numerar"
+msgstr ""
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Não convergiu ({count} iteração)"
+msgid_plural "Não convergiu ({count} iterações)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "Não convergiu ✗ após {count} iteração · {accuracy}"
+msgid_plural "Não convergiu ✗ após {count} iterações · {accuracy}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Não foi possível abrir a grade “{name}”."
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+#, python-brace-format
+msgid "Não foi possível abrir o arquivo: {error}"
+msgstr ""
+
+#: ui/widgets/context_menu.py
+#, python-brace-format
+msgid "Não foi possível abrir {file} com {program}."
+msgstr ""
+
+#: ui/help_controller.py
+#, python-brace-format
+msgid "Não foi possível abrir {folder}: {error}"
+msgstr ""
+
+#: ui/plot_settings.py
+#, python-brace-format
+msgid "Não foi possível apagar {name}: {error}"
+msgstr ""
+
+#: core/structure3d/view_file.py
+#, python-brace-format
+msgid "Não foi possível atualizar {name} em {folder}: {reason}"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+#, python-brace-format
+msgid "Não foi possível comparar: {error}"
+msgstr ""
+
+#: core/calc_create/writer.py
+#, python-brace-format
+msgid "Não foi possível criar a pasta {asked}: {value}"
+msgstr ""
+
+#: core/projects.py
+#, python-brace-format
+msgid "Não foi possível criar a pasta {path}: {value}"
+msgstr ""
+
+#: ui/first_run.py
+#, python-brace-format
+msgid "Não foi possível criar {path}: {error}"
+msgstr ""
+
+#: core/qe/input_edit.py
+#, python-brace-format
+msgid "Não foi possível editar {what}: {exc}"
+msgstr ""
+
+#: ui/plot_workflow.py
+msgid "Não foi possível gerar o gráfico"
+msgstr ""
+
+#: core/calc_create/writer.py
+#, python-brace-format
+msgid "Não foi possível gravar {name}: {reason}"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "Não foi possível gravar {name}: {value}"
+msgstr ""
+
+#: ui/dialogs/mapping.py
+msgid "Não foi possível identificar todos os arquivos"
+msgstr ""
+
+#: core/calculations/pdos/data.py
+#, python-brace-format
+msgid "Não foi possível ler a PDOS: {exc}"
+msgstr ""
+
+#: ui/dialogs/calc_create/scf_field.py ui/dialogs/calc_create/setup_page.py
+#, python-brace-format
+msgid "Não foi possível ler o SCF: {error}"
+msgstr ""
+
+#: ui/widgets/summary_view.py
+#, python-brace-format
+msgid "Não foi possível ler o arquivo: {error}"
+msgstr ""
+
+#: core/calculations/bands/data.py
+msgid "Não foi possível ler os autovalores:\n"
+msgstr ""
+
+#: ui/widgets/params_body.py
+msgid "Não foi possível ler os átomos da saída do SCF"
+msgstr ""
+
+#: core/calc_create/scf_info.py core/qe/scf_from_relax.py core/structure3d/source.py
+#, python-brace-format
+msgid "Não foi possível ler {name}: {value}"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "Não foi possível montar o SCF: {issues}"
+msgstr ""
+
+#: ui/dialogs/calc_create/dialog.py
+#, python-brace-format
+msgid ""
+"Não foi possível montar os arquivos deste cálculo: {error}. O log tem o detalhe (Ajuda ▸ Abrir "
+"log)."
+msgstr ""
+
+#: ui/rename_controller.py
+#, python-brace-format
+msgid "Não foi possível renomear {name}: {error}"
+msgstr ""
+
+#: ui/widgets/structure3d/window.py
+#, python-brace-format
+msgid "Não foi possível salvar a imagem: {reason}"
+msgstr ""
+
+#: ui/plot_settings.py
+#, python-brace-format
+msgid "Não foi possível salvar {kind}.plot em {folder}: {error}"
+msgstr ""
+
+#: core/structure3d/view_file.py
+#, python-brace-format
+msgid "Não foi possível salvar {name} em {folder}: {reason}"
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Não há grade salva com o nome “{name}”."
+msgstr ""
+
+#: core/xcrysden.py
+#, python-brace-format
+msgid "Não há o executável {EXECUTABLE} em {target}."
+msgstr ""
+
+#: ui/dialogs/overwrite.py
+msgid "Não perguntar novamente nesta sessão (sobrescrever)"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Não relaxado"
+msgstr ""
+
+#: ui/widgets/breadcrumb.py
+msgid "Níveis ocultos"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Nós"
+msgstr ""
+
+#: core/calc_create/types/script.py
+msgid "Núcleos (NP)"
+msgstr ""
+
+#: core/structure3d/options.py
+msgid "Número"
+msgstr ""
+
+#: core/calc_create/types/fields.py
+msgid "Número de bandas (nbnd)"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Número do átomo na ordem do SCF da molécula; vazio = o mais pesado (o primeiro num empate)"
+msgstr ""
+
+#: core/qe/input_lexer.py
+msgid "Número inválido"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+msgid "O + H adicionados"
+msgstr ""
+
+#: ui/app.py
+msgid "O Lain já está aberto com esta configuração. Abrir mesmo assim?"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "O SCF já tem {decimal} Å de vácuo ao longo de {axis}: parece uma superfície"
+msgstr ""
+
+#: core/calc_create/surface/write.py
+msgid "O SCF tem CONSTRAINTS, que numeram os átomos: remova o card para gerar a estrutura nova"
+msgstr ""
+
+#: core/calc_create/surface/write.py
+msgid "O SCF tem termos Hubbard V, que numeram os átomos: remova-os para gerar a estrutura nova"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid ""
+"O SCF usa o mesmo prefix ({prefix}) e outdir do relax: rodá-lo regrava {save} e impede reiniciar "
+"o relax. Mude o prefix ou o outdir antes de rodar."
+msgstr ""
+
+#: core/calc_create/unit.py
+#, python-brace-format
+msgid "O SCF usa um caminho fora da pasta: {}"
+msgstr ""
+
+#: core/calc_create/scf_info.py
+msgid "O arquivo"
+msgstr ""
+
+#: ui/dialogs/sync_dialog.py
+msgid "O arquivo local seria sobrescrito"
+msgstr ""
+
+#: core/calc_create/scf_info.py
+#, python-brace-format
+msgid "O arquivo não é um SCF (calculation = '{calculation}')"
+msgstr ""
+
+#: ui/dialogs/open_with.py
+msgid "O arquivo é passado como último argumento; nenhum shell é usado."
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "O caminho salta deste ponto para o próximo (peso 1)"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "O eixo da célula do SCF que é esticado para abrir o vácuo; os outros dois formam o plano"
+msgstr ""
+
+#: core/calc_create/surface/slab.py
+msgid "O eixo empilhado está no plano da superfície"
+msgstr ""
+
+#: ui/language.py
+msgid "O idioma muda ao reiniciar o Lain."
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+msgid "O input"
+msgstr ""
+
+#: core/file_kinds.py
+msgid "O job registrou mensagens de erro (arquivo não vazio)"
+msgstr ""
+
+#: core/text_preview.py
+msgid "O job registrou mensagens de erro."
+msgstr ""
+
+#: core/projects.py
+msgid "O nome não pode começar com ponto"
+msgstr ""
+
+#: core/file_ops.py
+msgid "O nome não pode conter “/” nem “\\”."
+msgstr ""
+
+#: core/file_ops.py core/plotting/grid.py
+msgid "O nome não pode conter “/”."
+msgstr ""
+
+#: ui/dialogs/new_project.py
+msgid "O nome será o nome da pasta, criada na pasta raiz."
+msgstr ""
+
+#: core/calc_create/surface/geometry.py
+#, python-brace-format
+msgid ""
+"O vácuo de {name} está ao longo de {other}; o Lain espera a superfície com o vácuo ao longo de c,"
+" como o Slab gera."
+msgstr ""
+
+#: core/calc_create/surface/slab.py
+msgid "O vácuo deve ser maior que zero"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
+#: core/calc_create/types/supercell.py
+msgid "O vácuo mínimo"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "O átomo {value} ({label}) não está na superfície"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "O átomo {value} ({label}) não é de {join}"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "O átomo {value} não existe (1 a {count})"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "O átomo âncora vai sobre o sítio e o eixo âncora → resto da molécula, na normal da superfície"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "O âncora fica a {decimal} Å de {name}: aumente a distância de adsorção"
+msgstr ""
+
+#: core/file_kinds.py core/filtering.py
+msgid "OK"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Ocorrência anterior"
+msgstr ""
+
+#: ui/widgets/explorer.py
+msgid "Ocultar arquivos da árvore"
+msgstr ""
+
+#: core/calc_create/types/pdos.py
+msgid "Ocupações (occupations)"
+msgstr ""
+
+#: ui/widgets/structure3d/window.py
+msgid "Olhar ao longo de x, y ou z (as teclas A, B e C olham ao longo de a, b e c)"
+msgstr ""
+
+#: ui/dialogs/shortcuts.py
+msgid "Onde"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Onde criar a pasta"
+msgstr ""
+
+#: core/qsub_lint.py
+#, python-brace-format
+msgid "Opção desconhecida do qsub: {token}"
+msgstr ""
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "Opção inválida para {name}: {option}"
+msgstr ""
+
+#: core/calculations/pdos/params.py
+msgid "Orbital"
+msgstr ""
+
+#: ui/widgets/file_grid.py
+msgid "Ordenar"
+msgstr ""
+
+#: core/calculations/pdos/params.py
+msgid "Orientação"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "Os dois arquivos lado a lado"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "Os inputs são equivalentes: nenhum parâmetro nem card difere."
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Os átomos da superfície (na janela do topo) das espécies candidatas"
+msgstr ""
+
+#: core/calc_create/surface/fixing.py
+#, python-brace-format
+msgid "Os átomos de {names} ficam, em média, acima do plano médio: a parte fixa não é a de baixo"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Otimização estrutural"
+msgstr ""
+
+#: ui/widgets/context_menu.py
+msgid "Outro programa…"
+msgstr ""
+
+#: core/calculations/relax_panels.py
+#, python-brace-format
+msgid "P final = {pressure:.2f} kbar"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "PDF"
+msgstr ""
+
+#: core/calculations/pdos/render.py
+msgid "PDOS (estados/eV)"
+msgstr ""
+
+#: core/qe/projwfc.py
+msgid "PDOS resolvida em k (kresolveddos) não é suportada"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "PNG"
+msgstr ""
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Padrão"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Painéis"
+msgstr ""
+
+#: ui/actions.py
+msgid "Paleta de comandos"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Paralelização"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "Parâmetro"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Parâmetro de rede (alat)"
+msgstr ""
+
+#: ui/dialogs/calc_create/form.py ui/widgets/diff_view.py
+msgid "Parâmetros"
+msgstr ""
+
+#: core/qe/input_lexer.py
+msgid "Parêntese não fechado"
+msgstr ""
+
+#: core/qe/input_lexer.py
+msgid "Parêntese sem abertura"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Passo BFGS"
+msgstr ""
+
+#: core/calc_create/types/pdos.py
+msgid "Passo de energia (DeltaE, eV)"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Passo máx."
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Passo mín."
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Passos BFGS"
+msgstr ""
+
+#: core/calc_create/types/relax.py
+msgid "Passos máximos (nstep)"
+msgstr ""
+
+#: ui/palette_controller.py
+msgid "Pasta"
+msgstr ""
+
+#: core/detection.py
+#, python-brace-format
+msgid "Pasta da DOS não encontrada: {folder}"
+msgstr ""
+
+#: core/detection.py
+#, python-brace-format
+msgid "Pasta das bandas não encontrada: {folder}"
+msgstr ""
+
+#: core/calc_create/types/charge_diff.py
+msgid "Pasta dos .xsf"
+msgstr ""
+
+#: core/sync/report.py
+msgid "Pasta já sincronizada: nada a transferir."
+msgstr ""
+
+#: core/config.py
+#, python-brace-format
+msgid "Pasta local não encontrada: {local_root}"
+msgstr ""
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "Pasta local: {local_dir}"
+msgstr ""
+
+#: core/sync/rsync.py
+msgid "Pasta não encontrada no cluster."
+msgstr ""
+
+#: core/detection.py
+#, python-brace-format
+msgid "Pasta não encontrada: {folder}"
+msgstr ""
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Pasta não encontrada: {path}"
+msgstr ""
+
+#: ui/navigation_controller.py
+#, python-brace-format
+msgid "Pasta não existe mais: {names}"
+msgstr ""
+
+#: ui/first_run.py
+msgid "Pasta raiz não encontrada"
+msgstr ""
+
+#: ui/first_run.py
+msgid "Pasta temporária: para fixar, edite paths.local_root no config.yaml"
+msgstr ""
+
+#: core/calc_create/preview.py
+#, python-brace-format
+msgid "Pasta {name} criada com {count} arquivo"
+msgid_plural "Pasta {name} criada com {count} arquivos"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ui/dialogs/calc_create/preview.py
+#, python-brace-format
+msgid "Pasta: {folder}"
+msgstr ""
+
+#: core/fuzzy.py ui/widgets/explorer.py ui/widgets/file_grid.py
+msgid "Pastas"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Pela lista: os átomos marcados na tabela. Por coordenadas: o átomo mais próximo de cada x y z"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Perspectiva"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Plot"
+msgstr ""
+
+#: core/calculations/grid/render.py
+#, python-brace-format
+msgid "Plot indisponível: {}"
+msgstr ""
+
+#: core/calculations/base.py ui/dialogs/mapping.py ui/widgets/context_menu.py
+msgid "Plotar"
+msgstr ""
+
+#: core/calculations/scf.py ui/widgets/bars.py
+msgid "Plotar SCF"
+msgstr ""
+
+#: core/calculations/scf.py ui/widgets/bars.py
+msgid "Plotar a convergência do SCF do arquivo aberto"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid ""
+"Plotar a pasta selecionada (com uma pasta de bandas e uma de PDOS selecionadas na grade: Bandas "
+"com DOS); com a geração automática desligada (ui.auto_generate_plot) só abre os ajustes"
+msgstr ""
+
+#: core/calculations/base.py
+msgid "Plotar o arquivo aberto"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Plotar os passos do relaxamento do arquivo aberto"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Plotar relaxamento"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "Pontos"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "Pontos até o próximo ponto do caminho"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "Pontos por Å⁻¹"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "Pontos por Å⁻¹ de comprimento do segmento"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Posição"
+msgstr ""
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Posição (Å)"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+msgid "Posição do âncora"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "Posições em alat com a célula em {unit}: o alat do SCF seria outro e o Lain não converte unidades"
+msgstr ""
+
+#: core/calc_create/fragments.py
+msgid "Posições em crystal_sg não são suportadas"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Precisão estimada"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Precisão estimada (Ry)"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
+msgid "Preencha Espécies candidatas"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+msgid "Preencha Espécies fixas"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+msgid "Preencha a rede de k-points: o SCF não tem K_POINTS automatic"
+msgstr ""
+
+#: core/calc_create/types/base.py
+#, python-brace-format
+msgid "Preencha {label}"
+msgstr ""
+
+#: core/calculations/pdos/params.py
+msgid "Preencher estados ocupados"
+msgstr ""
+
+#: core/calc_create/types/pdos.py
+msgid "Prefixo dos arquivos PDOS (filpdos)"
+msgstr ""
+
+#: ui/dialogs/sync_dialog.py ui/dialogs/sync_pages.py
+msgid "Preparando transferência…"
+msgstr ""
+
+#: ui/dialogs/sync_pages.py
+msgid "Preparando…"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Pressão"
+msgstr ""
+
+#: core/calculations/relax_panels.py
+msgid "Pressão (kbar)"
+msgstr ""
+
+#: core/calc_create/types/vc_relax.py
+msgid "Pressão (press, kbar)"
+msgstr ""
+
+#: ui/widgets/structure3d/window.py
+msgid "Print"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Problema anterior de escrita"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Processos MPI"
+msgstr ""
+
+#: ui/dialogs/open_with.py
+msgid "Procurar…"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Programa"
+msgstr ""
+
+#: ui/widgets/project_combo.py
+msgid "Projeto"
+msgstr ""
+
+#: ui/project_controller.py
+#, python-brace-format
+msgid "Projeto {name} criado"
+msgstr ""
+
+#: ui/project_controller.py
+#, python-brace-format
+msgid "Projeto {name} não encontrado"
+msgstr ""
+
+#: ui/project_controller.py
+#, python-brace-format
+msgid "Projeto: {name}"
+msgstr ""
+
+#: core/calculations/pdos/module.py
+msgid "Projeções"
+msgstr ""
+
+#: core/calculations/pdos/module.py
+msgid "Projeções pdos_atm#*_wfc#*"
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py
+msgid "Pré-visualizar"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Próxima ocorrência"
+msgstr ""
+
+#: ui/widgets/plot_view.py
+msgid "Próxima vista"
+msgstr ""
+
+#: ui/widgets/search_bar.py
+msgid "Próximo"
+msgstr ""
+
+#: ui/widgets/search_bar.py
+msgid "Próximo (Enter, F3)"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Próximo problema de escrita"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Pseudopotenciais"
+msgstr ""
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Pseudopotencial"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Põe um número antes do nome da pasta, seguindo as pastas que já existem aqui (0_Relax, 1_Bands…)"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "RAM máx. estimada por processo"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "RAM total estimada"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Raio"
+msgstr ""
+
+#: ui/project_controller.py
+#, python-brace-format
+msgid "Raiz: {path}"
+msgstr ""
+
+#: ui/actions.py
+msgid "Recarregar config.yaml"
+msgstr ""
+
+#: ui/palette_controller.py
+msgid "Recente"
+msgstr ""
+
+#: ui/widgets/explorer.py
+msgid "Recentes"
+msgstr ""
+
+#: ui/widgets/explorer.py
+msgid "Recolher tudo"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Reconectar H cortados"
+msgstr ""
+
+#: core/calc_create/types/fields.py core/calc_create/types/slab_fields.py
+msgid "Rede de k-points"
+msgstr ""
+
+#: core/sync/rsync.py
+msgid "Rede indisponível."
+msgstr ""
+
+#: core/calculations/pdos/params.py
+msgid "Referenciar a E_F"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Referência"
+msgstr ""
+
+#: core/calc_create/surface/fixing.py
+#, python-brace-format
+msgid "Regra de átomos fixos desconhecida: {rule}"
+msgstr ""
+
+#: core/calc_create/preview.py
+msgid "Relatório"
+msgstr ""
+
+#: core/calc_create/surface/report.py
+#, python-brace-format
+msgid "Relatório ({REPORT_NAME})"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Relaxado ✓"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Relaxamento"
+msgstr ""
+
+#: ui/widgets/params_body.py
+msgid "Remapear arquivos…"
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py ui/widgets/kpath_editor.py
+msgid "Remover"
+msgstr ""
+
+#: ui/widgets/context_menu.py
+msgid "Remover dos favoritos"
+msgstr ""
+
+#: ui/widgets/filter_bar.py
+msgid "Remover filtro"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+msgid "Remover o H ligado ao átomo âncora"
+msgstr ""
+
+#: ui/navigation_controller.py
+#, python-brace-format
+msgid "Removido dos favoritos: {name}"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Renderizado"
+msgstr ""
+
+#: ui/rename_controller.py
+#, python-brace-format
+msgid "Renomeado: {old} → {new}"
+msgstr ""
+
+#: ui/dialogs/rename.py ui/rename_controller.py ui/widgets/context_menu.py
+msgid "Renomear"
+msgstr ""
+
+#: ui/dialogs/rename.py
+#, python-brace-format
+msgid "Renomear {name}"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "Repetir ao longo do vácuo (c) empilha slabs: o vácuo entre eles não muda"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Repetição"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+#, python-brace-format
+msgid "Repetição ao longo de {name}"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "Repetições"
+msgstr ""
+
+#: core/calc_create/surface/supercell.py
+#, python-brace-format
+msgid "Repetições ao longo de {AXIS_NAMES}: de 1 a {MAX_REPEAT}"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid "Repetições ao longo de {axis}"
+msgstr ""
+
+#: ui/widgets/plot_view.py
+msgid "Reset"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py ui/widgets/structure3d/window.py
+msgid "Resetar vista"
+msgstr ""
+
+#: ui/widgets/structure3d/window.py
+msgid "Resetar vista (R)"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Resolução PNG"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Restaurar cores"
+msgstr ""
+
+#: ui/dialogs/calc_create/edit_bar.py
+msgid "Restaurar do formulário"
+msgstr ""
+
+#: ui/widgets/plot_view.py
+msgid "Restaurar limites iniciais"
+msgstr ""
+
+#: ui/plot_workflow.py ui/widgets/params_body.py ui/widgets/structure3d/panel.py
+msgid "Restaurar padrões"
+msgstr ""
+
+#: core/calc_create/fragments.py
+msgid "Restrições (CONSTRAINTS) não são suportadas na diferença de carga"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Resultados"
+msgstr ""
+
+#: ui/widgets/context_menu.py
+msgid "Resumo"
+msgstr ""
+
+#: ui/widgets/workspace.py
+#, python-brace-format
+msgid "Resumo · {name}"
+msgstr ""
+
+#: ui/widgets/workspace.py
+msgid "Revelar no explorador"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Roda, + e -"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Rotação"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Rotulagem dos eixos"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Rsync"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "Rótulo"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Rótulos"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Rótulos das espécies cujas ligações a O cortadas são completadas com O + H"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Rótulos k"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Rótulos ou elementos, separados por espaço, dos átomos da lista"
+msgstr ""
+
+#: core/calculations/pdos/params.py
+msgid "SCF"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
+msgid "SCF da molécula"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "SCF da molécula (opcional)"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
+#, python-brace-format
+msgid "SCF da molécula: {exc}"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+msgid "SCF da superfície"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "SCF da superfície (ou do bulk)"
+msgstr ""
+
+#: core/calc_create/types/slab.py core/calc_create/types/supercell.py
+msgid "SCF de origem"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+msgid "SCF do bulk"
+msgstr ""
+
+#: core/qe/pw_output.py
+msgid "SCF não convergiu"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid "SCF sem vácuo: supercélula de bulk, cell_dofree = '{}'"
+msgstr ""
+
+#: core/file_kinds.py core/filtering.py
+msgid "SEM ERROS"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "SVG"
+msgstr ""
+
+#: ui/actions.py
+msgid "Sair"
+msgstr ""
+
+#: ui/dialogs/atoms.py ui/dialogs/grid_dialog.py
+msgid "Salvar"
+msgstr ""
+
+#: ui/widgets/structure3d/window.py
+msgid "Salvar a imagem da vista em PNG, na pasta plots/ do cálculo"
+msgstr ""
+
+#: ui/widgets/plot_view.py
+msgid "Salvar em plots/ (Ctrl+E)"
+msgstr ""
+
+#: ui/plot_export.py
+#, python-brace-format
+msgid "Salvo em plots/: {names}"
+msgstr ""
+
+#: core/calculations/pdos/module.py
+msgid "Saída NSCF (pw.x)"
+msgstr ""
+
+#: core/calculations/bands/module.py core/calculations/pdos/module.py core/calculations/scf.py
+msgid "Saída SCF (pw.x)"
+msgstr ""
+
+#: core/calculations/bands/module.py
+msgid "Saída de bandas (pw.x)"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Saída de relax/vc-relax do pw.x com passos BFGS"
+msgstr ""
+
+#: core/calculations/info.py
+msgid "Saída do QE sem tipo plotável"
+msgstr ""
+
+#: core/calculations/info.py
+msgid "Saída do Quantum ESPRESSO"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "Saída do SCF não encontrada."
+msgstr ""
+
+#: core/calculations/bands/module.py
+msgid "Saída do bands.x"
+msgstr ""
+
+#: core/calculations/pdos/module.py
+msgid "Saída do projwfc.x"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Saída do relaxamento não encontrada."
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Saída relax/vc-relax (pw.x)"
+msgstr ""
+
+#: core/calc_create/types/script.py
+#, python-brace-format
+msgid "Script ({script})"
+msgstr ""
+
+#: core/calc_create/preview.py
+msgid "Script SGE"
+msgstr ""
+
+#: core/text_preview.py
+#, python-brace-format
+msgid "Script grande ({human_size}): a escrita não foi verificada, só o realce."
+msgstr ""
+
+#: ui/dialogs/rename.py
+msgid "Se esta pasta também existe no cluster, a próxima sincronização trará de volta o nome original."
+msgstr ""
+
+#: ui/dialogs/calc_create/preview.py
+#, python-brace-format
+msgid "Se {name} já existir ao criar, a nova pasta será {name}_1 (nada é sobrescrito)"
+msgstr ""
+
+#: core/calc_create/kpath.py
+#, python-brace-format
+msgid ""
+"Segmento {name}→{name_2} colapsa no eixo x do bands.x (passo maior que 5× o anterior): aumente os"
+" pontos do segmento anterior, reduza os deste ou use ‘Distribuir pelo comprimento’"
+msgstr ""
+
+#: core/calc_create/types/charge_diff.py
+msgid ""
+"Selecionados → isolated (só eles); o resto → clean (sem eles). Δρ = ρ(base) − ρ(clean) − "
+"ρ(isolated)"
+msgstr ""
+
+#: ui/widgets/structure3d/measures.py
+#, python-brace-format
+msgid "Selecionados: {names}"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Selecionar átomo"
+msgstr ""
+
+#: core/plotting/export.py
+msgid "Selecione ao menos um formato de exportação."
+msgstr ""
+
+#: core/calc_create/fragments.py
+msgid "Selecione os átomos do fragmento isolado"
+msgstr ""
+
+#: ui/widgets/workspace.py
+msgid ""
+"Selecione um arquivo para visualizar\n"
+"ou use “Gerar Gráfico” em uma pasta de simulação."
+msgstr ""
+
+#: core/file_kinds.py
+msgid "Sem JOB DONE: job rodando ou interrompido"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Sem convergência registrada"
+msgstr ""
+
+#: core/calculations/bands/gap.py
+msgid "Sem gap para a legenda: HOMO e LUMO impressos pelo pw.x coincidem"
+msgstr ""
+
+#: core/calculations/bands/gap.py
+msgid ""
+"Sem gap para a legenda: HOMO/LUMO não impresso pelo pw.x (só com ocupações fixas e nbnd maior que"
+" as bandas ocupadas)"
+msgstr ""
+
+#: core/calculations/bands/gap.py
+msgid "Sem gap para a legenda: nenhum intervalo vazio de pelo menos 0,05 eV na janela de energia"
+msgstr ""
+
+#: core/calculations/bands/gap.py
+msgid "Sem gap para a legenda: sem a saída do SCF não há contagem de elétrons"
+msgstr ""
+
+#: core/calculations/bands/gap.py
+msgid "Sem gap para a legenda: sistema metálico ao longo do caminho"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+msgid "Sem molécula: o vácuo é o mínimo"
+msgstr ""
+
+#: core/calc_create/writer.py
+#, python-brace-format
+msgid "Sem permissão de escrita em {parent}"
+msgstr ""
+
+#: ui/sync_coordinator.py
+#, python-brace-format
+msgid "Senha de {account} (não é salva):"
+msgstr ""
+
+#: ui/sync_coordinator.py
+msgid "Senha do cluster"
+msgstr ""
+
+#: core/config.py
+msgid "Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave."
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Separados por vírgula, ex.: G, X, W, L, G (G = Γ)"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Serial"
+msgstr ""
+
+#: core/calc_create/preview.py
+#, python-brace-format
+msgid "Será criada: {name}"
+msgstr ""
+
+#: core/calc_create/preview.py
+#, python-brace-format
+msgid "Será criada: {name} — já existe {asked}"
+msgstr ""
+
+#: core/sync/preview.py
+msgid "Serão enviados"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Setas a, b, c da célula"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Shift+Arrastar ou botão do meio"
+msgstr ""
+
+#: core/sync/request.py
+msgid "Sincronizando com o cluster"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Sincronizando…"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Sincronizar com o cluster"
+msgstr ""
+
+#: ui/actions.py
+msgid "Sincronizar pasta selecionada"
+msgstr ""
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Sincronizar projeto {project}"
+msgstr ""
+
+#: core/sync/request.py ui/actions.py
+msgid "Sincronizar tudo"
+msgstr ""
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Sincronizar {elide_start}"
+msgstr ""
+
+#: ui/sync_coordinator.py
+msgid "Sincronização"
+msgstr ""
+
+#: core/sync/report.py
+msgid "Sincronização cancelada."
+msgstr ""
+
+#: core/sync/request.py
+msgid "Sincronização desligada: configure cluster.host, cluster.user e paths.remote_root"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Sistema"
+msgstr ""
+
+#: ui/theme/manager.py
+msgid "Sistema (claro agora)"
+msgstr ""
+
+#: ui/theme/manager.py
+msgid "Sistema (escuro agora)"
+msgstr ""
+
+#: ui/actions.py ui/dialogs/about.py
+msgid "Sobre o Lain"
+msgstr ""
+
+#: core/calculations/pdos/params.py
+msgid "Sobreposto"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Sobrepostos"
+msgstr ""
+
+#: ui/dialogs/overwrite.py
+msgid "Sobrescrever"
+msgstr ""
+
+#: ui/dialogs/sync_dialog.py
+msgid "Sobrescrever este"
+msgstr ""
+
+#: ui/dialogs/overwrite.py
+#, python-brace-format
+msgid "Sobrescrever ou salvar como nova versão ({stem})?"
+msgstr ""
+
+#: ui/dialogs/sync_dialog.py
+msgid "Sobrescrever todos nesta pasta"
+msgstr ""
+
+#: core/calculations/pdos/params.py
+msgid "Soma (↑ + ↓)"
+msgstr ""
+
+#: core/calculations/pdos/render.py
+msgid "Soma dos átomos selecionados"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Somada ao vácuo só quando há molécula"
+msgstr ""
+
+#: core/calculations/bands/module.py core/calculations/pdos/params.py
+msgid "Spin"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "Subir"
+msgstr ""
+
+#: ui/widgets/file_grid.py
+msgid "Subir uma pasta"
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py
+msgid "Substituir grade"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "Supercélula"
+msgstr ""
+
+#: core/calc_create/surface/supercell.py
+#, python-brace-format
+msgid "Supercélula grande demais para o Lain: {total} átomos (máximo {MAX_ATOMS})"
+msgstr ""
+
+#: core/calc_create/types/slab.py core/calc_create/types/slab_fields.py
+msgid "Superfície"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Superfície (eixo empilhado)"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Superior direita"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Superior esquerda"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "São necessárias pelo menos duas iterações para calcular |ΔE|."
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "São necessários pelo menos dois passos completos para calcular |ΔE|."
+msgstr ""
+
+#: core/calculations/pdos/params.py
+msgid "Séries"
+msgstr ""
+
+#: core/structure3d/options.py
+msgid "Símbolo"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py ui/widgets/atom_table.py
+msgid "Sítio"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid ""
+"Só avisa: abaixo dela, a folga do âncora aos H da superfície ou do resto da molécula à superfície"
+" (o relax ajusta)"
+msgstr ""
+
+#: ui/widgets/atom_table.py
+msgid "Só espécie ▸"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "Só o que difere, parâmetro por parâmetro"
+msgstr ""
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Só os campos do padrão do tipo; o resto segue o SCF e o config.yaml"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Só para o vácuo: soma a altura da molécula e a distância de adsorção ao vácuo mínimo"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "Só verifica: abaixo dele ao longo de c, o plano avisa (a célula não muda)"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Só verifica: abaixo dele, acima da molécula, o plano avisa (a célula não muda)"
+msgstr ""
+
+#: core/calculations/bands/params.py core/calculations/pdos/params.py
+msgid "Só ↑"
+msgstr ""
+
+#: core/calculations/bands/params.py core/calculations/pdos/params.py
+msgid "Só ↓"
+msgstr ""
+
+#: core/calculations/params.py ui/dialogs/calc_create/preview.py ui/dialogs/sync_pages.py
+#: ui/widgets/file_grid.py
+msgid "Tamanho"
+msgstr ""
+
+#: core/calculations/params.py
+#, python-format
+msgid "Tamanho do texto da legenda. Automático = 85 % da fonte da figura."
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Tamanho do texto da vista: rótulos dos átomos e nomes dos eixos"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Tamanho dos números nas marcações dos eixos. Automático = fonte da figura."
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Tamanho dos rótulos"
+msgstr ""
+
+#: core/calculations/params.py
+msgid "Tamanho dos rótulos dos eixos. Automático = fonte da figura."
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Tema"
+msgstr ""
+
+#: ui/widgets/bars.py
+#, python-brace-format
+msgid "Tema: {theme} · Ctrl+T"
+msgstr ""
+
+#: ui/main_window.py
+#, python-brace-format
+msgid "Tema: {theme}."
+msgstr ""
+
+#: core/calc_create/render.py
+#, python-brace-format
+msgid "Template não encontrado: {name}"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Tempo (CPU)"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Tempo (WALL)"
+msgstr ""
+
+#: ui/actions.py
+msgid "Testar conexão"
+msgstr ""
+
+#: ui/widgets/diff_view.py ui/widgets/text_viewer.py
+msgid "Texto"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Threads por processo MPI"
+msgstr ""
+
+#: ui/dialogs/calc_create/preview.py
+msgid "Tipo"
+msgstr ""
+
+#: core/calc_create/types/pdos.py
+msgid "Tipo de alargamento (ngauss)"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Tipo de cálculo"
+msgstr ""
+
+#: ui/dialogs/mapping.py ui/plot_workflow.py
+msgid "Tipo de cálculo:"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "Tipo de gráfico (iflag)"
+msgstr ""
+
+#: ui/widgets/file_grid.py
+msgid "Tipo do arquivo"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Tipos atômicos"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "Todos"
+msgstr ""
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Todos os campos, os nomes dos arquivos e a prévia editável"
+msgstr ""
+
+#: ui/widgets/project_combo.py
+msgid "Todos os projetos"
+msgstr ""
+
+#: core/calc_create/surface/fixing.py
+msgid "Todos os átomos ficariam fixos"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Tolerância das coordenadas (Å)"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+msgid "Tolerância de ligação (× soma dos raios covalentes)"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Tolerância de simetria (Å)"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Toma o segundo vetor do plano com o sinal trocado: o lado de cima da camada vai para baixo"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Topo da valência (VBM)"
+msgstr ""
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "Transferindo {count} arquivo…"
+msgid_plural "Transferindo {count} arquivos…"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calculations/params.py
+msgid "Transparência"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Triedro x, y, z do canto da vista"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Término"
+msgstr ""
+
+#: core/calculations/params.py ui/dialogs/grid_cells.py
+msgid "Título"
+msgstr ""
+
+#: core/calculations/grid/params.py
+msgid "Títulos das células"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Um H cuja ligação cruza o corte vai para junto do átomo a que está ligado"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Unir gráficos abertos numa grade N×M (uma só figura)"
+msgstr ""
+
+#: core/calc_create/writer.py core/projects.py
+msgid "Use só letras sem acento, números, ponto, hífen e sublinhado no nome"
+msgstr ""
+
+#: core/calc_create/preview.py
+msgid "Use ‘Enviar ao cluster’ para levar a pasta ao cluster"
+msgstr ""
+
+#: core/qe/input_lexer.py
+#, python-brace-format
+msgid "Valor ausente para {name}"
+msgstr ""
+
+#: core/calc_create/types/base.py
+#, python-brace-format
+msgid "Valor inválido em {label}: {value}"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+#, python-brace-format
+msgid "Valor inválido: {value}"
+msgstr ""
+
+#: core/qe/input_lexer.py
+msgid "Valor lógico inválido: use .true. ou .false."
+msgstr ""
+
+#: core/calculations/bands/params.py core/calculations/bands/render.py
+msgid "Valência"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "Valência/condução"
+msgstr ""
+
+#: core/structure3d/options.py
+msgid "Vareta"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "Vazio = a do SCF dividida pelas repetições"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Vazio = a do SCF reescalada: o eixo do vácuo vale 1"
+msgstr ""
+
+#: ui/dialogs/calc_create/kmesh.py
+#, python-brace-format
+msgid "Vazio = padrão: {value}"
+msgstr ""
+
+#: core/calc_create/preview.py
+msgid "Vazio: mantém o K_POINTS do SCF"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Verificando conexão…"
+msgstr ""
+
+#: ui/widgets/structure3d/window.py
+msgid "Vista"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Vista 3D da estrutura"
+msgstr ""
+
+#: ui/widgets/plot_view.py
+msgid "Vista anterior"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Vista ao longo de a, b, c"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Vista ao longo de x, y, z"
+msgstr ""
+
+#: ui/widgets/text_viewer.py
+msgid "Visualizador de texto"
+msgstr ""
+
+#: ui/widgets/context_menu.py ui/widgets/structure3d/canvas.py ui/widgets/structure3d/window.py
+msgid "Visualização 3D"
+msgstr ""
+
+#: ui/structure3d_controller.py
+#, python-brace-format
+msgid "Visualização 3D de {name}: {reason}"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Visível"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+msgid "Vizinhos fixos"
+msgstr ""
+
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Vizinhos ligados"
+msgstr ""
+
+#: ui/actions.py ui/dialogs/calc_create/dialog.py
+msgid "Voltar"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Voltar (Alt+←)"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Voltar as opções, a câmera e a rotação ao padrão"
+msgstr ""
+
+#: ui/navigation_controller.py
+msgid "Voltar no histórico"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Voltar todas as opções e a câmera desta janela ao padrão?"
+msgstr ""
+
+#: ui/widgets/params_body.py
+#, python-brace-format
+msgid "Voltar todos os ajustes ao padrão e apagar {name}.plot"
+msgstr ""
+
+#: ui/plot_workflow.py
+#, python-brace-format
+msgid "Voltar todos os ajustes deste gráfico ao padrão e apagar {name}?"
+msgstr ""
+
+#: ui/widgets/plot_params.py
+msgid "Voltar à árvore"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Volume (inicial → final)"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+msgid "Volume (Å³)"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Volume da célula"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+msgid "Vácuo acima da molécula"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "Vácuo de {decimal} Å acima da molécula, abaixo do mínimo de {decimal_2} Å"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid "Vácuo de {} Å ao longo de c, abaixo do mínimo de {} Å"
+msgstr ""
+
+#: core/calc_create/types/slab.py core/calc_create/types/supercell.py
+msgid "Vácuo medido"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py core/calc_create/types/slab_fields.py
+#: core/calc_create/types/supercell.py
+msgid "Vácuo mínimo (Å)"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+msgid "Vácuo pedido"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "Vácuo perpendicular acima da camada; com a molécula, soma a altura dela e a distância de adsorção"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "XCrySDen (2D ou região 3D)"
+msgstr ""
+
+#: core/xcrysden.py
+#, python-brace-format
+msgid "XCrysDen não encontrado: {target}."
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "XSF para XCrySDen (3D, grade FFT inteira)"
+msgstr ""
+
+#: core/config.py
+#, python-brace-format
+msgid "YAML inválido: {exc}"
+msgstr ""
+
+#: ui/widgets/structure3d/canvas.py
+msgid "Zoom"
+msgstr ""
+
+#: ui/widgets/plot_view.py
+msgid "Zoom (retângulo)"
+msgstr ""
+
+#: core/qsub_lint.py
+msgid "\\ no fim da linha seguido de espaço: a continuação de linha não funciona"
+msgstr ""
+
+#: core/qe/cell_card.py
+msgid "a célula"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+msgid "a célula final"
+msgstr ""
+
+#: ui/widgets/structure3d/window.py
+msgid "a pasta do cálculo não existe mais"
+msgstr ""
+
+#: core/calc_create/kpath.py
+msgid "a rede de k-points precisa de n1, n2, n3 ≥ 1"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "absoluta"
+msgstr ""
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "agrupamento desconhecido: {grouping}"
+msgstr ""
+
+#: core/config.py
+#, python-brace-format
+msgid "arquivo indicado por {origin} não encontrado"
+msgstr ""
+
+#: core/qe/bands_x.py
+msgid "arquivo sem dados"
+msgstr ""
+
+#: core/calculations/bands/detection.py
+#, python-brace-format
+msgid ""
+"as entradas do bands.x de ↑ e ↓ escrevem o mesmo arquivo ({join}): ele guarda só a última "
+"execução; use filband diferentes ou o mapeamento manual"
+msgstr ""
+
+#: core/config.py
+#, python-brace-format
+msgid "auth: password, mas a variável {value} não está definida."
+msgstr ""
+
+#: core/calculations/bands/data.py
+msgid "autovalores lidos da saída do pw.x (bands.x não encontrado)"
+msgstr ""
+
+#: core/qe/bands_x.py
+msgid "bandas com números diferentes de pontos k"
+msgstr ""
+
+#: core/calc_create/types/bandas.py
+msgid "bands.x grava <filband> e <filband>.gnu"
+msgstr ""
+
+#: core/calculations/bands/module.py
+msgid "bands.x/.gnu detectados"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "bidentado"
+msgstr ""
+
+#: core/qe/relax.py
+msgid "cabeçalho"
+msgstr ""
+
+#: core/qe/bands_x.py
+msgid "cabeçalho &plot ausente"
+msgstr ""
+
+#: core/qe/projwfc.py
+msgid "cabeçalho '#' ausente"
+msgstr ""
+
+#: core/calc_create/surface/fixing.py
+msgid "camada inferior"
+msgstr ""
+
+#: core/calculations/bands/data.py
+msgid "caminho K_POINTS não corresponde aos dados: sem pontos de alta simetria"
+msgstr ""
+
+#: ui/app.py
+msgid "caminho do config.yaml"
+msgstr ""
+
+#: core/calculations/bands/data.py
+#, python-brace-format
+msgid "canal ↓ ilegível, gráfico só com ↑ ({join})"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "card"
+msgstr ""
+
+#: core/qsub_lint.py
+msgid "case sem esac"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+#, python-brace-format
+msgid ""
+"cell_dofree = '{}' numa célula de eixos não ortogonais: o INPUT_PW avisa que algumas opções de "
+"cell_dofree não funcionam com eixos não ortogonais"
+msgstr ""
+
+#: core/config.py
+msgid "chave desconhecida"
+msgstr ""
+
+#: ui/sync_coordinator.py
+msgid "cluster não configurado"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "colinear (nspin=2)"
+msgstr ""
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "colunas não reconhecidas em {name}"
+msgstr ""
+
+#: ui/app.py ui/main_window.py
+msgid "config.yaml inválido"
+msgstr ""
+
+#: core/config.py
+msgid "config.yaml não encontrado; usando valores padrão."
+msgstr ""
+
+#: ui/main_window.py
+msgid "config.yaml recarregado."
+msgstr ""
+
+#: core/qe/lattice.py
+msgid "conjunto de celldm"
+msgstr ""
+
+#: core/calculations/base.py
+msgid "conteúdo"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "convergência NÃO atingida"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "coordenadas"
+msgstr ""
+
+#: core/config.py
+#, python-brace-format
+msgid "cor inválida: {value!r}"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+msgid "corrija os campos marcados"
+msgstr ""
+
+#: core/qe/relax.py
+msgid "critérios"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "cube do Gaussian (3D)"
+msgstr ""
+
+#: core/qe/lattice.py
+msgid "célula de volume nulo"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "da supercélula"
+msgstr ""
+
+#: core/filtering.py
+msgid "dados"
+msgstr ""
+
+#: core/calc_create/types/pdos.py
+msgid "degauss (em Ry; 0.000735 Ry ≈ 0,01 eV): ignorado com tetraedros"
+msgstr ""
+
+#: core/calc_create/edits.py
+#, python-brace-format
+msgid "degauss = {DEFAULT_DEGAUSS} acrescentado"
+msgstr ""
+
+#: ui/widgets/explorer.py ui/widgets/file_card.py
+msgid "detectando…"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "diferente"
+msgstr ""
+
+#: core/calc_create/surface/fixing.py
+msgid "do SCF"
+msgstr ""
+
+#: core/qsub_lint.py
+msgid "do fora de um laço for/while/until"
+msgstr ""
+
+#: core/calc_create/types/slab_fields.py
+msgid "do slab"
+msgstr ""
+
+#: core/qsub_lint.py
+msgid "done sem for/while/until correspondente"
+msgstr ""
+
+#: core/qe/pw_output.py
+msgid "duas energias de Fermi (↑/↓): referência na média, linhas separadas no gráfico"
+msgstr ""
+
+#: core/qe/bands_x.py
+msgid "eixo x difere entre bandas"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "eixo {axis} empilhado ({HKL}), {flip}"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "em andamento"
+msgstr ""
+
+#: core/calculations/bands/data.py core/calculations/pdos/data.py
+msgid "energia de Fermi não encontrada: energias absolutas"
+msgstr ""
+
+#: core/config.py
+msgid "energy_min deve ser menor que energy_max"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "entalpia indisponível neste passo"
+msgstr ""
+
+#: core/qe/relax.py
+msgid "entrada"
+msgstr ""
+
+#: core/calculations/bands/detection.py
+msgid "entrada de bandas não encontrada: pontos k sem rótulos"
+msgstr ""
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "erro inesperado ({name}: {exc})"
+msgstr ""
+
+#: core/qsub_lint.py
+msgid "esac sem case correspondente"
+msgstr ""
+
+#: core/calculations/pdos/table.py
+msgid "espelhado"
+msgstr ""
+
+#: core/qe/bands_x.py
+msgid "esperadas 2 colunas (x, E)"
+msgstr ""
+
+#: core/qe/bands_x.py
+#, python-brace-format
+msgid "esperados {nks} pontos k com {nbnd} bandas"
+msgstr ""
+
+#: core/calc_create/surface/fixing.py
+msgid "espécies e vizinhos"
+msgstr ""
+
+#: core/calculations/pdos/table.py
+msgid "estados/eV"
+msgstr ""
+
+#: ui/widgets/params_body.py
+msgid "ex.: G, X, W, L, G"
+msgstr ""
+
+#: core/qe/pw_output.py core/sniff.py
+msgid "execução incompleta (sem JOB DONE)"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+msgid "falta o SCF da molécula"
+msgstr ""
+
+#: core/qe/lattice.py
+msgid "faltam celldm(1) ou A no &SYSTEM"
+msgstr ""
+
+#: core/qsub_lint.py
+msgid "fi sem if correspondente"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+#, python-brace-format
+msgid "fileout deve ser relativo e ficar dentro da pasta (sem .. nem / inicial): {fileout}"
+msgstr ""
+
+#: core/calc_create/types/pdos.py
+msgid "filpdos: os arquivos são <filpdos>.pdos_atm#…"
+msgstr ""
+
+#: core/calc_create/types/slab.py core/calc_create/types/supercell.py
+msgid "gamma (do SCF)"
+msgstr ""
+
+#: core/calculations/bands/data.py
+msgid "gap indeterminado: E_F fora de [VBM, CBM] no caminho"
+msgstr ""
+
+#: core/calculations/bands/data.py
+#, python-brace-format
+msgid "gap pela posição de E_F: {n:g} elétrons não enchem bandas inteiras"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "grade 3D"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "gráfico 1D"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "gráfico 2D"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "gráfico 2D polar numa esfera"
+msgstr ""
+
+#: core/qe/lattice.py
+msgid "ibrav = 0 sem CELL_PARAMETERS"
+msgstr ""
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "ibrav = {ibrav} não existe"
+msgstr ""
+
+#: core/qe/cell_card.py
+#, python-brace-format
+msgid "ibrav = {ibrav} trocado por 0: {cell} vai em CELL_PARAMETERS"
+msgstr ""
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "ibrav ausente ou inválido ({ibrav_text})"
+msgstr ""
+
+#: core/qsub_lint.py
+msgid "if sem fi"
+msgstr ""
+
+#: core/filtering.py
+msgid "imagens"
+msgstr ""
+
+#: core/calculations/base.py
+msgid "inferido"
+msgstr ""
+
+#: core/config.py
+msgid "informe ao menos um formato"
+msgstr ""
+
+#: core/filtering.py
+msgid "inputs"
+msgstr ""
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "iteração {n}"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "k-pontos irredutíveis"
+msgstr ""
+
+#: core/config.py
+msgid "largura e altura devem estar entre 0 e 50 polegadas"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "limiar de convergência não encontrado no cabeçalho"
+msgstr ""
+
+#: core/calculations/relax.py
+msgid "limiares de convergência não encontrados: padrões do QE"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "linha"
+msgstr ""
+
+#: core/calc_create/fragments.py
+#, python-brace-format
+msgid "linha de ATOMIC_POSITIONS ilegível: {row}"
+msgstr ""
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "linha de ATOMIC_POSITIONS ilegível: {strip}"
+msgstr ""
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "linha de {what} ilegível: {strip}"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "lista de candidatos"
+msgstr ""
+
+#: ui/app.py
+msgid "log detalhado"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "magnetização total"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+msgid "maior ou igual a zero"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+msgid "maior que zero"
+msgstr ""
+
+#: core/calculations/base.py
+msgid "manual"
+msgstr ""
+
+#: core/calculations/bands/render.py
+msgid "metálico"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py core/calc_create/types/adsorption.py
+msgid "molécula–superfície"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "monodentado"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "média esférica (1D)"
+msgstr ""
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha"
+msgid_plural "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calc_create/fragments.py
+#, python-brace-format
+msgid "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "nat = {value} no input, {count} posições na saída"
+msgstr ""
+
+#: core/calc_create/surface/merge.py
+msgid "nbnd removido: o pw.x calcula o padrão para o sistema com a molécula"
+msgstr ""
+
+#: core/calc_create/fragments.py
+msgid "nbnd removido: o pw.x escolhe pelo número de elétrons do fragmento"
+msgstr ""
+
+#: core/calc_create/surface/fixing.py core/calc_create/types/adsorption.py ui/help_controller.py
+msgid "nenhum"
+msgstr ""
+
+#: core/qe/projwfc.py
+msgid "nenhum arquivo pdos_atm# encontrado"
+msgstr ""
+
+#: core/project_data.py
+msgid "nenhuma"
+msgstr ""
+
+#: core/calc_create/types/pdos.py
+msgid "ngauss: ignorado com tetraedros"
+msgstr ""
+
+#: core/calc_create/types/script.py
+#, python-brace-format
+msgid "nk = {nk} é maior que NP = {np}: o pw.x para com erro (mp_start_pools)"
+msgstr ""
+
+#: core/calc_create/types/script.py
+msgid "nk deve ser ao menos 1"
+msgstr ""
+
+#: core/calculations/base.py
+msgid "nome"
+msgstr ""
+
+#: ui/dialogs/grid_dialog.py
+msgid "nome da grade"
+msgstr ""
+
+#: core/calc_create/fragments.py
+msgid ""
+"nspin = 2, mas nenhuma espécie deste fragmento tem starting_magnetization: o pw.x para (some "
+"starting_magnetization MUST be set)"
+msgstr ""
+
+#: core/calc_create/types/bandas.py
+msgid "nspin = 2: o bands.x roda uma vez por canal (spin_component 1 e 2)"
+msgstr ""
+
+#: core/calc_create/surface/merge.py
+#, python-brace-format
+msgid "nspin: superfície {nspin}, molécula {nspin_2}; vale o da superfície"
+msgstr ""
+
+#: ui/dialogs/calc_create/kmesh.py
+#, python-brace-format
+msgid "n{n}: pontos na direção do vetor recíproco b{n}"
+msgstr ""
+
+#: core/qe/input_extract.py core/qe/summary/build.py
+msgid "não colinear"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "não definido no SCF (o padrão do pw.x)"
+msgstr ""
+
+#: ui/widgets/nav_sections.py
+msgid "não encontrada"
+msgstr ""
+
+#: ui/widgets/structure3d/print_image.py
+msgid "não foi possível codificar a imagem em PNG"
+msgstr ""
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "não foi possível executar {argv}"
+msgstr ""
+
+#: core/calculations/bands/detection.py
+msgid ""
+"não foi possível identificar o canal ↑/↓ dos arquivos de bandas: use o mapeamento manual (só o "
+"canal ↑ será plotado)"
+msgstr ""
+
+#: core/config.py
+#, python-brace-format
+msgid "não foi possível ler o arquivo: {exc}"
+msgstr ""
+
+#: core/about.py
+msgid "não instalado"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+msgid "não invertida"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "não polarizado"
+msgstr ""
+
+#: core/sync/preview.py
+msgid "não será alterado"
+msgstr ""
+
+#: core/qe/bands_x.py
+#, python-brace-format
+msgid "não é um arquivo de bandas numérico: {exc}"
+msgstr ""
+
+#: core/config.py
+msgid "o arquivo deve conter um mapeamento YAML (chave: valor)"
+msgstr ""
+
+#: core/compounds.py core/folder_memory.py core/grid_store.py core/nav_store.py
+msgid "o conteúdo não é um objeto JSON"
+msgstr ""
+
+#: ui/dialogs/grid_cells.py
+msgid "o do gráfico"
+msgstr ""
+
+#: core/structure3d/source.py
+msgid "o input"
+msgstr ""
+
+#: ui/dialogs/calc_create/form.py
+msgid "obrigatório"
+msgstr ""
+
+#: core/calc_create/edits.py
+#, python-brace-format
+msgid "occupations = '{occupations}' trocado por 'smearing'"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "opcional, ex.: Al, Fe_teste"
+msgstr ""
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "opção {a} ↔ {b}"
+msgstr ""
+
+#: core/calculations/bands/detection.py
+msgid "os canais ↑/↓ têm pontos k diferentes"
+msgstr ""
+
+#: core/calculations/bands/detection.py
+#, python-brace-format
+msgid ""
+"os dados de bandas{which} têm {nks} pontos k, mas o cálculo de bandas tem {expected} (bands.x "
+"rodou sobre outra execução?)"
+msgstr ""
+
+#: core/calc_create/kpath.py
+msgid "os deslocamentos da rede são 0 ou 1"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+#, python-brace-format
+msgid "output_format = {output_format} não vale para iflag = {iflag} ({IFLAGS}): use {join}"
+msgstr ""
+
+#: core/filtering.py
+msgid "outros"
+msgstr ""
+
+#: core/qe/relax.py
+msgid "padrão do QE"
+msgstr ""
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "passo {step} · F = {force_ry_bohr:.1e} Ry/Bohr"
+msgstr ""
+
+#: core/calculations/relax_panels.py
+#, python-brace-format
+msgid "passo {step} · P = {pressure_kbar:.2f} kbar"
+msgstr ""
+
+#: core/calculations/relax_panels.py
+#, python-brace-format
+msgid "passo {step} · V = {volume_ang3:.2f} Å³"
+msgstr ""
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "passo {step} · {name} = {delta:.1e} Ry"
+msgstr ""
+
+#: ui/widgets/file_card.py
+msgid "pasta"
+msgstr ""
+
+#: ui/widgets/file_card.py
+msgid "pasta acima"
+msgstr ""
+
+#: core/qe/projwfc.py
+msgid "pdos_tot ausente: total = soma das projeções"
+msgstr ""
+
+#: core/calculations/pdos/module.py
+msgid "pdos_tot e arquivos de PDOS por átomo detectados"
+msgstr ""
+
+#: core/sync/preview.py
+msgid "pedirá confirmação"
+msgstr ""
+
+#: core/calc_create/types/charge.py
+msgid "plot_num deve ser 0 ou maior"
+msgstr ""
+
+#: core/calc_create/kpath.py
+#, python-brace-format
+msgid "ponto {n}"
+msgstr ""
+
+#: core/calc_create/types/charge_diff.py
+msgid "pp.x diferença"
+msgstr ""
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "precisão {accuracy_ry:.1e} Ry"
+msgstr ""
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "projeto {project}"
+msgstr ""
+
+#: core/calc_create/types/pdos.py
+msgid ""
+"projwfc.in sem ngauss/degauss: com tetraedros o projwfc.x usa o método dos tetraedros (um degauss"
+" no input o desligaria)"
+msgstr ""
+
+#: core/calc_create/unit.py
+#, python-brace-format
+msgid "pseudo_dir relativo ({pseudo}): confira se ele vale a partir da pasta nova"
+msgstr ""
+
+#: core/calc_create/surface/merge.py
+#, python-brace-format
+msgid ""
+"pseudo_dir: superfície '{mine}', molécula '{theirs}'; os pseudopotenciais de {join} precisam "
+"estar no da superfície"
+msgstr ""
+
+#: core/calc_create/types/script.py
+msgid "pw.x -nk: número de pools (grupos de k-points); NP deve ser múltiplo de nk"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "quebra"
+msgstr ""
+
+#: core/sync/_process.py
+msgid "rsync não encontrado (sync.rsync_binary)."
+msgstr ""
+
+#: core/sync/rsync.py
+msgid "rsync não está instalado no cluster."
+msgstr ""
+
+#: core/sync/rsync.py
+#, python-brace-format
+msgid "rsync terminou com código {exit_code}"
+msgstr ""
+
+#: core/config.py
+#, python-brace-format
+msgid "rótulo de elemento inválido: {label!r}"
+msgstr ""
+
+#: core/calculations/pdos/module.py
+msgid "saída SCF não encontrada: E_F lida da saída NSCF"
+msgstr ""
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "saída com {cycles} ciclos SCF; mostrando o primeiro"
+msgstr ""
+
+#: core/filtering.py
+msgid "saídas"
+msgstr ""
+
+#: core/calc_create/fragments.py core/qe/lattice.py
+msgid "sem ATOMIC_POSITIONS"
+msgstr ""
+
+#: core/filtering.py
+msgid "sem estado"
+msgstr ""
+
+#: core/calc_create/surface/geometry.py core/calc_create/surface/model.py
+msgid "sem estrutura"
+msgstr ""
+
+#: core/calculations/bands/render.py core/calculations/pdos/render.py
+#, python-brace-format
+msgid "sem gap {where}"
+msgstr ""
+
+#: core/calc_create/unit.py
+msgid "sem pseudo_dir: o pw.x procura os pseudopotenciais em $ESPRESSO_PSEUDO"
+msgstr ""
+
+#: core/filtering.py
+msgid "sem tipo"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "sem vácuo (bulk)"
+msgstr ""
+
+#: core/calc_create/edits.py
+#, python-brace-format
+msgid "smearing = '{DEFAULT_SMEARING}' acrescentado"
+msgstr ""
+
+#: core/calculations/bands/render.py core/calculations/pdos/render.py
+msgid "spin polarizado"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "spin-órbita"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "symprec do spglib, que agrupa os átomos equivalentes (as letras da coluna Sítio)"
+msgstr ""
+
+#: ui/dialogs/calc_create/kmesh.py
+#, python-brace-format
+msgid "s{n}: desloca a rede meio passo na direção b{n}"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "só em A"
+msgstr ""
+
+#: ui/widgets/diff_view.py
+msgid "só em B"
+msgstr ""
+
+#: core/calculations/bands/detection.py
+msgid "só o canal ↑ foi encontrado: rode o bands.x com spin_component = 2"
+msgstr ""
+
+#: core/calculations/bands/data.py
+#, python-brace-format
+msgid "só o canal ↓ ({name}) foi encontrado: mapeie-o como ↑ ou rode o bands.x com spin_component = 1"
+msgstr ""
+
+#: core/calculations/bands/detection.py
+msgid "só o canal ↓ foi encontrado: rode o bands.x com spin_component = 1"
+msgstr ""
+
+#: ui/rename_controller.py
+msgid "toda a pasta raiz"
+msgstr ""
+
+#: core/compounds.py
+msgid "todos"
+msgstr ""
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "unidade de CELL_PARAMETERS desconhecida: {unit}"
+msgstr ""
+
+#: ui/widgets/kpath_editor.py
+msgid "vazio"
+msgstr ""
+
+#: ui/dialogs/calc_create/form.py
+msgid "vazio = não escrever"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "vazio = o mais pesado"
+msgstr ""
+
+#: ui/dialogs/calc_create/form.py
+#, python-brace-format
+msgid "vazio = {default}"
+msgstr ""
+
+#: core/compounds.py core/folder_memory.py core/grid_store.py core/nav_store.py
+#, python-brace-format
+msgid "versão de formato desconhecida: {data!r}"
+msgstr ""
+
+#: ui/dialogs/mapping.py
+msgid "vários arquivos separados por ;"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "x máx"
+msgstr ""
+
+#: core/calculations/bands/params.py
+msgid "x mín"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+#, python-brace-format
+msgid "{NOUNS} deve ser maior que zero"
+msgstr ""
+
+#: core/calculations/bands/render.py
+#, python-brace-format
+msgid "{SYMBOL} metálico"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "{ask} da lista (marcados: {count})"
+msgstr ""
+
+#: core/xcrysden.py
+#, python-brace-format
+msgid "{candidate} não é executável."
+msgstr ""
+
+#: core/calc_create/surface/write.py
+#, python-brace-format
+msgid "{card} removido: os átomos mudaram"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid "{count} ({n_slab} da superfície + {molecule_atoms} da molécula: {counts})"
+msgstr ""
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} a atualizar ({human_size})"
+msgstr ""
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} arquivo a enviar ({size})"
+msgid_plural "{count} arquivos a enviar ({size})"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo baixado."
+msgid_plural "{count} arquivos baixados."
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo enviado."
+msgid_plural "{count} arquivos enviados."
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} arquivo grande soma {size}"
+msgid_plural "{count} arquivos grandes somam {size}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo local mais recente mantido."
+msgid_plural "{count} arquivos locais mais recentes mantidos."
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo mudou localmente durante a prévia e não foi baixado."
+msgid_plural "{count} arquivos mudaram localmente durante a prévia e não foram baixados."
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} arquivo novo ({size})"
+msgid_plural "{count} arquivos novos ({size})"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} conflito mantido na versão local."
+msgid_plural "{count} conflitos mantidos na versão local."
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calculations/pdos/module.py
+#, python-brace-format
+msgid "{count} conjuntos de PDOS encontrados; usando o mais recente ({chosen})"
+msgstr ""
+
+#: core/calculations/bands_dos/render.py core/calculations/pdos/render.py
+#, python-brace-format
+msgid "{count} de {count_2} átomos"
+msgstr ""
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "{count} iteração"
+msgid_plural "{count} iterações"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} já existe no cluster (não será alterado)"
+msgid_plural "{count} já existem no cluster (não serão alterados)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} já existia no cluster e não foi alterado."
+msgid_plural "{count} já existiam no cluster e não foram alterados."
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "{count} linha difere"
+msgid_plural "{count} linhas diferem"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} mais recente no computador (não será alterado)"
+msgid_plural "{count} mais recentes no computador (não serão alterados)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calculations/pdos/render.py
+#, python-brace-format
+msgid "{count} projeções · {count_2} espécies"
+msgstr ""
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "{count} saídas de relax/vc-relax na pasta; mostrando {name}. As outras: botão direito ▸ Plotar."
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+#, python-brace-format
+msgid "{count}/{count_2}{which}, regra '{rule}'"
+msgstr ""
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "{cycles} ciclos SCF, {steps} passos BFGS"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "{decimal} Å (o vácuo mínimo; sem molécula)"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "{decimal} Å = {decimal_2} + molécula {decimal_3} + adsorção {decimal_4}"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid "{decimal} Å ao longo de c"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "{decimal} × eixo {axis} do bulk"
+msgstr ""
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "{done}/{total} arquivo"
+msgid_plural "{done}/{total} arquivos"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calculations/grid/render.py
+#, python-brace-format
+msgid "{drawn} gráfico"
+msgid_plural "{drawn} gráficos"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "{flavor}, {count} processadores"
+msgstr ""
+
+#: core/sync/rsync.py
+#, python-brace-format
+msgid "{folder} não está dentro da pasta local configurada ({root})"
+msgstr ""
+
+#: core/project_data.py
+#, python-brace-format
+msgid "{folder} não é gravável: as configurações do projeto ficam em {fallback}."
+msgstr ""
+
+#: core/project_data.py
+#, python-brace-format
+msgid "{folder} não é uma pasta: as configurações do projeto ficam em {fallback}."
+msgstr ""
+
+#: i18n.py
+#, python-brace-format
+msgid "{items} ou {last}"
+msgstr ""
+
+#: core/calc_create/fragments.py
+#, python-brace-format
+msgid "{key} do SCF vale para o sistema inteiro: confira se serve a este fragmento"
+msgstr ""
+
+#: core/calc_create/species_keys.py
+#, python-brace-format
+msgid "{key} usa índices de átomo: não foi renumerado"
+msgstr ""
+
+#: core/calc_create/surface/merge.py
+#, python-brace-format
+msgid "{key}: molécula {theirs:g} Ry, superfície {mine:g} Ry; vale o da superfície"
+msgstr ""
+
+#: core/calc_create/surface/merge.py
+#, python-brace-format
+msgid "{key}: superfície '{value}', molécula '{value_2}'; vale o da superfície"
+msgstr ""
+
+#: ui/excepthook.py
+#, python-brace-format
+msgid ""
+"{kind}: {value}\n"
+"\n"
+"Detalhes no log ({path})."
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+#, python-brace-format
+msgid "{label} deve ser {limit}"
+msgstr ""
+
+#: core/calc_create/surface/merge.py
+#, python-brace-format
+msgid "{label}: vale a massa da superfície ({join})"
+msgstr ""
+
+#: core/calc_create/surface/merge.py
+#, python-brace-format
+msgid "{label}: vale o pseudopotencial da superfície ({join})"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+#, python-brace-format
+msgid "{label}: {join} não está em ATOMIC_SPECIES do SCF"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid "{mesh_text} (da superfície: a célula não muda)"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "{mesh_text} (do SCF {mesh_text_2}; vácuo 1)"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid "{mesh} (digitada)"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid "{mesh} (do SCF {scf}, {how})"
+msgstr ""
+
+#: core/qe/input_extract.py
+#, python-brace-format
+msgid "{mode} {n} pontos"
+msgstr ""
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "{moves} passo BFGS"
+msgid_plural "{moves} passos BFGS"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calc_create/preview.py
+#, python-brace-format
+msgid "{n1}×{n2}×{n3} = {count} k-points na rede (o pw.x reduz pela simetria)"
+msgstr ""
+
+#: core/calculations/bands/render.py
+#, python-brace-format
+msgid "{n_bands} bandas × {n_kpoints} pontos k"
+msgstr ""
+
+#: ui/widgets/context_menu.py
+#, python-brace-format
+msgid "{name} (padrão)"
+msgstr ""
+
+#: core/calculations/bands_dos/render.py core/calculations/pdos/render.py
+#, python-brace-format
+msgid "{name} = {energy} eV · PDOS = {dos} est./eV"
+msgstr ""
+
+#: ui/derive_controller.py
+#, python-brace-format
+msgid "{name} criado"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "{name} e {name_2} estão ligados ao mesmo H ({name_3}): não dá para remover os dois"
+msgstr ""
+
+#: core/detection.py
+#, python-brace-format
+msgid "{name} e {name_2} não formam um par de bandas e DOS completos."
+msgstr ""
+
+#: core/compounds.py core/folder_memory.py core/grid_store.py core/nav_store.py
+#, python-brace-format
+msgid "{name} estava corrompido; cópia salva em {copy}"
+msgstr ""
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "{name} final {delta:.1e} Ry"
+msgstr ""
+
+#: core/config.py
+#, python-brace-format
+msgid "{name} foi removido e é ignorado: apague a linha do config.yaml."
+msgstr ""
+
+#: core/plotting/plot_file.py
+#, python-brace-format
+msgid "{name} ignorado: pertence a outro tipo de gráfico ({data!r})."
+msgstr ""
+
+#: core/plotting/plot_file.py
+#, python-brace-format
+msgid "{name} ignorado: versão de formato desconhecida ({version!r})."
+msgstr ""
+
+#: core/compounds.py
+#, python-brace-format
+msgid "{name} ilegível e não pôde ser copiado ({value}): a seleção de átomos desta sessão não será salva"
+msgstr ""
+
+#: core/grid_store.py
+#, python-brace-format
+msgid "{name} ilegível e não pôde ser copiado ({value}): as grades desta sessão não serão salvas"
+msgstr ""
+
+#: core/nav_store.py
+#, python-brace-format
+msgid ""
+"{name} ilegível e não pôde ser copiado ({value}): favoritos e recentes desta sessão não serão "
+"salvos"
+msgstr ""
+
+#: core/folder_memory.py
+#, python-brace-format
+msgid ""
+"{name} ilegível e não pôde ser copiado ({value}): mapeamentos e rótulos desta sessão não serão "
+"salvos"
+msgstr ""
+
+#: core/plotting/plot_file.py
+#, python-brace-format
+msgid "{name} inválido; usando ajustes padrão."
+msgstr ""
+
+#: core/calc_create/scf_info.py ui/dialogs/calc_create/setup_page.py
+#, python-brace-format
+msgid "{name} não parece um input do Quantum ESPRESSO"
+msgstr ""
+
+#: ui/widgets/workspace.py
+#, python-brace-format
+msgid "{name} não parece um input do Quantum ESPRESSO."
+msgstr ""
+
+#: core/calc_create/scf_info.py
+#, python-brace-format
+msgid "{name} não pôde ser lido: {issues}"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "{name} não tem o bloco final de coordenadas (Begin final coordinates)"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "{name} não é um input do pw.x"
+msgstr ""
+
+#: core/calc_create/scf_info.py core/structure3d/source.py
+#, python-brace-format
+msgid "{name} não é um input do pw.x (sem &SYSTEM)"
+msgstr ""
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "{name} não é um relax/vc-relax (calculation = '{value}')"
+msgstr ""
+
+#: core/calc_create/surface/geometry.py
+#, python-brace-format
+msgid ""
+"{name} parece o SCF de um bulk: não há vácuo ao longo de c (maior intervalo vazio: {decimal} Å). "
+"Escolha o SCF de uma superfície relaxada (Slab ou Supercélula)."
+msgstr ""
+
+#: core/structure3d/source.py
+#, python-brace-format
+msgid "{name} passa de 2 MB: grande demais para um input"
+msgstr ""
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "{name} sem dados"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py
+#, python-brace-format
+msgid "{name} tem {count} H ligados: desmarque '{REMOVE_H_LABEL}'"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py
+#, python-brace-format
+msgid "{name} visível"
+msgstr ""
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "{name}: arquivo grande demais para comparar"
+msgstr ""
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "{name}: grade de energia diferente, interpolada"
+msgstr ""
+
+#: core/calculations/bands/data.py
+#, python-brace-format
+msgid "{name}: número de spins não suportado ({n_spins})"
+msgstr ""
+
+#: core/calculations/bands/data.py
+#, python-brace-format
+msgid "{name}: pw.x não imprimiu os autovalores (rode o bands.x)"
+msgstr ""
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "{name}: só em A"
+msgstr ""
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "{name}: só em B"
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "{name}: {counts}, altura {decimal} Å, âncora {anchor}{turned}"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid "{name}: {formula} ({counts}), altura {decimal} Å, âncora {anchor}{turned}"
+msgstr ""
+
+#: ui/dialogs/calc_create/setup_page.py
+#, python-brace-format
+msgid "{note} e as edições dos arquivos se perdem"
+msgstr ""
+
+#: ui/widgets/params_body.py
+#, python-brace-format
+msgid "{n} arquivos"
+msgstr ""
+
+#: ui/dialogs/atoms.py
+#, python-brace-format
+msgid "{n} de {m} marcados"
+msgstr ""
+
+#: ui/widgets/atom_table.py
+#, python-brace-format
+msgid "{n} de {m} átomos"
+msgstr ""
+
+#: core/compounds.py ui/widgets/search_bar.py
+#, python-brace-format
+msgid "{n} de {total}"
+msgstr ""
+
+#: ui/widgets/context_menu.py ui/widgets/file_card.py
+#, python-brace-format
+msgid "{n} item"
+msgid_plural "{n} itens"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ui/main_window.py
+#, python-brace-format
+msgid "{n} itens selecionados"
+msgstr ""
+
+#: ui/widgets/input_view.py
+#, python-brace-format
+msgid "{n} problema de escrita no input"
+msgid_plural "{n} problemas de escrita no input"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ui/widgets/input_view.py
+#, python-brace-format
+msgid "{n} problema de escrita no script"
+msgid_plural "{n} problemas de escrita no script"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid "{position} Å (erguido {decimal} Å)"
+msgstr ""
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "{relative} (e subpastas)"
+msgstr ""
+
+#: core/calc_create/preview.py
+#, python-brace-format
+msgid "{renamed_from} já existia: criada como {name}"
+msgstr ""
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "{smearing} (largura {width} Ry)"
+msgstr ""
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "{text} · precisão = {accuracy_ry:.1e} Ry"
+msgstr ""
+
+#: ui/excepthook.py
+#, python-brace-format
+msgid "{title}: {kind}{short} (ver o log)"
+msgstr ""
+
+#: core/calculations/bands/params.py
+#, python-brace-format
+msgid "{tooltip} Gap ao longo do caminho de k; o gap indireto verdadeiro pode estar fora dele."
+msgstr ""
+
+#: core/calc_create/types/slab.py
+#, python-brace-format
+msgid "{total} ligação metal–O cortada na borda ({bonds}); marque '{label}' para fechá-la com OH"
+msgid_plural "{total} ligações metal–O cortadas na borda ({bonds}); marque '{label}' para fechá-las com OH"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "{truncated_steps} passo incompleto ignorado"
+msgid_plural "{truncated_steps} passos incompletos ignorados"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calculations/scf.py
+#, python-brace-format
+msgid "{truncated} iteração incompleta ignorada"
+msgid_plural "{truncated} iterações incompletas ignoradas"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid "{values} (sítio pela {how})"
+msgstr ""
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "{what} incompleto"
+msgstr ""
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "{what} inválido para o ibrav"
+msgstr ""
+
+#: core/qsub_lint.py
+#, python-brace-format
+msgid "{word} sem done"
+msgstr ""
+
+#: core/calculations/scf.py
+msgid "|ΔE| entre iterações"
+msgstr ""
+
+#: ui/widgets/bars.py
+msgid "Árvore"
+msgstr ""
+
+#: ui/widgets/explorer.py
+msgid "Árvore de pastas"
+msgstr ""
+
+#: ui/widgets/structure3d/panel.py ui/widgets/structure3d/panel_atom.py
+msgid "Átomo"
+msgstr ""
+
+#: ui/widgets/atom_table.py
+#, python-brace-format
+msgid "Átomo {index} {species}"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py
+msgid "Átomo âncora"
+msgid_plural "Átomos âncora"
+msgstr[0] ""
+msgstr[1] ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Átomo âncora (nº na molécula)"
+msgstr ""
+
+#: core/calc_create/types/adsorption_fields.py
+msgid "Átomo âncora na superfície"
+msgstr ""
+
+#: core/calc_create/surface/molecule.py
+#, python-brace-format
+msgid "Átomo âncora {anchor} fora da molécula (1 a {count})"
+msgstr ""
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/charge_diff.py
+#: core/calc_create/types/slab.py core/calc_create/types/supercell.py core/calculations/pdos/params.py
+#: ui/widgets/structure3d/measures.py
+msgid "Átomos"
+msgstr ""
+
+#: ui/dialogs/atoms.py
+msgid "Átomos da PDOS"
+msgstr ""
+
+#: ui/dialogs/atoms.py
+#, python-brace-format
+msgid "Átomos de {formula}"
+msgstr ""
+
+#: core/calc_create/types/charge_diff.py
+msgid "Átomos do SCF isolated; os demais formam o SCF clean"
+msgstr ""
+
+#: core/calc_create/types/charge_diff.py
+msgid "Átomos do fragmento isolado"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+msgid "Átomos fixos"
+msgstr ""
+
+#: core/calc_create/types/surface_fields.py
+msgid "Átomos fixos (if_pos 0 0 0)"
+msgstr ""
+
+#: core/qe/summary/build.py
+msgid "Átomos na célula"
+msgstr ""
+
+#: ui/widgets/params_body.py
+msgid "Átomos…"
+msgstr ""
+
+#: core/structure3d/measurements.py ui/widgets/structure3d/measures.py
+msgid "Ângulo"
+msgstr ""
+
+#: ui/widgets/structure3d/measures.py
+msgid "Ângulos"
+msgstr ""
+
+#: core/calc_create/surface/adsorb.py core/calc_create/types/adsorption.py
+msgid "âncora···H"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "÷ repetições"
+msgstr ""
+
+#: core/calc_create/types/supercell.py
+msgid "÷ repetições; vácuo 1"
+msgstr ""
+
+#: core/calculations/pdos/render.py
+msgid "↑ contínua"
+msgstr ""
+
+#: core/calculations/pdos/render.py
+msgid "↓ tracejada"
+msgstr ""
+

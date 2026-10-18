@@ -12,11 +12,12 @@ from dataclasses import dataclass
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from ...core.compounds import AtomChoices, normalize_selection
+from ...i18n import _
 from ..widgets.atom_table import AtomRow, AtomTable
 from ..widgets.common import set_variant
 
-NOTHING_MARKED = "Marque ao menos um átomo"
-COUNT_FORMAT = "{n} de {m} marcados"
+NOTHING_MARKED = _("Marque ao menos um átomo")
+COUNT_FORMAT = _("{n} de {m} marcados")
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ class AtomsDialog(QDialog):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self.setWindowTitle("Átomos da PDOS")
+        self.setWindowTitle(_("Átomos da PDOS"))
         self.setModal(
             True
         )  # no WA_DeleteOnClose: ``exec`` would delete it before the answer is read
@@ -41,11 +42,15 @@ class AtomsDialog(QDialog):
 
         layout = QVBoxLayout(self)
         formula = choices.compound.formula if choices.compound else ""
-        self.heading = set_variant(QLabel(f"Átomos de {formula}"), "dialogTitle")
+        self.heading = set_variant(
+            QLabel(_("Átomos de {formula}").format(formula=formula)), "dialogTitle"
+        )
         layout.addWidget(self.heading)
         note = QLabel(
-            "A seleção vale para todo gráfico deste composto (mesma sequência de espécies), "
-            "em qualquer pasta."
+            _(
+                "A seleção vale para todo gráfico deste composto (mesma sequência de espécies), "
+                "em qualquer pasta."
+            )
         )
         note.setWordWrap(True)
         layout.addWidget(set_variant(note, "dialogText"))
@@ -66,8 +71,8 @@ class AtomsDialog(QDialog):
         layout.addWidget(self.problem)
         buttons = QHBoxLayout()
         buttons.addStretch(1)
-        self.cancel_button = QPushButton("Cancelar")
-        self.save_button = set_variant(QPushButton("Salvar"), "primary")
+        self.cancel_button = QPushButton(_("Cancelar"))
+        self.save_button = set_variant(QPushButton(_("Salvar")), "primary")
         self.save_button.setDefault(True)
         buttons.addWidget(self.cancel_button)
         buttons.addWidget(self.save_button)

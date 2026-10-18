@@ -77,7 +77,7 @@ class BandasType(CalcType):
                 "text",
                 DEFAULT_FILBAND,
                 group=bands_x_keys(scf)[0],
-                tooltip="bands.x grava <filband> e <filband>.gnu"
+                tooltip=_("bands.x grava <filband> e <filband>.gnu")
                 + (_(" (_up / _dw por canal de spin)") if scf.spin else ""),
             ),
         ]

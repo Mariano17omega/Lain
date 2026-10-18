@@ -26,6 +26,7 @@ from ...core.file_kinds import is_markdown
 from ...core.qe.input_lexer import LintIssue
 from ...core.tasks import TaskHandle, run_task
 from ...core.text_preview import TextPreview, read_preview
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from .code_view import CodeView
 from .highlighters import InputHighlighter, OutputHighlighter, ShellHighlighter, ThemedHighlighter
@@ -34,22 +35,22 @@ from .markdown_view import MarkdownView
 from .search_bar import SearchBar
 
 log = logging.getLogger(__name__)
-TOO_BIG = "Arquivo grande demais para o visualizador: use o editor externo"
-RENDER_TOO_BIG = "Arquivo grande demais para renderizar (mais de 1 MB): mostrado como texto"
+TOO_BIG = _("Arquivo grande demais para o visualizador: use o editor externo")
+RENDER_TOO_BIG = _("Arquivo grande demais para renderizar (mais de 1 MB): mostrado como texto")
 MARKDOWN_KEY = (
     "viewer/markdown_rendered"  # QSettings: the choice of the whole program (default: on)
 )
 # (name, keys, what it does): the one table the QShortcuts and "Ajuda ▸ Atalhos de teclado" read.
 SHORTCUTS = (
-    ("find", "Ctrl+F", "Buscar no texto"),
-    ("next", "F3", "Próxima ocorrência"),
-    ("previous", "Shift+F3", "Ocorrência anterior"),
-    ("line", "Ctrl+L", "Ir à linha"),
-    ("start", "Ctrl+Home", "Ir ao início"),
-    ("end", "Ctrl+End", "Ir ao fim"),
-    ("next_issue", "F8", "Próximo problema de escrita"),
-    ("previous_issue", "Shift+F8", "Problema anterior de escrita"),
-    ("escape", "Esc", "Fechar a busca"),
+    ("find", "Ctrl+F", _("Buscar no texto")),
+    ("next", "F3", _("Próxima ocorrência")),
+    ("previous", "Shift+F3", _("Ocorrência anterior")),
+    ("line", "Ctrl+L", _("Ir à linha")),
+    ("start", "Ctrl+Home", _("Ir ao início")),
+    ("end", "Ctrl+End", _("Ir ao fim")),
+    ("next_issue", "F8", _("Próximo problema de escrita")),
+    ("previous_issue", "Shift+F8", _("Problema anterior de escrita")),
+    ("escape", "Esc", _("Fechar a busca")),
 )
 
 
@@ -106,8 +107,8 @@ class TextViewer(QWidget):
         banner_layout.setSpacing(6)
         self.banner = QLabel()
         self.banner.setObjectName("viewerBanner")
-        self.external_button = QPushButton("Abrir no editor externo")
-        self.load_all_button = QPushButton("Carregar tudo")
+        self.external_button = QPushButton(_("Abrir no editor externo"))
+        self.load_all_button = QPushButton(_("Carregar tudo"))
         banner_layout.addWidget(self.banner, 1)
         banner_layout.addWidget(self.external_button)
         banner_layout.addWidget(self.load_all_button)
@@ -119,8 +120,8 @@ class TextViewer(QWidget):
         tools_layout = QHBoxLayout(self.tools)
         tools_layout.setContentsMargins(8, 2, 8, 2)
         tools_layout.setSpacing(4)
-        self.text_button = _tool("Texto", "Mostrar o texto do arquivo")
-        self.rendered_button = _tool("Renderizado", "Mostrar o Markdown renderizado")
+        self.text_button = _tool(_("Texto"), _("Mostrar o texto do arquivo"))
+        self.rendered_button = _tool(_("Renderizado"), _("Mostrar o Markdown renderizado"))
         modes = QButtonGroup(self)  # two positions: one is always on
         for button in (self.text_button, self.rendered_button):
             button.setCheckable(True)
@@ -128,9 +129,9 @@ class TextViewer(QWidget):
             modes.addButton(button)
             tools_layout.addWidget(button)
         tools_layout.addStretch(1)
-        self.start_button = _tool("Ir ao início", "Ir ao início (Ctrl+Home)")
-        self.end_button = _tool("Ir ao fim", "Ir ao fim (Ctrl+End)")
-        self.line_button = _tool("Ir à linha…", "Ir à linha (Ctrl+L)")
+        self.start_button = _tool(_("Ir ao início"), _("Ir ao início (Ctrl+Home)"))
+        self.end_button = _tool(_("Ir ao fim"), _("Ir ao fim (Ctrl+End)"))
+        self.line_button = _tool(_("Ir à linha…"), _("Ir à linha (Ctrl+L)"))
         for button in (self.start_button, self.end_button, self.line_button):
             tools_layout.addWidget(button)
 
@@ -176,7 +177,7 @@ class TextViewer(QWidget):
     @staticmethod
     def shortcut_help() -> list[tuple[str, str, str]]:
         """(action, keys, where) for "Ajuda ▸ Atalhos de teclado"; needs no open tab."""
-        return [(what, keys, "Visualizador de texto") for _name, keys, what in SHORTCUTS]
+        return [(what, keys, _("Visualizador de texto")) for _name, keys, what in SHORTCUTS]
 
     def _shortcut(self, keys: str, slot) -> QShortcut:
         """Active only while the focus is inside this viewer: Ctrl+F in the explorer or the grid
@@ -233,7 +234,7 @@ class TextViewer(QWidget):
         self._markdown_text, self._markdown_dirty = loaded.text, loaded.renderable
         self.rendered_button.setEnabled(loaded.renderable)
         self.rendered_button.setToolTip(
-            "Mostrar o Markdown renderizado" if loaded.renderable else RENDER_TOO_BIG
+            _("Mostrar o Markdown renderizado") if loaded.renderable else RENDER_TOO_BIG
         )
         self._show(self._rendered)
         self._set_banner(loaded.banner, loaded.level)
@@ -313,7 +314,9 @@ class TextViewer(QWidget):
         self._shortcuts["escape"].setEnabled(not self.search.isHidden())
         if not isinstance(error, OSError):  # a parser bug: the banner says it, the log has it
             log.error("cannot show %s", self.path, exc_info=error)
-        self._set_banner(f"Não foi possível abrir o arquivo: {error}", "warning")
+        self._set_banner(
+            _("Não foi possível abrir o arquivo: {error}").format(error=error), "warning"
+        )
         self.loaded.emit()
 
     def _set_banner(self, text: str, level: str) -> None:
@@ -378,6 +381,6 @@ class TextViewer(QWidget):
             return
         last = self.editor.last_number()
         current = self.editor.number_at(self.editor.textCursor().blockNumber()) or 1
-        number, ok = QInputDialog.getInt(self, "Ir à linha", "Linha:", current, 1, last)
+        number, ok = QInputDialog.getInt(self, _("Ir à linha"), _("Linha:"), current, 1, last)
         if ok:
             self.editor.go_to_line(number)

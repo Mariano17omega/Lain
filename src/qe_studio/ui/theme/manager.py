@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import QApplication
 from ...core.appdirs import cache_dir
 from ...core.colors import RGBA
 from ...core.fontscale import clamp_scale, scale_qss, size_tokens
+from ...i18n import _
 from . import scale as font_scale_state
 
 THEMES = ("dark", "light")  # the concrete themes: a token file each
@@ -187,8 +188,10 @@ class ThemeManager(QObject):
     def label(self) -> str:
         """The mode in words: ``Escuro``, ``Claro`` or ``Sistema (escuro agora)``."""
         if self.mode == "system":
-            return f"Sistema ({'escuro' if self.name == 'dark' else 'claro'} agora)"
-        return "Escuro" if self.mode == "dark" else "Claro"
+            if self.name == "dark":
+                return _("Sistema (escuro agora)")
+            return _("Sistema (claro agora)")
+        return _("Escuro") if self.mode == "dark" else _("Claro")
 
     def toggle(self) -> str:
         """The next mode: dark → light → system → dark. Returns it."""

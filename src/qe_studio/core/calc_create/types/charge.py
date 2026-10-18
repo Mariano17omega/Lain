@@ -42,7 +42,7 @@ OUTPUT_FORMATS = {
     2: "plotrho (2D)",
     3: _("XCrySDen (2D ou região 3D)"),
     5: _("XSF para XCrySDen (3D, grade FFT inteira)"),
-    6: "cube do Gaussian (3D)",
+    6: _("cube do Gaussian (3D)"),
     7: "gnuplot (2D)",
 }
 # The formats pp.x writes for an ``iflag``; it ignores ``output_format`` on the others (1D, polar).
@@ -176,7 +176,7 @@ class ChargeType(CalcType):
         output_format = code_of(values["output_format"], DEFAULT_OUTPUT_FORMAT)
         fileout = values["fileout"] or default_fileout(scf)
         if plot_num < 0:
-            work.problem("plot_num", "plot_num deve ser 0 ou maior")
+            work.problem("plot_num", _("plot_num deve ser 0 ou maior"))
         if absolute(fileout) or climbs(fileout):
             work.problem(
                 "fileout",

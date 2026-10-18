@@ -27,11 +27,12 @@ from ...core.sync.planner import Decision, PlanItem, SyncPlan
 from ...core.sync.preview import format_mtime
 from ...core.sync.push_plan import PushPlan
 from ...core.sync.request import SyncScope
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from ..widgets.common import set_variant
 from .sync_pages import PreviewPage, SearchPage, TransferPage
 
-WAITING_DECISION = "Aguardando sua decisão…"
+WAITING_DECISION = _("Aguardando sua decisão…")
 
 
 class SyncDialog(QDialog):
@@ -56,7 +57,14 @@ class SyncDialog(QDialog):
         title.setObjectName("syncScope")
         title.setWordWrap(True)
         self.scope_label = title
-        paths = set_variant(QLabel(f"Local: {scope.local_text}\nCluster: {scope.remote}"), "mono")
+        paths = set_variant(
+            QLabel(
+                _("Local: {local}\nCluster: {remote}").format(
+                    local=scope.local_text, remote=scope.remote
+                )
+            ),
+            "mono",
+        )
         paths.setWordWrap(True)
         paths.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.search = SearchPage(theme)
@@ -66,7 +74,7 @@ class SyncDialog(QDialog):
         for page in (self.search, self.preview, self.transfer):
             self.pages.addWidget(page)
         self.spinner = self.search.spinner
-        self.cancel_button = set_variant(QPushButton("Cancelar"), "danger")
+        self.cancel_button = set_variant(QPushButton(_("Cancelar")), "danger")
         self.cancel_button.setAutoDefault(False)  # Enter never cancels a pull
         self.cancel_button.clicked.connect(self.request_cancel)
         self.download_button = set_variant(QPushButton(scope.confirm_text), "primary")
@@ -99,7 +107,7 @@ class SyncDialog(QDialog):
 
     def download(self) -> None:
         """ "Baixar" / "Enviar": conflicts, if any, then the transfer, on the transfer page."""
-        self.transfer.stage.setText("Preparando transferência…")
+        self.transfer.stage.setText(_("Preparando transferência…"))
         self._show_page(self.transfer)
         self.controller.confirm_plan(True)
 
@@ -160,7 +168,7 @@ class SyncDialog(QDialog):
             self.controller.confirm_plan(False)  # ends as CANCELLED, nothing transferred
             return
         self.cancel_button.setEnabled(False)
-        self._stage("Cancelando…")
+        self._stage(_("Cancelando…"))
         self.controller.cancel()
 
     def reject(self) -> None:  # Esc or close: cancel the run, close when rsync has stopped
@@ -182,27 +190,27 @@ class ConflictDialog(QDialog):
 
     def __init__(self, item: PlanItem, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setWindowTitle("Conflito de sincronização")
+        self.setWindowTitle(_("Conflito de sincronização"))
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
         self.item = item
         self._sent = False
         layout = QVBoxLayout(self)
-        layout.addWidget(set_variant(QLabel("O arquivo local seria sobrescrito"), "dialogTitle"))
+        layout.addWidget(set_variant(QLabel(_("O arquivo local seria sobrescrito")), "dialogTitle"))
         layout.addWidget(set_variant(QLabel(item.path), "mono"))
         grid = QGridLayout()
-        grid.addWidget(QLabel("Cluster:"), 0, 0)
+        grid.addWidget(QLabel(_("Cluster:")), 0, 0)
         cluster = f"{format_mtime(item.remote_mtime)} · {human_size(item.size)}"
         grid.addWidget(QLabel(cluster), 0, 1)
-        grid.addWidget(QLabel("Local:"), 1, 0)
+        grid.addWidget(QLabel(_("Local:")), 1, 0)
         grid.addWidget(QLabel(format_mtime(item.local_mtime)), 1, 1)
         layout.addLayout(grid)
         row = QHBoxLayout()
         for text, decision, variant in (
-            ("Cancelar sincronização", Decision.CANCEL, "danger"),
-            ("Manter local", Decision.SKIP, None),
-            ("Sobrescrever todos nesta pasta", Decision.OVERWRITE_FOLDER, None),
-            ("Sobrescrever este", Decision.OVERWRITE, "primary"),
+            (_("Cancelar sincronização"), Decision.CANCEL, "danger"),
+            (_("Manter local"), Decision.SKIP, None),
+            (_("Sobrescrever todos nesta pasta"), Decision.OVERWRITE_FOLDER, None),
+            (_("Sobrescrever este"), Decision.OVERWRITE, "primary"),
         ):
             button = QPushButton(text)
             if variant:

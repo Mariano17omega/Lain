@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 from ....core.structure3d.bonds import BondGraph
 from ....core.structure3d.elements import element_for_label
 from ....core.structure3d.model import AtomRef, Structure, atom_name
+from ....i18n import _
 from ...theme.scale import scaled
 from ..common import set_variant
 from ..param_widgets import Section
@@ -24,28 +25,28 @@ from ..param_widgets import Section
 NEIGHBOR_LIMIT = 12
 ROW_PX = 22  # a neighbour row at scale 1
 DASH = "—"
-PLACEHOLDER = "Clique em um átomo para ver os dados."
+PLACEHOLDER = _("Clique em um átomo para ver os dados.")
 FREE = (1, 1, 1)  # pw.x's if_pos when a row writes none
 
 # (key, label, mono): the rows under the title, in order.
 ROWS = (
-    ("species", "Espécie", False),
-    ("element", "Elemento", False),
-    ("mass", "Massa", False),
-    ("pseudo", "Pseudopotencial", False),
-    ("cart", "Posição (Å)", True),
-    ("frac", "Fracionária", True),
-    ("image", "Imagem", True),
-    ("flags", "Fixo (if_pos)", True),
-    ("magnetization", "Magnetização inicial", False),
-    ("coordination", "Coordenação", False),
+    ("species", _("Espécie"), False),
+    ("element", _("Elemento"), False),
+    ("mass", _("Massa"), False),
+    ("pseudo", _("Pseudopotencial"), False),
+    ("cart", _("Posição (Å)"), True),
+    ("frac", _("Fracionária"), True),
+    ("image", _("Imagem"), True),
+    ("flags", _("Fixo (if_pos)"), True),
+    ("magnetization", _("Magnetização inicial"), False),
+    ("coordination", _("Coordenação"), False),
 )
 
 
 def element_text(label: str) -> str:
     element = element_for_label(label)
     if not element.known:
-        return "Desconhecido"
+        return _("Desconhecido")
     return f"{element.name} ({element.symbol}), Z = {element.z}"
 
 
@@ -81,7 +82,7 @@ class AtomSection:
         for key, text, mono in ROWS:
             value = _value(mono)
             self.rows[key] = (section.add_row(text, value), value)
-        self.neighbors_caption = set_variant(QLabel("Vizinhos ligados"), "fieldLabel")
+        self.neighbors_caption = set_variant(QLabel(_("Vizinhos ligados")), "fieldLabel")
         section.add_full(self.neighbors_caption)
         self.table = NeighborTable()
         section.add_full(self.table)
@@ -149,7 +150,7 @@ class NeighborTable(QTableWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(0, 2, parent)
         self.setObjectName("structureNeighbors")
-        self.setHorizontalHeaderLabels(["Átomo", "Distância (Å)"])
+        self.setHorizontalHeaderLabels([_("Átomo"), _("Distância (Å)")])
         vertical = self.verticalHeader()
         if vertical is not None:
             vertical.hide()

@@ -75,7 +75,7 @@ def model_of(scf: ScfInfo) -> Model:
     if crystal is None:
         raise SurfaceError(
             _("Estrutura de {name} ilegível: {value}").format(
-                name=scf.name, value=scf.structure_problem or "sem estrutura"
+                name=scf.name, value=scf.structure_problem or _("sem estrutura")
             )
         )
     flags = flags_of(scf.text)

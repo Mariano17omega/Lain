@@ -34,21 +34,22 @@ from ....core.structure3d.model import AtomRef, Structure, atom_name
 from ....core.structure3d.options import DisplayOptions, background_of_theme
 from ....core.structure3d.view_state import CameraState, session_of
 from ....core.tasks import run_task
+from ....i18n import _
 from ...theme.manager import ThemeManager
 from ..common import IconButton, set_variant
 from .canvas import StructureCanvas
 from .panel import StructurePanel
 from .print_image import save_view
 
-TITLE = "Visualização 3D"
+TITLE = _("Visualização 3D")
 PANEL_WIDTH = 320
 SIZE = (1280, 820)
 VIEWS = ("x", "y", "z")  # the menu of the bar; the keys A, B, C still look along a, b, c
-VIEW_TIP = "Olhar ao longo de x, y ou z (as teclas A, B e C olham ao longo de a, b e c)"
+VIEW_TIP = _("Olhar ao longo de x, y ou z (as teclas A, B e C olham ao longo de a, b e c)")
 MESSAGE_MS = 3000  # a status bar notice ("Medidas copiadas")
 FAILED_MS = 8000  # the notice of a "Print" that failed
-PRINT_TEXT = "Print"
-PRINT_TIP = "Salvar a imagem da vista em PNG, na pasta plots/ do cálculo"
+PRINT_TEXT = _("Print")
+PRINT_TIP = _("Salvar a imagem da vista em PNG, na pasta plots/ do cálculo")
 PRINT_SCALE = 2  # the picture has this many times the pixels of the view
 
 
@@ -72,7 +73,7 @@ def status_text(structure: Structure) -> str:
 def _reason(exc: BaseException) -> str:
     """Why a "Print" failed, in words for the status bar."""
     if isinstance(exc, FileNotFoundError):
-        return "a pasta do cálculo não existe mais"
+        return _("a pasta do cálculo não existe mais")
     if isinstance(exc, OSError) and exc.strerror:
         return exc.strerror
     return str(exc) or type(exc).__name__
@@ -134,19 +135,21 @@ class StructureWindow(QMainWindow):
         layout.setContentsMargins(8, 0, 8, 0)
         layout.setSpacing(4)
         self.reset_button = IconButton(
-            theme, "home", "Resetar vista (R)", "plotTool", "text_secondary", "accent", 15
+            theme, "home", _("Resetar vista (R)"), "plotTool", "text_secondary", "accent", 15
         )
-        self.reset_button.setText("Resetar vista")
+        self.reset_button.setText(_("Resetar vista"))
         self.reset_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.reset_button.clicked.connect(self._reset_clicked)
         self.view_button = set_variant(QToolButton(), "plotTool")
-        self.view_button.setText("Vista")
+        self.view_button.setText(_("Vista"))
         self.view_button.setToolTip(VIEW_TIP)
         self.view_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         menu = QMenu(self.view_button)
         self.view_actions: dict[str, QAction] = {}
         for name in VIEWS:
-            action = menu.addAction(f"Ao longo de {name} ({name.upper()})")
+            action = menu.addAction(
+                _("Ao longo de {axis} ({key})").format(axis=name, key=name.upper())
+            )
             assert action is not None
             action.triggered.connect(lambda _=False, n=name: self.canvas.view_along(n))
             self.view_actions[name] = action
@@ -199,14 +202,15 @@ class StructureWindow(QMainWindow):
     def _print_done(self, target: Path) -> None:
         bar = self.statusBar()
         if bar is not None:
-            bar.showMessage(f"Imagem salva em plots/{target.name}", MESSAGE_MS)
+            bar.showMessage(_("Imagem salva em plots/{name}").format(name=target.name), MESSAGE_MS)
         self.image_saved.emit(target)
 
     def _print_error(self, exc: BaseException) -> None:
         reason = _reason(exc)
         bar = self.statusBar()
         if bar is not None:
-            bar.showMessage(f"Não foi possível salvar a imagem: {reason}", FAILED_MS)
+            text = _("Não foi possível salvar a imagem: {reason}").format(reason=reason)
+            bar.showMessage(text, FAILED_MS)
         self.print_failed.emit(reason)
 
     def _status(self) -> None:

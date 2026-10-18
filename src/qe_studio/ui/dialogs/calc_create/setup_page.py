@@ -31,19 +31,22 @@ from ....core.calc_create.types import REGISTRY, CalcType
 from ....core.calc_create.writer import validate_parent, validate_suffix
 from ....core.sniff import looks_like_input
 from ....core.tasks import TaskGroup
+from ....i18n import _
 from ...busy import BusyTracker
 from ...widgets.common import set_variant
 from .labels import message_label, show_message
 
 log = logging.getLogger(__name__)
 
-READING = "Lendo SCF…"
-CHOOSE_TYPE = "Escolha o tipo de cálculo"
-CHOOSE_SCF = "Escolha o input de SCF"
-REBUILD_NOTE = "Esta mudança refaz a próxima etapa: os campos voltam aos padrões"
-REBUILD_EDITS_NOTE = f"{REBUILD_NOTE} e as edições dos arquivos se perdem"  # spec 39 R2.5
-INPUT_FILTER = "Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)"
-NUMBER_TIP = (
+READING = _("Lendo SCF…")
+CHOOSE_TYPE = _("Escolha o tipo de cálculo")
+CHOOSE_SCF = _("Escolha o input de SCF")
+REBUILD_NOTE = _("Esta mudança refaz a próxima etapa: os campos voltam aos padrões")
+REBUILD_EDITS_NOTE = _("{note} e as edições dos arquivos se perdem").format(
+    note=REBUILD_NOTE
+)  # spec 39 R2.5
+INPUT_FILTER = _("Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)")
+NUMBER_TIP = _(
     "Põe um número antes do nome da pasta, seguindo as pastas que já existem aqui "
     "(0_Relax, 1_Bands…)"
 )
@@ -51,13 +54,13 @@ NUMBER_TIP = (
 
 def choose_scf(parent: QWidget, start: Path) -> Path | None:
     path, _filter = QFileDialog.getOpenFileName(
-        parent, "Escolher input de SCF", str(start), INPUT_FILTER
+        parent, _("Escolher input de SCF"), str(start), INPUT_FILTER
     )
     return Path(path) if path else None
 
 
 def choose_folder(parent: QWidget, start: Path) -> Path | None:
-    path = QFileDialog.getExistingDirectory(parent, "Onde criar a pasta", str(start))
+    path = QFileDialog.getExistingDirectory(parent, _("Onde criar a pasta"), str(start))
     return Path(path) if path else None
 
 
@@ -85,7 +88,7 @@ class SetupPage(QWidget):
         self._busy_key = f"calc:scf:{id(self)}"
 
         self.type_combo = QComboBox()
-        self.type_combo.setAccessibleName("Tipo de cálculo")
+        self.type_combo.setAccessibleName(_("Tipo de cálculo"))
         for calc_type in REGISTRY:
             self.type_combo.addItem(calc_type.label, calc_type.id)
         self.type_combo.setPlaceholderText(CHOOSE_TYPE)
@@ -93,26 +96,26 @@ class SetupPage(QWidget):
         self.type_combo.currentIndexChanged.connect(self._update)
         self.scf_edit = set_variant(QLineEdit(), "mono")
         self.scf_edit.setReadOnly(True)
-        self.scf_edit.setPlaceholderText("Nenhum arquivo escolhido")
+        self.scf_edit.setPlaceholderText(_("Nenhum arquivo escolhido"))
         self.scf_edit.setAccessibleName(CalcType.scf_label)
         self.scf_label = set_variant(QLabel(), "fieldLabel")  # the type's name for it (spec 40)
-        self.scf_button = QPushButton("Escolher…")
+        self.scf_button = QPushButton(_("Escolher…"))
         self.scf_button.clicked.connect(self._pick_scf)
         self.scf_message = message_label("error")
         self.suffix_edit = QLineEdit()
-        self.suffix_edit.setAccessibleName("Nome da pasta")
-        self.suffix_edit.setPlaceholderText("opcional, ex.: Al, Fe_teste")
+        self.suffix_edit.setAccessibleName(_("Nome da pasta"))
+        self.suffix_edit.setPlaceholderText(_("opcional, ex.: Al, Fe_teste"))
         self.suffix_edit.textChanged.connect(self._update)
         self.suffix_message = message_label("error")
-        self.number_check = QCheckBox("Numerar")
+        self.number_check = QCheckBox(_("Numerar"))
         self.number_check.setObjectName("numberCheck")
-        self.number_check.setAccessibleName("Numerar")
+        self.number_check.setAccessibleName(_("Numerar"))
         self.number_check.setToolTip(NUMBER_TIP)
         self.number_check.toggled.connect(self._update)
         self.location_edit = set_variant(QLineEdit(str(start)), "mono")
         self.location_edit.setReadOnly(True)
-        self.location_edit.setAccessibleName("Local")
-        self.location_button = QPushButton("Escolher…")
+        self.location_edit.setAccessibleName(_("Local"))
+        self.location_button = QPushButton(_("Escolher…"))
         self.location_button.clicked.connect(self._pick_location)
         self.location_message = message_label("warning")
         self.reason = message_label()  # why "Continuar" is disabled (spec 39 R1.1)
@@ -125,15 +128,15 @@ class SetupPage(QWidget):
         grid.setColumnStretch(1, 1)
         grid.setVerticalSpacing(6)
         rows: list[tuple[str | QLabel, QWidget, tuple[QWidget, ...]]] = [
-            ("Tipo de cálculo", self.type_combo, ()),
+            (_("Tipo de cálculo"), self.type_combo, ()),
             (
                 self.scf_label,
                 self._with_button(self.scf_edit, self.scf_button),
                 (self.scf_message,),
             ),
-            ("Nome da pasta", self.suffix_edit, (self.suffix_message, self.number_check)),
+            (_("Nome da pasta"), self.suffix_edit, (self.suffix_message, self.number_check)),
             (
-                "Local",
+                _("Local"),
                 self._with_button(self.location_edit, self.location_button),
                 (self.location_message,),
             ),
@@ -231,7 +234,9 @@ class SetupPage(QWidget):
         self._tasks.cancel_all()
         # Accepted, local disk: one file the user just picked, its head only (spec 27-8 R3.3).
         if not path.is_file() or not looks_like_input(path):
-            self._scf_problem = f"{path.name} não parece um input do Quantum ESPRESSO"
+            self._scf_problem = _("{name} não parece um input do Quantum ESPRESSO").format(
+                name=path.name
+            )
             self._end_reading()
             self.scf_ready.emit(None)
             return
@@ -252,7 +257,7 @@ class SetupPage(QWidget):
             self._scf_problem = str(exc)
         else:
             log.error("reading the SCF for a new calculation failed", exc_info=exc)
-            self._scf_problem = f"Não foi possível ler o SCF: {exc}"
+            self._scf_problem = _("Não foi possível ler o SCF: {error}").format(error=exc)
         self._end_reading()
         self.scf_ready.emit(None)
 

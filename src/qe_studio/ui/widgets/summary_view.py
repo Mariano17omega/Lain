@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 
 from ...core.qe.summary import OutputSummary, summarize, to_text
 from ...core.tasks import TaskHandle, run_task
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from .summary_widgets import SummarySectionWidget
 
@@ -67,9 +68,11 @@ class SummaryView(QWidget):
         row = QHBoxLayout(self.bar)
         row.setContentsMargins(8, 3, 8, 3)
         row.setSpacing(4)
-        self.copy_button = _tool("Copiar", "Copiar o resumo como texto")
-        self.open_button = _tool("Abrir saída", "Abrir o arquivo no visualizador de texto")
-        self.refresh_button = _tool("Atualizar", "Ler o arquivo de novo (o job pode estar rodando)")
+        self.copy_button = _tool(_("Copiar"), _("Copiar o resumo como texto"))
+        self.open_button = _tool(_("Abrir saída"), _("Abrir o arquivo no visualizador de texto"))
+        self.refresh_button = _tool(
+            _("Atualizar"), _("Ler o arquivo de novo (o job pode estar rodando)")
+        )
         for button in (self.copy_button, self.open_button, self.refresh_button):
             row.addWidget(button)
         row.addStretch(1)
@@ -103,7 +106,7 @@ class SummaryView(QWidget):
         """Read the file again; the result of an earlier, slower read is dropped."""
         self.copy_button.setEnabled(False)
         self.refresh_button.setEnabled(False)
-        self._show_message(f"Lendo {self.path.name}…")
+        self._show_message(_("Lendo {name}…").format(name=self.path.name))
         if self._task is not None:
             self._task.cancel()
         self._task = run_task(summarize, self.path, on_done=self._on_done, on_error=self._on_failed)
@@ -135,7 +138,7 @@ class SummaryView(QWidget):
         if not isinstance(error, OSError):  # a parser bug must not leave the tab on "Lendo…"
             log.error("summary of %s failed", self.path, exc_info=error)
         self.summary = None
-        self._show_message(f"Não foi possível ler o arquivo: {error}")
+        self._show_message(_("Não foi possível ler o arquivo: {error}").format(error=error))
         self.refresh_button.setEnabled(True)
         self.loaded.emit()
 

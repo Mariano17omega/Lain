@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.about import report_text
+from ...i18n import _
 from ..app_identity import app_icon
 from ..widgets.common import set_variant
 
@@ -26,7 +27,7 @@ class AboutDialog(QDialog):
     def __init__(self, title: str, rows: list[tuple[str, str]], parent: QWidget | None = None):
         super().__init__(parent)
         self.rows = rows
-        self.setWindowTitle("Sobre o Lain")
+        self.setWindowTitle(_("Sobre o Lain"))
         self.setModal(True)
         layout = QVBoxLayout(self)
         head = QHBoxLayout()
@@ -49,9 +50,9 @@ class AboutDialog(QDialog):
         layout.addWidget(link)
         row = QHBoxLayout()
         row.addStretch(1)
-        self.copy_button = QPushButton("Copiar informações")
+        self.copy_button = QPushButton(_("Copiar informações"))
         self.copy_button.clicked.connect(self.copy_info)
-        close = set_variant(QPushButton("Fechar"), "primary")
+        close = set_variant(QPushButton(_("Fechar")), "primary")
         close.setDefault(True)
         close.clicked.connect(self.accept)
         row.addWidget(self.copy_button)

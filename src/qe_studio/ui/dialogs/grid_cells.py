@@ -17,9 +17,10 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.plotting.grid import MAX_SIZE, GridCell, PlotRef
+from ...i18n import _
 
-HEADERS = ("Gráfico", "Linha", "Coluna", "Título")
-MISSING = " (pasta não encontrada)"
+HEADERS = (_("Gráfico"), _("Linha"), _("Coluna"), _("Título"))
+MISSING = _(" (pasta não encontrada)")
 
 
 @dataclass(frozen=True)
@@ -124,7 +125,7 @@ class CellsTable(QTableWidget):
             spin.valueChanged.connect(self.changed)
             self.setCellWidget(row, column, spin)
         title = QLineEdit(cell.title)
-        title.setPlaceholderText("o do gráfico")
+        title.setPlaceholderText(_("o do gráfico"))
         title.textChanged.connect(self.changed)
         self.setCellWidget(row, 3, title)
         self.changed.emit()

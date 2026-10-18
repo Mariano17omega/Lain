@@ -7,11 +7,12 @@ from __future__ import annotations
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
+from ....i18n import _
 from ...widgets.common import set_variant
 
-EDITED_TEXT = "Editado manualmente. Os campos deste arquivo não o alteram mais."
-RESTORE_TEXT = "Restaurar do formulário"
-RESTORE_TIP = "Descarta a edição e volta ao texto que os campos geram"
+EDITED_TEXT = _("Editado manualmente. Os campos deste arquivo não o alteram mais.")
+RESTORE_TEXT = _("Restaurar do formulário")
+RESTORE_TIP = _("Descarta a edição e volta ao texto que os campos geram")
 
 
 class EditBar(QWidget):

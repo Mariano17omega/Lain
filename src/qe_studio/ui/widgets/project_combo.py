@@ -9,10 +9,11 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QWidget
 
+from ...i18n import _
 from .common import set_variant
 
-ALL_TEXT = "Todos os projetos"
-CREATE_TEXT = "Criar projeto…"
+ALL_TEXT = _("Todos os projetos")
+CREATE_TEXT = _("Criar projeto…")
 # What the entries carry: a project's data is its name, which cannot be mistaken for these two
 # (a folder name has no NUL).
 ALL_KEY = "\0all"
@@ -33,11 +34,11 @@ class ProjectCombo(QWidget):
         row = QHBoxLayout(self)
         row.setContentsMargins(8, 6, 8, 6)
         row.setSpacing(8)
-        self.label = set_variant(QLabel("Projeto"), "panelTitle")
+        self.label = set_variant(QLabel(_("Projeto")), "panelTitle")
         self.combo = QComboBox()
         self.combo.setObjectName("projectCombo")
-        self.combo.setAccessibleName("Projeto")
-        self.combo.setToolTip("Mostra só as pastas de um projeto (uma pasta da raiz)")
+        self.combo.setAccessibleName(_("Projeto"))
+        self.combo.setToolTip(_("Mostra só as pastas de um projeto (uma pasta da raiz)"))
         self.combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.label.setBuddy(self.combo)
         row.addWidget(self.label)

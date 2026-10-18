@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
+from ...i18n import _
+
 MANY_FILES = 10  # opening up to this many files needs no question
 
 
 def ask_open_many(parent: QWidget, count: int) -> bool:
     answer = QMessageBox.question(
         parent,
-        "Abrir arquivos",
-        f"Abrir {count} arquivos?",
+        _("Abrir arquivos"),
+        _("Abrir {n} arquivos?").format(n=count),
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )

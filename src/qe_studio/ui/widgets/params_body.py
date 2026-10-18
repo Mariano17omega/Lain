@@ -22,7 +22,7 @@ from ...core.calculations.base import Dataset
 from ...core.calculations.params import CommonParams, ParamField, ordered_sections
 from ...core.compounds import atoms_summary
 from ...core.plotting.session import PlotSession
-from ...i18n import N_
+from ...i18n import N_, _
 from ..dialogs.atoms import ask_atoms
 from ..theme.manager import ThemeManager
 from .common import set_variant
@@ -78,8 +78,12 @@ class ParamsBody(QWidget):
                 self._add_field(section, field)
             column.addWidget(section)
         if module.plot_file:  # what "Restaurar padrões" removes; a grid keeps its settings
-            restore = QPushButton("Restaurar padrões")
-            restore.setToolTip(f"Voltar todos os ajustes ao padrão e apagar {session.kind}.plot")
+            restore = QPushButton(_("Restaurar padrões"))
+            restore.setToolTip(
+                _("Voltar todos os ajustes ao padrão e apagar {name}.plot").format(
+                    name=session.kind
+                )
+            )
             restore.clicked.connect(self.restore_requested)
             footer = QHBoxLayout()
             footer.setContentsMargins(10, 10, 8, 10)
@@ -145,18 +149,19 @@ class ParamsBody(QWidget):
             paths = result.files.get(role.id)
             if not paths:
                 continue
-            text = paths[0].name if len(paths) == 1 else f"{len(paths)} arquivos"
+            text = paths[0].name if len(paths) == 1 else _("{n} arquivos").format(n=len(paths))
             method = result.methods.get(role.id)
             name = set_variant(QLabel(role.label), "fieldLabel")
             value = set_variant(QLabel(text), "readout")
             value.setMinimumWidth(0)
             value.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             tip = "\n".join(str(p) for p in paths[:20])
-            value.setToolTip(f"{tip}\n(detectado por {method.label})" if method else tip)
+            detected = _("(detectado por {method})").format(method=method.label) if method else ""
+            value.setToolTip(f"{tip}\n{detected}" if method else tip)
             section.add_full(name)
             section.add_full(value)
         if self.session.module.selectable:  # a figure of several folders has no mapping of its own
-            remap = QPushButton("Remapear arquivos…")
+            remap = QPushButton(_("Remapear arquivos…"))
             remap.clicked.connect(self.remap_requested)
             section.add_full(remap)
         return section
@@ -218,7 +223,7 @@ class ParamsBody(QWidget):
             if field.kind == "labels":
                 edit.setProperty("variant", "mono")
                 detected = ", ".join(self.session.module.default_labels(self.session.dataset))
-                edit.setPlaceholderText(detected or "ex.: G, X, W, L, G")
+                edit.setPlaceholderText(detected or _("ex.: G, X, W, L, G"))
             edit.editingFinished.connect(lambda e=edit: self._set(name, e.text()))
             self._setters[name] = lambda v, e=edit: e.setText(str(v))
             widget = edit
@@ -232,7 +237,9 @@ class ParamsBody(QWidget):
         for widget, field in self._gated:
             on = bool(getattr(self.session.params, field.requires))
             needed = self._fields.get(field.requires)
-            hint = "" if on or needed is None else f"Ligue “{needed.label}” para usar este campo."
+            hint = ""
+            if not on and needed is not None:
+                hint = _("Ligue “{name}” para usar este campo.").format(name=needed.label)
             widget.setEnabled(on)
             widget.setToolTip("\n".join(part for part in (hint, field.tooltip) if part))
 
@@ -242,7 +249,7 @@ class ParamsBody(QWidget):
         name, session = field.name, self.session
         choices = session.module.atoms_of(session.dataset)
         total = len(choices.sites) if choices else 0
-        button = QPushButton("Átomos…")
+        button = QPushButton(_("Átomos…"))
         button.setAccessibleName(field.label)
         summary = set_variant(QLabel(), "readout")
 
@@ -259,9 +266,9 @@ class ParamsBody(QWidget):
 
         if choices is None or not choices.available:
             button.setEnabled(False)
-            button.setToolTip("Não foi possível ler os átomos da saída do SCF")
+            button.setToolTip(_("Não foi possível ler os átomos da saída do SCF"))
         else:
-            button.setToolTip("Escolher os átomos cujos orbitais são plotados")
+            button.setToolTip(_("Escolher os átomos cujos orbitais são plotados"))
             button.clicked.connect(pick)
         widget = QWidget()
         row = QHBoxLayout(widget)

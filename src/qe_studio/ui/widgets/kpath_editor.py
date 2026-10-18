@@ -39,18 +39,19 @@ from ...core.calc_create.kpath import (
     collapsed_segments,
     distribute,
 )
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from .common import set_variant
 
-COLUMNS = ("Rótulo", "k1", "k2", "k3", "Pontos")
+COLUMNS = (_("Rótulo"), "k1", "k2", "k3", _("Pontos"))
 LABEL, K1, K2, K3, NPTS = range(5)
 VALUE = Qt.ItemDataRole.UserRole  # the number a cell holds (its text is how it is shown)
-BREAK_TEXT = "quebra"
-BREAK_TIP = "O caminho salta deste ponto para o próximo (peso 1)"
+BREAK_TEXT = _("quebra")
+BREAK_TIP = _("O caminho salta deste ponto para o próximo (peso 1)")
 END_TEXT = "—"
 DEFAULT_DENSITY = 25  # points per Å⁻¹ of "Distribuir pelo comprimento"
-DISTRIBUTE_TIP = "Ajusta a coluna Pontos ao comprimento de cada segmento (pontos por Å⁻¹)"
-NO_CELL_TIP = "Estrutura do SCF não legível"
+DISTRIBUTE_TIP = _("Ajusta a coluna Pontos ao comprimento de cada segmento (pontos por Å⁻¹)")
+NO_CELL_TIP = _("Estrutura do SCF não legível")
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,7 @@ class KPathEditor(QWidget):
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         points = self.table.horizontalHeaderItem(NPTS)
         if points is not None:
-            points.setToolTip("Pontos até o próximo ponto do caminho")
+            points.setToolTip(_("Pontos até o próximo ponto do caminho"))
         self.table.setMinimumHeight(
             260
         )  # a whole fcc path (about 12 points) without scrolling much
@@ -105,18 +106,18 @@ class KPathEditor(QWidget):
         self.table.itemChanged.connect(self._on_item_changed)
         self.table.currentCellChanged.connect(self._update_buttons)
 
-        self.add_button = QPushButton("Adicionar")
-        self.remove_button = QPushButton("Remover")
-        self.up_button = QPushButton("Subir")
-        self.down_button = QPushButton("Descer")
-        self.break_button = QPushButton("Marcar quebra de segmento")
+        self.add_button = QPushButton(_("Adicionar"))
+        self.remove_button = QPushButton(_("Remover"))
+        self.up_button = QPushButton(_("Subir"))
+        self.down_button = QPushButton(_("Descer"))
+        self.break_button = QPushButton(_("Marcar quebra de segmento"))
         self.break_button.setToolTip(BREAK_TIP)
         self.density = QSpinBox()
         self.density.setRange(1, 500)
         self.density.setValue(DEFAULT_DENSITY)
-        self.density.setAccessibleName("Pontos por Å⁻¹")
-        self.density.setToolTip("Pontos por Å⁻¹ de comprimento do segmento")
-        self.distribute_button = QPushButton("Distribuir pelo comprimento")
+        self.density.setAccessibleName(_("Pontos por Å⁻¹"))
+        self.density.setToolTip(_("Pontos por Å⁻¹ de comprimento do segmento"))
+        self.distribute_button = QPushButton(_("Distribuir pelo comprimento"))
         self.add_button.clicked.connect(self.add_point)
         self.remove_button.clicked.connect(self.remove_point)
         self.up_button.clicked.connect(partial(self.move_point, -1))
@@ -145,7 +146,7 @@ class KPathEditor(QWidget):
         spread = QHBoxLayout()
         spread.setContentsMargins(0, 0, 0, 0)
         self.distribute_button.setAutoDefault(False)
-        spread.addWidget(QLabel("Pontos por Å⁻¹"))
+        spread.addWidget(QLabel(_("Pontos por Å⁻¹")))
         spread.addWidget(self.density)
         spread.addWidget(self.distribute_button)
         spread.addStretch(1)
@@ -262,7 +263,8 @@ class KPathEditor(QWidget):
             if not math.isfinite(number) or (column == NPTS and not 1 <= number <= MAX_NPTS):
                 raise ValueError
         except ValueError:
-            self._show_message(f"Valor inválido: {item.text().strip() or 'vazio'}")
+            shown = item.text().strip() or _("vazio")
+            self._show_message(_("Valor inválido: {value}").format(value=shown))
             number = previous
         else:
             self._show_message("")

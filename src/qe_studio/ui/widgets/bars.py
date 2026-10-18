@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from ..theme.scale import scaled
 from .breadcrumb import Breadcrumb
@@ -32,11 +33,11 @@ LED_TOKENS = {
     "disabled": "text_dim",
 }
 LED_TIPS = {
-    "online": "Cluster acessível",
-    "offline": "Cluster inacessível",
-    "syncing": "Sincronizando…",
-    "unknown": "Verificando conexão…",
-    "disabled": "Cluster não configurado (config.yaml)",
+    "online": _("Cluster acessível"),
+    "offline": _("Cluster inacessível"),
+    "syncing": _("Sincronizando…"),
+    "unknown": _("Verificando conexão…"),
+    "disabled": _("Cluster não configurado (config.yaml)"),
 }
 
 
@@ -113,26 +114,37 @@ class ActivityBar(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 6, 5, 8)
         layout.setSpacing(4)
-        self.tree = ActivityButton(theme, "account_tree", "Árvore", "Explorador de pastas", True)
-        self.grid = ActivityButton(theme, "grid_view", "Grade", "Mostrar/ocultar arquivos", True)
+        self.tree = ActivityButton(
+            theme, "account_tree", _("Árvore"), _("Explorador de pastas"), True
+        )
+        self.grid = ActivityButton(
+            theme, "grid_view", _("Grade"), _("Mostrar/ocultar arquivos"), True
+        )
         # No shortcut: Ctrl+G is "Gerar Plot" (``plot.generate``), which always plots and saves.
         self.generate = ActivityButton(
             theme,
             "bolt",
-            "Plot",
-            "Plotar a pasta selecionada (com uma pasta de bandas e uma de PDOS selecionadas na "
-            "grade: Bandas com DOS); com a geração automática desligada (ui.auto_generate_plot) "
-            "só abre os ajustes",
+            _("Plot"),
+            _(
+                "Plotar a pasta selecionada (com uma pasta de bandas e uma de PDOS selecionadas na "
+                "grade: Bandas com DOS); com a geração automática desligada (ui.auto_generate_plot) "
+                "só abre os ajustes"
+            ),
         )
         # A grid of the open plots in one figure (spec 23).
         self.grids = ActivityButton(
-            theme, "dashboard", "Grids", "Unir gráficos abertos numa grade N×M (uma só figura)"
+            theme,
+            "dashboard",
+            _("Grids"),
+            _("Unir gráficos abertos numa grade N×M (uma só figura)"),
         )
-        self.rsync = ActivityButton(theme, "sync", "Rsync", "Sincronizar com o cluster")
+        self.rsync = ActivityButton(theme, "sync", _("Rsync"), _("Sincronizar com o cluster"))
         self.new_calc = ActivityButton(
-            theme, "add_circle", "Criar", "Criar cálculo (scripts e inputs)"
+            theme, "add_circle", _("Criar"), _("Criar cálculo (scripts e inputs)")
         )
-        self.theme_button = ActivityButton(theme, "dark_mode", "Tema", "Alternar tema (Ctrl+T)")
+        self.theme_button = ActivityButton(
+            theme, "dark_mode", _("Tema"), _("Alternar tema (Ctrl+T)")
+        )
         for button in (self.tree, self.grid, self.generate, self.grids, self.rsync, self.new_calc):
             layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch(1)
@@ -171,7 +183,7 @@ class ActivityBar(QWidget):
     def _sync_theme_button(self, *_args) -> None:
         """Icon and tooltip say the current mode (spec 19 R1.3), not the one a click would pick."""
         self.theme_button.set_icon_name(THEME_ICONS[self.theme.mode])
-        self.theme_button.setToolTip(f"Tema: {self.theme.label()} · Ctrl+T")
+        self.theme_button.setToolTip(_("Tema: {theme} · Ctrl+T").format(theme=self.theme.label()))
 
 
 class TopBar(QWidget):
@@ -190,15 +202,15 @@ class TopBar(QWidget):
 
         # History buttons and the clickable path (spec 16 R1, R2); disabled until there is somewhere
         # to go back or forward to.
-        self.back_button = IconButton(theme, "arrow_back", "Voltar (Alt+←)")
-        self.forward_button = IconButton(theme, "arrow_forward", "Avançar (Alt+→)")
+        self.back_button = IconButton(theme, "arrow_back", _("Voltar (Alt+←)"))
+        self.forward_button = IconButton(theme, "arrow_forward", _("Avançar (Alt+→)"))
         for button in (self.back_button, self.forward_button):
             button.setEnabled(False)
         self.breadcrumb = Breadcrumb()
         # Only while an output one module can plot on its own is open (the window decides).
-        self.plot_file = QPushButton("Plotar SCF")
+        self.plot_file = QPushButton(_("Plotar SCF"))
         self.plot_file.setObjectName("plotFileButton")
-        self.plot_file.setToolTip("Plotar a convergência do SCF do arquivo aberto")
+        self.plot_file.setToolTip(_("Plotar a convergência do SCF do arquivo aberto"))
         self.plot_file.clicked.connect(self.plot_file_requested)
         self.plot_file.hide()
         self.led = StatusLed(theme)
@@ -215,11 +227,17 @@ class TopBar(QWidget):
         layout.addWidget(separator)
         self.toggles: dict[str, QToolButton] = {}
         for key, icon, text in (
-            ("tree", "account_tree", "Árvore"),
-            ("grid", "grid_view", "Grade"),
-            ("workspace", "bubble_chart", "Gráficos"),
+            ("tree", "account_tree", _("Árvore")),
+            ("grid", "grid_view", _("Grade")),
+            ("workspace", "bubble_chart", _("Gráficos")),
         ):
-            button = IconButton(theme, icon, f"Mostrar/ocultar {text.lower()}", "toggle", size=14)
+            button = IconButton(
+                theme,
+                icon,
+                _("Mostrar/ocultar {name}").format(name=text.lower()),
+                "toggle",
+                size=14,
+            )
             button.setText(text)
             button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             button.setCheckable(True)

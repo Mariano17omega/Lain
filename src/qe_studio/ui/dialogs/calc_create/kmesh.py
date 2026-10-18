@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QCheckBox, QGridLayout, QSpinBox, QWidget
 
 from ....core.calc_create.kpath import KMesh
 from ....core.calc_create.preview import mesh_summary
+from ....i18n import _
 from .labels import message_label, show_message
 
 MAX_N = 999
@@ -39,9 +40,13 @@ class KMeshEditor(QWidget):
             count.setRange(0, MAX_N)
             count.setSpecialValueText("–")
             count.setAccessibleName(f"n{index + 1}")
-            count.setToolTip(f"n{index + 1}: pontos na direção do vetor recíproco b{index + 1}")
+            count.setToolTip(
+                _("n{n}: pontos na direção do vetor recíproco b{n}").format(n=index + 1)
+            )
             shift = QCheckBox(f"s{index + 1}")
-            shift.setToolTip(f"s{index + 1}: desloca a rede meio passo na direção b{index + 1}")
+            shift.setToolTip(
+                _("s{n}: desloca a rede meio passo na direção b{n}").format(n=index + 1)
+            )
             grid.addWidget(count, 0, index)
             grid.addWidget(shift, 1, index)
             self.counts.append(count)
@@ -79,7 +84,7 @@ class KMeshEditor(QWidget):
         value = self.value()
         text = mesh_summary(value or self._default)
         if value is None and self._default is not None:
-            text = f"Vazio = padrão: {text}"
+            text = _("Vazio = padrão: {value}").format(value=text)
         elif value is None and self._empty:
             text = self._empty
         show_message(self.summary, text)

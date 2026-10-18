@@ -42,6 +42,7 @@ from ..core.folder_memory import FolderMemory
 from ..core.grid_store import GridStore
 from ..core.plotting.session import PlotSession, build_session, load_plot, target_key
 from ..core.tasks import TaskGroup
+from ..i18n import _
 from .busy import BusyTracker
 from .dialogs.mapping import ask_mapping
 from .generate_plot import GeneratePlot
@@ -63,7 +64,9 @@ RENDER_DEBOUNCE_MS = 120
 def choose_result(parent: QWidget, results: list[DetectionResult]) -> DetectionResult | None:
     """Several plottable kinds in one folder (e.g. BANDS + PDOS): ask which one."""
     labels = [r.module.display_name for r in results]
-    label, ok = QInputDialog.getItem(parent, "Gerar gráfico", "Tipo de cálculo:", labels, 0, False)
+    label, ok = QInputDialog.getItem(
+        parent, _("Gerar gráfico"), _("Tipo de cálculo:"), labels, 0, False
+    )
     return results[labels.index(label)] if ok else None
 
 
@@ -173,7 +176,7 @@ class PlotWorkflow(QObject):
         if key in self._detecting:
             return
         self._detecting[key] = auto_export
-        self.busy.begin(f"detect:{key}", "Detectando cálculo…")
+        self.busy.begin(f"detect:{key}", _("Detectando cálculo…"))
         self.service.request(Path(folder), fresh=True)
 
     def plot_file(self, path: Path, kind: str) -> None:
@@ -210,7 +213,7 @@ class PlotWorkflow(QObject):
         """Save the current plot to <folder>/plots/ (PRD §4.4); whether an export started."""
         view = self.current_plot()
         if view is None:
-            self.message.emit("Nenhum gráfico aberto.", "warning", 3000)
+            self.message.emit(_("Nenhum gráfico aberto."), "warning", 3000)
             return False
         return self.exporter.export(view.session)
 
@@ -295,7 +298,8 @@ class PlotWorkflow(QObject):
         self.settings.flush(key)  # queued before the read of this plot's .plot
         self._loading[key] = _Loading(auto_export, preview)
         if previous is None:  # busy once per plot, until the newest request ends
-            self.busy.begin(f"load:{key}", f"Carregando {target.module.display_name.lower()}…")
+            loading_text = _("Carregando {name}…").format(name=target.module.display_name.lower())
+            self.busy.begin(f"load:{key}", loading_text)
             self.workspace.set_busy(key, True)  # an open tab of this plot, until it is replaced
         sniff = self.service.sniff_cache.sniff
         self._loads.submit(
@@ -327,8 +331,8 @@ class PlotWorkflow(QObject):
         else:  # parsing errors must reach the user, not kill the worker
             log.error("load failed", exc_info=error)
             text = f"{type(error).__name__}: {error}"
-        self.message.emit("Falha ao carregar os dados do gráfico.", "error", 8000)
-        QMessageBox.warning(self._dialog_parent, "Não foi possível gerar o gráfico", text)
+        self.message.emit(_("Falha ao carregar os dados do gráfico."), "error", 8000)
+        QMessageBox.warning(self._dialog_parent, _("Não foi possível gerar o gráfico"), text)
         self.plot_failed.emit(text)
 
     def _finish_load(self, key: str) -> _Loading | None:
@@ -374,9 +378,8 @@ class PlotWorkflow(QObject):
             self._on_drawing(session.key, True)
         self.panel_requested.emit("workspace")  # workspace.add made the tab current: bound
         self.panel_requested.emit("params")
-        self.message.emit(
-            f"{session.module.display_name}: {session.plot_target.name}", "info", 4000
-        )
+        shown = f"{session.module.display_name}: {session.plot_target.name}"
+        self.message.emit(shown, "info", 4000)
         if warnings:
             self.message.emit(warnings[0], "warning", 8000)
         if auto_export:
@@ -430,8 +433,8 @@ class PlotWorkflow(QObject):
         name = f"{session.kind}.plot"
         answer = QMessageBox.question(
             self._dialog_parent,
-            "Restaurar padrões",
-            f"Voltar todos os ajustes deste gráfico ao padrão e apagar {name}?",
+            _("Restaurar padrões"),
+            _("Voltar todos os ajustes deste gráfico ao padrão e apagar {name}?").format(name=name),
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
@@ -450,7 +453,7 @@ class PlotWorkflow(QObject):
     def _on_drawing(self, key: str, drawing: bool) -> None:
         """A worker draws (or has drawn) the figure of the plot ``key``: footer and tab spinner."""
         if drawing:
-            self.busy.begin(f"draw:{key}", "Desenhando…")
+            self.busy.begin(f"draw:{key}", _("Desenhando…"))
         else:
             self.busy.end(f"draw:{key}")
         self.workspace.set_busy(key, drawing)

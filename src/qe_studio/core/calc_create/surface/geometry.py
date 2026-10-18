@@ -105,7 +105,7 @@ def surface_problem(scf: ScfInfo, name: str) -> str | None:
     crystal = scf.crystal
     if crystal is None:
         return _("Estrutura de {name} ilegível: {value}").format(
-            name=name, value=scf.structure_problem or "sem estrutura"
+            name=name, value=scf.structure_problem or _("sem estrutura")
         )
     gaps = vacuum_gaps(crystal.cell, crystal.frac)
     if gaps[2] >= MIN_SURFACE_GAP:

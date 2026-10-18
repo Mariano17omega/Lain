@@ -21,6 +21,7 @@ from ...core.plotting.offscreen import Drawn, Target, draw_offscreen, snapshot
 from ...core.plotting.session import PlotSession
 from ...core.plotting.style import register_fonts
 from ...core.tasks import TaskHandle, run_task
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from .common import IconButton
 
@@ -208,15 +209,15 @@ class PlotToolbar(QWidget):
             layout.addWidget(button)
             return button
 
-        self.reset = tool("home", "Reset", "Restaurar limites iniciais")
-        self.back = tool("arrow_back", "", "Vista anterior")
-        self.forward = tool("arrow_forward", "", "Próxima vista")
-        self.pan = tool("pan_tool", "", "Mover (arrastar)", checkable=True)
-        self.zoom = tool("zoom_in", "", "Zoom (retângulo)", checkable=True)
+        self.reset = tool("home", _("Reset"), _("Restaurar limites iniciais"))
+        self.back = tool("arrow_back", "", _("Vista anterior"))
+        self.forward = tool("arrow_forward", "", _("Próxima vista"))
+        self.pan = tool("pan_tool", "", _("Mover (arrastar)"), checkable=True)
+        self.zoom = tool("zoom_in", "", _("Zoom (retângulo)"), checkable=True)
         self.message = QLabel()
         self.message.setObjectName("plotMessage")
         layout.addWidget(self.message, 1)
-        self.export = tool("download", "Exportar", "Salvar em plots/ (Ctrl+E)")
+        self.export = tool("download", _("Exportar"), _("Salvar em plots/ (Ctrl+E)"))
 
         self.reset.clicked.connect(self.reset_requested)
         self.back.clicked.connect(self._back)

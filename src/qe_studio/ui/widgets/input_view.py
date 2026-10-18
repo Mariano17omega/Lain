@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 
 from ...core.qe.input_extract import Chip
 from ...core.qe.input_lint import InputDoc, LintIssue, neighbour_issue
+from ...i18n import _, ngettext
 from .code_view import CodeView
 from .flow_layout import FlowLayout
 
@@ -54,8 +55,8 @@ class InputView(QWidget):
         row.setSpacing(6)
         self.issues_label = QLabel()
         self.issues_label.setObjectName("viewerIssues")
-        self.first_button = QPushButton("Ir ao primeiro")
-        self.first_button.setToolTip("Ir ao primeiro problema (F8: próximo, Shift+F8: anterior)")
+        self.first_button = QPushButton(_("Ir ao primeiro"))
+        self.first_button.setToolTip(_("Ir ao primeiro problema (F8: próximo, Shift+F8: anterior)"))
         row.addWidget(self.issues_label, 1)
         row.addWidget(self.first_button)
         layout.addWidget(self.issues_bar)
@@ -68,14 +69,14 @@ class InputView(QWidget):
         head.setSpacing(6)
         self.toggle = QToolButton()
         self.toggle.setProperty("variant", "viewerTool")
-        self.toggle.setText("Extrato")
+        self.toggle.setText(_("Extrato"))
         self.toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.toggle.setIconSize(QSize(14, 14))
         self.toggle.setCheckable(True)
         self.toggle.setChecked(True)
-        self.toggle.setToolTip("Mostrar ou ocultar o extrato do input")
-        self.compare_button = QPushButton("Comparar com…")
-        self.compare_button.setToolTip("Comparar este input com outro")
+        self.toggle.setToolTip(_("Mostrar ou ocultar o extrato do input"))
+        self.compare_button = QPushButton(_("Comparar com…"))
+        self.compare_button.setToolTip(_("Comparar este input com outro"))
         head.addWidget(self.toggle)
         head.addStretch(1)
         head.addWidget(self.compare_button)
@@ -114,14 +115,24 @@ class InputView(QWidget):
         self.setVisible(bool(self.issues))
 
     # -- write errors ------------------------------------------------------------------------
+    def _issues_text(self, count: int) -> str:
+        if self._noun == "script":
+            text = ngettext(
+                "{n} problema de escrita no script", "{n} problemas de escrita no script", count
+            )
+        else:
+            text = ngettext(
+                "{n} problema de escrita no input", "{n} problemas de escrita no input", count
+            )
+        return text.format(n=count)
+
     def _set_issues_row(self) -> None:
         count = len(self.issues)
         if not count:
             self.issues_bar.hide()
             return
         level = "error" if any(i.severity == "error" for i in self.issues) else "warning"
-        noun = "problema" if count == 1 else "problemas"
-        self.issues_label.setText(f"{count} {noun} de escrita no {self._noun}")
+        self.issues_label.setText(self._issues_text(count))
         for widget in (self.issues_bar, self.issues_label):
             widget.setProperty("level", level)
             style = widget.style()
@@ -165,7 +176,7 @@ class InputView(QWidget):
             button.setProperty("line", chip.line)
             button.setText(chip.text)
             if chip.line is not None:
-                button.setToolTip(f"Ir à linha {chip.line}")
+                button.setToolTip(_("Ir à linha {line}").format(line=chip.line))
             button.setEnabled(chip.line is not None)
             button.clicked.connect(self._on_chip)
             self.chips_layout.addWidget(button)

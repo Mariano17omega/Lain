@@ -59,7 +59,7 @@ class RelaxType(CalcType):
                 "float",
                 forc if forc is not None else DEFAULT_FORC_CONV_THR,
                 group=group,
-                tooltip="&CONTROL forc_conv_thr, em Ry/Bohr",
+                tooltip=_("&CONTROL forc_conv_thr, em Ry/Bohr"),
             ),
             FormField(
                 "ion_dynamics",

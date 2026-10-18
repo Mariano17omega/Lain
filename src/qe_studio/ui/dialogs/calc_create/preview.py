@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import QHeaderView, QTreeWidget, QTreeWidgetItem, QVBoxLayo
 from ....core.calc_create.preview import changed_lines, file_rows
 from ....core.calc_create.types import PlannedFile
 from ....core.qe.input_lexer import LintIssue
+from ....i18n import _
 from ...theme.manager import ThemeManager
 from ...widgets.code_view import CodeView
 from ...widgets.common import set_variant
@@ -115,7 +116,7 @@ class FilesView(QWidget):
         self.note = message_label()
         self.tree = QTreeWidget()
         self.tree.setObjectName("calcFiles")
-        self.tree.setHeaderLabels(["Arquivo", "Tipo", "Tamanho"])
+        self.tree.setHeaderLabels([_("Arquivo"), _("Tipo"), _("Tamanho")])
         self.tree.setRootIsDecorated(False)
         header = self.tree.header()
         if header is not None:
@@ -142,12 +143,14 @@ class FilesView(QWidget):
     ) -> None:
         """``folder`` is where it goes now (``preview_name``), ``asked`` the name typed; ``edited``
         the keys of the files edited by hand."""
-        show_message(self.target, f"Pasta: {folder}")
+        show_message(self.target, _("Pasta: {folder}").format(folder=folder))
         name = folder.name
         if name != asked:
-            note = f"Já existe {asked}: a nova pasta será {name}"
+            note = _("Já existe {asked}: a nova pasta será {name}").format(asked=asked, name=name)
         else:
-            note = f"Se {name} já existir ao criar, a nova pasta será {name}_1 (nada é sobrescrito)"
+            note = _(
+                "Se {name} já existir ao criar, a nova pasta será {name}_1 (nada é sobrescrito)"
+            ).format(name=name)
         show_message(self.note, note)
         self.tree.clear()
         for row in file_rows(files, edited):

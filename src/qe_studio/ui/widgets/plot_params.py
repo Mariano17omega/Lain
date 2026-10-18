@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 from ...core.calculations.base import Dataset
 from ...core.calculations.params import CommonParams
 from ...core.plotting.session import PlotSession
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from .common import IconButton, PanelHeader, set_variant
 from .params_body import ParamsBody
@@ -53,17 +54,21 @@ class ParamsPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        header = PanelHeader(theme, "Ajuste do gráfico", "tune")
-        self.back_button = header.add_button(IconButton(theme, "account_tree", "Voltar à árvore"))
+        header = PanelHeader(theme, _("Ajuste do gráfico"), "tune")
+        self.back_button = header.add_button(
+            IconButton(theme, "account_tree", _("Voltar à árvore"))
+        )
         self.back_button.clicked.connect(self.back_requested)
         layout.addWidget(header)
         # Plots and saves the selected folder whatever ``ui.auto_generate_plot`` says (the sidebar
         # "Plot"), or the bands + DOS figure of two folders selected in the grid (``GeneratePlot``).
-        self.generate_button = set_variant(QPushButton("Gerar Plot"), "primary")
+        self.generate_button = set_variant(QPushButton(_("Gerar Plot")), "primary")
         self.generate_button.setObjectName("generatePlotButton")
         self.generate_button.setToolTip(
-            "Detectar o tipo de cálculo, plotar a pasta selecionada e salvar em plots/ (Ctrl+G).\n"
-            "Com uma pasta de bandas e uma de PDOS selecionadas na grade: Bandas com DOS."
+            _(
+                "Detectar o tipo de cálculo, plotar a pasta selecionada e salvar em plots/ (Ctrl+G).\n"
+                "Com uma pasta de bandas e uma de PDOS selecionadas na grade: Bandas com DOS."
+            )
         )
         self.generate_button.clicked.connect(self.generate_requested)
         bar = QWidget()
@@ -156,7 +161,7 @@ class ParamsPanel(QWidget):
         page.setObjectName("paramsBody")
         layout = QVBoxLayout(page)
         hint = set_variant(
-            QLabel("Gere um gráfico (botão “Gerar Plot”)\npara ajustar os parâmetros."),
+            QLabel(_("Gere um gráfico (botão “Gerar Plot”)\npara ajustar os parâmetros.")),
             "fieldLabel",
         )
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)

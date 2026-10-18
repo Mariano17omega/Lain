@@ -194,7 +194,7 @@ def collapsed_segments(path: KPath, cell) -> list[CollapsedSegment]:
 def _name(path: KPath, index: int) -> str:
     label = path.points[index].label.strip()
     if not label:
-        return f"ponto {index + 1}"
+        return _("ponto {n}").format(n=index + 1)
     return "Γ" if label.lower() == "gamma" else label
 
 

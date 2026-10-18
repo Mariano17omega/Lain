@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.navigation import Segment, breadcrumb_segments, collapse_count
+from ...i18n import _
 from ..theme.scale import scaled
 from .common import set_variant
 from .workspace_tabs import add_action
@@ -49,7 +50,7 @@ class Breadcrumb(QWidget):
         self._layout.setSpacing(0)
         self.more = set_variant(QToolButton(), "crumb")
         self.more.setText("…")
-        self.more.setToolTip("Níveis ocultos")
+        self.more.setToolTip(_("Níveis ocultos"))
         self.more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.more.setMenu(QMenu(self.more))
         self.more.hide()
@@ -169,7 +170,7 @@ class Breadcrumb(QWidget):
         if self._folder is None:
             return
         menu = QMenu(self)
-        add_action(menu, "Copiar caminho", self.copy_path)
+        add_action(menu, _("Copiar caminho"), self.copy_path)
         menu.exec(self.mapToGlobal(pos))
         menu.deleteLater()
 

@@ -20,12 +20,13 @@ from ..core.folder_index import MAX_FOLDERS, list_folders
 from ..core.fuzzy import SCOPES, Candidate, parse_query, rank
 from ..core.nav_store import NavigationStore
 from ..core.tasks import TaskHandle, run_task
+from ..i18n import _
 from .theme.manager import ThemeManager
 from .widgets.command_palette import MAX_ROWS, CommandPalette, PaletteRow
 from .widgets.workspace import Workspace
 
 ACTIONS, FOLDERS, TABS = SCOPES[">"], SCOPES["/"], SCOPES["@"]
-INDEXING = PaletteRow("", "Pasta", "Indexando pastas…", "folder", selectable=False)
+INDEXING = PaletteRow("", _("Pasta"), _("Indexando pastas…"), "folder", selectable=False)
 SELF_ACTION = "help.palette"
 
 
@@ -164,7 +165,7 @@ class PaletteController(QObject):
             text = action.text().replace("&", "")
             rows.append(
                 PaletteRow(
-                    f"action:{action_id}", "Ação", text, "bolt", action.shortcut().toString()
+                    f"action:{action_id}", _("Ação"), text, "bolt", action.shortcut().toString()
                 )
             )
         return rows
@@ -186,16 +187,20 @@ class PaletteController(QObject):
 
     def _favorite_rows(self) -> list[PaletteRow]:
         return [
-            self._folder_row(f, "Favorito", "star") for f in self._inside(self._store.favorites())
+            self._folder_row(f, _("Favorito"), "star")
+            for f in self._inside(self._store.favorites())
         ]
 
     def _recent_rows(self) -> list[PaletteRow]:
         return [
-            self._folder_row(f, "Recente", "history") for f in self._inside(self._store.recents())
+            self._folder_row(f, _("Recente"), "history")
+            for f in self._inside(self._store.recents())
         ]
 
     def _folder_rows(self) -> list[PaletteRow]:
-        return [self._folder_row(f, "Pasta", "folder") for f in self._inside(self._folders or [])]
+        return [
+            self._folder_row(f, _("Pasta"), "folder") for f in self._inside(self._folders or [])
+        ]
 
     def _tab_rows(self) -> list[PaletteRow]:
         keys = {widget: key for key, widget in self._workspace.items()}
@@ -205,7 +210,7 @@ class PaletteController(QObject):
             widget = bar.widget(index)
             if widget in keys:
                 rows.append(
-                    PaletteRow(f"tab:{keys[widget]}", "Aba", bar.tabText(index), "description")
+                    PaletteRow(f"tab:{keys[widget]}", _("Aba"), bar.tabText(index), "description")
                 )
         return rows
 

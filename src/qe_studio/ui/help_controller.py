@@ -18,6 +18,7 @@ from ..core.about import package_versions
 from ..core.appdirs import data_dir, log_path
 from ..core.config import LoadedConfig
 from ..core.project_data import describe
+from ..i18n import _
 from .actions import ACTIONS
 from .dialogs.about import AboutDialog
 from .dialogs.shortcuts import ShortcutsDialog
@@ -73,7 +74,7 @@ class HelpController(QObject):
             action = actions.get(spec.id)
             keys = action.shortcut().toString() if action is not None else ""
             if keys:
-                rows.append((spec.text, keys, f"Menu {spec.menu}"))
+                rows.append((spec.text, keys, _("Menu {menu}").format(menu=spec.menu)))
         for provider in self._providers:
             rows.extend(provider())
         return rows
@@ -101,7 +102,9 @@ class HelpController(QObject):
     def open_log(self) -> None:
         path = log_path()
         if not path.is_file():
-            self.message.emit(f"Ainda não há arquivo de log: {path}", "warning", 5000)
+            self.message.emit(
+                _("Ainda não há arquivo de log: {path}").format(path=path), "warning", 5000
+            )
             return
         self._open_file(path)
 
@@ -110,9 +113,8 @@ class HelpController(QObject):
         try:
             folder.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            self.message.emit(
-                f"Não foi possível abrir {folder}: {exc.strerror or exc}", "error", 5000
-            )
+            text = _("Não foi possível abrir {folder}: {error}")
+            self.message.emit(text.format(folder=folder, error=exc.strerror or exc), "error", 5000)
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 
@@ -124,10 +126,10 @@ class HelpController(QObject):
         rows = [(APP_NAME, __version__), stack[0]]
         rows += [("Qt", QT_VERSION_STR), ("PyQt", PYQT_VERSION_STR), *stack[1:]]
         rows += [
-            ("Config", str(config_path) if config_path else "nenhum"),
-            ("Log", str(log_path())),
-            ("Dados", str(data_dir())),
-            ("Configurações do projeto", describe(loaded.config.paths.local_root)),  # spec 48
+            (_("Config"), str(config_path) if config_path else _("nenhum")),
+            (_("Log"), str(log_path())),
+            (_("Dados"), str(data_dir())),
+            (_("Configurações do projeto"), describe(loaded.config.paths.local_root)),  # spec 48
         ]
         return rows
 

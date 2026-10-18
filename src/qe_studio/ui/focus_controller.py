@@ -17,10 +17,12 @@ from typing import TYPE_CHECKING
 from PyQt6.QtCore import QItemSelectionModel, QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import QAbstractItemView, QWidget
 
+from ..i18n import _
+
 if TYPE_CHECKING:
     from .main_window import MainWindow
 
-NO_PLOT = "Nenhum gráfico aberto: os ajustes aparecem junto com o gráfico."
+NO_PLOT = _("Nenhum gráfico aberto: os ajustes aparecem junto com o gráfico.")
 
 
 def focus_chain(start: QWidget) -> list[QWidget]:

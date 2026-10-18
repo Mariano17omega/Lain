@@ -33,6 +33,7 @@ from ...core.desktop_apps import DesktopApp, catalog, expand_exec
 from ...core.qe.scf_from_relax import scf_availability
 from ...core.sniff import FileKind, looks_like_input
 from ...core.xcrysden import command, locate, option_for
+from ...i18n import _, ngettext
 from ..dialogs.open_with import ask_command
 from ..services import DetectionService
 from .workspace_tabs import add_action
@@ -42,7 +43,7 @@ log = logging.getLogger(__name__)
 IS_WINDOWS = sys.platform == "win32"
 FILE_MANAGER = "org.freedesktop.FileManager1"
 FILE_MANAGER_PATH = "/org/freedesktop/FileManager1"
-XCRYSDEN_TEXT = "Abrir com XCrysDen"  # the user's spelling (spec 45); the program's is XCrySDen
+XCRYSDEN_TEXT = _("Abrir com XCrysDen")  # the user's spelling (spec 45); the program's is XCrySDen
 
 
 def mime_types_for(path: Path) -> list[str]:
@@ -168,11 +169,11 @@ class ItemActions(QObject):
         (spec 27)."""
         menu = QMenu(self.window)
         if plot_kind is not None:
-            add_action(menu, "Plotar", lambda: self.plot_file_requested.emit(path, plot_kind))
+            add_action(menu, _("Plotar"), lambda: self.plot_file_requested.emit(path, plot_kind))
         if summary:
-            add_action(menu, "Resumo", lambda: self.summary_requested.emit(path))
+            add_action(menu, _("Resumo"), lambda: self.summary_requested.emit(path))
         if structure:
-            add_action(menu, "Visualização 3D", lambda: self.structure_requested.emit(path))
+            add_action(menu, _("Visualização 3D"), lambda: self.structure_requested.emit(path))
         if xcrysden is not None:
             found = locate(self.xcrysden_path())
             add_action(
@@ -186,7 +187,7 @@ class ItemActions(QObject):
         if scf is not None:
             add_action(
                 menu,
-                "Gerar SCF convergido",
+                _("Gerar SCF convergido"),
                 lambda: self.scf_from_relax_requested.emit(path),
                 enabled=not scf,
                 tooltip=scf,
@@ -194,42 +195,43 @@ class ItemActions(QObject):
             menu.setToolTipsVisible(True)  # the reason of a disabled item
         if plot_kind is not None or summary or structure or xcrysden is not None or scf is not None:
             menu.addSeparator()
-        add_action(menu, "Abrir local de origem", lambda: self.reveal(path))
-        open_with = menu.addMenu("Abrir com")
+        add_action(menu, _("Abrir local de origem"), lambda: self.reveal(path))
+        open_with = menu.addMenu(_("Abrir com"))
         assert open_with is not None
         open_with.aboutToShow.connect(lambda: self._fill_open_with(open_with, path))
         if push is not None:
             add_action(
                 menu,
-                "Enviar ao cluster",
+                _("Enviar ao cluster"),
                 lambda: self.push_requested.emit(path),
                 enabled=not push,
                 tooltip=push,
             )
             menu.setToolTipsVisible(True)  # the reason of a disabled item
-        add_action(menu, "Copiar", lambda: self.copy(path))
+        add_action(menu, _("Copiar"), lambda: self.copy(path))
         if favorite is not None:
-            text = "Remover dos favoritos" if favorite else "Adicionar aos favoritos"
+            text = _("Remover dos favoritos") if favorite else _("Adicionar aos favoritos")
             add_action(menu, text, lambda: self.favorite_toggled.emit(path, not favorite))
-        add_action(menu, "Renomear", lambda: self.rename_requested.emit(path), can_rename)
+        add_action(menu, _("Renomear"), lambda: self.rename_requested.emit(path), can_rename)
         return menu
 
     def multi_menu(self, paths: list[Path]) -> QMenu:
         """The menu of a selection of several items (grid only): no per-item actions."""
         menu = QMenu(self.window)
-        add_action(menu, f"{len(paths)} itens", lambda: None, enabled=False)
+        count = ngettext("{n} item", "{n} itens", len(paths)).format(n=len(paths))
+        add_action(menu, count, lambda: None, enabled=False)
         menu.addSeparator()
-        add_action(menu, "Abrir local de origem", lambda: self.reveal_all(paths))
-        add_action(menu, "Copiar", lambda: self.copy_all(paths))
+        add_action(menu, _("Abrir local de origem"), lambda: self.reveal_all(paths))
+        add_action(menu, _("Copiar"), lambda: self.copy_all(paths))
         pair = self.input_pair(paths)
         if pair is not None:
-            add_action(menu, "Comparar", lambda: self.compare_requested.emit(*pair))
+            add_action(menu, _("Comparar"), lambda: self.compare_requested.emit(*pair))
         folders = self.bands_dos_folders(paths)
         if folders is not None:
-            add_action(menu, "Bandas com DOS", lambda: self.bands_dos_requested.emit(*folders))
+            add_action(menu, _("Bandas com DOS"), lambda: self.bands_dos_requested.emit(*folders))
         if all(path.is_dir() for path in paths):  # favorites are folders
             every = all(self.is_favorite(path) for path in paths)
-            text = "Remover dos favoritos" if every else "Adicionar aos favoritos"
+            text = _("Remover dos favoritos") if every else _("Adicionar aos favoritos")
             add_action(menu, text, lambda: self._toggle_favorites(paths, not every))
         return menu
 
@@ -262,19 +264,21 @@ class ItemActions(QObject):
             return
         if IS_WINDOWS:
             argv = ["rundll32", "shell32.dll,OpenAs_RunDLL", str(path)]
-            add_action(submenu, "Escolher programa…", lambda: self._launch(argv, path, "Windows"))
+            add_action(
+                submenu, _("Escolher programa…"), lambda: self._launch(argv, path, "Windows")
+            )
             return
         apps = catalog()
         mime_types = mime_types_for(path)
         default = apps.default_app(mime_types)
         others = [app for app in apps.apps_for(mime_types) if default is None or app != default]
         for app in ([default] if default else []) + others:
-            text = f"{app.name} (padrão)" if app is default else app.name
+            text = _("{name} (padrão)").format(name=app.name) if app is default else app.name
             add_action(submenu, text, lambda a=app: self.open_with(path, a), icon=app_icon(app))
         if default is None:
-            add_action(submenu, "Nenhum programa encontrado", lambda: None, enabled=False)
+            add_action(submenu, _("Nenhum programa encontrado"), lambda: None, enabled=False)
         submenu.addSeparator()
-        add_action(submenu, "Outro programa…", lambda: self.open_with_other(path))
+        add_action(submenu, _("Outro programa…"), lambda: self.open_with_other(path))
 
     def open_with(self, path: Path, app: DesktopApp) -> None:
         self._launch(expand_exec(app, path), path, app.name)
@@ -304,7 +308,8 @@ class ItemActions(QObject):
         ok, _pid = QProcess.startDetached(argv[0], argv[1:], str(path.parent))
         if not ok:
             log.warning("could not start %s", argv)
-            self.message.emit(f"Não foi possível abrir {path.name} com {name}.", "error", 4000)
+            text = _("Não foi possível abrir {file} com {program}.")
+            self.message.emit(text.format(file=path.name, program=name), "error", 4000)
 
     # -- Abrir local de origem --------------------------------------------------------------------
     def reveal(self, path: Path) -> None:
@@ -371,5 +376,7 @@ class ItemActions(QObject):
         clipboard = QApplication.clipboard()
         if clipboard is not None:
             clipboard.setMimeData(data)
-        text = f"Copiado: {paths[0].name}" if len(paths) == 1 else f"Copiados: {len(paths)} itens"
+        text = ngettext("Copiado: {name}", "Copiados: {n} itens", len(paths)).format(
+            name=paths[0].name, n=len(paths)
+        )
         self.message.emit(text, "info", 4000)

@@ -34,25 +34,26 @@ from ....core.structure3d.measurements import (
     to_tsv,
 )
 from ....core.structure3d.model import AtomRef, atom_name
+from ....i18n import _
 from ...theme.scale import scaled
 from ..common import set_variant
 from ..param_widgets import Section
 from .canvas import StructureCanvas
 
 MODES: tuple[MeasureMode, ...] = ("distancia", "angulo")
-BUTTONS = {"distancia": "Distância", "angulo": "Ângulos"}
+BUTTONS = {"distancia": _("Distância"), "angulo": _("Ângulos")}
 TIPS = {
-    "distancia": "Medir a distância entre dois átomos",
-    "angulo": "Medir o ângulo de três átomos (vértice no segundo)",
+    "distancia": _("Medir a distância entre dois átomos"),
+    "angulo": _("Medir o ângulo de três átomos (vértice no segundo)"),
 }
-CAPTIONS = {"distancia": "Distâncias", "angulo": "Ângulos"}
-VALUE_HEADERS = {"distancia": "Distância", "angulo": "Ângulo"}
+CAPTIONS = {"distancia": _("Distâncias"), "angulo": _("Ângulos")}
+VALUE_HEADERS = {"distancia": _("Distância"), "angulo": _("Ângulo")}
 HINTS = {
-    None: "Escolha Distância ou Ângulos para medir.",
-    "distancia": "Clique em dois átomos.",
-    "angulo": "Clique em três átomos; o segundo é o vértice.",
+    None: _("Escolha Distância ou Ângulos para medir."),
+    "distancia": _("Clique em dois átomos."),
+    "angulo": _("Clique em três átomos; o segundo é o vértice."),
 }
-COPIED = "Medidas copiadas"
+COPIED = _("Medidas copiadas")
 MAX_ROWS = 8  # rows shown before the table scrolls
 ROW_PX = 22  # a row at scale 1
 
@@ -65,7 +66,7 @@ class MeasureTable(QTableWidget):
     def __init__(self, value_header: str, parent: QWidget | None = None):
         super().__init__(0, 2, parent)
         self.setObjectName("structureMeasures")
-        self.setHorizontalHeaderLabels(["Átomos", value_header])
+        self.setHorizontalHeaderLabels([_("Átomos"), value_header])
         vertical = self.verticalHeader()
         if vertical is not None:
             vertical.hide()
@@ -176,14 +177,14 @@ class MeasuresSection(QObject):
         line = QHBoxLayout(actions)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(4)
-        self.copy_button = QPushButton("Copiar")
-        self.copy_button.setToolTip("Copiar as medidas como texto (cola numa planilha)")
+        self.copy_button = QPushButton(_("Copiar"))
+        self.copy_button.setToolTip(_("Copiar as medidas como texto (cola numa planilha)"))
         self.copy_button.clicked.connect(self.copy)
-        self.clear_button = QPushButton("Limpar")
-        self.clear_button.setToolTip("Apagar todas as medidas")
+        self.clear_button = QPushButton(_("Limpar"))
+        self.clear_button.setToolTip(_("Apagar todas as medidas"))
         self.clear_button.clicked.connect(self.clear)
-        self.delete_button = QPushButton("Apagar")
-        self.delete_button.setToolTip("Apagar a última medida")
+        self.delete_button = QPushButton(_("Apagar"))
+        self.delete_button.setToolTip(_("Apagar a última medida"))
         self.delete_button.clicked.connect(self.delete_last)
         line.addWidget(self.copy_button)
         line.addWidget(self.clear_button)
@@ -306,7 +307,7 @@ class MeasuresSection(QObject):
         pending = self.measurer.pending
         if pending:
             names = " → ".join(atom_name(self.structure, ref) for ref in pending)
-            self.hint.setText(f"Selecionados: {names}")
+            self.hint.setText(_("Selecionados: {names}").format(names=names))
         else:
             self.hint.setText(HINTS[self.measurer.mode])
         for mode, table in self.tables.items():

@@ -15,9 +15,10 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.file_ops import rename_error
+from ...i18n import _
 from ..widgets.common import set_variant
 
-SYNC_NOTE = (
+SYNC_NOTE = _(
     "Se esta pasta também existe no cluster, a próxima sincronização trará de volta o nome "
     "original."
 )
@@ -28,10 +29,12 @@ class RenameDialog(QDialog):
         super().__init__(parent)
         self.path = path
         self.new_name: str | None = None
-        self.setWindowTitle("Renomear")
+        self.setWindowTitle(_("Renomear"))
         self.setModal(True)
         layout = QVBoxLayout(self)
-        layout.addWidget(set_variant(QLabel(f"Renomear {path.name}"), "dialogTitle"))
+        layout.addWidget(
+            set_variant(QLabel(_("Renomear {name}").format(name=path.name)), "dialogTitle")
+        )
         self.edit = QLineEdit(path.name)
         self.edit.setMinimumWidth(380)
         # Select the stem, like file managers do, so typing keeps the extension.
@@ -46,9 +49,9 @@ class RenameDialog(QDialog):
         layout.addWidget(note)
         row = QHBoxLayout()
         row.addStretch(1)
-        cancel = QPushButton("Cancelar")
+        cancel = QPushButton(_("Cancelar"))
         cancel.clicked.connect(self.reject)
-        rename = set_variant(QPushButton("Renomear"), "primary")
+        rename = set_variant(QPushButton(_("Renomear")), "primary")
         rename.setDefault(True)
         rename.clicked.connect(self.accept)
         row.addWidget(cancel)

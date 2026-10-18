@@ -103,7 +103,7 @@ class SyncReport:
             self.message,
             "",
             _("Pasta local: {local_dir}").format(local_dir=self.local_dir),
-            f"Cluster: {self.remote.spec()}",
+            _("Cluster: {remote}").format(remote=self.remote.spec()),
         ]
         for title, paths in (
             (_("Baixados"), self.transferred),
@@ -157,7 +157,7 @@ class PushReport(SyncReport):
             self.message,
             "",
             _("Pasta local: {local_dir}").format(local_dir=self.local_dir),
-            f"Cluster: {self.remote.spec()}",
+            _("Cluster: {remote}").format(remote=self.remote.spec()),
         ]
         for title, paths in (
             (_("Enviados"), self.transferred),

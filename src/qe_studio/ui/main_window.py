@@ -31,6 +31,7 @@ from ..core.config import ConfigError, LoadedConfig, load_config
 from ..core.file_kinds import viewer_kind
 from ..core.folder_memory import FolderMemory
 from ..core.nav_store import NavigationStore
+from ..i18n import _
 from .actions import build_menus
 from .calc_create_controller import CalcCreateController
 from .derive_controller import DeriveController
@@ -299,7 +300,7 @@ class MainWindow(QMainWindow):
     def _on_selection_changed(self, paths: list[Path]) -> None:
         """Footer of the grid selection (spec 16 R5.3): the count for several items."""
         if len(paths) > 1:
-            self.status.set_path(f"{len(paths)} itens selecionados")
+            self.status.set_path(_("{n} itens selecionados").format(n=len(paths)))
         else:
             self.status.set_path(self._relative(paths[0] if paths else self.files.folder))
 
@@ -347,7 +348,7 @@ class MainWindow(QMainWindow):
         self.project.reload()
         self.explorer.refresh()
         self.files.refresh()
-        self.status.set_message("Atualizado.", timeout_ms=2500)
+        self.status.set_message(_("Atualizado."), timeout_ms=2500)
 
     def refresh_folder(self, folder: Path) -> None:
         """What changed on disk under ``folder`` (a pull): detection, tree and grid read it again."""
@@ -398,7 +399,9 @@ class MainWindow(QMainWindow):
     # -- theme & config -------------------------------------------------------------------------
     def toggle_theme(self) -> None:
         self.settings.setValue("ui/theme", self.theme.toggle())  # the mode, not the concrete theme
-        self.status.set_message(f"Tema: {self.theme.label()}.", timeout_ms=2000)
+        self.status.set_message(
+            _("Tema: {theme}.").format(theme=self.theme.label()), timeout_ms=2000
+        )
 
     def open_config(self) -> None:
         if self.loaded.path is None:
@@ -414,10 +417,10 @@ class MainWindow(QMainWindow):
         try:
             loaded = load_config(path)
         except ConfigError as exc:
-            QMessageBox.critical(self, "config.yaml inválido", str(exc))
+            QMessageBox.critical(self, _("config.yaml inválido"), str(exc))
             return
         self._apply_loaded(loaded)
-        message = loaded.warnings[0] if loaded.warnings else "config.yaml recarregado."
+        message = loaded.warnings[0] if loaded.warnings else _("config.yaml recarregado.")
         self.status.set_message(message, "warning" if loaded.warnings else "info", 5000)
         if notice := restart_notice(loaded.config.ui.language):
             self.toast.show_message(notice)

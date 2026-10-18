@@ -30,7 +30,7 @@ from .kmesh import KMeshEditor
 from .labels import repolish
 from .scf_field import ScfFileField
 
-TITLE = "Parâmetros"
+TITLE = _("Parâmetros")
 UNIT_LABELS = {"angstrom": "Å"}  # the card's unit as a column head
 ATOMS_MIN_HEIGHT = 320  # the atoms tab has the room: show a dozen rows
 
@@ -41,8 +41,8 @@ def placeholder(form_field: FormField) -> str:
         return form_field.hint
     default = field_text(form_field.default)
     if default:
-        return f"vazio = {default}"
-    return "obrigatório" if form_field.required else "vazio = não escrever"
+        return _("vazio = {default}").format(default=default)
+    return _("obrigatório") if form_field.required else _("vazio = não escrever")
 
 
 def atom_rows(atoms: Any) -> list[AtomRow]:

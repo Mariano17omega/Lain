@@ -25,6 +25,7 @@ from ..core.plotting.plot_file import (
 )
 from ..core.plotting.session import PlotSession
 from ..core.tasks import TaskGroup
+from ..i18n import _
 
 log = logging.getLogger(__name__)
 SAVE_DEBOUNCE_MS = 1000
@@ -40,7 +41,8 @@ def _write(order: WriteOrder, ticket: int, folder: Path, kind: str, params: obje
         )
     except OSError as exc:
         log.warning("cannot save %s.plot in %s: %s", kind, folder, exc)
-        return f"Não foi possível salvar {kind}.plot em {folder.name}: {exc.strerror or exc}"
+        text = _("Não foi possível salvar {kind}.plot em {folder}: {error}")
+        return text.format(kind=kind, folder=folder.name, error=exc.strerror or exc)
     return None
 
 
@@ -48,7 +50,8 @@ def _delete(folder: Path, kind: str) -> str | None:
     try:
         delete_plot_file(folder, kind)
     except OSError as exc:
-        return f"Não foi possível apagar {plot_file_path(folder, kind).name}: {exc}"
+        text = _("Não foi possível apagar {name}: {error}")
+        return text.format(name=plot_file_path(folder, kind).name, error=exc)
     return None
 
 

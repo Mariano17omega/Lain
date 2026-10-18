@@ -16,6 +16,7 @@ from PyQt6.QtGui import QFont, QFontMetrics, QPainter, QPen
 from PyQt6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem, QToolTip
 
 from ...core.file_kinds import human_size, status_label
+from ...i18n import _, ngettext
 from ..file_types import file_visual, level_token
 from ..painting import mono_font
 from ..theme.manager import ThemeManager
@@ -171,7 +172,7 @@ class FileCardDelegate(QStyledItemDelegate):
         if proxy.is_up(index):  # the "folder above" shortcut (spec 5 R2)
             title = ".."
             icon_name, token = "drive_folder_upload", "icon_folder"
-            meta, meta_token = "pasta acima", "text_meta"
+            meta, meta_token = _("pasta acima"), "text_meta"
         else:
             title = path.name
             icon_name, token = file_visual(path, is_dir)
@@ -244,14 +245,16 @@ class FileCardDelegate(QStyledItemDelegate):
         """The line under a card's name (or at the end of a row) and its color token."""
         proxy = self.panel.proxy
         if proxy.is_pending(index):  # a badge filter waits for this folder's detection
-            return "detectando…", "text_meta"
+            return _("detectando…"), "text_meta"
         return self._meta(path, is_dir, proxy.fs.size(proxy.mapToSource(index)))
 
     def _meta(self, path: Path, is_dir: bool, size: int) -> tuple[str, str]:
         """Folders: entry count. Files: state only on cards, size (and state) in list mode."""
         if is_dir:
             count = self.panel.item_count(path)
-            return (f"{count} itens" if count is not None else "pasta"), "text_meta"
+            if count is None:
+                return _("pasta"), "text_meta"
+            return ngettext("{n} item", "{n} itens", count).format(n=count), "text_meta"
         label = status_label(path, size, self.panel.service.file_sniff(path))
         if label is None:
             return ("", "text_meta") if self.panel.grid_mode else (human_size(size), "text_meta")

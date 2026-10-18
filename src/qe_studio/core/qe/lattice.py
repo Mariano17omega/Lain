@@ -170,7 +170,7 @@ def _rows(lines: tuple[str, ...], count: int, what: str) -> list[list[float]]:
             )
         rows.append([float(v) for v in values if v is not None])
     if len(rows) < count:
-        raise StructureError(f"{what} incompleto")
+        raise StructureError(_("{what} incompleto").format(what=what))
     return rows
 
 

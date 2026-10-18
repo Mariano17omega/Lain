@@ -37,12 +37,13 @@ from ..core.sync.request import (
     sync_scope,
 )
 from ..core.sync.rsync import Endpoint
+from ..i18n import _
 from .dialogs.sync_dialog import ConflictDialog, SyncDialog
 from .theme.manager import ThemeManager
 from .widgets.context_menu import ItemActions
 
-TITLE = "Sincronização"
-PUSH_TITLE = "Envio ao cluster"
+TITLE = _("Sincronização")
+PUSH_TITLE = _("Envio ao cluster")
 
 
 class SyncCoordinator(QObject):
@@ -188,7 +189,7 @@ class SyncCoordinator(QObject):
     def _on_state(self, state: str) -> None:
         cluster = self.config.cluster
         label = (
-            f"{cluster.user}@{cluster.host}" if cluster.configured else "cluster não configurado"
+            f"{cluster.user}@{cluster.host}" if cluster.configured else _("cluster não configurado")
         )
         self.cluster_changed.emit(label, state)
 
@@ -252,8 +253,8 @@ class SyncCoordinator(QObject):
         cluster = self.config.cluster
         text, ok = QInputDialog.getText(
             self._dialog_parent,
-            "Senha do cluster",
-            f"Senha de {cluster.user}@{cluster.host} (não é salva):",
+            _("Senha do cluster"),
+            _("Senha de {account} (não é salva):").format(account=f"{cluster.user}@{cluster.host}"),
             QLineEdit.EchoMode.Password,
         )
         if not ok or not text:

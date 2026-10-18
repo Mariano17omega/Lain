@@ -31,18 +31,19 @@ from PyQt6.QtWidgets import (
 
 from ...core.qe.input_diff import Comparison, ParamDiff, TextRow, TooBigError, compare_files
 from ...core.tasks import TaskHandle, run_task
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from .code_view import CodeView
 from .highlighters import InputHighlighter
 
 log = logging.getLogger(__name__)
 PARAMS, TEXT, MESSAGE = 0, 1, 2  # pages of the stack
-STATUS = {"only_a": "só em A", "only_b": "só em B", "different": "diferente"}
+STATUS = {"only_a": _("só em A"), "only_b": _("só em B"), "different": _("diferente")}
 STATUS_TOKEN = {"only_a": "diff_del_bg", "only_b": "diff_add_bg", "different": "diff_change_bg"}
 # Row tag → background token, per side. Padding rows (the other side of an add or a delete) stay bare.
 ROW_TOKENS_A = {"del": "diff_del_bg", "change": "diff_change_bg"}
 ROW_TOKENS_B = {"add": "diff_add_bg", "change": "diff_change_bg"}
-NO_DIFFERENCE = "Os inputs são equivalentes: nenhum parâmetro nem card difere."
+NO_DIFFERENCE = _("Os inputs são equivalentes: nenhum parâmetro nem card difere.")
 
 
 def diff_key(a: Path, b: Path) -> str:
@@ -57,7 +58,7 @@ def diff_title(a: Path, b: Path) -> str:
         if a.name != b.name
         else (f"{a.parent.name}/{a.name}", f"{b.parent.name}/{b.name}")
     )
-    return f"Diff · {left} ↔ {right}"
+    return _("Diff · {left} ↔ {right}").format(left=left, right=right)
 
 
 def _bars(pane: CodeView) -> tuple[QScrollBar, QScrollBar]:
@@ -98,16 +99,18 @@ class DiffView(QWidget):
         row = QHBoxLayout(self.bar)
         row.setContentsMargins(8, 4, 8, 4)
         row.setSpacing(8)
-        self.label_a = self._file_label("A", a)
-        self.label_b = self._file_label("B", b)
-        self.params_button = _tool("Parâmetros", "Só o que difere, parâmetro por parâmetro", True)
-        self.text_button = _tool("Texto", "Os dois arquivos lado a lado", True)
+        self.label_a = self._file_label(_("A"), a)
+        self.label_b = self._file_label(_("B"), b)
+        self.params_button = _tool(
+            _("Parâmetros"), _("Só o que difere, parâmetro por parâmetro"), True
+        )
+        self.text_button = _tool(_("Texto"), _("Os dois arquivos lado a lado"), True)
         self.params_button.setChecked(True)
         modes = QButtonGroup(self)
         modes.setExclusive(True)
         modes.addButton(self.params_button)
         modes.addButton(self.text_button)
-        self.ignore_box = QCheckBox("Ignorar espaços e comentários")
+        self.ignore_box = QCheckBox(_("Ignorar espaços e comentários"))
         self.ignore_box.hide()
         for widget in (self.label_a, self.label_b):
             row.addWidget(widget)
@@ -119,7 +122,7 @@ class DiffView(QWidget):
 
         self.tree = QTreeWidget()
         self.tree.setObjectName("diffTree")
-        self.tree.setHeaderLabels(["Namelist", "Parâmetro", "A", "B", "Estado"])
+        self.tree.setHeaderLabels([_("Namelist"), _("Parâmetro"), _("A"), _("B"), _("Estado")])
         self.tree.setRootIsDecorated(True)
         self.tree.setUniformRowHeights(True)
         self.tree.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -138,7 +141,7 @@ class DiffView(QWidget):
         self._highlighters = [
             InputHighlighter(pane.text_document(), theme) for pane in (self.pane_a, self.pane_b)
         ]
-        self.message = QLabel("Comparando…")
+        self.message = QLabel(_("Comparando…"))
         self.message.setObjectName("diffMessage")
         self.message.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.message.setWordWrap(True)
@@ -200,7 +203,7 @@ class DiffView(QWidget):
     def _on_failed(self, error: Exception) -> None:
         if not isinstance(error, OSError | TooBigError):
             log.error("comparing %s with %s failed", self.a, self.b, exc_info=error)
-        self.message.setText(f"Não foi possível comparar: {error}")
+        self.message.setText(_("Não foi possível comparar: {error}").format(error=error))
         self._show_page()
         self.loaded.emit()
 
@@ -244,10 +247,10 @@ class DiffView(QWidget):
             item.setData(0, Qt.ItemDataRole.UserRole, change.status)
             self.tree.addTopLevelItem(item)
         for card in diff.cards:
-            item = QTreeWidgetItem(["card", card.summary, "", "", STATUS[card.status]])
+            item = QTreeWidgetItem([_("card"), card.summary, "", "", STATUS[card.status]])
             item.setData(0, Qt.ItemDataRole.UserRole, card.status)
             for left, right in card.detail:
-                item.addChild(QTreeWidgetItem(["", "linha", left or "—", right or "—", ""]))
+                item.addChild(QTreeWidgetItem(["", _("linha"), left or "—", right or "—", ""]))
             self.tree.addTopLevelItem(item)
         self._paint_tree()
 

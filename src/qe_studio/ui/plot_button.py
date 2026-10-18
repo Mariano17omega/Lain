@@ -26,6 +26,7 @@ from ..core.folder_memory import FolderMemory
 from ..core.plotting.saved import was_plotted
 from ..core.plotting.session import target_key
 from ..core.tasks import TaskGroup
+from ..i18n import _
 
 if TYPE_CHECKING:
     from .plot_workflow import PlotWorkflow
@@ -59,7 +60,7 @@ class PlotButton(QObject):
             workflow.busy.end(BUSY)
             self._folder(folder)
             return
-        workflow.busy.begin(BUSY, "Detectando cálculo…")
+        workflow.busy.begin(BUSY, _("Detectando cálculo…"))
         self._pairs.submit(
             str(folder),
             selected_pair,

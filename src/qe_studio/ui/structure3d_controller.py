@@ -30,6 +30,7 @@ from ..core.structure3d.source import StructureReadError
 from ..core.structure3d.view_file import LoadedView, load_view, remove_session, write_session
 from ..core.structure3d.view_state import apply_options, camera_from_stored
 from ..core.tasks import TaskGroup
+from ..i18n import _
 from .busy import BusyTracker
 from .theme.manager import ThemeManager
 from .widgets.structure3d.window import StructureWindow
@@ -38,7 +39,7 @@ from .widgets.toast import Toast
 log = logging.getLogger(__name__)
 
 KEY_PREFIX = "structure3d:"  # of the busy label and the task: ``structure3d:<path>:<n>``
-BUSY_LABEL = "Lendo estrutura…"
+BUSY_LABEL = _("Lendo estrutura…")
 SAVE_WAIT_MS = 5000  # ``wait_saves``: a rename waits this long for the views being written
 
 
@@ -124,8 +125,8 @@ class Structure3DController(QObject):
             reason = str(exc)
         else:
             log.error("reading the structure of %s failed", path, exc_info=exc)
-            reason = f"Erro inesperado: {exc}"
-        message = f"Visualização 3D de {path.name}: {reason}"
+            reason = _("Erro inesperado: {error}").format(error=exc)
+        message = _("Visualização 3D de {name}: {reason}").format(name=path.name, reason=reason)
         self.toast.show_message(message, "warning")
         self.failed.emit(message)
 

@@ -9,6 +9,7 @@ from PyQt6.QtCore import QBuffer, QByteArray, QIODevice
 from PyQt6.QtGui import QImage
 
 from ....core.structure3d.image_file import save_png
+from ....i18n import _
 
 
 def save_view(image: QImage, folder: str | Path, stem: str) -> Path:
@@ -21,5 +22,5 @@ def save_view(image: QImage, folder: str | Path, stem: str) -> Path:
     encoded = image.save(buffer, "PNG")
     buffer.close()
     if not encoded:
-        raise OSError("não foi possível codificar a imagem em PNG")
+        raise OSError(_("não foi possível codificar a imagem em PNG"))
     return save_png(folder, stem, bytes(data.data()))

@@ -9,10 +9,12 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
+from ...i18n import _
+
 
 def choose_folder(parent: QWidget | None) -> Path | None:
     """The root folder picked in the system dialog, or None when cancelled."""
-    folder = QFileDialog.getExistingDirectory(parent, "Escolher a pasta raiz", str(Path.home()))
+    folder = QFileDialog.getExistingDirectory(parent, _("Escolher a pasta raiz"), str(Path.home()))
     return Path(folder) if folder else None
 
 
@@ -28,12 +30,16 @@ def _yes(parent: QWidget | None, title: str, text: str) -> bool:
 
 
 def ask_create_config(parent: QWidget | None, path: Path) -> bool:
-    return _yes(parent, "Criar config.yaml", f"Criar o arquivo de configuração?\n\n{path}")
+    return _yes(
+        parent,
+        _("Criar config.yaml"),
+        _("Criar o arquivo de configuração?\n\n{path}").format(path=path),
+    )
 
 
 def ask_create_with_folder(parent: QWidget | None, folder: Path) -> bool:
     return _yes(
         parent,
-        "Criar config.yaml",
-        f"Criar config.yaml com esta pasta como raiz?\n\n{folder}",
+        _("Criar config.yaml"),
+        _("Criar config.yaml com esta pasta como raiz?\n\n{folder}").format(folder=folder),
     )

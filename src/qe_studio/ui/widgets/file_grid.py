@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
 from ...core.filtering import BADGES, NO_BADGE, NO_STATE, STATES, VISUALS
 from ...core.paths import count_entries
 from ...core.tasks import TaskGroup
+from ...i18n import _
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
 from .common import IconButton, PanelHeader, selection_of, viewport_of
@@ -71,22 +72,22 @@ class FilePanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        self.header = PanelHeader(theme, "Arquivos", "grid_view")
-        self.grid_button = self.header.add_button(IconButton(theme, "grid_view", "Grade"))
-        self.list_button = self.header.add_button(IconButton(theme, "view_list", "Lista"))
+        self.header = PanelHeader(theme, _("Arquivos"), "grid_view")
+        self.grid_button = self.header.add_button(IconButton(theme, "grid_view", _("Grade")))
+        self.list_button = self.header.add_button(IconButton(theme, "view_list", _("Lista")))
         for button in (self.grid_button, self.list_button):
             button.setCheckable(True)
         self.grid_button.setChecked(True)
-        self.sort_button = self.header.add_button(IconButton(theme, "sort", "Ordenar"))
+        self.sort_button = self.header.add_button(IconButton(theme, "sort", _("Ordenar")))
         self.sort_button.setPopupMode(IconButton.ToolButtonPopupMode.InstantPopup)
         self.sort_button.setMenu(self._sort_menu())
         layout.addWidget(self.header)
         self.filter_bar = FilterBar(
-            "Filtrar por nome (* e ?)",
+            _("Filtrar por nome (* e ?)"),
             [
-                ("badges", "Pastas", [*BADGES, NO_BADGE]),
-                ("states", "Estado do arquivo", [*STATES, NO_STATE]),
-                ("visuals", "Tipo do arquivo", VISUALS),
+                ("badges", _("Pastas"), [*BADGES, NO_BADGE]),
+                ("states", _("Estado do arquivo"), [*STATES, NO_STATE]),
+                ("visuals", _("Tipo do arquivo"), VISUALS),
             ],
         )
         layout.addWidget(self.filter_bar)
@@ -306,7 +307,11 @@ class FilePanel(QWidget):
         menu = QMenu(self)
         group = QActionGroup(menu)
         self._sort_actions = {}
-        for label, column in (("Nome", SORT_NAME), ("Tamanho", SORT_SIZE), ("Data", SORT_DATE)):
+        for label, column in (
+            (_("Nome"), SORT_NAME),
+            (_("Tamanho"), SORT_SIZE),
+            (_("Data"), SORT_DATE),
+        ):
             action = menu.addAction(label)
             assert action is not None
             action.setCheckable(True)
@@ -332,10 +337,10 @@ class FilePanel(QWidget):
     def shortcut_help() -> list[tuple[str, str, str]]:
         """(action, keys, where) of the keys this panel handles itself (not menu actions)."""
         return [
-            ("Subir uma pasta", "Backspace", "Grade de arquivos"),
-            ("Subir uma pasta", "Alt+↑", "Grade de arquivos"),
-            ("Filtrar a grade", "Ctrl+F", "Grade de arquivos"),
-            ("Abrir os arquivos selecionados", "Enter", "Grade de arquivos"),
+            (_("Subir uma pasta"), "Backspace", _("Grade de arquivos")),
+            (_("Subir uma pasta"), "Alt+↑", _("Grade de arquivos")),
+            (_("Filtrar a grade"), "Ctrl+F", _("Grade de arquivos")),
+            (_("Abrir os arquivos selecionados"), "Enter", _("Grade de arquivos")),
         ]
 
     def go_up(self) -> None:
@@ -349,7 +354,8 @@ class FilePanel(QWidget):
         if rows and self.proxy.is_up(self.proxy.index(0, 0, root)):
             rows -= 1  # ".." is a shortcut, not an entry
         if self.proxy.filtering:
-            self.header.count.setText(f"({rows} de {self.proxy.unfiltered_count(root)})")
+            total = self.proxy.unfiltered_count(root)
+            self.header.count.setText(_("({rows} de {total})").format(rows=rows, total=total))
         else:
             self.header.count.setText(f"({rows})")
 

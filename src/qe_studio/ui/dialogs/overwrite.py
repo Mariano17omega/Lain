@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...i18n import _
 from ..widgets.common import set_variant
 
 
@@ -27,28 +28,31 @@ class OverwriteChoice(StrEnum):
 class OverwriteDialog(QDialog):
     def __init__(self, existing: list[Path], new_stem: str, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setWindowTitle("Arquivos já existem")
+        self.setWindowTitle(_("Arquivos já existem"))
         self.setModal(True)
         self.choice = OverwriteChoice.CANCEL
         layout = QVBoxLayout(self)
         layout.addWidget(
-            set_variant(QLabel("Arquivos com este nome já existem em plots/"), "dialogTitle")
+            set_variant(QLabel(_("Arquivos com este nome já existem em plots/")), "dialogTitle")
         )
         names = "\n".join(p.name for p in existing)
         layout.addWidget(set_variant(QLabel(names), "mono"))
         layout.addWidget(
             set_variant(
-                QLabel(f"Sobrescrever ou salvar como nova versão ({new_stem})?"), "dialogText"
+                QLabel(
+                    _("Sobrescrever ou salvar como nova versão ({stem})?").format(stem=new_stem)
+                ),
+                "dialogText",
             )
         )
-        self.remember = QCheckBox("Não perguntar novamente nesta sessão (sobrescrever)")
+        self.remember = QCheckBox(_("Não perguntar novamente nesta sessão (sobrescrever)"))
         layout.addWidget(self.remember)
         row = QHBoxLayout()
         row.addStretch(1)
         for text, choice, variant in (
-            ("Cancelar", OverwriteChoice.CANCEL, None),
-            ("Nova versão", OverwriteChoice.NEW_VERSION, None),
-            ("Sobrescrever", OverwriteChoice.OVERWRITE, "primary"),
+            (_("Cancelar"), OverwriteChoice.CANCEL, None),
+            (_("Nova versão"), OverwriteChoice.NEW_VERSION, None),
+            (_("Sobrescrever"), OverwriteChoice.OVERWRITE, "primary"),
         ):
             button = QPushButton(text)
             if variant:

@@ -22,6 +22,7 @@ from ...core.config import UiConfig
 from ...core.file_kinds import human_size, status_label, status_tooltip
 from ...core.filtering import BADGES, NO_BADGE
 from ...core.run_errors import RunError
+from ...i18n import _
 from ..file_types import file_visual, level_token
 from ..painting import BADGE_GAP, badge_layout, mono_font, paint_badge, ui_font
 from ..services import DetectionService
@@ -36,8 +37,8 @@ from .project_combo import ProjectCombo
 
 ROW_HEIGHT = 22
 ERROR_BADGE = "ERRO"  # a folder with a CRASH file or a job log with content (spec 50)
-FILES_SHOW_TIP = "Mostrar arquivos na árvore"
-FILES_HIDE_TIP = "Ocultar arquivos da árvore"
+FILES_SHOW_TIP = _("Mostrar arquivos na árvore")
+FILES_HIDE_TIP = _("Ocultar arquivos da árvore")
 
 
 class ExplorerDelegate(QStyledItemDelegate):
@@ -109,7 +110,7 @@ class ExplorerDelegate(QStyledItemDelegate):
 
     def _paint_pending(self, painter: QPainter, right: float, rect: QRect) -> float:
         painter.setFont(mono_font(10))
-        text = "detectando…"
+        text = _("detectando…")
         width = painter.fontMetrics().horizontalAdvance(text)
         painter.setPen(self.theme.color("text_meta"))
         painter.drawText(
@@ -199,24 +200,27 @@ class ExplorerPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        header = PanelHeader(theme, "Explorador", "folder_open")
-        self.collapse_button = header.add_button(IconButton(theme, "unfold_less", "Recolher tudo"))
+        header = PanelHeader(theme, _("Explorador"), "folder_open")
+        self.collapse_button = header.add_button(
+            IconButton(theme, "unfold_less", _("Recolher tudo"))
+        )
         self.files_button = header.add_button(IconButton(theme, "draft", FILES_SHOW_TIP))
         self.files_button.setCheckable(True)  # spec 50 R1: ``ui.tree_show_files``, this session
-        self.refresh_button = header.add_button(IconButton(theme, "refresh", "Atualizar (F5)"))
+        self.refresh_button = header.add_button(IconButton(theme, "refresh", _("Atualizar (F5)")))
         layout.addWidget(header)
         self.projects = ProjectCombo()  # spec 31: answered by the window's ProjectController
         layout.addWidget(self.projects)
         # Favorite and recent folders (spec 16 R4): hidden while empty, filled by the window's
         # NavigationController, which also answers their clicks.
-        self.favorites = NavSection(theme, "Favoritos", "star", "accent")
-        self.recents = NavSection(theme, "Recentes", "history", "text_muted")
+        self.favorites = NavSection(theme, _("Favoritos"), "star", "accent")
+        self.recents = NavSection(theme, _("Recentes"), "history", "text_muted")
         for section in (self.favorites, self.recents):
             layout.addWidget(section)
             section.menu_requested.connect(self.item_menu_requested)
         # Only the folders the model has loaded (the ones opened so far) can be filtered.
         self.filter_bar = FilterBar(
-            "Filtrar por nome (pastas já abertas)", [("badges", "Pastas", [*BADGES, NO_BADGE])]
+            _("Filtrar por nome (pastas já abertas)"),
+            [("badges", _("Pastas"), [*BADGES, NO_BADGE])],
         )
         layout.addWidget(self.filter_bar)
 
@@ -350,7 +354,7 @@ class ExplorerPanel(QWidget):
     @staticmethod
     def shortcut_help() -> list[tuple[str, str, str]]:
         """(action, keys, where) of the keys this panel handles itself (not menu actions)."""
-        return [("Filtrar a árvore", "Ctrl+F", "Árvore de pastas")]
+        return [(_("Filtrar a árvore"), "Ctrl+F", _("Árvore de pastas"))]
 
     def select_path(self, path: Path) -> None:
         if not Path(path).is_relative_to(self._root):

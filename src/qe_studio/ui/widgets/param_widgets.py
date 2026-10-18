@@ -35,10 +35,10 @@ class ColorButton(QToolButton):
         self.color = color
         self.setStyleSheet(f"background: {color};")
         self.setToolTip(color)
-        self.setAccessibleName(f"Cor: {color}")
+        self.setAccessibleName(_("Cor: {color}").format(color=color))
 
     def _pick(self) -> None:
-        chosen = QColorDialog.getColor(QColor(self.color), self, "Escolher cor")
+        chosen = QColorDialog.getColor(QColor(self.color), self, _("Escolher cor"))
         if chosen.isValid():
             self.set_color(chosen.name())
             self.color_changed.emit(chosen.name())

@@ -265,7 +265,9 @@ def format_coordinates(
     energy, dos = (y, x) if params.orientation == "vertical" else (x, y)
     shifted = params.shift_to_fermi and dataset.fermi(params.fermi_source) is not None
     name = "E − E_F" if shifted else "E"
-    return f"{name} = {signed(energy, '.3f')} eV · PDOS = {signed(dos, '.3f')} est./eV"
+    return _("{name} = {energy} eV · PDOS = {dos} est./eV").format(
+        name=name, energy=signed(energy, ".3f"), dos=signed(dos, ".3f")
+    )
 
 
 def summary(dataset: PdosDataset, params: PdosParams) -> str:

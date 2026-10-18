@@ -275,7 +275,7 @@ def input_tab_fields(scf: ScfInfo, group: str, relax: list[FormField]) -> list[F
             "float",
             DEFAULT_ETOT_CONV_THR,
             group=group,
-            tooltip="&CONTROL etot_conv_thr, em Ry",
+            tooltip=_("&CONTROL etot_conv_thr, em Ry"),
         ),
         *fix_fields(group, FIX_RULES, default_rule(scf)),
     ]

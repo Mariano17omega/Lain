@@ -39,15 +39,16 @@ from ....core.calc_create.types import (
 )
 from ....core.calc_create.writer import files_to_write, preview_names
 from ....core.config import JobsConfig
+from ....i18n import _
 from ...theme.manager import ThemeManager
 from .edit_bar import EditBar
 from .form import FieldForm
 from .preview import FilePreview, FilesView
 
 DEBOUNCE_MS = 250
-NOTES_PLACEHOLDER = "Anotações sobre este cálculo (opcional)"
-FILES_TAB = "Arquivos"
-NOTES_TAB = "Descrição"
+NOTES_PLACEHOLDER = _("Anotações sobre este cálculo (opcional)")
+FILES_TAB = _("Arquivos")
+NOTES_TAB = _("Descrição")
 
 
 class TabsPage(QWidget):

@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.projects import validate_project_name
+from ...i18n import _
 from ..widgets.common import set_variant
 
 
@@ -27,28 +28,28 @@ class NewProjectDialog(QDialog):
         super().__init__(parent)
         self.existing, self.hidden_dirs = list(existing), list(hidden_dirs)
         self.name: str | None = None
-        self.setWindowTitle("Criar projeto")
+        self.setWindowTitle(_("Criar projeto"))
         self.setModal(True)
         layout = QVBoxLayout(self)
-        layout.addWidget(set_variant(QLabel("Criar projeto"), "dialogTitle"))
-        layout.addWidget(set_variant(QLabel("Nome do projeto"), "dialogText"))
+        layout.addWidget(set_variant(QLabel(_("Criar projeto")), "dialogTitle"))
+        layout.addWidget(set_variant(QLabel(_("Nome do projeto")), "dialogText"))
         self.edit = QLineEdit()
         self.edit.setMinimumWidth(380)
-        self.edit.setAccessibleName("Nome do projeto")
+        self.edit.setAccessibleName(_("Nome do projeto"))
         layout.addWidget(self.edit)
         self.error = set_variant(QLabel(), "dialogError")
         self.error.hide()
         layout.addWidget(self.error)
         note = set_variant(
-            QLabel("O nome será o nome da pasta, criada na pasta raiz."), "dialogText"
+            QLabel(_("O nome será o nome da pasta, criada na pasta raiz.")), "dialogText"
         )
         note.setWordWrap(True)
         layout.addWidget(note)
         row = QHBoxLayout()
         row.addStretch(1)
-        cancel = QPushButton("Cancelar")
+        cancel = QPushButton(_("Cancelar"))
         cancel.clicked.connect(self.reject)
-        self.create_button = set_variant(QPushButton("Criar"), "primary")
+        self.create_button = set_variant(QPushButton(_("Criar")), "primary")
         self.create_button.setDefault(True)
         self.create_button.clicked.connect(self.accept)
         row.addWidget(cancel)

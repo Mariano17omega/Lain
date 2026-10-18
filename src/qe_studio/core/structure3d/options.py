@@ -32,7 +32,7 @@ __all__ = [
 STYLES: dict[str, str] = {
     "bola-vareta": _("Bola e vareta"),
     "vareta": _("Vareta"),
-    "fio": "Fio",
+    "fio": _("Fio"),
     "espaco-cheio": _("Espaço cheio"),
 }
 LABEL_MODES: dict[str, str] = {

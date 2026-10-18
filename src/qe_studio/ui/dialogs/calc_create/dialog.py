@@ -34,6 +34,7 @@ from PyQt6.QtWidgets import (
 from ....core.calc_create.scf_info import ScfInfo
 from ....core.calc_create.types import DEFAULT_MODE, MODES, CalcPlan, CalcType, Mode
 from ....core.config import JobsConfig
+from ....i18n import _
 from ...busy import BusyTracker
 from ...theme.manager import ThemeManager
 from ...widgets.common import set_variant
@@ -43,9 +44,9 @@ from .tabs_page import DEBOUNCE_MS, TabsPage
 
 log = logging.getLogger(__name__)
 
-TITLE = "Criar cálculo"
-STEP_SETUP = "1 · Configuração"
-STEP_FILES = "2 · Arquivos"
+TITLE = _("Criar cálculo")
+STEP_SETUP = _("1 · Configuração")
+STEP_FILES = _("2 · Arquivos")
 MODE_KEY = "calc_create/mode"
 NUMBERED_KEY = "calc_create/numbered"
 
@@ -63,7 +64,7 @@ def ask_discard(parent: QWidget) -> bool:
     answer = QMessageBox.question(
         parent,
         TITLE,
-        "Descartar o que foi preenchido?",
+        _("Descartar o que foi preenchido?"),
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )
@@ -75,8 +76,10 @@ def ask_failed(parent: QWidget, exc: BaseException) -> None:
     QMessageBox.warning(
         parent,
         TITLE,
-        f"Não foi possível montar os arquivos deste cálculo: {str(exc) or type(exc).__name__}. "
-        "O log tem o detalhe (Ajuda ▸ Abrir log).",
+        _(
+            "Não foi possível montar os arquivos deste cálculo: {error}. "
+            "O log tem o detalhe (Ajuda ▸ Abrir log)."
+        ).format(error=str(exc) or type(exc).__name__),
     )
 
 
@@ -119,13 +122,13 @@ class CalcCreateDialog(QDialog):
         self.setup.changed.connect(self._update)
         self.pages = QStackedWidget()
         self.pages.addWidget(self.setup)
-        self.cancel_button = QPushButton("Cancelar")
+        self.cancel_button = QPushButton(_("Cancelar"))
         self.cancel_button.clicked.connect(self.reject)
-        self.back_button = QPushButton("Voltar")
+        self.back_button = QPushButton(_("Voltar"))
         self.back_button.clicked.connect(self.back)
-        self.continue_button = set_variant(QPushButton("Continuar"), "primary")
+        self.continue_button = set_variant(QPushButton(_("Continuar")), "primary")
         self.continue_button.clicked.connect(self.continue_)
-        self.create_button = set_variant(QPushButton("Criar"), "primary")
+        self.create_button = set_variant(QPushButton(_("Criar")), "primary")
         self.create_button.clicked.connect(self.request_create)
         for button in (self.cancel_button, self.back_button):
             button.setAutoDefault(False)

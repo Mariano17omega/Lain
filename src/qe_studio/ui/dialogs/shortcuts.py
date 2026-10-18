@@ -16,8 +16,9 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.fuzzy import fold
+from ...i18n import _
 
-HEADERS = ("Ação", "Atalho", "Onde")
+HEADERS = (_("Ação"), _("Atalho"), _("Onde"))
 ARROWS = {"Left": "←", "Right": "→", "Up": "↑", "Down": "↓"}
 
 
@@ -30,12 +31,12 @@ class ShortcutsDialog(QDialog):
     def __init__(self, rows: list[tuple[str, str, str]], parent: QWidget | None = None):
         super().__init__(parent)
         self.rows = [(action, pretty_keys(keys), where) for action, keys, where in rows]
-        self.setWindowTitle("Atalhos de teclado")
+        self.setWindowTitle(_("Atalhos de teclado"))
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.resize(640, 480)
         layout = QVBoxLayout(self)
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Buscar ação, atalho ou lugar…")
+        self.search.setPlaceholderText(_("Buscar ação, atalho ou lugar…"))
         self.search.setClearButtonEnabled(True)
         layout.addWidget(self.search)
         self.table = QTableWidget(0, len(HEADERS))

@@ -27,6 +27,7 @@ from ..core.plotting.grid import GridCell, GridSpec, PlotRef
 from ..core.plotting.grid_session import build_grid_session
 from ..core.plotting.session import PlotSession, build_session, load_plot
 from ..core.tasks import TaskGroup
+from ..i18n import _
 from .busy import BusyTracker
 from .plot_settings import PlotSettingsStore
 
@@ -105,7 +106,7 @@ class GridLoader(QObject):
                 on_error=self._on_error,
             )
         if state.waiting:
-            self.busy.begin(self._busy_name(spec.name), "Carregando grid…")
+            self.busy.begin(self._busy_name(spec.name), _("Carregando grid…"))
         self._finish_if_done(state)
 
     def cancel_all(self) -> None:

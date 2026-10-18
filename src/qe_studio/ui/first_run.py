@@ -22,13 +22,14 @@ from PyQt6.QtWidgets import QSplitter, QWidget
 
 from ..core.config import LoadedConfig, user_config_path
 from ..core.config_template import create_config
+from ..i18n import _
 from .dialogs.first_run import ask_create_config, ask_create_with_folder, choose_folder
 from .widgets.empty_state import EmptyState
 
 log = logging.getLogger(__name__)
 
-TEMPORARY = "Pasta temporária: para fixar, edite paths.local_root no config.yaml"
-AFTER_EDIT = "Depois de editar, use Ferramentas ▸ Recarregar config.yaml"
+TEMPORARY = _("Pasta temporária: para fixar, edite paths.local_root no config.yaml")
+AFTER_EDIT = _("Depois de editar, use Ferramentas ▸ Recarregar config.yaml")
 
 
 class FirstRunController(QObject):
@@ -83,22 +84,24 @@ class FirstRunController(QObject):
         state = self.state
         if state == "first_run":
             self.overlay.set_content(
-                "Bem-vindo ao Lain",
-                "Nenhum config.yaml encontrado. O Lain usa um arquivo de configuração "
-                "(não há janela de configurações).",
+                _("Bem-vindo ao Lain"),
+                _(
+                    "Nenhum config.yaml encontrado. O Lain usa um arquivo de configuração "
+                    "(não há janela de configurações)."
+                ),
                 [
-                    ("Criar config…", "primary", self.create_config),
-                    ("Escolher pasta…", "", self.choose_project_folder),
+                    (_("Criar config…"), "primary", self.create_config),
+                    (_("Escolher pasta…"), "", self.choose_project_folder),
                 ],
             )
         elif state == "missing_root":
             root = self._loaded().config.paths.local_root
             self.overlay.set_content(
-                "Pasta raiz não encontrada",
-                f"A pasta raiz não foi encontrada: {root}",
+                _("Pasta raiz não encontrada"),
+                _("A pasta raiz não foi encontrada: {root}").format(root=root),
                 [
-                    ("Abrir config", "primary", self.open_config),
-                    ("Escolher pasta…", "", self.choose_session_folder),
+                    (_("Abrir config"), "primary", self.open_config),
+                    (_("Escolher pasta…"), "", self.choose_session_folder),
                 ],
             )
         self.overlay.setVisible(state is not None)
@@ -129,9 +132,8 @@ class FirstRunController(QObject):
                 create_config(path)
             except OSError as exc:
                 log.warning("could not create %s: %s", path, exc)
-                self.message.emit(
-                    f"Não foi possível criar {path}: {exc.strerror or exc}", "error", 0
-                )
+                text = _("Não foi possível criar {path}: {error}")
+                self.message.emit(text.format(path=path, error=exc.strerror or exc), "error", 0)
                 return
         self._edit(path)
         self.message.emit(AFTER_EDIT, "info", 0)
@@ -151,7 +153,8 @@ class FirstRunController(QObject):
             create_config(path, local_root=folder)
         except OSError as exc:
             log.warning("could not create %s: %s", path, exc)
-            self.message.emit(f"Não foi possível criar {path}: {exc.strerror or exc}", "error", 0)
+            text = _("Não foi possível criar {path}: {error}")
+            self.message.emit(text.format(path=path, error=exc.strerror or exc), "error", 0)
             return
         self._load_config_file(path)
 

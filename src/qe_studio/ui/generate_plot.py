@@ -17,6 +17,7 @@ from PyQt6.QtCore import QObject
 
 from ..core.detection import PairTarget
 from ..core.tasks import TaskGroup
+from ..i18n import _
 
 if TYPE_CHECKING:
     from .plot_workflow import PlotWorkflow
@@ -39,7 +40,7 @@ class GeneratePlot(QObject):
             workflow.busy.end(BUSY)
             workflow.generate(folder)
             return
-        workflow.busy.begin(BUSY, "Detectando cálculo…")
+        workflow.busy.begin(BUSY, _("Detectando cálculo…"))
         self._pairs.submit(
             str(folder),
             PairTarget.from_selection,

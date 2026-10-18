@@ -10,14 +10,15 @@ from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QGridLayout, QPushButton, QWidget
 
 from ....core.structure3d.camera import ROTATION_STEP_DEG
+from ....i18n import _
 from ..param_widgets import Section
 from .canvas import StructureCanvas
 
 AXES = ("x", "y", "z")
 SIGNS = {"+": 1.0, "-": -1.0}  # top row: positive, bottom row: negative
 TIPS = {
-    "+": "Girar a estrutura 45° em torno de {axis} (regra da mão direita)",
-    "-": "Girar a estrutura 45° em torno de {axis}, no sentido contrário",
+    "+": _("Girar a estrutura 45° em torno de {axis} (regra da mão direita)"),
+    "-": _("Girar a estrutura 45° em torno de {axis}, no sentido contrário"),
 }
 
 

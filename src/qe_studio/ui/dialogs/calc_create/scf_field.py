@@ -17,14 +17,15 @@ from PyQt6.QtWidgets import QHBoxLayout, QLineEdit, QPushButton, QVBoxLayout, QW
 
 from ....core.calc_create.scf_info import ScfInfo, ScfInputError, read_other_scf
 from ....core.tasks import TaskGroup
+from ....i18n import _
 from ...widgets.common import set_variant
 from . import setup_page
 from .labels import message_label, show_message
 
 log = logging.getLogger(__name__)
 
-READING = "Lendo SCF…"
-EMPTY = "Nenhum arquivo escolhido"
+READING = _("Lendo SCF…")
+EMPTY = _("Nenhum arquivo escolhido")
 
 
 class ScfFileField(QWidget):
@@ -48,9 +49,9 @@ class ScfFileField(QWidget):
         self.edit.setReadOnly(True)
         self.edit.setPlaceholderText(EMPTY)
         self.edit.setAccessibleName(label)
-        self.choose_button = QPushButton("Escolher…")
+        self.choose_button = QPushButton(_("Escolher…"))
         self.choose_button.clicked.connect(self._pick)
-        self.clear_button = QPushButton("Limpar")
+        self.clear_button = QPushButton(_("Limpar"))
         self.clear_button.clicked.connect(self.clear)
         self.clear_button.setVisible(optional)
         self.clear_button.setEnabled(False)
@@ -109,7 +110,7 @@ class ScfFileField(QWidget):
             text = str(exc)
         else:
             log.error("reading a second SCF for a new calculation failed", exc_info=exc)
-            text = f"Não foi possível ler o SCF: {exc}"
+            text = _("Não foi possível ler o SCF: {error}").format(error=exc)
         self._value = None
         show_message(self.message, text, "error")
         self.changed.emit()

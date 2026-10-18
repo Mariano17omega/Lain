@@ -230,7 +230,7 @@ class SupercellType(VcRelaxType):
     ) -> None:
         scf, typed = work.scf, work.values.get("kmesh")
         if typed is not None:  # written by ``edit``
-            facts.append(("k-points", f"{mesh_text(typed)} (digitada)"))
+            facts.append(("k-points", _("{mesh} (digitada)").format(mesh=mesh_text(typed))))
         elif scf.kmesh is not None:
             if has_vacuum(scf):
                 mesh = rescale_mesh(scf.kmesh, {0: 0, 1: 1}, {0: repeats[0], 1: repeats[1]})
@@ -240,7 +240,14 @@ class SupercellType(VcRelaxType):
                 mesh = rescale_mesh(scf.kmesh, axes, dict(enumerate(repeats)), vacuum_axis=None)
                 how = _("÷ repetições")
             put_mesh(editor, mesh)
-            facts.append(("k-points", f"{mesh_text(mesh)} (do SCF {mesh_text(scf.kmesh)}, {how})"))
+            facts.append(
+                (
+                    "k-points",
+                    _("{mesh} (do SCF {scf}, {how})").format(
+                        mesh=mesh_text(mesh), scf=mesh_text(scf.kmesh), how=how
+                    ),
+                )
+            )
         elif scf.kpoints_option == "gamma":
             work.notes.append(GAMMA_NOTE)
             facts.append(("k-points", _("gamma (do SCF)")))

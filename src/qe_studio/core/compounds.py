@@ -118,7 +118,9 @@ def normalize_selection(atoms: Sequence[int] | None, valid: Sequence[int]) -> li
 
 def atoms_summary(selected: Sequence[int] | None, total: int) -> str:
     """``todos`` or ``3 de 12``: what the picker button shows beside itself."""
-    return _("todos") if selected is None else f"{len(selected)} de {total}"
+    return (
+        _("todos") if selected is None else _("{n} de {total}").format(n=len(selected), total=total)
+    )
 
 
 def legacy_compounds(data: object) -> dict:

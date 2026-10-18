@@ -16,6 +16,7 @@ from ..core.folder_memory import FolderMemory
 from ..core.run_errors import RunError, run_error
 from ..core.sniff import FileSniff, SniffCache
 from ..core.tasks import TaskGroup
+from ..i18n import _
 
 log = logging.getLogger(__name__)
 
@@ -180,4 +181,5 @@ class DetectionService(QObject):
             self._failed.add(key)
         self.detected.emit(key)
         if first:  # after ``detected``: a message of its consumers must not replace this one
-            self.message.emit(f"Falha ao detectar {Path(key).name} (veja o log)", "warning", 6000)
+            text = _("Falha ao detectar {name} (veja o log)").format(name=Path(key).name)
+            self.message.emit(text, "warning", 6000)

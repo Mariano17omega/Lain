@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.sniff import looks_like_input
+from ...i18n import _
 from ..file_types import file_visual
 from ..theme.manager import ThemeManager
 from .diff_view import DiffView, diff_key, diff_title
@@ -30,7 +31,7 @@ from .summary_view import SummaryView, summary_key
 from .text_viewer import TextViewer
 from .workspace_tabs import DocumentTabs, add_action
 
-INPUT_FILTER = "Inputs do QE (*.in *.inp *.pw*);;Todos os arquivos (*)"
+INPUT_FILTER = _("Inputs do QE (*.in *.inp *.pw*);;Todos os arquivos (*)")
 
 
 def copy_text(text: str) -> None:
@@ -103,7 +104,10 @@ class Workspace(QStackedWidget):
         self.empty.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         empty_layout = QVBoxLayout(self.empty)
         hint = QLabel(
-            "Selecione um arquivo para visualizar\nou use “Gerar Gráfico” em uma pasta de simulação."
+            _(
+                "Selecione um arquivo para visualizar\n"
+                "ou use “Gerar Gráfico” em uma pasta de simulação."
+            )
         )
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(hint)
@@ -133,7 +137,7 @@ class Workspace(QStackedWidget):
     @staticmethod
     def shortcut_help() -> list[tuple[str, str, str]]:
         """(action, keys, where) of the tab bar's mouse gestures (Ctrl+W is a menu action)."""
-        return [("Fechar a aba", "Botão do meio", "Abas")]
+        return [(_("Fechar a aba"), _("Botão do meio"), _("Abas"))]
 
     def items(self) -> list[tuple[str, QWidget]]:
         return list(self._keys.items())
@@ -200,7 +204,13 @@ class Workspace(QStackedWidget):
             return existing
         view = SummaryView(path, self.theme)
         view.open_output_requested.connect(self.open_output)
-        return self.add(key, view, f"Resumo · {path.name}", ("summarize", "accent"), str(path))
+        return self.add(
+            key,
+            view,
+            _("Resumo · {name}").format(name=path.name),
+            ("summarize", "accent"),
+            str(path),
+        )
 
     def open_output(self, path: Path, line: int = 0) -> None:
         """The output in the text viewer, at ``line`` when given."""
@@ -211,14 +221,16 @@ class Workspace(QStackedWidget):
     def compare_with(self, path: Path) -> None:
         """ "Comparar com…": ask for the other input, which must look like one too."""
         chosen, _filter = QFileDialog.getOpenFileName(
-            self, "Comparar com…", str(path.parent), INPUT_FILTER
+            self, _("Comparar com…"), str(path.parent), INPUT_FILTER
         )
         if not chosen:
             return
         other = Path(chosen)
         if not looks_like_input(other):
             QMessageBox.warning(
-                self, "Comparar inputs", f"{other.name} não parece um input do Quantum ESPRESSO."
+                self,
+                _("Comparar inputs"),
+                _("{name} não parece um input do Quantum ESPRESSO.").format(name=other.name),
             )
             return
         self.open_diff(path, other)
@@ -268,13 +280,15 @@ class Workspace(QStackedWidget):
         last = self.tabs.count() - 1
         menu = QMenu(self)
         # The shortcut is only shown (after the tab): the real one is the main window's.
-        add_action(menu, "Fechar\tCtrl+W", lambda: self.close_tab(index))
-        add_action(menu, "Fechar outras", lambda: self.close_others(index), enabled=last > 0)
-        add_action(menu, "Fechar à direita", lambda: self.close_right(index), enabled=index < last)
-        add_action(menu, "Fechar todas", self.close_all)
+        add_action(menu, _("Fechar") + "\tCtrl+W", lambda: self.close_tab(index))
+        add_action(menu, _("Fechar outras"), lambda: self.close_others(index), enabled=last > 0)
+        add_action(
+            menu, _("Fechar à direita"), lambda: self.close_right(index), enabled=index < last
+        )
+        add_action(menu, _("Fechar todas"), self.close_all)
         menu.addSeparator()
-        add_action(menu, "Copiar caminho", lambda: copy_text(path))
-        add_action(menu, "Revelar no explorador", lambda: self.reveal_requested.emit(Path(path)))
+        add_action(menu, _("Copiar caminho"), lambda: copy_text(path))
+        add_action(menu, _("Revelar no explorador"), lambda: self.reveal_requested.emit(Path(path)))
         menu.exec(pos)
         menu.deleteLater()
 

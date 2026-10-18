@@ -28,6 +28,7 @@ from ....core.structure3d.model import AtomRef, Structure
 from ....core.structure3d.options import DisplayOptions
 from ....core.structure3d.replicate import Scene, build_scene
 from ....core.structure3d.view_state import CameraState
+from ....i18n import _
 from ...theme.manager import ThemeManager
 from .render_types import FrameStats
 from .renderer import PaintRenderer
@@ -37,7 +38,7 @@ DRAFT_RESTORE_MS = 150
 CLICK_SLOP_PX = 4.0
 WHEEL_STEP = 1.2  # zoom factor per wheel notch
 KEY_ZOOM = 1.15
-WHERE = "Visualização 3D"
+WHERE = _("Visualização 3D")
 AXIS_KEYS = {  # key code → view
     Qt.Key.Key_A.value: "a",
     Qt.Key.Key_B.value: "b",
@@ -93,7 +94,7 @@ class StructureCanvas(QWidget):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMinimumSize(240, 240)
-        self.setAccessibleName("Vista 3D da estrutura")
+        self.setAccessibleName(_("Vista 3D da estrutura"))
         self.refresh_options()
         self.dirty = False  # building is no change
 
@@ -101,15 +102,15 @@ class StructureCanvas(QWidget):
     def shortcut_help() -> list[tuple[str, str, str]]:
         """(action, keys, where) of the gestures of the view, for the shortcuts dialog."""
         return [
-            ("Girar a vista", "Arrastar", WHERE),
-            ("Mover a vista", "Shift+Arrastar ou botão do meio", WHERE),
-            ("Zoom", "Roda, + e -", WHERE),
-            ("Resetar vista", "R", WHERE),
-            ("Vista ao longo de a, b, c", "A, B, C", WHERE),
-            ("Vista ao longo de x, y, z", "X, Y, Z", WHERE),
-            ("Alternar perspectiva", "P", WHERE),
-            ("Selecionar átomo", "Clique", WHERE),
-            ("Descartar os átomos de uma medida", "Esc", WHERE),
+            (_("Girar a vista"), _("Arrastar"), WHERE),
+            (_("Mover a vista"), _("Shift+Arrastar ou botão do meio"), WHERE),
+            (_("Zoom"), _("Roda, + e -"), WHERE),
+            (_("Resetar vista"), "R", WHERE),
+            (_("Vista ao longo de a, b, c"), "A, B, C", WHERE),
+            (_("Vista ao longo de x, y, z"), "X, Y, Z", WHERE),
+            (_("Alternar perspectiva"), "P", WHERE),
+            (_("Selecionar átomo"), _("Clique"), WHERE),
+            (_("Descartar os átomos de uma medida"), "Esc", WHERE),
         ]
 
     # -- data --------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import QMessageBox, QWidget
 from ..core.plotting.export import export_files, plan_export
 from ..core.plotting.session import PlotSession
 from ..core.tasks import TaskGroup
+from ..i18n import _
 from .busy import BusyTracker
 from .dialogs.overwrite import OverwriteChoice, ask_overwrite
 
@@ -63,13 +64,13 @@ class PlotExporter(QObject):
             assert plan.new_stem is not None
             choice, remember = ask_overwrite(self._dialog_parent, plan.existing, plan.new_stem)
             if choice is OverwriteChoice.CANCEL:
-                self.message.emit("Exportação cancelada.", "info", 3000)
+                self.message.emit(_("Exportação cancelada."), "info", 3000)
                 return False
             if choice is OverwriteChoice.NEW_VERSION:
                 stem = plan.new_stem
             self._overwrite_always = remember
         params = copy.deepcopy(session.params)  # edits made meanwhile are not this export's
-        self.busy.begin(f"export:{session.key}", "Exportando…")
+        self.busy.begin(f"export:{session.key}", _("Exportando…"))
         self._tasks.submit(
             session.key,
             export_files,
@@ -104,11 +105,11 @@ class PlotExporter(QObject):
     def _on_done(self, key: str, written: list[Path]) -> None:
         self.busy.end(f"export:{key}")
         names = ", ".join(p.name for p in written)
-        self.message.emit(f"Salvo em plots/: {names}", "info", 8000)
+        self.message.emit(_("Salvo em plots/: {names}").format(names=names), "info", 8000)
         self.finished.emit(written)
 
     def _on_failed(self, key: str, error: Exception) -> None:
         self.busy.end(f"export:{key}")
         if not isinstance(error, OSError | ValueError):
             log.error("export failed", exc_info=error)
-        QMessageBox.warning(self._dialog_parent, "Falha ao exportar", str(error))
+        QMessageBox.warning(self._dialog_parent, _("Falha ao exportar"), str(error))

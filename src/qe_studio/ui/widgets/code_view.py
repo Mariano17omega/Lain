@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import QPlainTextEdit, QTextEdit, QToolTip, QWidget
 
 from ...core.qe.input_lexer import LintIssue
 from ...core.textfile import LineMap
+from ...i18n import _
 from ..theme.manager import ThemeManager
 
 MAX_MATCHES = 5000  # a search past this stops: the counter shows "5000+"
@@ -61,7 +62,7 @@ class CodeView(QPlainTextEdit):
         self.setObjectName("textViewer")
         self.set_read_only(True)
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.setPlaceholderText("Carregando…")
+        self.setPlaceholderText(_("Carregando…"))
         self.text_document().setDocumentMargin(8)
         self._line_map = LineMap()
         self._numbers: Sequence[int | None] | None = None

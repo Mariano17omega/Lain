@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QLineEdit, QToolButton, QWidget
 
+from ...i18n import _
 from .code_view import MAX_MATCHES, CodeView
 
 TYPING_DELAY_MS = 200
@@ -42,14 +43,14 @@ class SearchBar(QWidget):
         layout.setContentsMargins(8, 3, 8, 3)
         layout.setSpacing(6)
         self.field = _SearchField()
-        self.field.setPlaceholderText("Buscar no texto")
+        self.field.setPlaceholderText(_("Buscar no texto"))
         self.field.setMinimumWidth(220)
-        self.previous = self._button("Anterior", "Anterior (Shift+Enter, Shift+F3)")
-        self.next = self._button("Próximo", "Próximo (Enter, F3)")
-        self.case = QCheckBox("Diferenciar maiúsculas")
+        self.previous = self._button(_("Anterior"), _("Anterior (Shift+Enter, Shift+F3)"))
+        self.next = self._button(_("Próximo"), _("Próximo (Enter, F3)"))
+        self.case = QCheckBox(_("Diferenciar maiúsculas"))
         self.counter = QLabel()
         self.counter.setObjectName("searchCounter")
-        self.close_button = self._button("Fechar", "Fechar (Esc)")
+        self.close_button = self._button(_("Fechar"), _("Fechar (Esc)"))
         for widget in (self.field, self.previous, self.next, self.case):
             layout.addWidget(widget)
         layout.addWidget(self.counter, 1)
@@ -132,10 +133,10 @@ class SearchBar(QWidget):
         if not self.field.text():
             text = ""
         elif not count:
-            text = "Nenhum resultado"
+            text = _("Nenhum resultado")
         else:
             total = f"{MAX_MATCHES}+" if self._capped else str(count)
-            text = f"{self.view.current_match + 1} de {total}"
+            text = _("{n} de {total}").format(n=self.view.current_match + 1, total=total)
         if text and self.view.line_map.truncated:
-            text += " (no trecho carregado)"
+            text += _(" (no trecho carregado)")
         self.counter.setText(text)

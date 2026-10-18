@@ -28,6 +28,7 @@ from ..core import cancel
 from ..core.fuzzy import fold
 from ..core.projects import ProjectError, create_project, list_projects, project_of
 from ..core.tasks import TaskGroup, run_task
+from ..i18n import _
 from .busy import BusyTracker
 from .dialogs.new_project import ask_new_project
 from .navigation_controller import NavigationController
@@ -41,7 +42,7 @@ log = logging.getLogger(__name__)
 SETTING = "explorer/project"  # the project's name; empty = "Todos os projetos"
 BUSY_KEY = "project:create"
 LIST_KEY = "projects:list"
-TITLE = "Criar projeto"
+TITLE = _("Criar projeto")
 
 
 class ProjectController(QObject):
@@ -143,7 +144,10 @@ class ProjectController(QObject):
         self.navigation.set_view_root(top)
         self.sync.set_project(top if self.project else None)
         self.combo.set_current(self.project)
-        where = f"Projeto: {self.project}" if self.project else f"Raiz: {self._root()}"
+        if self.project:
+            where = _("Projeto: {name}").format(name=self.project)
+        else:
+            where = _("Raiz: {path}").format(path=self._root())
         self._set_title(f"{APP_NAME} v{__version__} — [{where}]")
         self.project_changed.emit(top if self.project else None)
 
@@ -203,7 +207,9 @@ class ProjectController(QObject):
         expected, self._expected = self._expected, None  # only the first list checks the restore
         gone = [name for name in (expected, self.project) if name and name not in names]
         if gone:
-            self.message.emit(f"Projeto {gone[0]} não encontrado", "warning", 6000)
+            self.message.emit(
+                _("Projeto {name} não encontrado").format(name=gone[0]), "warning", 6000
+            )
             if self.project in gone:
                 self.switch(None)
         self.listed.emit(names)
@@ -218,7 +224,7 @@ class ProjectController(QObject):
             self.combo.restore()  # the dropdown goes back to the project it was on
             return
         self._creating = True
-        self.busy.begin(BUSY_KEY, "Criando projeto…")
+        self.busy.begin(BUSY_KEY, _("Criando projeto…"))
         run_task(
             create_project,
             self._root(),
@@ -235,7 +241,7 @@ class ProjectController(QObject):
         self._names = names
         self.combo.set_projects(names)
         self.switch(path.name)
-        self.toast.show_message(f"Projeto {path.name} criado", "success")
+        self.toast.show_message(_("Projeto {name} criado").format(name=path.name), "success")
         self.reload()
         self.created.emit(path)
 
@@ -247,7 +253,7 @@ class ProjectController(QObject):
             reason = str(exc)
         else:
             log.error("creating the project failed", exc_info=exc)
-            reason = f"Erro inesperado: {exc}"
+            reason = _("Erro inesperado: {error}").format(error=exc)
         QMessageBox.warning(self._dialog_parent, TITLE, reason)
         self.failed.emit(reason)
 

@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...i18n import _
 from ..painting import mono_font, ui_font
 from ..theme.manager import ThemeManager
 from ..theme.scale import scaled
@@ -114,7 +115,7 @@ class CommandPalette(QFrame):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
         self.edit = QLineEdit()
-        self.edit.setPlaceholderText("Digite um comando…   > ações   / pastas   @ abas")
+        self.edit.setPlaceholderText(_("Digite um comando…   > ações   / pastas   @ abas"))
         self.edit.installEventFilter(self)
         layout.addWidget(self.edit)
         self.model = QStandardItemModel(self)

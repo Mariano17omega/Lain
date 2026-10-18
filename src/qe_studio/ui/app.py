@@ -17,6 +17,7 @@ from .. import APP_NAME, __version__
 from ..core.appdirs import lock_path, log_path
 from ..core.config import ConfigError, load_config
 from ..core.plotting.style import register_fonts
+from ..i18n import _
 from .app_identity import configure_application
 from .excepthook import install_excepthook, set_excepthook_window
 from .language import install_qt_translator
@@ -79,7 +80,7 @@ def ask_open_anyway() -> bool:
     answer = QMessageBox.question(
         None,
         APP_NAME,
-        "O Lain já está aberto com esta configuração. Abrir mesmo assim?",
+        _("O Lain já está aberto com esta configuração. Abrir mesmo assim?"),
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )
@@ -132,8 +133,8 @@ def finish(
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="lain", description=APP_NAME)
-    parser.add_argument("--config", help="caminho do config.yaml")
-    parser.add_argument("--verbose", action="store_true", help="log detalhado")
+    parser.add_argument("--config", help=_("caminho do config.yaml"))
+    parser.add_argument("--verbose", action="store_true", help=_("log detalhado"))
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
     return parser.parse_args(argv)
 
@@ -152,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         loaded = load_config(args.config)
     except ConfigError as exc:
         ThemeManager("dark").apply(app)
-        QMessageBox.critical(None, "config.yaml inválido", str(exc))
+        QMessageBox.critical(None, _("config.yaml inválido"), str(exc))
         return 2
 
     mode = str(settings.value("ui/theme", loaded.config.ui.theme))

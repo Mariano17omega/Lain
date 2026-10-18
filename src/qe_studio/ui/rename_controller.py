@@ -18,12 +18,13 @@ from pathlib import Path
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
 from ..core.file_ops import overlaps, rename_item
+from ..i18n import _
 from .dialogs.rename import ask_rename
 
 log = logging.getLogger(__name__)
 
-TITLE = "Renomear"
-EXPORTING = "Há uma exportação de figura em andamento. Espere terminar e tente de novo."
+TITLE = _("Renomear")
+EXPORTING = _("Há uma exportação de figura em andamento. Espere terminar e tente de novo.")
 
 # What stops a rename: the path being renamed → why (Portuguese), or None.
 Blocker = Callable[[Path], str | None]
@@ -37,9 +38,16 @@ def sync_blocker(sync) -> Blocker:
         if folder is None or not overlaps(folder, path):
             return None
         scope = sync.scope
-        where = scope.relative if scope is not None and scope.relative else "toda a pasta raiz"
-        what = "um envio ao cluster" if scope is not None and scope.push else "uma sincronização"
-        return f"Há {what} em andamento em {where}. Espere terminar ou cancele."
+        where = scope.relative if scope is not None and scope.relative else _("toda a pasta raiz")
+        if scope is not None and scope.push:
+            template = _(
+                "Há um envio ao cluster em andamento em {where}. Espere terminar ou cancele."
+            )
+        else:
+            template = _(
+                "Há uma sincronização em andamento em {where}. Espere terminar ou cancele."
+            )
+        return template.format(where=where)
 
     return reason
 
@@ -56,7 +64,8 @@ def derive_blocker(derive) -> Blocker:
         output = derive.active_under(path)
         if output is None:
             return None
-        return f"Há um SCF convergido sendo gerado a partir de {output.name}. Espere terminar."
+        text = _("Há um SCF convergido sendo gerado a partir de {name}. Espere terminar.")
+        return text.format(name=output.name)
 
     return reason
 
@@ -66,7 +75,7 @@ def create_blocker(calc_create) -> Blocker:
         folder = calc_create.creating_under(path)
         if folder is None:
             return None
-        return f"Há um cálculo sendo criado em {folder.name}. Espere terminar."
+        return _("Há um cálculo sendo criado em {name}. Espere terminar.").format(name=folder.name)
 
     return reason
 
@@ -166,8 +175,9 @@ class RenameController:
             new = rename_item(path, name)
         except OSError as exc:
             log.warning("rename %s → %s failed: %s", path, name, exc)
+            text = _("Não foi possível renomear {name}: {error}")
             QMessageBox.warning(
-                self._parent, TITLE, f"Não foi possível renomear {path.name}: {exc.strerror or exc}"
+                self._parent, TITLE, text.format(name=path.name, error=exc.strerror or exc)
             )
             return
         self._close_tabs_under(path)
@@ -181,4 +191,4 @@ class RenameController:
             self._select_in_tree(new)
         if new.parent == self._grid_folder():
             self._select_in_grid(new)
-        self._message(f"Renomeado: {path.name} → {new.name}", 4000)
+        self._message(_("Renomeado: {old} → {new}").format(old=path.name, new=new.name), 4000)

@@ -21,11 +21,12 @@ from types import TracebackType
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from ..core.appdirs import log_path
+from ..i18n import _
 
 log = logging.getLogger("qe_studio")
 
 DEDUP_S = 10.0  # the same error inside this long after it was shown only counts
-TITLE = "Erro inesperado"
+TITLE = _("Erro inesperado")
 MAX_KEYS = 50  # kinds of error remembered
 SHORT_CHARS = 120  # of the error's text in the toast; the rest is in "Detalhes"
 
@@ -81,7 +82,11 @@ class ExceptionReporter:
             return
         if self._window is None:  # before the window: a failing start-up
             QMessageBox.critical(
-                None, TITLE, f"{kind.__name__}: {value}\n\nDetalhes no log ({log_path()})."
+                None,
+                TITLE,
+                _("{kind}: {value}\n\nDetalhes no log ({path}).").format(
+                    kind=kind.__name__, value=value, path=log_path()
+                ),
             )
             return
         window = self._window()
@@ -91,9 +96,11 @@ class ExceptionReporter:
         except RuntimeError:  # the Qt object is deleted already
             return
         short = str(value).splitlines()[0][:SHORT_CHARS] if str(value) else ""
-        text = f"{TITLE}: {kind.__name__}" + (f": {short}" if short else "") + " (ver o log)"
+        text = _("{title}: {kind}{short} (ver o log)").format(
+            title=TITLE, kind=kind.__name__, short=f": {short}" if short else ""
+        )
         trace = "".join(traceback.format_exception(kind, value, tb))
-        window.toast.show_message(text, "error", f"{trace}\nLog: {log_path()}")
+        window.toast.show_message(text, "error", f"{trace}\n{_('Log')}: {log_path()}")
 
 
 def _where(tb: TracebackType | None) -> str:

@@ -35,6 +35,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import QTextBrowser, QWidget
 
 from ...core.markdown_links import heading_slugs, link_action
+from ...i18n import _
 from ..painting import mono_font
 from ..theme.manager import ThemeManager
 
@@ -159,7 +160,9 @@ class MarkdownView(QTextBrowser):
         elif action.kind == "anchor":
             self.scroll_to_heading(action.target)
         else:
-            self.message.emit(f"Link não aberto: {action.target}", "warning", MESSAGE_MS)
+            self.message.emit(
+                _("Link não aberto: {target}").format(target=action.target), "warning", MESSAGE_MS
+            )
 
     def headings(self) -> list[tuple[str, QTextBlock]]:
         """(slug, block) of every heading, in document order."""

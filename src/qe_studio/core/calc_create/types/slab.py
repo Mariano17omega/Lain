@@ -193,7 +193,7 @@ class SlabType(VcRelaxType):
     def _kpoints(self, work: Work, editor: InputEditor, axis: str, facts: Facts) -> None:
         scf, typed = work.scf, work.values.get("kmesh")
         if typed is not None:  # written by ``edit``
-            facts.append(("k-points", f"{mesh_text(typed)} (digitada)"))
+            facts.append(("k-points", _("{mesh} (digitada)").format(mesh=mesh_text(typed))))
         elif scf.kmesh is not None:
             (first, second), _stack = AXES[axis]
             mesh = rescale_mesh(scf.kmesh, {0: first, 1: second})
@@ -233,7 +233,7 @@ def bond_notes(result: SlabResult, options: SlabOptions) -> list[str]:
     bonds = ", ".join(f"{label}–O" for label in left)
     return [
         ngettext(
-            "Ligação {bonds} cortada não foi completada: {metals} não está em '{label}'",
+            "Ligações {bonds} cortadas não foram completadas: {metals} não está em '{label}'",
             "Ligações {bonds} cortadas não foram completadas: {metals} não estão em '{label}'",
             len(left),
         ).format(bonds=bonds, metals=", ".join(left), label=METALS_LABEL)

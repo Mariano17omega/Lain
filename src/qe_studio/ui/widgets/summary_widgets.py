@@ -7,6 +7,7 @@ from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
 
 from ...core.qe.summary import SummaryRow, SummarySection
+from ...i18n import _
 from ..theme.manager import ThemeManager
 from .common import set_variant
 
@@ -49,7 +50,7 @@ class SummaryRowWidget(QWidget):
             self.toggle.setCheckable(True)
             self.toggle.setIconSize(QSize(12, 12))
             self.toggle.setFixedSize(INDENT, INDENT)
-            self.toggle.setToolTip("Mostrar ou ocultar os detalhes")
+            self.toggle.setToolTip(_("Mostrar ou ocultar os detalhes"))
             head.addWidget(self.toggle)
         else:
             head.addSpacing(INDENT + 6)
@@ -65,7 +66,9 @@ class SummaryRowWidget(QWidget):
         layout.addWidget(self.head)
         if row.line is not None:
             self.head.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.head.setToolTip(f"Duplo clique: abrir a saída na linha {row.line}")
+            self.head.setToolTip(
+                _("Duplo clique: abrir a saída na linha {line}").format(line=row.line)
+            )
             self.head.activated.connect(self._on_activated)
 
         self.details = QWidget()

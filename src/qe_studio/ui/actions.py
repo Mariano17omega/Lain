@@ -13,6 +13,8 @@ from typing import NamedTuple
 from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import QMainWindow
 
+from ..i18n import _
+
 
 class ActionSpec(NamedTuple):
     id: str
@@ -23,68 +25,86 @@ class ActionSpec(NamedTuple):
     separator_before: bool = False
 
 
+MENU_FILE = _("Arquivo")
+MENU_NAVIGATE = _("Navegar")
+MENU_CLUSTER = _("Cluster")
+MENU_PLOTS = _("Gráficos")
+MENU_TOOLS = _("Ferramentas")
+MENU_HELP = _("Ajuda")
+
+
 ACTIONS: tuple[ActionSpec, ...] = (
-    ActionSpec("files.refresh", "Arquivo", "Atualizar", "refresh", "F5"),
+    ActionSpec("files.refresh", MENU_FILE, _("Atualizar"), "refresh", "F5"),
     ActionSpec(
         "files.open_external",
-        "Arquivo",
-        "Abrir pasta no gerenciador de arquivos",
+        MENU_FILE,
+        _("Abrir pasta no gerenciador de arquivos"),
         "open_folder_externally",
     ),
-    ActionSpec("project.create", "Arquivo", "Criar projeto…", "project.open_new"),
-    ActionSpec("tabs.close", "Arquivo", "Fechar aba", "workspace.close_current", "Ctrl+W"),
-    ActionSpec("app.quit", "Arquivo", "Sair", "close", "Ctrl+Q", separator_before=True),
-    ActionSpec("nav.back", "Navegar", "Voltar", "navigation.back", "Alt+Left"),
-    ActionSpec("nav.forward", "Navegar", "Avançar", "navigation.forward", "Alt+Right"),
+    ActionSpec("project.create", MENU_FILE, _("Criar projeto…"), "project.open_new"),
+    ActionSpec("tabs.close", MENU_FILE, _("Fechar aba"), "workspace.close_current", "Ctrl+W"),
+    ActionSpec("app.quit", MENU_FILE, _("Sair"), "close", "Ctrl+Q", separator_before=True),
+    ActionSpec("nav.back", MENU_NAVIGATE, _("Voltar"), "navigation.back", "Alt+Left"),
+    ActionSpec("nav.forward", MENU_NAVIGATE, _("Avançar"), "navigation.forward", "Alt+Right"),
     ActionSpec(
         "focus.tree",
-        "Navegar",
-        "Ir para a árvore",
+        MENU_NAVIGATE,
+        _("Ir para a árvore"),
         "focus_areas.focus_tree",
         "Ctrl+1",
         separator_before=True,
     ),
-    ActionSpec("focus.grid", "Navegar", "Ir para a grade", "focus_areas.focus_grid", "Ctrl+2"),
     ActionSpec(
-        "focus.workspace", "Navegar", "Ir para o workspace", "focus_areas.focus_workspace", "Ctrl+3"
+        "focus.grid", MENU_NAVIGATE, _("Ir para a grade"), "focus_areas.focus_grid", "Ctrl+2"
     ),
     ActionSpec(
-        "focus.params", "Navegar", "Ir para os ajustes", "focus_areas.focus_params", "Ctrl+4"
+        "focus.workspace",
+        MENU_NAVIGATE,
+        _("Ir para o workspace"),
+        "focus_areas.focus_workspace",
+        "Ctrl+3",
+    ),
+    ActionSpec(
+        "focus.params", MENU_NAVIGATE, _("Ir para os ajustes"), "focus_areas.focus_params", "Ctrl+4"
     ),
     # "sync.start" says what it pulls: SyncCoordinator.show_scope renames it on every folder change.
-    ActionSpec("sync.start", "Cluster", "Sincronizar pasta selecionada", "sync.start_selected"),
+    ActionSpec(
+        "sync.start", MENU_CLUSTER, _("Sincronizar pasta selecionada"), "sync.start_selected"
+    ),
     # "sync.project" too: "Sincronizar projeto <nome>" with a project selected (spec 31 R5).
-    ActionSpec("sync.project", "Cluster", "Sincronizar tudo", "sync.start_project"),
+    ActionSpec("sync.project", MENU_CLUSTER, _("Sincronizar tudo"), "sync.start_project"),
     # "sync.push" too: "Enviar <pasta> ao cluster…", disabled at the root and at a project (spec 27, 31).
     ActionSpec(
         "sync.push",
-        "Cluster",
-        "Enviar pasta ao cluster…",
+        MENU_CLUSTER,
+        _("Enviar pasta ao cluster…"),
         "sync.start_push",
         separator_before=True,
     ),
-    ActionSpec("sync.test", "Cluster", "Testar conexão", "sync.check_connection"),
-    ActionSpec("plot.generate", "Gráficos", "Gerar gráfico", "generate_plot", "Ctrl+G"),
-    ActionSpec("plot.export", "Gráficos", "Exportar gráfico", "export_plot", "Ctrl+E"),
-    ActionSpec("grids.open", "Gráficos", "Grids…", "grids.open"),
-    ActionSpec("calc.create", "Ferramentas", "Criar cálculo…", "calc_create.open"),
+    ActionSpec("sync.test", MENU_CLUSTER, _("Testar conexão"), "sync.check_connection"),
+    ActionSpec("plot.generate", MENU_PLOTS, _("Gerar gráfico"), "generate_plot", "Ctrl+G"),
+    ActionSpec("plot.export", MENU_PLOTS, _("Exportar gráfico"), "export_plot", "Ctrl+E"),
+    ActionSpec("grids.open", MENU_PLOTS, _("Grids…"), "grids.open"),
+    ActionSpec("calc.create", MENU_TOOLS, _("Criar cálculo…"), "calc_create.open"),
     ActionSpec(
         "view.theme",
-        "Ferramentas",
-        "Alternar tema",
+        MENU_TOOLS,
+        _("Alternar tema"),
         "toggle_theme",
         "Ctrl+T",
         separator_before=True,
     ),
     ActionSpec(
-        "config.open", "Ferramentas", "Abrir config.yaml", "open_config", separator_before=True
+        "config.open", MENU_TOOLS, _("Abrir config.yaml"), "open_config", separator_before=True
     ),
-    ActionSpec("config.reload", "Ferramentas", "Recarregar config.yaml", "reload_config"),
-    ActionSpec("help.shortcuts", "Ajuda", "Atalhos de teclado", "help.show_shortcuts", "F1"),
-    ActionSpec("help.palette", "Ajuda", "Paleta de comandos", "command_palette.open", "Ctrl+K"),
-    ActionSpec("help.log", "Ajuda", "Abrir log", "help.open_log"),
-    ActionSpec("help.data", "Ajuda", "Abrir pasta de dados", "help.open_data_dir"),
-    ActionSpec("help.about", "Ajuda", "Sobre o Lain", "help.show_about"),
+    ActionSpec("config.reload", MENU_TOOLS, _("Recarregar config.yaml"), "reload_config"),
+    ActionSpec("help.shortcuts", MENU_HELP, _("Atalhos de teclado"), "help.show_shortcuts", "F1"),
+    ActionSpec(
+        "help.palette", MENU_HELP, _("Paleta de comandos"), "command_palette.open", "Ctrl+K"
+    ),
+    ActionSpec("help.log", MENU_HELP, _("Abrir log"), "help.open_log"),
+    ActionSpec("help.data", MENU_HELP, _("Abrir pasta de dados"), "help.open_data_dir"),
+    ActionSpec("help.about", MENU_HELP, _("Sobre o Lain"), "help.show_about"),
 )
 
 

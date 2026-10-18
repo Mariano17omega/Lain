@@ -62,8 +62,8 @@ SECTIONS = (
 )
 OPEN_BY_DEFAULT = ("atom", "measures", "display", "rotation")
 MIN_WIDTH = 260
-RESTORE_TITLE = "Restaurar padrões"
-RESTORE_QUESTION = "Voltar todas as opções e a câmera desta janela ao padrão?"
+RESTORE_TITLE = _("Restaurar padrões")
+RESTORE_QUESTION = _("Voltar todas as opções e a câmera desta janela ao padrão?")
 
 
 def ask_restore(parent: QWidget | None) -> bool:
@@ -118,7 +118,7 @@ class StructurePanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(PanelHeader(theme, "Estrutura", "bubble_chart"))
+        layout.addWidget(PanelHeader(theme, _("Estrutura"), "bubble_chart"))
         self.scroll_area = QScrollArea()
         self.scroll_area.setObjectName("structureScroll")
         self.scroll_area.setWidgetResizable(True)
@@ -136,7 +136,7 @@ class StructurePanel(QWidget):
         layout.addWidget(self.scroll_area, 1)
         self.restore_button = QPushButton(RESTORE_TITLE)
         self.restore_button.setObjectName("structureRestore")
-        self.restore_button.setToolTip("Voltar as opções, a câmera e a rotação ao padrão")
+        self.restore_button.setToolTip(_("Voltar as opções, a câmera e a rotação ao padrão"))
         self.restore_button.clicked.connect(self._restore_clicked)
         footer = QWidget()
         footer.setObjectName("structureFooter")
@@ -187,7 +187,7 @@ class StructurePanel(QWidget):
             spin = NoWheelSpinBox()
             spin.setRange(MIN_REPEAT, MAX_REPEAT)
             spin.setPrefix(f"{name} ")
-            spin.setAccessibleName(f"Repetição ao longo de {name}")
+            spin.setAccessibleName(_("Repetição ao longo de {name}").format(name=name))
             self.reps.append(spin)
             row.addWidget(spin)
         self.labels = _combo(LABEL_MODES)
@@ -199,25 +199,27 @@ class StructurePanel(QWidget):
         self.show_xyz, self.show_abc = QCheckBox(), QCheckBox()
         self.xyz_width = _decimal(MIN_AXIS_WIDTH, MAX_AXIS_WIDTH, 0.5, " px")
         self.abc_width = _decimal(MIN_AXIS_WIDTH, MAX_AXIS_WIDTH, 0.5, " px")
-        section.add_row("Estilo", self.style_choice)
-        section.add_row("Raio", self.radius, "Escala do raio dos átomos")
-        section.add_row("Fator de ligação", self.bond_factor, "Ligação: d < fator × (r₁ + r₂)")
-        section.add_row("Repetição", reps)
-        section.add_row("Rótulos", self.labels)
+        section.add_row(_("Estilo"), self.style_choice)
+        section.add_row(_("Raio"), self.radius, _("Escala do raio dos átomos"))
         section.add_row(
-            "Tamanho dos rótulos",
-            self.label_size,
-            "Tamanho do texto da vista: rótulos dos átomos e nomes dos eixos",
+            _("Fator de ligação"), self.bond_factor, _("Ligação: d < fator × (r₁ + r₂)")
         )
-        section.add_row("Fundo", self.background)
+        section.add_row(_("Repetição"), reps)
+        section.add_row(_("Rótulos"), self.labels)
+        section.add_row(
+            _("Tamanho dos rótulos"),
+            self.label_size,
+            _("Tamanho do texto da vista: rótulos dos átomos e nomes dos eixos"),
+        )
+        section.add_row(_("Fundo"), self.background)
         # the check boxes together, one after the other (spec 46 R2.3), then the widths they enable
-        section.add_row("Ligações", self.show_bonds)
-        section.add_row("Caixa da célula", self.show_cell)
-        section.add_row("Perspectiva", self.perspective)
-        section.add_row("Eixos x, y, z", self.show_xyz, "Triedro x, y, z do canto da vista")
-        section.add_row("Eixos a, b, c", self.show_abc, "Setas a, b, c da célula")
-        section.add_row("Espessura x, y, z", self.xyz_width, "Espessura do triedro x, y, z")
-        section.add_row("Espessura a, b, c", self.abc_width, "Espessura das setas a, b, c")
+        section.add_row(_("Ligações"), self.show_bonds)
+        section.add_row(_("Caixa da célula"), self.show_cell)
+        section.add_row(_("Perspectiva"), self.perspective)
+        section.add_row(_("Eixos x, y, z"), self.show_xyz, _("Triedro x, y, z do canto da vista"))
+        section.add_row(_("Eixos a, b, c"), self.show_abc, _("Setas a, b, c da célula"))
+        section.add_row(_("Espessura x, y, z"), self.xyz_width, _("Espessura do triedro x, y, z"))
+        section.add_row(_("Espessura a, b, c"), self.abc_width, _("Espessura das setas a, b, c"))
 
         for combo in (self.style_choice, self.labels, self.background):
             combo.currentIndexChanged.connect(self._changed)
@@ -303,9 +305,9 @@ class StructurePanel(QWidget):
             swatch = ColorButton(self._color_of(index))
             swatch.color_changed.connect(lambda color, i=index: self.set_species_color(i, color))
             name = f"{species.label} · {element.name}" if element.known else species.label
-            box = QCheckBox("Visível")
+            box = QCheckBox(_("Visível"))
             box.setChecked(index not in self.canvas.options.species_hidden)
-            box.setAccessibleName(f"{species.label} visível")
+            box.setAccessibleName(_("{name} visível").format(name=species.label))
             box.toggled.connect(lambda on, i=index: self.set_species_visible(i, on))
             line.addWidget(swatch)
             line.addWidget(QLabel(name), 1)
@@ -313,7 +315,7 @@ class StructurePanel(QWidget):
             section.add_full(row)
             self.swatches.append(swatch)
             self.visible.append(box)
-        restore = QPushButton("Restaurar cores")
+        restore = QPushButton(_("Restaurar cores"))
         restore.clicked.connect(self.restore_colors)
         section.add_full(restore)
 
@@ -357,7 +359,7 @@ class StructurePanel(QWidget):
         rows = [
             ("abc", "a, b, c (Å)", triple((a, b, c), 5), True),
             ("angles", "α, β, γ (°)", triple((alpha, beta, gamma), 3), True),
-            ("volume", "Volume (Å³)", f"{structure.volume:.4f}", True),
+            ("volume", _("Volume (Å³)"), f"{structure.volume:.4f}", True),
             ("a1", "a₁ (Å)", triple(structure.cell[0], 4), True),
             ("a2", "a₂ (Å)", triple(structure.cell[1], 4), True),
             ("a3", "a₃ (Å)", triple(structure.cell[2], 4), True),

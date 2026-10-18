@@ -16,13 +16,14 @@ from PyQt6.QtWidgets import QMessageBox, QWidget
 
 from ..core.qe.scf_from_relax import GeneratedScf, ScfError, generate_scf_file
 from ..core.tasks import TaskGroup
+from ..i18n import _
 from .busy import BusyTracker
 from .services import DetectionService
 from .widgets.toast import Toast
 
 log = logging.getLogger(__name__)
 
-TITLE = "Gerar SCF convergido"
+TITLE = _("Gerar SCF convergido")
 KEY_PREFIX = "scf:"  # of the busy label and of the task: one generation per output
 
 
@@ -72,7 +73,7 @@ class DeriveController(QObject):
         key = f"{KEY_PREFIX}{output}"
         if self._tasks.active(key) is not None:  # a second click while the first one writes
             return
-        self.busy.begin(key, "Gerando SCF convergido…")
+        self.busy.begin(key, _("Gerando SCF convergido…"))
         results = self.service.peek_results(output.parent)  # the relax_in role, if detected
         self._tasks.submit(
             key, generate_scf_file, output, results, on_done=self._on_done, on_error=self._on_error
@@ -83,7 +84,7 @@ class DeriveController(QObject):
         path = generated.path
         self.refresh(path.parent)
         details = "\n".join([str(path), *generated.warnings])
-        self.toast.show_message(f"{path.name} criado", "success", details)
+        self.toast.show_message(_("{name} criado").format(name=path.name), "success", details)
         self.generated.emit(path)
 
     def _on_error(self, key: str, exc: BaseException) -> None:
@@ -92,6 +93,6 @@ class DeriveController(QObject):
             reason = str(exc)
         else:
             log.error("generating the converged SCF failed", exc_info=exc)
-            reason = f"Erro inesperado: {exc}"
+            reason = _("Erro inesperado: {error}").format(error=exc)
         QMessageBox.warning(self.dialog_parent, TITLE, reason)
         self.failed.emit(reason)
