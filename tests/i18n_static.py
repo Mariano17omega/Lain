@@ -137,6 +137,13 @@ EXCEPTIONS: set[tuple[str, str]] = {
     ("core/calc_create/types/relax.py", "&IONS ion_dynamics"),
     ("core/calc_create/types/vc_relax.py", "&CELL cell_dynamics"),
     ("core/calc_create/types/script.py", "Pools (nk)"),  # QE's own term
+    # File data that does not follow the language (spec 55 R2, R3): a CSV column, the first line
+    # of a synced ``.plot``. The legend shows the sum of the atoms through its own ``_()``.
+    ("core/calculations/pdos/render.py", "Soma dos átomos selecionados"),
+    (
+        "core/plotting/plot_file.py",
+        "# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.\n",
+    ),
 }
 # Whole files whose accented literals are data (none yet).
 SKIPPED_FILES: set[str] = set()

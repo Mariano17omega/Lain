@@ -31,7 +31,7 @@ from ..plotting.draw import (
 from ..plotting.style import PlotStyle
 from ..qe.pairing import same_name_input
 from ..qe.pw_input import parse_input
-from ..qe.relax import QE_DEFAULT, RelaxData, read_relax
+from ..qe.relax import RelaxData, read_relax
 from ..sniff import FileKind, FileSniff
 from .base import (
     AxesLimits,
@@ -52,7 +52,7 @@ from .params import (
     SectionDef,
     apply_common_config,
 )
-from .relax_panels import cell_readout, cell_summary, draw_pressure, draw_volume
+from .relax_panels import cell_readout, cell_summary, default_note, draw_pressure, draw_volume
 
 if TYPE_CHECKING:
     from ..config import AppConfig
@@ -340,9 +340,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
     ) -> list:
         if not params.show_thresholds:
             return []
-        label = f"{name} = {value:.1e} {unit}" + (
-            f" ({QE_DEFAULT})" if source == QE_DEFAULT else ""
-        )
+        label = f"{name} = {value:.1e} {unit}" + default_note(source)
         ax.axhline(value, color=params.threshold_color, lw=1.0, ls=DASHED, zorder=3)
         return [Line2D([], [], color=params.threshold_color, lw=1.0, ls=DASHED, label=label)]
 

@@ -222,7 +222,9 @@ def _eigenvalues(
                 "só o canal ↓ ({name}) foi encontrado: mapeie-o como ↑ ou rode o bands.x com spin_component = 1"
             ).format(name=down_files[0].name)
         ]
-    raise LoadError(_("Não foi possível ler os autovalores:\n") + "\n".join(errors))
+    raise LoadError(
+        _("Não foi possível ler os autovalores:\n{errors}").format(errors="\n".join(errors))
+    )
 
 
 def _ticks(

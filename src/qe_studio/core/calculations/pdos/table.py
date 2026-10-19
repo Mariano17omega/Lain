@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from ....i18n import _
 from ...plotting.table import Column, PlotTable
 from ...qe import projwfc
 from .data import PdosDataset
 from .params import PdosParams
 from .render import reference, series_label, spin_mode, total_curve
 
-DOS_UNIT = _("estados/eV")
+# File data, not interface: a CSV column name does not follow the language, so a script that reads
+# the columns of an old file still finds them (spec 55 R2).
+DOS_UNIT = "estados/eV"
+MIRRORED = "espelhado"
 
 
 def pdos_table(
@@ -47,7 +49,7 @@ def pdos_table(
         else:  # mirror, overlay, up
             columns.append(Column(named(label, "↑" if spin else ""), curve.up))
             if down is not None and mode == "mirror":
-                columns.append(Column(named(label, "↓", _("espelhado")), -down))
+                columns.append(Column(named(label, "↓", MIRRORED), -down))
             elif down is not None and mode == "overlay":
                 columns.append(Column(named(label, "↓"), down))
 

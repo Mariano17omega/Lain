@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 55: a maior área (379 mensagens) e a única com texto **dentro das figuras** e em arquivos exportados; vem depois de 53 e 54 porque reusa o glossário e o vocabulário de física deles. Independente de 56–59. |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (18/10/2026). Ajustes ao texto: **(a)** mais texto traduzido ia para arquivo do que a spec previa, e o aceite "CSV idêntico em `pt_BR` e `en`" (R2.2) falharia sem corrigi-los. Além de `DOS_UNIT`: `bands/table.py` tinha `_("Banda {number}{mark} ({unit})")` (já traduzida no `.po`: o CSV das bandas já mudava em `en`), `pdos/table.py` `_("espelhado")` e `total_curve` devolvia `_("Soma dos átomos selecionados")`, que é legenda **e** nome de coluna. Viraram dado (`BAND_COLUMN`, `DOS_UNIT`, `MIRRORED`, `SELECTED_TOTAL`, literais em português com o motivo ao lado; a legenda traduz `SELECTED_TOTAL` por conta própria). Decisão do usuário: o `HEADER` do `.plot` (1ª linha, também já traduzido) é literal fixo, senão o arquivo sincronizado mudava de bytes com o idioma (R3.1). `test_no_translation_in_the_modules_that_make_tables` (AST) proíbe `_()` nos `table.py`. Só `SELECTED_TOTAL` e o `HEADER` têm acento e entram em `EXCEPTIONS` de `tests/i18n_static.py`; as outras não são acusadas. **(b)** Entregue pela 54: `core/calculations/relax.py:344` e `relax_panels.py:49` mostravam `f" ({QE_DEFAULT})"` sem `_()`, então a legenda do limiar dizia `padrão do QE` em inglês. `relax_panels.default_note` chama `_(QE_DEFAULT)` (declarado em `DYNAMIC`) e o cenário `figures` usa um vc-relax com os limiares marcados como padrão do QE. **(c)** São 375 mensagens na área (a spec dizia 379): 217 traduzidas, 1 `fuzzy` errada (`Não foi possível ler os autovalores:\n{errors}`, R1.3) e 2 corrigidas na revisão das já existentes (`Fonte dos títulos` era "Title source", mas é a fonte da letra: `Title font`; `grade de gráficos` dizia "graphs": glossário, `plots`). O `.mo` tem 1115 traduzidas e 396 em português. **(d)** `--plot-file` virou `--plot-dir`: a pasta onde o primeiro idioma grava um `<kind>.plot` por caso (bandas, bandas com spin, PDOS, PDOS com spin, relax, SCF, bandas com DOS, todos os `choice` trocados) e o seguinte os lê e grava de novo; o teste exige texto igual nos dois e igual ao original. Bandas também passa pela janela (`mark` + `flush_now`). **(e)** `figures` liga a legenda (por padrão só PDOS, relax e SCF a têm) e roda também as bandas com spin por ocupação, a PDOS com a soma dos átomos escolhidos, o SCF sem painel, uma grade com célula que não abre e o vc-relax acima; o texto vem de todo `matplotlib.text.Text` e do rodapé. `csv` devolve o cabeçalho e um digest de cada CSV e o `plan_export` de cada caso. **(f)** `test_choice_values_are_not_labels` compara com os rótulos traduzidos **dos `choice`**, não com todo `msgstr`: `absolute` (valor de `reference`) coincidia com o `absolute` de `absoluta` do SCF, que é outro campo. **(g)** Os cenários ficaram em `tests/i18n_scenarios_55.py` (465 linhas) e entram no `SCENARIOS` do probe; `tests/test_i18n.py` tem 753 linhas (a regra dos 500 é de `src/`). **(h)** Passo manual: conferido sem tela (bandas com spin, PDOS de um átomo, vc-relax, SCF e bandas com DOS exportados em `en` e `pt_BR`: os três CSV saem idênticos byte a byte; os PNG em inglês, sem texto em português e sem legenda cortada); abrir um projeto real no `uv run lain` com `QE_STUDIO_LANGUAGE=en` fica para o usuário. Medido: 4068 passed, 2 skipped na suíte da CI (4052 na 54); `tests/i18n_probe.py` 378 linhas. |
 | **Depende de** | spec 52 (portão, probe, glossário); spec 54 R1.2 (vocabulário de física); spec 32 (CSV da exportação), spec 49 (botão "Gerar") |
 | **Usada por** | 60 |
 | **Esforço** | G (R1: M; R2 a R4: P cada) |
@@ -117,10 +117,10 @@ em `params.py`, `base.py`, `relax*.py`, `scf.py`, `info.py`).
 
 ## Critérios de aceite e testes
 
-- [ ] Goldens e `test_figure_regression.py` passam sem regenerar; `test_choice_values_are_not_labels` verde.
-- [ ] `check --area 55` vazio; `test_untranslated_only_in_pending_areas` passa com a área em `DONE`.
-- [ ] CSV e nome de exportação idênticos em `pt_BR` e `en` (R2.2); `.plot` idêntico nos dois idiomas (R3.1).
-- [ ] `test_figure_text_in_english` e `test_no_leaks_in_english` para os cenários de R4.1.
-- [ ] `Method.label` em `en`; `.value` intacto (R3.3).
-- [ ] Plurais da área com as duas formas.
-- [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+- [x] Goldens e `test_figure_regression.py` passam sem regenerar; `test_choice_values_are_not_labels` verde.
+- [x] `check --area 55` vazio; `test_untranslated_only_in_pending_areas` passa com a área em `DONE`.
+- [x] CSV e nome de exportação idênticos em `pt_BR` e `en` (R2.2); `.plot` idêntico nos dois idiomas (R3.1).
+- [x] `test_figure_text_in_english` e `test_no_leaks_in_english` para os cenários de R4.1.
+- [x] `Method.label` em `en`; `.value` intacto (R3.3).
+- [x] Plurais da área com as duas formas.
+- [x] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.

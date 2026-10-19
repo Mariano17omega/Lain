@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import numpy as np
 
-from ....i18n import _
 from ...plotting.table import Column, PlotTable
 from .data import BandsDataset
 from .params import ENERGY_NAMES, BandsParams
 from .render import SYMBOL, shown_channels
 
 K_UNIT = "2π/alat"  # the x of bands.x (``BandData.x``)
+# File data, not interface: a CSV column name does not follow the language (spec 55 R2).
+BAND_COLUMN = "Banda {number}{mark} ({unit})"
 
 
 def bands_table(dataset: BandsDataset, params: BandsParams) -> PlotTable:
@@ -33,7 +34,7 @@ def bands_table(dataset: BandsDataset, params: BandsParams) -> PlotTable:
         energies = band.energies - ref
         columns += [
             Column(
-                _("Banda {number}{mark} ({unit})").format(number=number, mark=mark, unit=unit),
+                BAND_COLUMN.format(number=number, mark=mark, unit=unit),
                 energy,
             )
             for number, energy in enumerate(energies, start=1)

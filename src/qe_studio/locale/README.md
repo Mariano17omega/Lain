@@ -41,11 +41,18 @@ In the code:
 - The code in a sentence (`lost_code_tokens`): in a finished area a translation keeps, as the source
   writes them, the namelists (`&SYSTEM`), command-line options (`-pe`), `JOB DONE`, `#!`, cards and
   variables (`CELL_PARAMETERS`, `celldm(1)`), backticked spans and escapes (`\r`).
+- Data does not follow the language. What other tools read stays as the source writes it: the columns
+  of a CSV (`Banda 1 (E−E_F, eV)`, `estados/eV`), the first line and the values of a `.plot`, the names
+  of the exported files, the stored value of a `choice` (`ParamField.choices` is `(value, label)`:
+  only the label goes through `_()`). Such a literal is Portuguese on purpose and goes into the
+  `EXCEPTIONS` of `tests/i18n_static.py` with the reason; the probe's `csv` and `plot_files` scenarios
+  compare what is written between the languages. A data token shown to the user (`N_("padrão do QE")`)
+  is translated where it is shown, once.
 - The leak probe: `tests/i18n_probe.py` opens the window in a language, in a process of its own, and
   lists the texts of every widget. A text equal to a translated `msgid` is a leak: it reached the
   screen without `_()`. Each spec adds the scenarios of its area to `SCENARIOS`. Painted text (the
   badges of the tree and the grid, figures, the 3D view) belongs to no widget: the spec of its area
-  tests it through its model.
+  tests it through its model (the `figures` scenario asks matplotlib for the text of every artist).
 - `uv run python scripts/screenshot.py --language en` renders the window in English
   (`main_dark_en.png`).
 
@@ -78,6 +85,7 @@ The fixed terms of the interface, the same in every message.
 | Alargamento | Smearing |
 | Arquivo | File |
 | Árvore | Tree |
+| Átomo | Atom |
 | Atualizar | Refresh |
 | Autovalores | Eigenvalues |
 | Aviso / AVISO | Warning / WARNING |
@@ -96,6 +104,7 @@ The fixed terms of the interface, the same in every message.
 | Enviar (ao cluster) | Upload (to the cluster) |
 | Entrada / Saída (de um programa do QE) | Input / Output |
 | Erro / ERRO | Error / ERROR |
+| Espécie | Species |
 | Excluir | Delete |
 | Explorador de pastas | Folder explorer |
 | Exportar | Export |
@@ -109,7 +118,10 @@ The fixed terms of the interface, the same in every message.
 | Grade (de arquivos) | Grid |
 | Grids (gráficos numa grade N×M) | Grids |
 | Iteração (dentro de um SCF) | SCF iteration |
+| Limiar (de convergência) | Threshold |
+| Painel (do gráfico) | Panel |
 | Paralelização | Parallelization |
+| Passo (do BFGS) | BFGS step |
 | Pasta | Folder |
 | Plotar | Plot |
 | Pontos k, k-pontos | k-points |

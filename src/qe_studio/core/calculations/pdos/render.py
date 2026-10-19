@@ -169,7 +169,10 @@ def draw_pdos(
 
     total, total_label = total_curve(data, params)
     if params.show_total and total is not None:
-        channel(total, params.total_color or style.total_dos, total_label, params.line_width, 0.12)
+        legend_name = (
+            _("Soma dos átomos selecionados") if total_label == SELECTED_TOTAL else total_label
+        )
+        channel(total, params.total_color or style.total_dos, legend_name, params.line_width, 0.12)
     colors = series_colors(dataset, params, style)
     for key, ch in projwfc.aggregate(data, params.grouping, params.atoms).items():
         label = series_label(key)
@@ -206,11 +209,17 @@ def draw_pdos(
     return dos_lim
 
 
+# The name of the sum of the chosen atoms: file data (the CSV column), so it does not follow the
+# language; the legend shows it through ``_()`` (spec 55 R2).
+SELECTED_TOTAL = "Soma dos átomos selecionados"
+
+
 def total_curve(data: projwfc.PdosData, params: PdosParams) -> tuple[projwfc.Channel | None, str]:
-    """The "DOS total" curve and its legend label. pdos_tot holds every atom, which would mislead
-    next to a subset of them: then it is the sum of what is drawn."""
+    """The "DOS total" curve and its name (the legend shows ``SELECTED_TOTAL`` translated). pdos_tot
+    holds every atom, which would mislead next to a subset of them: then it is the sum of what is
+    drawn."""
     if params.atoms is not None:
-        return projwfc.selected_total(data, params.atoms), _("Soma dos átomos selecionados")
+        return projwfc.selected_total(data, params.atoms), SELECTED_TOTAL
     return data.total, "Total (Σ PDOS)" if data.total_is_sum else "Total"
 
 

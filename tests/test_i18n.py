@@ -11,6 +11,11 @@ already is shown in Portuguese.
 
 from __future__ import annotations
 
+import ast
+import re
+import tempfile
+from pathlib import Path
+
 import pytest
 from babel.messages.mofile import read_mo
 
@@ -279,12 +284,14 @@ def test_a_local_underscore_is_found():
 
 # The marker calls whose message is not a literal. The extraction cannot see them: the data they get
 # must be marked with N_ where it is defined, and the spec of the area tests it in English at run
-# time (53: filter_bar; 55: param_widgets, Method.label; 56: form.py; 57: adsorption.py). A new one
+# time (53: filter_bar; 55: param_widgets, Method.label, the relax thresholds' "QE default"; 56:
+# form.py; 57: adsorption.py). A new one
 # goes here, with that test.
 DYNAMIC = [
     ("core/calc_create/types/adsorption.py", "FROM_COORDS"),
     ("core/calc_create/types/adsorption.py", "FROM_LIST"),
     ("core/calculations/base.py", "self.value"),
+    ("core/calculations/relax_panels.py", "QE_DEFAULT"),
     ("ui/dialogs/calc_create/form.py", "choice"),
     ("ui/widgets/filter_bar.py", "value"),
     ("ui/widgets/filter_bar.py", "value"),
@@ -303,8 +310,22 @@ MENUS = ["Arquivo", "Navegar", "Cluster", "Gráficos", "Ferramentas", "Ajuda"]
 SIDE_BAR = ["Árvore", "Grade", "Plot", "Grids", "Rsync", "Criar", "Tema"]
 # Spec 54: the viewers (text, input, diff, Markdown, .qsub) and the Resumo.
 AREA_54 = ["text_viewer", "input_viewer", "diff", "summary", "markdown", "qsub"]
+# Spec 55: the plots (adjustments panel of each module), the atoms, the Grids, the export and the
+# roles of the detected files. ``figures`` and ``csv`` are facts: what is drawn and written.
+AREA_55 = [
+    "params_bands",
+    "params_pdos",
+    "params_bands_dos",
+    "params_relax",
+    "params_scf",
+    "atoms_dialog",
+    "grid_dialog",
+    "export",
+    "files_roles",
+]
+FACTS_55 = ["figures", "csv"]
 # The scenarios with texts to check for leaks: spec 52's two, spec 53's eleven (the window, its
-# menus and the general dialogs), spec 54's six. The next specs of the series add theirs.
+# menus and the general dialogs), spec 54's six, spec 55's nine. The next specs of the series add theirs.
 LEAK_SCENARIOS = [
     "main",
     "plot",
@@ -319,6 +340,7 @@ LEAK_SCENARIOS = [
     "toast",
     "tree",
     *AREA_54,
+    *AREA_55,
     "first_run",
 ]
 # What no widget shows (the probe's "facts"). They run before ``first_run``, whose overlay stays on.
@@ -327,13 +349,16 @@ FACT_SCENARIOS = ["menus", "cli", "config", "restart", "type_filter", "lint"]
 
 @pytest.fixture(scope="module")
 def english():
-    order = [*LEAK_SCENARIOS[:-1], *FACT_SCENARIOS, LEAK_SCENARIOS[-1]]
+    order = [*LEAK_SCENARIOS[:-1], *FACT_SCENARIOS, *FACTS_55, LEAK_SCENARIOS[-1]]
     return probe_texts("en", *order)
 
 
 @pytest.fixture(scope="module")
 def portuguese():
-    return probe_texts("pt_BR", "main", "shortcuts", "tree", *AREA_54, *FACT_SCENARIOS)
+    dialogs_55 = AREA_55[5:]  # the scenarios whose facts are compared with the English ones
+    return probe_texts(
+        "pt_BR", "main", "shortcuts", "tree", *AREA_54, *FACT_SCENARIOS, *dialogs_55, *FACTS_55
+    )
 
 
 @pytest.mark.parametrize("scenario", LEAK_SCENARIOS)
@@ -422,6 +447,31 @@ def test_the_plurals_of_the_area_have_both_forms(po):
     lattice = ("nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha",)
     [(source, strings)] = [(k, v) for k, v in forms.items() if k[0] == lattice[0]]
     assert len(source) == len(strings) == 2 and all(strings)
+
+    # Spec 55: the counts of the plots (grid, relax, SCF).
+    assert forms[("{drawn} gráfico", "{drawn} gráficos")] == ("{drawn} plot", "{drawn} plots")
+    assert forms[("{moves} passo BFGS", "{moves} passos BFGS")] == (
+        "{moves} BFGS step",
+        "{moves} BFGS steps",
+    )
+    assert forms[("{count} iteração", "{count} iterações")] == (
+        "{count} iteration",
+        "{count} iterations",
+    )
+    assert forms[
+        (
+            "{truncated_steps} passo incompleto ignorado",
+            "{truncated_steps} passos incompletos ignorados",
+        )
+    ] == ("{truncated_steps} incomplete step ignored", "{truncated_steps} incomplete steps ignored")
+    area_55 = [
+        message
+        for message in tool.messages(po)
+        if len(tool.sources(message)) == 2
+        and any(area_of(filename) == 55 for filename, _line in message.locations)
+    ]
+    assert area_55  # the area has plurals, and each has two forms that differ
+    assert [tool.sources(m)[0] for m in area_55 if len(set(tool.forms(m))) != 2] == []
 
 
 # -- spec 54: the viewers and the reading of the QE outputs ------------------------------------------
@@ -539,3 +589,165 @@ def test_the_summary_follows_the_language(english, portuguese):
 def test_a_refused_markdown_link_says_so_in_the_language(english, portuguese):
     assert english["markdown#facts"] == ["Link not opened: outro.md"]
     assert portuguese["markdown#facts"] == ["Link não aberto: outro.md"]
+
+
+# -- spec 55: the plots, the atoms, the Grids and the export ---------------------------------------
+LABELS_55 = {"Valence", "Conduction", "BFGS step", "PDOS (states/eV)", "SCF iteration"}
+SOURCE_LABELS_55 = {"Valência", "Condução", "Passo BFGS", "PDOS (estados/eV)", "Iteração SCF"}
+
+
+def test_figure_text_in_english(english, portuguese, po):
+    """The text *inside* the figures follows the language (spec_end): no widget shows it, so the
+    probe asks matplotlib for the text of every artist."""
+    drawn = set(english["figures#facts"])
+    assert leaks(english["figures#facts"], po) == []
+    assert drawn >= LABELS_55
+    assert {"Sum of the selected atoms", "No panel selected", "↑ solid", "↓ dashed"} <= drawn
+    assert any(text.startswith("Plot unavailable: ") for text in drawn)
+    # A threshold the run did not state is named in the legend with the data token translated.
+    assert any(text.endswith("(QE default)") for text in drawn)
+    assert not [text for text in drawn if "padrão do QE" in text]
+    assert not SOURCE_LABELS_55 & drawn
+    # What is maths or a unit is the same in both languages.
+    assert {"$E - E_F$ (eV)", "|ΔE| (Ry)", "Spin ↑", "Spin ↓"} <= drawn
+    in_portuguese = set(portuguese["figures#facts"])
+    assert any(text.endswith("(padrão do QE)") for text in in_portuguese)
+    assert in_portuguese >= SOURCE_LABELS_55 and not LABELS_55 & in_portuguese
+
+
+def test_the_csv_and_the_export_names_do_not_follow_the_language(english, portuguese):
+    """A script that reads the columns of an old CSV keeps finding them (spec 55 R2): the header and
+    the whole text (a digest), and the files ``plan_export`` names, are the same in both languages."""
+    assert english["csv#facts"] == portuguese["csv#facts"]
+    shown = "\n".join(english["csv#facts"])
+    for column in (
+        "Banda 1 (E−E_F, eV)",
+        "Total (estados/eV)",
+        "Soma dos átomos selecionados (estados/eV)",
+        "↓ (estados/eV, espelhado)",
+    ):
+        assert column in shown
+    assert not re.search(r"\b(Band \d|states/eV|mirrored|Sum of)", shown)
+    names = ["name: 03_bands-bands.png", "name: 03_bands-bands.svg", "name: 03_bands-bands.pdf"]
+    for facts in (english["export#facts"], portuguese["export#facts"]):
+        assert [f for f in facts if f.startswith("name:")] == [
+            *names,
+            "name: 03_bands-bands.csv",
+            "name: next 03_bands-bands_2",
+        ]
+    assert "message: Export cancelled." in english["export#facts"]
+    assert "message: Exportação cancelada." in portuguese["export#facts"]
+
+
+def test_no_translation_in_the_modules_that_make_tables():
+    """The columns of a CSV are data: the modules that name them never call ``_()`` (R2.1)."""
+    modules = sorted(SOURCE.glob("core/calculations/**/table.py")) + [
+        SOURCE / "core/plotting/table.py"
+    ]
+    assert len(modules) >= 4
+    markers = {"_", "N_", "ngettext", "pgettext"}
+    found = [
+        f"{path.relative_to(SOURCE)}:{node.lineno}"
+        for path in modules
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, ast.Call)
+        and (getattr(node.func, "id", None) or getattr(node.func, "attr", None)) in markers
+    ]
+    assert found == []
+
+
+@pytest.fixture(scope="module")
+def plot_files(tmp_path_factory):
+    """The ``plot_files`` facts: ``pt_BR`` writes a ``<kind>.plot`` per module (every choice
+    changed), then ``en`` reads those files and writes them again."""
+    where = tmp_path_factory.mktemp("plot_files")
+    first = probe_texts("pt_BR", "plot_files", plot_dir=where)["plot_files#facts"]
+    second = probe_texts("en", "plot_files", plot_dir=where)["plot_files#facts"]
+    return first, second
+
+
+def test_the_plot_files_do_not_follow_the_language(plot_files):
+    """A ``.plot`` written in Portuguese is read and written again in English byte for byte (R3.1):
+    values, choices and the header are data. The last fact is the real way, ``flush_now``."""
+    in_portuguese, in_english = plot_files
+    assert in_english == in_portuguese
+    *cases, window = in_english
+    assert len(cases) == 21  # seven modules, three facts each
+    for changed, original, again in zip(cases[0::3], cases[1::3], cases[2::3], strict=True):
+        assert changed.endswith("]") and not changed.endswith(" []"), changed  # choices did change
+        file_before, file_after = original.partition(":\n")[2], again.partition(":\n")[2]
+        assert file_before == file_after and file_before.startswith("# Lain: ajustes do gráfico.")
+    assert window.partition(":\n")[2] == cases[1].partition(":\n")[2]
+
+
+def test_choice_values_are_not_labels(po):
+    """A ``choice`` is saved by value and shown by label, so no value of a module may be the English
+    label of a choice: a Portuguese value that equalled one would mean the data was translated
+    (spec 55 R3.2)."""
+    from i18n_scenarios_55 import CASES, build
+
+    english = {
+        tool.sources(message)[0]: tool.forms(message)[0]
+        for message in tool.messages(po)
+        if tool.is_translated(message)
+    }
+    choices = []  # (where, value, label)
+    with tempfile.TemporaryDirectory(prefix="lain-i18n-choices-") as where:
+        for case in CASES:
+            session = build(case, Path(where))
+            for field in session.module.param_schema(session.dataset):
+                if field.kind == "choice":
+                    choices += [(f"{case}.{field.name}", v, label) for v, label in field.choices]
+    shown = {english.get(label, label) for _where, _value, label in choices}
+    assert len(choices) > 40 and "Absolute" in shown  # there is something to compare
+    assert [
+        f"{where}: {value!r}"
+        for where, value, _label in choices
+        if isinstance(value, str) and value in shown
+    ] == []
+
+
+def test_method_label_in_english(english, portuguese):
+    """``Method.label`` is shown, ``.value`` is the data (it stays Portuguese) and never reaches
+    the screen (spec 55 R3.3)."""
+    assert english["files_roles#facts"][:4] == [
+        "nome = name",
+        "conteúdo = content",
+        "inferido = inferred",
+        "manual = manual",
+    ]
+    assert portuguese["files_roles#facts"][:4] == [
+        "nome = nome",
+        "conteúdo = conteúdo",
+        "inferido = inferido",
+        "manual = manual",
+    ]
+    shown = english["files_roles"]
+    assert any(text.endswith("(detected by name)") for text in shown)
+    assert any(text.endswith("(detected by content)") for text in shown)
+    assert not [text for text in shown if re.search(r"\(detected by (nome|conteúdo)", text)]
+    assert any(text.endswith("(detectado por nome)") for text in portuguese["files_roles"])
+
+
+def test_the_atoms_and_grids_windows_speak_english(english, portuguese):
+    assert english["atoms_dialog#facts"] == [
+        "Atoms of Al",
+        "0 of 1 marked",
+        "Mark at least one atom",
+    ]
+    assert portuguese["atoms_dialog#facts"] == [
+        "Átomos de Al",
+        "0 de 1 marcados",
+        "Marque ao menos um átomo",
+    ]
+    grid = english["grid_dialog#facts"]
+    assert grid[:5] == [
+        "Could not open the grid “inexistente”.",
+        "There is no saved grid named “1”.",
+        "Cells 1 and 2 are at the same position (1, 1).",
+        "Grid “1” saved.",
+        "Grid “1” opened.",
+    ]
+    assert "Cell 1: position (1, 2) is outside the 1 × 1 grid." in grid
+    assert "Rows and columns range from 1 to 6." in grid
+    assert "Grade “1” salva." in portuguese["grid_dialog#facts"]

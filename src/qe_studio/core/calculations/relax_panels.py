@@ -32,6 +32,12 @@ def _line_panel(
     style_axes(ax, style)
 
 
+def default_note(source: str) -> str:
+    """`` (QE default)`` for a threshold the run did not state: ``QE_DEFAULT`` is data (kept
+    Portuguese in the dataset), shown through ``_()``."""
+    return f" ({_(QE_DEFAULT)})" if source == QE_DEFAULT else ""
+
+
 def draw_pressure(ax: Axes, data: RelaxData, params: RelaxParams, style: PlotStyle) -> list:
     """Pressure of each step's SCF (linear: it changes sign), with the ``press_conv_thr`` band
     around the target pressure. Steps without a pressure are skipped."""
@@ -45,9 +51,7 @@ def draw_pressure(ax: Axes, data: RelaxData, params: RelaxParams, style: PlotSty
     target, threshold = data.target_pressure_kbar, data.pressure_threshold
     for edge in (target - threshold, target + threshold):
         ax.axhline(edge, color=params.threshold_color, lw=1.0, ls=DASHED, zorder=3)
-    label = f"press_conv_thr = {threshold:.1e} kbar" + (
-        f" ({QE_DEFAULT})" if data.pressure_threshold_source == QE_DEFAULT else ""
-    )
+    label = f"press_conv_thr = {threshold:.1e} kbar" + default_note(data.pressure_threshold_source)
     return [Line2D([], [], color=params.threshold_color, lw=1.0, ls=DASHED, label=label)]
 
 

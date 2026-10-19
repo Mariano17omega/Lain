@@ -30,12 +30,14 @@ def script() -> ModuleType:
 
 
 def probe_texts(
-    language: str, *scenarios: str, project: Path | None = None
+    language: str, *scenarios: str, project: Path | None = None, plot_dir: Path | None = None
 ) -> dict[str, list[str]]:
     """``{scenario: texts}`` of the window in ``language``, from ``tests/i18n_probe.py``."""
     command = [sys.executable, str(PROBE), "--language", language]
     if project is not None:
         command += ["--project", str(project)]
+    if plot_dir is not None:
+        command += ["--plot-dir", str(plot_dir)]
     for scenario in scenarios:
         command += ["--scenario", scenario]
     done = subprocess.run(

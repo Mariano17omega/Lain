@@ -33,7 +33,8 @@ log = logging.getLogger(__name__)
 
 FORMAT_VERSION = 1
 SUFFIX = ".plot"
-HEADER = _("# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.\n")
+# File data, not interface: a synced ``.plot`` is the same bytes whatever the language (spec 55 R3).
+HEADER = "# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.\n"
 
 
 class WriteOrder:

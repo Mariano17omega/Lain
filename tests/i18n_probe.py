@@ -11,7 +11,7 @@ pages and every menu included), as in ``widget_texts``. Painted text (the badges
 grid, figures, the 3D view) belongs to no widget: the spec of each area tests it through its model.
 
 A spec of the series adds its scenarios to ``SCENARIOS`` (spec 54's are in
-``tests/i18n_scenarios_54.py``, merged below): a function ``(window, project)`` that
+``tests/i18n_scenarios_54.py``, spec 55's in ``tests/i18n_scenarios_55.py``, merged below): a function ``(window, project)`` that
 brings the window to what is checked, opening dialogs without ``exec()`` (a modal loop would wait
 forever). An unexpected exception ends the process with code 1 and the traceback on stderr: the
 app's excepthook would open a modal box instead. The last line of stdout is ``{scenario: [texts]}``.
@@ -34,7 +34,9 @@ import tempfile
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+import i18n_scenarios_55
 from i18n_scenarios_54 import SCENARIOS as SCENARIOS_54
+from i18n_scenarios_55 import SCENARIOS as SCENARIOS_55
 from qe_studio import i18n  # no texts: the language is installed before the modules that have them
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -256,6 +258,7 @@ SCENARIOS: dict[str, Callable[..., list[str] | None]] = {
     "restart": restart_scenario,
     "type_filter": type_filter_scenario,
     **SCENARIOS_54,  # spec 54: the viewers and the Resumo (tests/i18n_scenarios_54.py)
+    **SCENARIOS_55,  # spec 55: the plots, the atoms, the Grids and the export (…_55.py)
 }
 
 
@@ -330,6 +333,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--language", required=True, choices=i18n.LANGUAGES)
     parser.add_argument("--project", type=Path, help="default: the screenshots' demo project")
+    parser.add_argument(
+        "--plot-dir",
+        type=Path,
+        help="where the plot_files scenario keeps its .plot files: the first language writes them",
+    )
     parser.add_argument("--scenario", action="append", required=True, choices=list(SCENARIOS))
     args = parser.parse_args(argv)
 
@@ -337,6 +345,7 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
     for name in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):
         os.environ[name] = str(tmp / name.lower())
+    i18n_scenarios_55.PLOT_DIR = args.plot_dir
     i18n.install(args.language)  # before the modules with texts are imported
     sys.excepthook = crash
 
