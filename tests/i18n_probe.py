@@ -43,6 +43,7 @@ from i18n_scenarios_56 import SCENARIOS as SCENARIOS_56
 from i18n_scenarios_57 import SCENARIOS as SCENARIOS_57
 from i18n_scenarios_58 import SCENARIOS as SCENARIOS_58
 from i18n_scenarios_59 import SCENARIOS as SCENARIOS_59
+from i18n_scenarios_60 import SCENARIOS as SCENARIOS_60
 from qe_studio import i18n  # no texts: the language is installed before the modules that have them
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -277,6 +278,7 @@ SCENARIOS: dict[str, Callable[..., list[str] | None]] = {
     **SCENARIOS_57,  # spec 57: the fields and checks of each type, the files of a Slab (…_57.py)
     **SCENARIOS_58,  # spec 58: the sync window, its reports, menu and failures (…_58.py)
     **SCENARIOS_59,  # spec 59: the 3D window, panel, measures and Print (…_59.py)
+    **SCENARIOS_60,  # spec 60: what is persisted, and the files of before the series (…_60.py)
 }
 
 

@@ -21,7 +21,7 @@ requirements, [`specs/README.md`](specs/README.md) for the index of change specs
   plotted data next to bands, PDOS and bands + DOS figures; existing files are never replaced without asking.
 - **Pull-only cluster sync** over rsync + ssh with configurable excludes (`tmp/`, `*.save/`,
   wavefunctions, …), a per-file conflict prompt and a cancellable progress dialog.
-- **Dark, light and system themes** (`ui.font_scale` for bigger text, AA contrast, visible keyboard focus, Ctrl+1..4), Inter + JetBrains Mono, Portuguese UI.
+- **Dark, light and system themes** (`ui.font_scale` for bigger text, AA contrast, visible keyboard focus, Ctrl+1..4), Inter + JetBrains Mono, Portuguese or English UI (see [Language](#language)).
 
 ## Setup
 
@@ -214,6 +214,27 @@ a pull.
    deletes it. A `.plot` that older versions left in the simulation folder itself is no longer read.
 4. **Rsync** pulls the folder from the cluster.
 
+## Language
+
+The interface is in Portuguese or English. Set `ui.language` in `config.yaml`:
+
+- `auto` (default): follows the system language, `pt_BR` for Portuguese (`pt*`) and `en` for anything else;
+- `pt_BR` or `en`: fixed.
+
+The environment variables `QE_STUDIO_LANGUAGE` and `LAIN_LANGUAGE` (`pt_BR`, `en` or `auto`) override the file; the first
+wins when both are set. The language is chosen when Lain starts, so after changing it restart Lain ("Recarregar
+config.yaml" only tells you so). The option reaches the command line too: `lain --help` is in the language
+chosen.
+
+What Lain writes follows the language of the interface only where the text is for you to read: the text inside the
+figures (and their PNG, SVG and PDF), the `geracao.md` report of "Criar cálculo" and the text copied from the 3D
+measures. Everything other tools or later versions read stays the same in both languages: the `.in` and `.qsub` files,
+the CSV (`;` and a decimal comma), the `.plot` and `view3d.plot` files, the exported file names and the
+`.lain/` data. Switching the language never changes a saved setting.
+
+Want to translate Lain into another language or improve the English? See
+[`src/qe_studio/locale/README.md`](src/qe_studio/locale/README.md).
+
 ## Development
 
 ```bash
@@ -221,8 +242,9 @@ uv run pytest            # unit, integration (real rsync and ssh) and headless U
 uv run pytest -m "not realdata and not perf"   # what CI runs
 uv run pytest -m perf    # NFR §7 latency budget (CI reports it without blocking)
 uv run ruff check . && uv run ruff format --check .
+uv run python scripts/i18n.py check   # the English catalog is complete (CI runs it too)
 QE_STUDIO_REAL_DATA=/path/to/runs:/other/runs uv run pytest -m realdata   # your own runs
-uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--scale N: font scale, --text: text viewer, --input: an input with errors, --diff [text]: input comparison, --summary: output summary)
+uv run python scripts/screenshot.py --plot   # off-screen PNGs of both themes in screenshots/ (--scale N: font scale, --language en|pt_BR: the interface language, --text: text viewer, --input: an input with errors, --diff [text]: input comparison, --summary: output summary)
 uv run python scripts/build_icons.py         # re-render the app icon PNGs after editing the SVG
 ```
 

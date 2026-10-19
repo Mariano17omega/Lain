@@ -1,0 +1,17 @@
+{
+ "version": 2,
+ "folders": {
+  "03_bands": {
+   "mappings": {
+    "bands": {
+     "scf_out": [
+      "scf.out"
+     ],
+     "gnu": [
+      "bands.dat.gnu"
+     ]
+    }
+   }
+  }
+ }
+}

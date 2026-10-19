@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | fim (por último: as specs anteriores ainda criam textos) |
-| **Status** | Parcialmente implementada (commits `6a61da0` e `bb3b5a6`: R1, R2 e R3 de `core/`; a `ui/` está embrulhada na árvore de trabalho, sem commit). **O restante foi dividido nas specs 52–60** (18/10/2026): esta fica como o desenho; arquivar quando a 60 sair. |
+| **Status** | Implementada (19/10/2026), pelas specs 52–60. Desvios do desenho: **(a)** gettext (`_()`, `ngettext`, `.po`/`.mo` com o Babel) em vez de uma função `tr()`; **(b)** o português é o idioma-fonte (o texto do código) e só o inglês tem catálogo; **(c)** a sondagem de vazamentos roda em subprocesso (`tests/i18n_probe.py`), no lugar do fixture em processo de R4.2: o idioma é fixado antes dos imports e não troca na sessão; **(d)** CSV, `.plot`, `view3d.plot`, nomes de exportação, `.lain/` e os inputs não seguem o idioma, e o cabeçalho do `.qsub` fica em português; só as figuras, o `geracao.md` e o texto copiado das medidas seguem a interface; **(e)** as seções do painel têm ids estáveis (`params/sections/<tipo>/<id>`), com leitura da chave antiga pelo título em português. |
 | **Depende de** | todas as anteriores (os textos precisam estar estáveis) |
 | **Usada por** | nenhuma |
 | **Esforço** | G |

@@ -13,8 +13,7 @@ After changing a text in the code:
 uv run python scripts/i18n.py update           # new messages go into lain.po, empty; a changed one is "fuzzy"
 # translate the empty entries; review each fuzzy one and delete its "#, fuzzy" line
 uv run python scripts/i18n.py compile          # lain.po → lain.mo, with the translated messages only
-uv run python scripts/i18n.py check            # per area: messages and untranslated ones
-uv run python scripts/i18n.py check --area 53  # the untranslated messages of one area, with their files
+uv run python scripts/i18n.py check            # exit 0 only if every message is translated (CI runs it)
 ```
 
 Commit `lain.po` and `lain.mo` together. A message left empty is shown in Portuguese. `compile`
@@ -35,10 +34,13 @@ In the code:
   the arguments of `setText`-like calls). A Portuguese token that is data goes into its `EXCEPTIONS`,
   with the reason.
 - The `.po` follows the code (`update` was run) and the `.mo` follows the `.po` (`compile` was run).
-- The per-area gate, until spec 60: `tests/i18n_areas.py` maps file prefixes to the spec of the
-  series (53–59) that translates them. A spec adds its number to `DONE` when its area is translated;
-  from then on, an untranslated message with a location there fails the test.
-- The code in a sentence (`lost_code_tokens`): in a finished area a translation keeps, as the source
+- The catalog is complete (`test_catalog_is_complete`): no untranslated or fuzzy message.
+- Persisted data is language-independent (`tests/test_i18n_closing.py`, the probe's `persist` and `legacy`
+  scenarios): the same actions in `pt_BR` and `en` write the same `.lain/*.json`, `.plot`, CSV, exports, `.in`,
+  `.qsub` and QSettings keys. The two outputs that follow the language on purpose are named in the test:
+  `geracao.md` and the copied measures. Files from before the series (`tests/fixtures/i18n_legacy`) load
+  and are not rewritten.
+- The code in a sentence (`lost_code_tokens`): a translation keeps, as the source
   writes them, the namelists (`&SYSTEM`), command-line options (`-pe`), `JOB DONE`, `#!`, cards and
   variables (`CELL_PARAMETERS`, `celldm(1)`), backticked spans and escapes (`\r`).
 - Data does not follow the language. What other tools read stays as the source writes it: the columns

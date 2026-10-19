@@ -1,4 +1,4 @@
-"""Helpers of the i18n tests (spec 52): the catalog script, the leak probe and the per-area gate."""
+"""Helpers of the i18n tests (specs 52, 60): the catalog script, the leak probe and the catalog checks."""
 
 from __future__ import annotations
 
@@ -11,8 +11,6 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 from types import ModuleType
-
-from i18n_areas import area_of
 
 ROOT = Path(__file__).resolve().parents[1]
 PROBE = ROOT / "tests" / "i18n_probe.py"
@@ -56,6 +54,7 @@ def without_mnemonics(text: str) -> str:
 # translation from a leak. A new one needs its reason here.
 HOMOGRAPHS = {
     "Data",  # the file grid's "Data" (date → "Date"); the About row "Dados" is "Data" in English
+    "Local",  # the sync table's "Local date" (a computer's side): English "local", not a leak
 }
 
 
@@ -96,14 +95,12 @@ CODE_TOKENS = (
 )
 
 
-def lost_code_tokens(catalog, done: set[int]) -> list[str]:
-    """What a translation of an area of ``done`` dropped or changed of its source's code pieces
+def lost_code_tokens(catalog) -> list[str]:
+    """What a translation dropped or changed of its source's code pieces
     (``CODE_TOKENS``), as ``'<text>': lost <token>``; each plural form against its own source."""
     tool = script()
     found = []
     for message in tool.messages(catalog):
-        if not any(area_of(filename) in done for filename, _line in message.locations):
-            continue
         for source, string in zip(tool.sources(message), tool.forms(message), strict=False):
             if not string:
                 continue
@@ -119,13 +116,15 @@ NEGATION_PT = re.compile(r"\b(?:não|nunca|nenhum|nenhuma)\b", re.IGNORECASE)
 NEGATION_EN = re.compile(r"\b(?:not|never|no|none|cannot)\b|n't", re.IGNORECASE)
 
 
-def lost_negations(catalog, areas: set[int]) -> list[str]:
-    """The messages of ``areas`` whose Portuguese says "não" (or "nunca"…) and a translation, in some
-    plural form, that says no negation: ``'<text>': <form> says nothing is not done``."""
+def lost_negations(catalog, under: tuple[str, ...]) -> list[str]:
+    """The messages with a location under one of the ``under`` prefixes whose Portuguese says "não"
+    (or "nunca"…) and a translation, in some plural form, that says no negation:
+    ``'<text>': <form> has no negation``. Scoped, as a "não" that is only part of a name
+    ("Aspas não fechadas" → "Unclosed quotes") is no sentence about what is not done."""
     tool = script()
     found = []
     for message in tool.messages(catalog):
-        if not any(area_of(filename) in areas for filename, _line in message.locations):
+        if not any(name.startswith(under) for name, _line in message.locations):
             continue
         for source, string in zip(tool.sources(message), tool.forms(message), strict=False):
             if string and NEGATION_PT.search(source) and not NEGATION_EN.search(string):
@@ -136,15 +135,13 @@ def lost_negations(catalog, areas: set[int]) -> list[str]:
 FRAGMENT_WORDS = 4  # longer messages are sentences, not the pieces a composed text takes
 
 
-def fragment_leaks(texts: Iterable[str], catalog, areas: set[int]) -> list[str]:
-    """Portuguese pieces inside composed texts (spec 57 R2.1): a short translated message of
-    ``areas``, with no field, found word for word in a text (``regra 'camada inferior'``, the
+def fragment_leaks(texts: Iterable[str], catalog) -> list[str]:
+    """Portuguese pieces inside composed texts (spec 57 R2.1): a short translated message
+    with no field, found word for word in a text (``regra 'camada inferior'``, the
     token of a choice formatted without ``_()``), as ``'<piece>' in '<text>'``."""
     tool = script()
     pieces = set()
     for message in tool.messages(catalog):
-        if not any(area_of(filename) in areas for filename, _line in message.locations):
-            continue
         for source, string in zip(tool.sources(message), tool.forms(message), strict=False):
             if (
                 string
@@ -164,20 +161,18 @@ def fragment_leaks(texts: Iterable[str], catalog, areas: set[int]) -> list[str]:
     )
 
 
-def untranslated_in_done(catalog, done: set[int]) -> list[str]:
-    """What the per-area gate (spec 52 R2) refuses: a fuzzy message, and an untranslated one with a
-    location in an area of ``done``, as ``area N: '<text>' (<file>)``."""
+def pending(catalog) -> list[str]:
+    """What keeps the catalog from being complete: a fuzzy message, and an untranslated one with its
+    files, as ``'<text>' (<file>, …)``."""
     tool = script()
     found = []
     for message in tool.messages(catalog):
         text = tool.sources(message)[0]
         if message.fuzzy:
             found.append(f"fuzzy: {text!r}")
-        if not tool.is_pending(message):
-            continue
-        for filename, _line in message.locations:
-            if area_of(filename) in done:
-                found.append(f"area {area_of(filename)}: {text!r} ({filename})")
+        if tool.is_pending(message):
+            files = sorted({filename for filename, _line in message.locations})
+            found.append(f"{text!r} ({', '.join(files)})")
     return found
 
 

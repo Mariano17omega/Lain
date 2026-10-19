@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 60, por último: só faz sentido quando 53–59 fecharam as suas áreas. Remove o portão por área, prova que nenhum dado guardado depende do idioma e documenta. Fecha a `spec_end`. |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (19/10/2026). Ajustes: **(a)** o `README.md` é em inglês, então a seção "Language" foi escrita em inglês (a spec dizia português); **(b)** os testes novos estão em `tests/test_i18n_closing.py` e `tests/i18n_scenarios_60.py` (cenários `persist` e `legacy` da sondagem), pois `test_i18n.py` já passa de 1700 linhas; **(c)** `lost_negations` continua restrita aos arquivos do sync (aplicada ao catálogo todo, "Aspas não fechadas" → "Unclosed quotes" falha sem ser defeito), e `HOMOGRAPHS` ganhou "Local"; **(d)** os arquivos de antes da série (`tests/fixtures/i18n_legacy/`) foram gerados pelo código do commit `13eeced` num worktree temporário; **(e)** o `Last-Translator` e o contato do `.po` são os do autor do projeto, definidos em `scripts/i18n.py`; **(f)** aceite visual (R5.1): sem texto cortado em inglês salvo "High-symmetry lines" (rótulo do eixo x, agora "Symmetry lines"); em português o mesmo rótulo ("Linhas de alta simetria") já era cortado, fora do escopo; o passo manual de R5.2 fica com o usuário. |
 | **Depende de** | 52, 53, 54, 55, 56, 57, 58, 59 (todas com a sua área em `DONE`) |
 | **Usada por** | nenhuma |
 | **Esforço** | M |

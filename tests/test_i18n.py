@@ -1,9 +1,7 @@
-"""Spec 52: the English catalog grows one area at a time (specs 53–59) and nothing it translates
-already is shown in Portuguese.
+"""Specs 52–60: the English catalog is complete and nothing it translates is shown in Portuguese.
 
-- R1: the partial ``.mo`` and ``scripts/i18n.py check --area``;
-- R2: the per-area gate (``tests/i18n_areas.py``), the ``.po`` following the code, the ``.mo`` the
-  ``.po``;
+- R1: the ``.mo`` with the translated messages, and ``scripts/i18n.py check``;
+- R2: the catalog is complete, the ``.po`` follows the code, the ``.mo`` the ``.po``;
 - R3: the fields, tags, ``&`` and plural forms a translation keeps;
 - R4: the traps of ``_()``: unmarked text, a local ``_``, the ``_()`` of a variable;
 - R5: the leak probe, one process per language (``tests/i18n_probe.py``).
@@ -19,7 +17,6 @@ from pathlib import Path
 import pytest
 from babel.messages.mofile import read_mo
 
-from i18n_areas import AREAS, DONE, area_of
 from i18n_helpers import (
     CODE_TOKENS,
     first_lines,
@@ -27,9 +24,9 @@ from i18n_helpers import (
     leaks,
     lost_code_tokens,
     lost_negations,
+    pending,
     probe_texts,
     script,
-    untranslated_in_done,
 )
 from i18n_scenarios_57 import TYPE_IDS
 from i18n_static import (
@@ -43,6 +40,26 @@ from i18n_static import (
 )
 
 tool = script()
+
+# The files of the sync (spec 58): the sentences there say what is not changed.
+SYNC_FILES = ("core/sync/", "ui/sync_coordinator.py", "ui/dialogs/sync_")
+
+# The files of the plots, the adjustments panel, the Grids and the atoms (the plurals test below).
+PLOTS_55 = (
+    "core/calculations/",
+    "core/plotting/",
+    "core/compounds.py",
+    "core/grid_store.py",
+    "ui/plot_",
+    "ui/generate_plot.py",
+    "ui/grid_loader.py",
+    "ui/dialogs/atoms.py",
+    "ui/dialogs/grid_",
+    "ui/widgets/atom_table.py",
+    "ui/widgets/param_widgets.py",
+    "ui/widgets/params_body.py",
+    "ui/widgets/plot_",
+)
 
 
 @pytest.fixture(scope="module")
@@ -102,43 +119,24 @@ def test_compile_refuses_fuzzy_and_broken_markers(tmp_path, source):
     assert not target.exists()
 
 
-def test_check_area_lists_only_that_area(capsys):
-    source = catalog(
-        ("Abrir", "", "ui/app.py"),
-        ("Enviar", "", "core/sync/request.py"),
-        ("nenhum", "", "ui/help_controller.py", "core/sync/report.py"),
-        ("Fechar", "Close", "core/sync/request.py"),
-    )
-    table = tool.by_area(source, area_of)
-    assert (table[53].total, len(table[53].pending)) == (2, 2)  # the shared one counts in both
-    assert (table[58].total, len(table[58].pending)) == (3, 2)
-    assert tool.check("en", source, 58) == 1
-    out = capsys.readouterr().out
-    assert "en, area 58: 2 untranslated" in out
-    assert "'Enviar' (core/sync/request.py)" in out and "'nenhum' (core/sync/report.py)" in out
-    assert "Abrir" not in out and "Fechar" not in out
-    assert tool.check("en", catalog(("Fechar", "Close", "core/sync/request.py")), 58) == 0
+# -- R2: the catalog is complete ----------------------------------------------------------------
+def test_catalog_is_complete(updated):
+    found = pending(updated)
+    assert not found, "translate (scripts/i18n.py check):\n" + first_lines(found)
 
 
-# -- R2: the gate by area -----------------------------------------------------------------------
-def test_untranslated_only_in_pending_areas(updated):
-    found = untranslated_in_done(updated, DONE)
-    assert not found, "translate (scripts/i18n.py check --area N):\n" + first_lines(found)
-
-
-def test_the_gate_refuses_an_area_done():
-    source = catalog(("Abrir", "", "ui/app.py"), ("Enviar", "", "core/sync/request.py"))
-    assert untranslated_in_done(source, set()) == []
-    assert untranslated_in_done(source, {53}) == ["area 53: 'Abrir' (ui/app.py)"]
+def test_an_untranslated_or_fuzzy_message_is_pending():
+    source = catalog(("Abrir", "", "ui/app.py"), ("Fechar", "Close", "ui/app.py"))
+    assert pending(source) == ["'Abrir' (ui/app.py)"]
     fuzzy = catalog(("Abrir", "Open", "ui/app.py"), fuzzy={"Abrir"})
-    assert untranslated_in_done(fuzzy, set()) == ["fuzzy: 'Abrir'"]
+    assert pending(fuzzy) == ["fuzzy: 'Abrir'"]
+    assert pending(catalog(("Abrir", "Open", "ui/app.py"))) == []
 
 
-def test_every_area_names_code():
-    assert [prefix for prefix in AREAS if not (SOURCE / prefix).exists()] == []
-    assert area_of("core/calc_create/types/slab.py") == 57  # the longest prefix
-    assert area_of("core/calc_create/writer.py") == 56
-    assert area_of("ui/app.py") == 53  # no prefix
+def test_check_exits_zero_only_for_a_complete_catalog(capsys):
+    assert tool.check("en", catalog(("Abrir", "Open", "ui/app.py"))) == 0
+    assert tool.check("en", catalog(("Abrir", "", "ui/app.py"))) == 1
+    assert "1 untranslated" in capsys.readouterr().out
 
 
 def test_po_follows_the_code(po, updated):
@@ -210,8 +208,7 @@ def test_a_faithful_translation_is_no_problem(msgid, msgstr):
 )
 def test_a_lost_code_token_is_found(msgid, msgstr, lost):
     source = catalog((msgid, msgstr, "core/qe/lattice.py"))
-    assert lost_code_tokens(source, {54}) == [f"{msgid!r}: lost {lost!r}"]
-    assert lost_code_tokens(source, {53}) == []  # only the areas given are checked
+    assert lost_code_tokens(source) == [f"{msgid!r}: lost {lost!r}"]
 
 
 def test_a_faithful_translation_keeps_its_code_tokens():
@@ -222,12 +219,12 @@ def test_a_faithful_translation_keeps_its_code_tokens():
         ("{name} não é um relax/vc-relax", "{name} is not a relax/vc-relax", "core/qe/scf_from_relax.py"),
         ("lê o \\r como comando", "reads the \\r as a command", "core/qsub_lint.py"),
     )  # fmt: skip
-    assert lost_code_tokens(faithful, {54}) == []
+    assert lost_code_tokens(faithful) == []
 
 
 def test_code_tokens_are_kept(po):
-    """Every translated message of a finished area keeps its namelists, options, cards and escapes."""
-    found = lost_code_tokens(po, DONE)
+    """Every translated message keeps its namelists, options, cards and escapes."""
+    found = lost_code_tokens(po)
     assert found == [], "a translation changed a piece of code:\n" + first_lines(found)
 
 
@@ -477,7 +474,7 @@ def test_the_type_filter_compares_the_data_not_the_label(english, portuguese):
     assert "saídas" in portuguese["type_filter"]
 
 
-def test_the_plurals_of_the_area_have_both_forms(po):
+def test_the_plurals_have_both_forms(po):
     forms = {tool.sources(message): tool.forms(message) for message in tool.messages(po)}
     assert forms[("{n} item", "{n} itens")] == ("{n} item", "{n} items")
     assert forms[("Copiado: {name}", "Copiados: {n} itens")] == (
@@ -522,7 +519,7 @@ def test_the_plurals_of_the_area_have_both_forms(po):
         message
         for message in tool.messages(po)
         if len(tool.sources(message)) == 2
-        and any(area_of(filename) == 55 for filename, _line in message.locations)
+        and any(filename.startswith(PLOTS_55) for filename, _line in message.locations)
     ]
     assert area_55  # the area has plurals, and each has two forms that differ
     assert [tool.sources(m)[0] for m in area_55 if len(set(tool.forms(m))) != 2] == []
@@ -544,7 +541,12 @@ def test_the_plurals_of_the_area_have_both_forms(po):
         message
         for message in tool.messages(po)
         if len(tool.sources(message)) == 2
-        and any(area_of(filename) == 56 for filename, _line in message.locations)
+        and any(
+            filename.startswith(
+                ("core/calc_create/", "ui/dialogs/calc_create/", "ui/calc_create_controller.py")
+            )
+            for filename, _line in message.locations
+        )
     ]
     assert len(area_56) >= 3  # the lines of ATOMIC_POSITIONS (shared with 54), the files, the mesh
     assert [tool.sources(m)[0] for m in area_56 if len(set(tool.forms(m))) != 2] == []
@@ -555,7 +557,9 @@ def test_the_plurals_of_the_area_have_both_forms(po):
         message
         for message in tool.messages(po)
         if len(tool.sources(message)) == 2
-        and any(area_of(filename) == 57 for filename, _line in message.locations)
+        and any(
+            filename.startswith("core/calc_create/types/") for filename, _line in message.locations
+        )
     ]
     assert len(area_57) == 3
     assert [tool.sources(m)[0] for m in area_57 if len(set(tool.forms(m))) != 2] == []
@@ -577,7 +581,7 @@ def test_the_plurals_of_the_area_have_both_forms(po):
         message
         for message in tool.messages(po)
         if len(tool.sources(message)) == 2
-        and any(area_of(filename) == 58 for filename, _line in message.locations)
+        and any(filename.startswith(SYNC_FILES) for filename, _line in message.locations)
     ]
     assert len(area_58) == 14
     # The two forms differ, but for a sentence with no word that changes with the number.
@@ -1130,7 +1134,7 @@ def lost_code(pairs: dict[str, tuple[str, str]]) -> list[str]:
 
 def no_portuguese(facts: list[str], po) -> list[str]:
     """An accented letter or a short message of the area left in Portuguese inside an English text."""
-    return [text for text in facts if ACCENTED.search(text)] + fragment_leaks(facts, po, {56, 57})
+    return [text for text in facts if ACCENTED.search(text)] + fragment_leaks(facts, po)
 
 
 def test_the_probe_knows_every_type():
@@ -1238,7 +1242,7 @@ def test_a_slab_writes_the_same_inputs_in_both_languages(english, portuguese, po
         text
         for message in tool.messages(po)
         if tool.is_translated(message)
-        and any(area_of(filename) in {56, 57} for filename, _line in message.locations)
+        and any(filename.startswith("core/calc_create/") for filename, _line in message.locations)
         for text in (*tool.sources(message), *tool.forms(message))
         if " " in text
     }
@@ -1325,13 +1329,12 @@ def test_a_lost_qe_keyword_is_found():
         ("Passos máximos (nstep)", "Maximum steps (steps)", where),
         ("Convergência das forças (forc_conv_thr)", "Force convergence (force threshold)", where),
     )
-    assert sorted(lost_code_tokens(swapped, {57})) == [
+    assert sorted(lost_code_tokens(swapped)) == [
         "'&CONTROL nstep: número máximo de passos da otimização': lost '&CONTROL nstep'",
         "'&CONTROL nstep: número máximo de passos da otimização': lost 'nstep'",
         "'Convergência das forças (forc_conv_thr)': lost 'forc_conv_thr'",
         "'Passos máximos (nstep)': lost 'nstep'",
     ]
-    assert lost_code_tokens(swapped, {56}) == []
 
 
 def test_a_fragment_left_in_portuguese_is_found():
@@ -1341,10 +1344,9 @@ def test_a_fragment_left_in_portuguese_is_found():
         ("{label} deve ser {limit}", "{label} must be {limit}", "core/calc_create/types/base.py"),
     )
     shown = ["18/34, rule 'camada inferior'", "18/34, rule 'bottom layer'", "camadas inferiores"]
-    assert fragment_leaks(shown, source, {56, 57}) == [
+    assert fragment_leaks(shown, source) == [
         "'camada inferior' in \"18/34, rule 'camada inferior'\""
     ]
-    assert fragment_leaks(shown, source, {55}) == []
 
 
 # -- spec 58: the cluster and the sync -------------------------------------------------------------
@@ -1379,7 +1381,7 @@ def test_the_sync_speaks_english_without_leaving_portuguese_in_it(english, po):
     for scenario in AREA_58:
         facts = english[f"{scenario}#facts"]
         assert [text for text in facts if ACCENTED.search(text)] == [], scenario
-        assert fragment_leaks(facts, po, {58}) == [], scenario
+        assert fragment_leaks(facts, po) == [], scenario
 
 
 def test_the_preview_of_a_download_follows_the_language(english, portuguese):
@@ -1583,7 +1585,7 @@ def test_failure_hints_follow_stderr(english, portuguese, po):
 
 def test_the_sync_catalog_keeps_every_negation(po):
     """A translation of "não será alterado" that dropped the "not" would promise the opposite."""
-    assert lost_negations(po, {58}) == []
+    assert lost_negations(po, SYNC_FILES) == []
 
 
 def test_a_dropped_negation_is_found():
@@ -1592,10 +1594,9 @@ def test_a_dropped_negation_is_found():
         ("não serão alterados", "will not be changed", "core/sync/preview.py"),
         ("Pasta não encontrada", "Folder missing", "ui/app.py"),
     )
-    assert lost_negations(source, {58}) == [
+    assert lost_negations(source, SYNC_FILES) == [
         "'não será alterado': 'will be changed' has no negation"
     ]
-    assert len(lost_negations(source, {53})) == 1
 
 
 # -- spec 59: the 3D visualization window, panel, measures and Print ------------------------------

@@ -15,6 +15,7 @@ and add a `Run` row. `git add` the folder: `test_fixtures_untouched.py` fails on
 
 | Folder | Source | Notes |
 |---|---|---|
+| `i18n_legacy/` | files written by the code of commit `13eeced`, before the i18n series (`bands.plot`, `pdos.plot`, `view3d.plot`, `folders.json`, every `choice` changed) | not QE runs: `test_i18n_closing.py` loads them in both languages and checks that nothing is rewritten (spec 60 R2.3). Never regenerate them with newer code: that is the point |
 | `al_bands/` | Al band-structure tutorial run (QE 7.3.1) | tutorial names (`al.scf.out`, `al.band.in`), `bands.in`/`bands.out` are bands.x files; `al.scf.out` crashes ASE's `espresso-out` reader (regression) |
 | `si_bands/` | Si band-structure tutorial run (QE 7.3.1) | explicit 200-point `K_POINTS crystal` list without labels; pw.x printed no eigenvalues |
 | `al_pdos_flat/` | Al DOS/PDOS tutorial run (QE 7.3.1) | flat layout (no `orbitals/`); PDOS files keep every 4th energy row; `al.projwfc.out` truncated (head + tail) |

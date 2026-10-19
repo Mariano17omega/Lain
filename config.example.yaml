@@ -95,9 +95,10 @@ ui:
   # dark, light or system (follow the operating system's color scheme). The Tema button / Ctrl+T
   # in the app cycles them and remembers your last choice.
   theme: dark
-  # Language of the texts: auto (the system's: Portuguese for pt*, English otherwise), pt_BR or en.
-  # It is applied when the program starts; after changing it, restart Lain. The environment variable
-  # QE_STUDIO_LANGUAGE (pt_BR or en) takes precedence over this key.
+  # Language of the interface: auto, pt_BR or en. auto follows the system (Portuguese for pt*,
+  # English for anything else). It is applied when the program starts: after changing it, restart
+  # Lain ("Recarregar config.yaml" only tells you so). The environment variables QE_STUDIO_LANGUAGE
+  # and LAIN_LANGUAGE (auto, pt_BR or en) take precedence over this key; the first one wins.
   language: auto
   # Size of every font, from 0.8 to 1.6 (1.0 = default). Reload with "Recarregar config.yaml".
   font_scale: 1.0

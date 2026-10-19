@@ -160,8 +160,10 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 - Hypothesis profiles `dev` / `ci` (`HYPOTHESIS_PROFILE=ci` in CI). Timing checks are marked `perf`.
 - Goldens (`test_figure_regression.py`, `tests/*_golden.json`) guard default behaviour: a change must pass them, not
   regenerate them.
-- `test_i18n.py` fails when a text is outside `_()`, the `.po` lags the code (`scripts/i18n.py update`), the `.mo` lags
-  the `.po` (`compile`) or a translated text still shows in Portuguese (the probe runs the window in its own process).
+- `test_i18n.py` fails when a text is outside `_()`, the English catalog has an untranslated or fuzzy message, the `.po` lags
+  the code (`scripts/i18n.py update`) or the `.mo` lags the `.po` (`compile`), or a translated text still shows in Portuguese
+  (the probe runs the window in its own process); `test_i18n_closing.py` proves that nothing persisted (`.lain/`, `.plot`,
+  exports, QSettings) depends on the language. A new text means `update`, translate, `compile`: CI runs `scripts/i18n.py check`.
 
 ## Keeping this file lean
 

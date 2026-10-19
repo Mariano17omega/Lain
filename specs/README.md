@@ -14,12 +14,9 @@ e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 
 medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
 padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez), em grupos de itens
-relacionados e em ordem de prioridade. A internacionalização (`spec_end`, agora as specs 52–60)
-fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem (a série do idioma segue a numeração, 52 primeiro):
-
-```
-/plan implementar specs/spec_60-i18n-fechamento.md
-```
+relacionados e em ordem de prioridade. A internacionalização (`spec_end`, as specs 52–60) fechou por último. Cada spec é
+autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 60 estão implementadas; a próxima
+rodada começa na 61.
 
 ## Roadmap
 
@@ -93,8 +90,8 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 57 | [spec_57-i18n-criar-calculo-tipos.md](Archived/spec_57-i18n-criar-calculo-tipos.md) | Inglês dos 10 tipos do "Criar cálculo": campos, dicas com nomes do QE, validações (156 pendentes); `.in` e `.qsub` idênticos nos dois idiomas; escolhas do `pp.x` como dado e cinco vazamentos corrigidos | 52, 54, 56 | M | Opus 5.5 |
 | 58 | [spec_58-i18n-cluster-e-sincronizacao.md](Archived/spec_58-i18n-cluster-e-sincronizacao.md) | Inglês da prévia, relatório, envio e falhas do ssh (57 pendentes); garantias de segurança do sync preservadas | 52 | P | Sonnet 5.5 |
 | 59 | [spec_59-i18n-visualizacao-3d.md](Archived/spec_59-i18n-visualizacao-3d.md) | Inglês da janela 3D (68 pendentes): ids de `view3d.plot` intactos, texto pintado e medidas copiadas, `_` local renomeado | 52 | P | Sonnet 5.5 |
-| 60 | [spec_60-i18n-fechamento.md](spec_60-i18n-fechamento.md) | Remove o portão, catálogo completo, dados guardados iguais nos dois idiomas, entrada real, README "Idioma", cabeçalho do `.po`, arquiva a `spec_end` | 52–59 | M | Sonnet 5.5 |
-| fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementação dividida nas specs 52–60 (infra e `core/` já no HEAD); arquivar quando a 60 sair | 52–60 | G | — |
+| 60 | [spec_60-i18n-fechamento.md](Archived/spec_60-i18n-fechamento.md) | Remove o portão, catálogo completo, dados guardados iguais nos dois idiomas, entrada real, README "Idioma", cabeçalho do `.po`, arquiva a `spec_end` | 52–59 | M | Sonnet 5.5 |
+| fim | [spec_end-internacionalizacao.md](Archived/spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementada pelas specs 52–60 (arquivada com a 60) | 52–60 | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
 outras specs (1, 2), depois a persistência que depende delas (3), os ganhos pequenos e independentes (4),
@@ -141,13 +138,12 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
     (450/450); a 50 não toca a janela; a 51 mexe só no passo 1 do "Criar cálculo". Podem sair em qualquer ordem; a 50 (R2) é a de mais uso diário.
 16. **Idioma, em série (52–60, decisão de 18/10/2026):** a 52 primeiro (portão por área, `.mo` parcial, detector); 53–59 são
     independentes entre si e podem sair em qualquer ordem (a 55 usa o vocabulário da 54, a 57 os termos da 56 e o vocabulário da 54);
-    a 60 por último, quando todas as áreas fecharam. O português continua o padrão e o único idioma que a 52 deixa "completo"; o inglês
-    é misto até a 60.
+    a 60 por último, quando todas as áreas fecharam. O português continuou o padrão; o inglês ficou completo com a 60 (catálogo sem mensagem pendente, verificado no CI).
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–59, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–60, inclusive 27-1 … 27-9, e a `spec_end`) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (nenhuma hoje) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
