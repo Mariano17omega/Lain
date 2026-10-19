@@ -147,6 +147,11 @@ EXCEPTIONS: set[tuple[str, str]] = {
         "core/plotting/plot_file.py",
         "# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.\n",
     ),
+    (
+        "core/structure3d/view_file.py",
+        "# Lain: ajustes da visualização 3D, uma seção por arquivo. "
+        "Gerado automaticamente; apague para voltar aos padrões.\n",
+    ),
 }
 # Whole files whose accented literals are data (none yet).
 SKIPPED_FILES: set[str] = set()

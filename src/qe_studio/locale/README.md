@@ -112,15 +112,15 @@ The fixed terms of the interface, the same in every message.
 | Condução / Valência | Conduction / Valence |
 | Configurações | Settings |
 | Continuar (passo seguinte de uma janela) | Continue |
-| Distância / Ângulo | Distance / Angle |
 | Criar (barra lateral) | Create |
 | Criar cálculo | Create calculation |
+| Distância / Ângulo | Distance / Angle |
 | Energia de Fermi, nível de Fermi | Fermi energy, Fermi level |
 | Energia total | Total energy |
 | Enviar (ao cluster) | Upload (to the cluster) |
 | Entrada / Saída (de um programa do QE) | Input / Output |
-| Escuro / Claro | Dark / Light |
 | Erro / ERRO | Error / ERROR |
+| Escuro / Claro | Dark / Light |
 | Espécie | Species |
 | Excluir | Delete |
 | Explorador de pastas | Folder explorer |

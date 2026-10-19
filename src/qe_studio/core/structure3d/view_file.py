@@ -41,7 +41,8 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 VIEW_KIND = "view3d"
-HEADER = _(
+# File data: the first line of a synced ``.plot`` does not follow the language (spec 59 R2.2).
+HEADER = (
     "# Lain: ajustes da visualização 3D, uma seção por arquivo. "
     "Gerado automaticamente; apague para voltar aos padrões.\n"
 )

@@ -18,7 +18,7 @@ relacionados e em ordem de prioridade. A internacionalização (`spec_end`, agor
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem (a série do idioma segue a numeração, 52 primeiro):
 
 ```
-/plan implementar specs/spec_59-i18n-visualizacao-3d.md
+/plan implementar specs/spec_60-i18n-fechamento.md
 ```
 
 ## Roadmap
@@ -92,7 +92,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 56 | [spec_56-i18n-criar-calculo-base-e-superficies.md](Archived/spec_56-i18n-criar-calculo-base-e-superficies.md) | Inglês da janela do "Criar cálculo", editor de caminho k e pacote `surface/` (121 mensagens); `geracao.md` no idioma da interface; o detector ganha a janela, o editor, o SCF convergido e os combos | 52 | M | Sonnet 5.5 |
 | 57 | [spec_57-i18n-criar-calculo-tipos.md](Archived/spec_57-i18n-criar-calculo-tipos.md) | Inglês dos 10 tipos do "Criar cálculo": campos, dicas com nomes do QE, validações (156 pendentes); `.in` e `.qsub` idênticos nos dois idiomas; escolhas do `pp.x` como dado e cinco vazamentos corrigidos | 52, 54, 56 | M | Opus 5.5 |
 | 58 | [spec_58-i18n-cluster-e-sincronizacao.md](Archived/spec_58-i18n-cluster-e-sincronizacao.md) | Inglês da prévia, relatório, envio e falhas do ssh (57 pendentes); garantias de segurança do sync preservadas | 52 | P | Sonnet 5.5 |
-| 59 | [spec_59-i18n-visualizacao-3d.md](spec_59-i18n-visualizacao-3d.md) | Inglês da janela 3D (68 pendentes): ids de `view3d.plot` intactos, texto pintado e medidas copiadas, `_` local renomeado | 52 | P | Sonnet 5.5 |
+| 59 | [spec_59-i18n-visualizacao-3d.md](Archived/spec_59-i18n-visualizacao-3d.md) | Inglês da janela 3D (68 pendentes): ids de `view3d.plot` intactos, texto pintado e medidas copiadas, `_` local renomeado | 52 | P | Sonnet 5.5 |
 | 60 | [spec_60-i18n-fechamento.md](spec_60-i18n-fechamento.md) | Remove o portão, catálogo completo, dados guardados iguais nos dois idiomas, entrada real, README "Idioma", cabeçalho do `.po`, arquiva a `spec_end` | 52–59 | M | Sonnet 5.5 |
 | fim | [spec_end-internacionalizacao.md](spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementação dividida nas specs 52–60 (infra e `core/` já no HEAD); arquivar quando a 60 sair | 52–60 | G | — |
 
@@ -146,7 +146,7 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–58, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+Specs já implementadas (1–59, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
 raiz ficam as propostas ainda abertas (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 

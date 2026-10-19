@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-19 01:08-0400\n"
+"POT-Creation-Date: 2026-10-19 02:12-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -73,14 +73,6 @@ msgstr " (did you mean {suggestion}?)"
 #: core/calc_create/types/adsorption_fields.py
 msgid " (só no bidentado)"
 msgstr " (bidentate only)"
-
-#: core/structure3d/view_file.py
-msgid ""
-"# Lain: ajustes da visualização 3D, uma seção por arquivo. Gerado automaticamente; apague para "
-"voltar aos padrões.\n"
-msgstr ""
-"# Lain: 3D view settings, one section per file. Generated automatically; delete to go back to the"
-" defaults.\n"
 
 #: core/calc_create/surface/report.py
 msgid "# Relatório da geração"
@@ -2558,7 +2550,7 @@ msgstr ""
 "Protactinium Uranium Neptunium Plutonium Americium Curium Berkelium Californium Einsteinium "
 "Fermium Mendelevium Nobelium Lawrencium Rutherfordium Dubnium Seaborgium Bohrium Hassium "
 "Meitnerium Darmstadtium Roentgenium Copernicium Nihonium Flerovium Moscovium Livermorium "
-"Tenessine Oganesson"
+"Tennessine Oganesson"
 
 #: ui/rename_controller.py
 #, python-brace-format

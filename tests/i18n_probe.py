@@ -36,17 +36,25 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import i18n_scenarios_55
+import i18n_scenarios_59
 from i18n_scenarios_54 import SCENARIOS as SCENARIOS_54
 from i18n_scenarios_55 import SCENARIOS as SCENARIOS_55
 from i18n_scenarios_56 import SCENARIOS as SCENARIOS_56
 from i18n_scenarios_57 import SCENARIOS as SCENARIOS_57
 from i18n_scenarios_58 import SCENARIOS as SCENARIOS_58
-import i18n_scenarios_59
 from i18n_scenarios_59 import SCENARIOS as SCENARIOS_59
 from qe_studio import i18n  # no texts: the language is installed before the modules that have them
 
 ROOT = Path(__file__).resolve().parents[1]
-TEXT_GETTERS = ("text", "toolTip", "windowTitle", "placeholderText", "title", "accessibleName", "currentMessage")
+TEXT_GETTERS = (
+    "text",
+    "toolTip",
+    "windowTitle",
+    "placeholderText",
+    "title",
+    "accessibleName",
+    "currentMessage",
+)
 
 
 def _load_screenshot():

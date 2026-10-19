@@ -12,7 +12,6 @@ already is shown in Portuguese.
 from __future__ import annotations
 
 import ast
-import json
 import re
 import tempfile
 from pathlib import Path
@@ -354,7 +353,6 @@ FACTS_57 = ["slab_files"]
 AREA_58 = ["sync_preview_pull", "sync_preview_push", "sync_report", "sync_menu", "sync_failures"]
 # Spec 59: the 3D visualization window, panel, measures and Print.
 AREA_59 = ["view3d_window", "view3d_measures", "view3d_atom_panel", "view3d_print"]
-FACTS_59 = ["view3d_plot_file"]
 # The scenarios with texts to check for leaks: spec 52's two, spec 53's eleven (the window, its
 # menus and the general dialogs), spec 54's six, spec 55's nine, spec 56's five, spec 57's twenty,
 # spec 58's five, spec 59's four. The next specs of the series add theirs.
@@ -391,7 +389,6 @@ def english():
         *FACTS_55,
         *FACTS_56,
         *FACTS_57,
-        *FACTS_59,
         LEAK_SCENARIOS[-1],
     ]
     return probe_texts("en", *order)
@@ -415,7 +412,6 @@ def portuguese():
         *FACTS_57,
         *AREA_58,
         *AREA_59,
-        *FACTS_59,
     )
 
 
@@ -1621,87 +1617,91 @@ def test_measure_texts_in_english(english, portuguese):
     assert en_lines[2].split("\t")[1:] == pt_lines[2].split("\t")[1:]
 
     # Table rows shown in widgets are identical
-    en_dist = [line for line in english["view3d_measures#facts"] if line.startswith("dist_rows: ")][0]
-    pt_dist = [line for line in portuguese["view3d_measures#facts"] if line.startswith("dist_rows: ")][0]
+    en_dist = [line for line in english["view3d_measures#facts"] if line.startswith("dist_rows: ")][
+        0
+    ]
+    pt_dist = [
+        line for line in portuguese["view3d_measures#facts"] if line.startswith("dist_rows: ")
+    ][0]
     assert en_dist == pt_dist
 
     en_ang = [line for line in english["view3d_measures#facts"] if line.startswith("ang_rows: ")][0]
-    pt_ang = [line for line in portuguese["view3d_measures#facts"] if line.startswith("ang_rows: ")][0]
+    pt_ang = [
+        line for line in portuguese["view3d_measures#facts"] if line.startswith("ang_rows: ")
+    ][0]
     assert en_ang == pt_ang
 
 
-def test_the_view3d_plot_does_not_follow_the_language(english, portuguese):
-    """view3d.plot written in pt_BR and read/written in en produces identical JSON (R2.2)."""
-    assert english["view3d_plot_file#facts"] == portuguese["view3d_plot_file#facts"]
-    en_facts = english["view3d_plot_file#facts"]
-    orig = [line.removeprefix("original_json: ") for line in en_facts if line.startswith("original_json: ")][0]
-    again = [line.removeprefix("again_json: ") for line in en_facts if line.startswith("again_json: ")][0]
-    assert orig == again
-    data = json.loads(orig)
-    assert data["kind"] == "view3d"
-    options = data["params"]["scf.in"]["options"]
-    assert options["style"] == "vareta"
-    assert options["background"] == "claro"
-    assert options["labels"] == "simbolo"
+@pytest.fixture(scope="module")
+def view3d_plot_files(tmp_path_factory):
+    """The ``view3d_plot_file`` facts: ``pt_BR`` writes a ``view3d.plot`` per case (every id of
+    spec 59 R1 changed), then ``en`` reads those files and writes them again."""
+    where = tmp_path_factory.mktemp("view3d_plot_files")
+    first = probe_texts("pt_BR", "view3d_plot_file", plot_dir=where)["view3d_plot_file#facts"]
+    second = probe_texts("en", "view3d_plot_file", plot_dir=where)["view3d_plot_file#facts"]
+    return first, second
 
 
-def test_overlay_text_has_no_words(qapp):
-    """Painted text in overlay.py only contains chemical symbols, numbers and a b c x y z (R3.3)."""
-    from PyQt6.QtGui import QFont, QImage, QPainter
+def test_the_view3d_plot_does_not_follow_the_language(view3d_plot_files):
+    """A ``view3d.plot`` written in Portuguese is read and written again in English byte for byte
+    (R2.2): the ids of R1 and the header are data."""
+    in_portuguese, in_english = view3d_plot_files
+    assert in_english == in_portuguese
+    assert len(in_english) == 8  # four cases, two facts each
+    for original, again in zip(in_english[0::2], in_english[1::2], strict=True):
+        file_before, file_after = original.partition(":\n")[2], again.partition(":\n")[2]
+        assert file_before == file_after
+        assert file_before.startswith("# Lain: ajustes da visualização 3D, ")
+    saved = "\n".join(in_english)
+    for value in (
+        "style: vareta",
+        "style: fio",
+        "style: bola-vareta",
+        "style: espaco-cheio",
+        "labels: nenhum",
+        "labels: simbolo",
+        "labels: indice",
+        "labels: ambos",
+        "background: escuro",
+        "background: claro",
+    ):
+        assert value in saved, value
 
-    from qe_studio.core.structure3d.bonds import bonds_for
-    from qe_studio.core.structure3d.camera import Camera
-    from qe_studio.core.structure3d.options import DisplayOptions
-    from qe_studio.core.structure3d.replicate import build_scene
-    from qe_studio.ui.widgets.structure3d.overlay import draw_overlays
-    from structure3d_helpers import water
 
-    structure = water()
-    scene = build_scene(structure, bonds_for(structure), (1, 1, 1))
-    camera = Camera()
-    camera.fit(scene.box_corners(scene.cell), (400, 300))
-    size = (400.0, 300.0)
-    font = QFont()
+def test_overlay_text_has_no_words(qtbot, tmp_path, monkeypatch):
+    """The text the 3D view paints (atom labels, badges, a b c, x y z) is chemical symbols, numbers
+    and single axis letters, never a word (R3.3). The window is the one of ``scf.in``, drawn by the
+    real renderer, with every label mode and two atoms marked."""
+    from PyQt6.QtCore import QSettings
+    from PyQt6.QtGui import QPainter
 
-    image = QImage(400, 300, QImage.Format.Format_ARGB32_Premultiplied)
-    texts_drawn: list[str] = []
+    from qe_studio.core.structure3d.model import AtomRef
+    from structure3d_helpers import SI_SCF, Windows
 
-    painter = QPainter(image)
-    original_draw_text = painter.drawText
+    drawn: list[str] = []
+    original = QPainter.drawText
 
-    def spy_draw_text(*args):
-        for arg in args:
-            if isinstance(arg, str):
-                texts_drawn.append(arg)
-        return original_draw_text(*args)
+    def spy(self, *args):
+        drawn.extend(arg for arg in args if isinstance(arg, str))
+        return original(self, *args)
 
-    painter.drawText = spy_draw_text
-
-    labels = [(100.0, 100.0, "O1"), (150.0, 120.0, "H2"), (120.0, 150.0, "H3")]
-    spots = [(100.0, 100.0, 15.0), (150.0, 120.0, 10.0), (120.0, 150.0, 10.0)]
-    marked = [(1, spots[0]), (2, spots[1])]
-
-    opts = DisplayOptions(
-        labels="ambos",
-        show_abc=True,
-        show_xyz=True,
-    )
-    draw_overlays(
-        painter,
-        font,
-        size,
-        camera,
-        scene,
-        opts,
-        labels=labels,
-        hover_spot=spots[0],
-        current_spot=spots[1],
-        marked=marked,
-    )
-    painter.end()
-
-    assert texts_drawn
-    for text in texts_drawn:
-        assert re.fullmatch(r"[A-Za-z0-9]+", text), f"unexpected drawn text: {text!r}"
-        assert text in {"O1", "H2", "H3", "a", "b", "c", "x", "y", "z", "1", "2"}
-
+    monkeypatch.setattr(QPainter, "drawText", spy)
+    opened = Windows(qtbot, QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat))
+    try:
+        window = opened.open(SI_SCF)
+        canvas = window.canvas
+        symbols = {species.label for species in window.structure.species}
+        canvas.set_marks([AtomRef(0), AtomRef(1)])
+        for mode in ("nenhum", "simbolo", "indice", "ambos"):
+            canvas.options.labels = mode
+            canvas.options.show_abc = canvas.options.show_xyz = True
+            canvas.refresh_options()
+            drawn.clear()
+            canvas.grab()
+            assert drawn, mode  # a b c, x y z and the badges at least
+            for text in drawn:
+                assert re.fullmatch(r"[A-Z][a-z]?\d*|\d+|[abcxyz]", text), (mode, text)
+            if mode in ("simbolo", "ambos"):
+                assert any(text.rstrip("0123456789") in symbols for text in drawn), mode
+    finally:
+        opened.close_all()
