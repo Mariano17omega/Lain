@@ -115,7 +115,7 @@ def draw_overlays(
             badge(painter, spot, number)
         painter.setFont(font)
     if options.show_abc:
-        tips, _, _ = camera.project(np.vstack([np.zeros((1, 3)), scene.cell]), size)
+        tips, _depth, _scale = camera.project(np.vstack([np.zeros((1, 3)), scene.cell]), size)
         for k, name in enumerate("abc"):
             if np.isfinite(tips[k + 1]).all():
                 painter.setPen(QPen(QColor(*ABC_COLORS[k])))

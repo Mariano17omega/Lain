@@ -112,12 +112,14 @@ The fixed terms of the interface, the same in every message.
 | Condução / Valência | Conduction / Valence |
 | Configurações | Settings |
 | Continuar (passo seguinte de uma janela) | Continue |
+| Distância / Ângulo | Distance / Angle |
 | Criar (barra lateral) | Create |
 | Criar cálculo | Create calculation |
 | Energia de Fermi, nível de Fermi | Fermi energy, Fermi level |
 | Energia total | Total energy |
 | Enviar (ao cluster) | Upload (to the cluster) |
 | Entrada / Saída (de um programa do QE) | Input / Output |
+| Escuro / Claro | Dark / Light |
 | Erro / ERRO | Error / ERROR |
 | Espécie | Species |
 | Excluir | Delete |
@@ -125,6 +127,7 @@ The fixed terms of the interface, the same in every message.
 | Exportar | Export |
 | Favorito | Favorite |
 | Fechar | Close |
+| Fio | Wire |
 | Folga (distância mínima) | Clearance |
 | Força | Force |
 | Gerar | Generate |
@@ -138,6 +141,7 @@ The fixed terms of the interface, the same in every message.
 | Limiar (de convergência) | Threshold |
 | Mais recente no computador (cópia local mais nova que a do cluster) | Newer on this computer |
 | Molécula na superfície (tipo do Criar cálculo) | Molecule on surface |
+| Nenhum / Símbolo / Número / Ambos | None / Symbol / Number / Both |
 | Numerar (a pasta do Criar cálculo) | Number |
 | Painel (do gráfico) | Panel |
 | Paralelização | Parallelization |
@@ -146,12 +150,15 @@ The fixed terms of the interface, the same in every message.
 | Plotar | Plot |
 | Pontos k, k-pontos | k-points |
 | Pressão | Pressure |
+| Print | Print |
 | Prévia (dos arquivos a criar) | Preview |
 | Problema de escrita (do verificador de inputs e scripts) | Syntax problem |
 | Projeto | Project |
 | Pseudopotencial | Pseudopotential |
 | Raiz, pasta raiz | Root, root folder |
 | Rede de k-points (K_POINTS automatic) | k-point mesh |
+| Restaurar padrões | Restore defaults |
+| Rotação | Rotation |
 | Selo | Badge |
 | Sincronizar | Sync |
 | Sítio (de adsorção) | Site |
@@ -160,3 +167,4 @@ The fixed terms of the interface, the same in every message.
 | Superfície | Surface |
 | Tempo de CPU / de parede (WALL) | CPU time / Wall time |
 | Vácuo | Vacuum |
+| Vareta | Stick |

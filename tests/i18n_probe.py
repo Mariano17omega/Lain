@@ -41,10 +41,12 @@ from i18n_scenarios_55 import SCENARIOS as SCENARIOS_55
 from i18n_scenarios_56 import SCENARIOS as SCENARIOS_56
 from i18n_scenarios_57 import SCENARIOS as SCENARIOS_57
 from i18n_scenarios_58 import SCENARIOS as SCENARIOS_58
+import i18n_scenarios_59
+from i18n_scenarios_59 import SCENARIOS as SCENARIOS_59
 from qe_studio import i18n  # no texts: the language is installed before the modules that have them
 
 ROOT = Path(__file__).resolve().parents[1]
-TEXT_GETTERS = ("text", "toolTip", "windowTitle", "placeholderText", "title", "accessibleName")
+TEXT_GETTERS = ("text", "toolTip", "windowTitle", "placeholderText", "title", "accessibleName", "currentMessage")
 
 
 def _load_screenshot():
@@ -266,6 +268,7 @@ SCENARIOS: dict[str, Callable[..., list[str] | None]] = {
     **SCENARIOS_56,  # spec 56: the Criar cálculo window, the k-path editor, derive (…_56.py)
     **SCENARIOS_57,  # spec 57: the fields and checks of each type, the files of a Slab (…_57.py)
     **SCENARIOS_58,  # spec 58: the sync window, its reports, menu and failures (…_58.py)
+    **SCENARIOS_59,  # spec 59: the 3D window, panel, measures and Print (…_59.py)
 }
 
 
@@ -353,6 +356,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):
         os.environ[name] = str(tmp / name.lower())
     i18n_scenarios_55.PLOT_DIR = args.plot_dir
+    i18n_scenarios_59.PLOT_DIR = args.plot_dir
     i18n.install(args.language)  # before the modules with texts are imported
     sys.excepthook = crash
 

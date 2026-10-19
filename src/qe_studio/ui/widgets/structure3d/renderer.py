@@ -254,12 +254,12 @@ class PaintRenderer:
             if scene.reps != (1, 1, 1):
                 boxes.append((scene.block, 0.5))
             for vectors, strength in boxes:
-                cxy, cdepth, _ = camera.project(scene.box_corners(vectors), size)
+                cxy, cdepth, _scale = camera.project(scene.box_corners(vectors), size)
                 i, j = _EDGES[:, 0], _EDGES[:, 1]
                 prims.add(K_EDGE, cxy[i], cxy[j], (cdepth[i] + cdepth[j]) / 2, strength, -1)
         if options.show_abc:
             pts = np.vstack([np.zeros((1, 3)), scene.cell])
-            axy, adepth, _ = camera.project(pts, size)
+            axy, adepth, _scale = camera.project(pts, size)
             prims.add(
                 K_ARROW,
                 np.repeat(axy[:1], 3, axis=0),
@@ -381,7 +381,7 @@ class PaintRenderer:
             if not proj.visible[i]:
                 return None
             return float(proj.xy[i, 0]), float(proj.xy[i, 1]), float(proj.radius_px[i])
-        xy, _, scale = camera.project(scene.position(ref)[None, :], size)
+        xy, _depth, scale = camera.project(scene.position(ref)[None, :], size)
         if not np.isfinite(xy).all():
             return None
         world = self.world_radii(options)[scene.species[ref.index]]

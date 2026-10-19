@@ -2547,6 +2547,18 @@ msgid ""
 "Hássio Meitnério Darmstádio Roentgênio Copernício Nihônio Fleróvio Moscóvio Livermório Tenessino "
 "Oganessônio"
 msgstr ""
+"Hydrogen Helium Lithium Beryllium Boron Carbon Nitrogen Oxygen Fluorine Neon Sodium Magnesium "
+"Aluminium Silicon Phosphorus Sulfur Chlorine Argon Potassium Calcium Scandium Titanium Vanadium "
+"Chromium Manganese Iron Cobalt Nickel Copper Zinc Gallium Germanium Arsenic Selenium Bromine "
+"Krypton Rubidium Strontium Yttrium Zirconium Niobium Molybdenum Technetium Ruthenium Rhodium "
+"Palladium Silver Cadmium Indium Tin Antimony Tellurium Iodine Xenon Caesium Barium Lanthanum "
+"Cerium Praseodymium Neodymium Promethium Samarium Europium Gadolinium Terbium Dysprosium Holmium "
+"Erbium Thulium Ytterbium Lutetium Hafnium Tantalum Tungsten Rhenium Osmium Iridium Platinum Gold "
+"Mercury Thallium Lead Bismuth Polonium Astatine Radon Francium Radium Actinium Thorium "
+"Protactinium Uranium Neptunium Plutonium Americium Curium Berkelium Californium Einsteinium "
+"Fermium Mendelevium Nobelium Lawrencium Rutherfordium Dubnium Seaborgium Bohrium Hassium "
+"Meitnerium Darmstadtium Roentgenium Copernicium Nihonium Flerovium Moscovium Livermorium "
+"Tenessine Oganesson"
 
 #: ui/rename_controller.py
 #, python-brace-format
@@ -2582,12 +2594,12 @@ msgstr "Ignore whitespace and comments"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Imagem"
-msgstr ""
+msgstr "Image"
 
 #: ui/widgets/structure3d/window.py
 #, python-brace-format
 msgid "Imagem salva em plots/{name}"
-msgstr ""
+msgstr "Image saved to plots/{name}"
 
 #: core/qe/summary/build.py
 msgid "Incompleto"
@@ -2829,7 +2841,7 @@ msgstr "Reading SCF…"
 
 #: ui/structure3d_controller.py
 msgid "Lendo estrutura…"
-msgstr ""
+msgstr "Reading structure…"
 
 #: ui/widgets/summary_view.py
 #, python-brace-format
@@ -2842,11 +2854,11 @@ msgstr "Read the file again (the job may be running)"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Ligação: d < fator × (r₁ + r₂)"
-msgstr ""
+msgstr "Bond: d < factor × (r₁ + r₂)"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Ligações"
-msgstr ""
+msgstr "Bonds"
 
 #: core/calc_create/types/slab.py
 msgid "Ligações a O cortadas"
@@ -2958,7 +2970,7 @@ msgstr "Absolute magnetization"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Magnetização inicial"
-msgstr ""
+msgstr "Starting magnetization"
 
 #: core/qe/summary/build.py
 msgid "Magnetização total"
@@ -3011,27 +3023,27 @@ msgstr "Mark at least one atom"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Massa"
-msgstr ""
+msgstr "Mass"
 
 #: core/structure3d/measurements.py
 msgid "Medida\tÁtomos\tValor"
-msgstr ""
+msgstr "Measure\tAtoms\tValue"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Medidas"
-msgstr ""
+msgstr "Measurements"
 
 #: ui/widgets/structure3d/measures.py
 msgid "Medidas copiadas"
-msgstr ""
+msgstr "Measurements copied"
 
 #: ui/widgets/structure3d/measures.py
 msgid "Medir a distância entre dois átomos"
-msgstr ""
+msgstr "Measure the distance between two atoms"
 
 #: ui/widgets/structure3d/measures.py
 msgid "Medir o ângulo de três átomos (vértice no segundo)"
-msgstr ""
+msgstr "Measure the angle of three atoms (vertex on the second)"
 
 #: core/calculations/bands/params.py
 msgid "Meio do gap"
@@ -3135,7 +3147,7 @@ msgstr "Pan (drag)"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Mover a vista"
-msgstr ""
+msgstr "Move the view"
 
 #: core/sync/report.py
 msgid "Mudaram localmente (não baixados)"
@@ -3181,7 +3193,7 @@ msgstr "Navigation"
 
 #: core/structure3d/options.py
 msgid "Nenhum"
-msgstr ""
+msgstr "None"
 
 #: ui/dialogs/calc_create/scf_field.py ui/dialogs/calc_create/setup_page.py
 msgid "Nenhum arquivo escolhido"
@@ -3369,7 +3381,7 @@ msgstr "Could not delete {name}: {error}"
 #: core/structure3d/view_file.py
 #, python-brace-format
 msgid "Não foi possível atualizar {name} em {folder}: {reason}"
-msgstr ""
+msgstr "Could not update {name} in {folder}: {reason}"
 
 #: ui/widgets/diff_view.py
 #, python-brace-format
@@ -3467,7 +3479,7 @@ msgstr "Could not rename {name}: {error}"
 #: ui/widgets/structure3d/window.py
 #, python-brace-format
 msgid "Não foi possível salvar a imagem: {reason}"
-msgstr ""
+msgstr "Could not save image: {reason}"
 
 #: ui/plot_settings.py
 #, python-brace-format
@@ -3477,7 +3489,7 @@ msgstr "Could not save {kind}.plot in {folder}: {error}"
 #: core/structure3d/view_file.py
 #, python-brace-format
 msgid "Não foi possível salvar {name} em {folder}: {reason}"
-msgstr ""
+msgstr "Could not save {name} in {folder}: {reason}"
 
 #: ui/dialogs/grid_dialog.py
 #, python-brace-format
@@ -3511,7 +3523,7 @@ msgstr "Cores (NP)"
 
 #: core/structure3d/options.py
 msgid "Número"
-msgstr ""
+msgstr "Number"
 
 #: core/calc_create/types/fields.py
 msgid "Número de bandas (nbnd)"
@@ -3685,7 +3697,7 @@ msgstr "Occupations (occupations)"
 
 #: ui/widgets/structure3d/window.py
 msgid "Olhar ao longo de x, y ou z (as teclas A, B e C olham ao longo de a, b e c)"
-msgstr ""
+msgstr "Look along x, y or z (keys A, B and C look along a, b and c)"
 
 #: ui/dialogs/shortcuts.py
 msgid "Onde"
@@ -3904,7 +3916,7 @@ msgstr "By the list: the atoms marked in the table. By coordinates: the atom nea
 
 #: ui/widgets/structure3d/panel.py
 msgid "Perspectiva"
-msgstr ""
+msgstr "Perspective"
 
 #: ui/widgets/bars.py
 msgid "Plot"
@@ -3969,7 +3981,7 @@ msgstr "Position"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Posição (Å)"
-msgstr ""
+msgstr "Position (Å)"
 
 #: core/calc_create/types/adsorption.py
 msgid "Posição do âncora"
@@ -4041,7 +4053,7 @@ msgstr "Pressure (press, kbar)"
 
 #: ui/widgets/structure3d/window.py
 msgid "Print"
-msgstr ""
+msgstr "Print"
 
 #: ui/widgets/text_viewer.py
 msgid "Problema anterior de escrita"
@@ -4116,7 +4128,7 @@ msgstr "Pseudopotentials"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Pseudopotencial"
-msgstr ""
+msgstr "Pseudopotential"
 
 #: ui/dialogs/calc_create/setup_page.py
 msgid "Põe um número antes do nome da pasta, seguindo as pastas que já existem aqui (0_Relax, 1_Bands…)"
@@ -4134,7 +4146,7 @@ msgstr "Estimated total RAM"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Raio"
-msgstr ""
+msgstr "Radius"
 
 #: ui/project_controller.py
 #, python-brace-format
@@ -4248,12 +4260,12 @@ msgstr "Repeating along the vacuum (c) stacks slabs: the vacuum between them doe
 
 #: ui/widgets/structure3d/panel.py
 msgid "Repetição"
-msgstr ""
+msgstr "Repetition"
 
 #: ui/widgets/structure3d/panel.py
 #, python-brace-format
 msgid "Repetição ao longo de {name}"
-msgstr ""
+msgstr "Repetition along {name}"
 
 #: core/calc_create/types/supercell.py
 msgid "Repetições"
@@ -4275,11 +4287,11 @@ msgstr "Reset"
 
 #: ui/widgets/structure3d/canvas.py ui/widgets/structure3d/window.py
 msgid "Resetar vista"
-msgstr ""
+msgstr "Reset view"
 
 #: ui/widgets/structure3d/window.py
 msgid "Resetar vista (R)"
-msgstr ""
+msgstr "Reset view (R)"
 
 #: core/calculations/params.py
 msgid "Resolução PNG"
@@ -4287,7 +4299,7 @@ msgstr "PNG resolution"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Restaurar cores"
-msgstr ""
+msgstr "Restore colors"
 
 #: ui/dialogs/calc_create/edit_bar.py
 msgid "Restaurar do formulário"
@@ -4324,11 +4336,11 @@ msgstr "Reveal in explorer"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Roda, + e -"
-msgstr ""
+msgstr "Wheel, + and -"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Rotação"
-msgstr ""
+msgstr "Rotation"
 
 #: core/calculations/params.py
 msgid "Rotulagem dos eixos"
@@ -4344,7 +4356,7 @@ msgstr "Label"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Rótulos"
-msgstr ""
+msgstr "Labels"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Rótulos das espécies cujas ligações a O cortadas são completadas com O + H"
@@ -4418,7 +4430,7 @@ msgstr "Save"
 
 #: ui/widgets/structure3d/window.py
 msgid "Salvar a imagem da vista em PNG, na pasta plots/ do cálculo"
-msgstr ""
+msgstr "Save the view image as PNG in the calculation's plots/ folder"
 
 #: ui/widgets/plot_view.py
 msgid "Salvar em plots/ (Ctrl+E)"
@@ -4516,11 +4528,11 @@ msgstr ""
 #: ui/widgets/structure3d/measures.py
 #, python-brace-format
 msgid "Selecionados: {names}"
-msgstr ""
+msgstr "Selected: {names}"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Selecionar átomo"
-msgstr ""
+msgstr "Select atom"
 
 #: core/plotting/export.py
 msgid "Selecione ao menos um formato de exportação."
@@ -4616,11 +4628,11 @@ msgstr "To upload"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Setas a, b, c da célula"
-msgstr ""
+msgstr "Cell a, b, c arrows"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Shift+Arrastar ou botão do meio"
-msgstr ""
+msgstr "Shift+Drag or middle button"
 
 #: core/sync/request.py
 msgid "Sincronizando com o cluster"
@@ -4772,7 +4784,7 @@ msgstr "Series"
 
 #: core/structure3d/options.py
 msgid "Símbolo"
-msgstr ""
+msgstr "Symbol"
 
 #: core/calc_create/types/adsorption_fields.py ui/widgets/atom_table.py
 msgid "Sítio"
@@ -4832,7 +4844,7 @@ msgstr "Legend text size. Automatic = 85% of the figure font."
 
 #: ui/widgets/structure3d/panel.py
 msgid "Tamanho do texto da vista: rótulos dos átomos e nomes dos eixos"
-msgstr ""
+msgstr "View text size: atom labels and axis names"
 
 #: core/calculations/params.py
 msgid "Tamanho dos números nas marcações dos eixos. Automático = fonte da figura."
@@ -4840,7 +4852,7 @@ msgstr "Size of the numbers on the axis ticks. Automatic = figure font."
 
 #: ui/widgets/structure3d/panel.py
 msgid "Tamanho dos rótulos"
-msgstr ""
+msgstr "Label size"
 
 #: core/calculations/params.py
 msgid "Tamanho dos rótulos dos eixos. Automático = fonte da figura."
@@ -4964,7 +4976,7 @@ msgstr "Transparency"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Triedro x, y, z do canto da vista"
-msgstr ""
+msgstr "x, y, z triad in the corner of the view"
 
 #: core/qe/summary/build.py
 msgid "Término"
@@ -5023,7 +5035,7 @@ msgstr "Valence/conduction"
 
 #: core/structure3d/options.py
 msgid "Vareta"
-msgstr ""
+msgstr "Stick"
 
 #: core/calc_create/types/supercell.py
 msgid "Vazio = a do SCF dividida pelas repetições"
@@ -5048,11 +5060,11 @@ msgstr "Checking connection…"
 
 #: ui/widgets/structure3d/window.py
 msgid "Vista"
-msgstr ""
+msgstr "View"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Vista 3D da estrutura"
-msgstr ""
+msgstr "3D view of the structure"
 
 #: ui/widgets/plot_view.py
 msgid "Vista anterior"
@@ -5060,11 +5072,11 @@ msgstr "Previous view"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Vista ao longo de a, b, c"
-msgstr ""
+msgstr "View along a, b, c"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Vista ao longo de x, y, z"
-msgstr ""
+msgstr "View along x, y, z"
 
 #: ui/widgets/text_viewer.py
 msgid "Visualizador de texto"
@@ -5077,11 +5089,11 @@ msgstr "3D view"
 #: ui/structure3d_controller.py
 #, python-brace-format
 msgid "Visualização 3D de {name}: {reason}"
-msgstr ""
+msgstr "3D view of {name}: {reason}"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Visível"
-msgstr ""
+msgstr "Visible"
 
 #: core/calc_create/types/surface_fields.py
 msgid "Vizinhos fixos"
@@ -5089,7 +5101,7 @@ msgstr "Fixed neighbors"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Vizinhos ligados"
-msgstr ""
+msgstr "Bonded neighbors"
 
 #: ui/actions.py ui/dialogs/calc_create/dialog.py
 msgid "Voltar"
@@ -5101,7 +5113,7 @@ msgstr "Back (Alt+←)"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Voltar as opções, a câmera e a rotação ao padrão"
-msgstr ""
+msgstr "Reset options, camera and rotation to defaults"
 
 #: ui/navigation_controller.py
 msgid "Voltar no histórico"
@@ -5109,7 +5121,7 @@ msgstr "Back in history"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Voltar todas as opções e a câmera desta janela ao padrão?"
-msgstr ""
+msgstr "Reset all options and camera for this window to defaults?"
 
 #: ui/widgets/params_body.py
 #, python-brace-format
@@ -5131,7 +5143,7 @@ msgstr "Volume (initial → final)"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Volume (Å³)"
-msgstr ""
+msgstr "Volume (Å³)"
 
 #: core/qe/summary/build.py
 msgid "Volume da célula"
@@ -5182,7 +5194,7 @@ msgstr "invalid YAML: {exc}"
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Zoom"
-msgstr ""
+msgstr "Zoom"
 
 #: ui/widgets/plot_view.py
 msgid "Zoom (retângulo)"
@@ -5202,7 +5214,7 @@ msgstr "the final cell"
 
 #: ui/widgets/structure3d/window.py
 msgid "a pasta do cálculo não existe mais"
-msgstr ""
+msgstr "the calculation folder no longer exists"
 
 #: core/calc_create/kpath.py
 msgid "a rede de k-points precisa de n1, n2, n3 ≥ 1"
@@ -5719,7 +5731,7 @@ msgstr "not found"
 
 #: ui/widgets/structure3d/print_image.py
 msgid "não foi possível codificar a imagem em PNG"
-msgstr ""
+msgstr "could not encode the image as PNG"
 
 #: core/sync/_process.py
 #, python-brace-format
@@ -5774,7 +5786,7 @@ msgstr "the plot's own"
 
 #: core/structure3d/source.py
 msgid "o input"
-msgstr ""
+msgstr "the input"
 
 #: ui/dialogs/calc_create/form.py
 msgid "obrigatório"
@@ -6514,7 +6526,7 @@ msgstr ""
 #: core/structure3d/source.py
 #, python-brace-format
 msgid "{name} passa de 2 MB: grande demais para um input"
-msgstr ""
+msgstr "{name} exceeds 2 MB: too large for an input"
 
 #: core/qe/projwfc.py
 #, python-brace-format
@@ -6529,7 +6541,7 @@ msgstr "{name} has {count} H bonded: uncheck '{REMOVE_H_LABEL}'"
 #: ui/widgets/structure3d/panel.py
 #, python-brace-format
 msgid "{name} visível"
-msgstr ""
+msgstr "{name} visible"
 
 #: core/qe/input_diff.py
 #, python-brace-format
@@ -6712,7 +6724,7 @@ msgstr "Folder tree"
 
 #: ui/widgets/structure3d/panel.py ui/widgets/structure3d/panel_atom.py
 msgid "Átomo"
-msgstr ""
+msgstr "Atom"
 
 #: ui/widgets/atom_table.py
 #, python-brace-format
@@ -6779,11 +6791,11 @@ msgstr "Atoms…"
 
 #: core/structure3d/measurements.py ui/widgets/structure3d/measures.py
 msgid "Ângulo"
-msgstr ""
+msgstr "Angle"
 
 #: ui/widgets/structure3d/measures.py
 msgid "Ângulos"
-msgstr ""
+msgstr "Angles"
 
 #: core/calc_create/surface/adsorb.py core/calc_create/types/adsorption.py
 msgid "âncora···H"

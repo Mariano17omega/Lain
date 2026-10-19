@@ -96,9 +96,9 @@ def add_halves(
     Å; ``keep``: the bonds drawn; ``min_width``: px, thinner halves skipped in draft mode). Each
     half's ``aux`` indexes the returned rows: 4 corners (x, y), the light edge and the shade edge."""
     halves = half_bonds(scene, radii, rho, keep)
-    start_xy, _, start_scale = camera.project(halves.start, size)
-    end_xy, _, end_scale = camera.project(halves.end, size)
-    _, middle_depth, _ = camera.project(halves.middle, size)
+    start_xy, _depth, start_scale = camera.project(halves.start, size)
+    end_xy, _depth, end_scale = camera.project(halves.end, size)
+    _xy, middle_depth, _scale = camera.project(halves.middle, size)
     quads = half_quads(start_xy, end_xy, start_scale, end_scale, rho, camera.zoom)
     drawn = quads.drawn & (2 * quads.width.max(axis=1, initial=0.0) >= min_width)
     ids = np.nonzero(drawn)[0]

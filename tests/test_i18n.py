@@ -12,6 +12,7 @@ already is shown in Portuguese.
 from __future__ import annotations
 
 import ast
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -351,9 +352,12 @@ FACTS_57 = ["slab_files"]
 # Spec 58: the sync window of a download and of an upload (preview, progress, conflict), how a run
 # ends, the menu and the failures. Each also returns facts: the cells of the preview, the reports.
 AREA_58 = ["sync_preview_pull", "sync_preview_push", "sync_report", "sync_menu", "sync_failures"]
+# Spec 59: the 3D visualization window, panel, measures and Print.
+AREA_59 = ["view3d_window", "view3d_measures", "view3d_atom_panel", "view3d_print"]
+FACTS_59 = ["view3d_plot_file"]
 # The scenarios with texts to check for leaks: spec 52's two, spec 53's eleven (the window, its
 # menus and the general dialogs), spec 54's six, spec 55's nine, spec 56's five, spec 57's twenty,
-# spec 58's five. The next specs of the series add theirs.
+# spec 58's five, spec 59's four. The next specs of the series add theirs.
 LEAK_SCENARIOS = [
     "main",
     "plot",
@@ -372,6 +376,7 @@ LEAK_SCENARIOS = [
     *AREA_56,
     *AREA_57,
     *AREA_58,
+    *AREA_59,
     "first_run",
 ]
 # What no widget shows (the probe's "facts"). They run before ``first_run``, whose overlay stays on.
@@ -386,6 +391,7 @@ def english():
         *FACTS_55,
         *FACTS_56,
         *FACTS_57,
+        *FACTS_59,
         LEAK_SCENARIOS[-1],
     ]
     return probe_texts("en", *order)
@@ -408,6 +414,8 @@ def portuguese():
         *AREA_57,
         *FACTS_57,
         *AREA_58,
+        *AREA_59,
+        *FACTS_59,
     )
 
 
@@ -1592,3 +1600,108 @@ def test_a_dropped_negation_is_found():
         "'não será alterado': 'will be changed' has no negation"
     ]
     assert len(lost_negations(source, {53})) == 1
+
+
+# -- spec 59: the 3D visualization window, panel, measures and Print ------------------------------
+def test_measure_texts_in_english(english, portuguese):
+    """to_tsv follows the interface language (R2.1); row_text is identical in both languages."""
+    en_tsv = [line for line in english["view3d_measures#facts"] if line.startswith("tsv:\n")][0]
+    pt_tsv = [line for line in portuguese["view3d_measures#facts"] if line.startswith("tsv:\n")][0]
+    en_lines = en_tsv.removeprefix("tsv:\n").strip().splitlines()
+    pt_lines = pt_tsv.removeprefix("tsv:\n").strip().splitlines()
+
+    # Headers
+    assert en_lines[0] == "Measure\tAtoms\tValue"
+    assert pt_lines[0] == "Medida\tÁtomos\tValor"
+
+    # Kind column follows the language; atoms and numbers are identical
+    assert en_lines[1].startswith("Distance\t") and pt_lines[1].startswith("Distância\t")
+    assert en_lines[2].startswith("Angle\t") and pt_lines[2].startswith("Ângulo\t")
+    assert en_lines[1].split("\t")[1:] == pt_lines[1].split("\t")[1:]
+    assert en_lines[2].split("\t")[1:] == pt_lines[2].split("\t")[1:]
+
+    # Table rows shown in widgets are identical
+    en_dist = [line for line in english["view3d_measures#facts"] if line.startswith("dist_rows: ")][0]
+    pt_dist = [line for line in portuguese["view3d_measures#facts"] if line.startswith("dist_rows: ")][0]
+    assert en_dist == pt_dist
+
+    en_ang = [line for line in english["view3d_measures#facts"] if line.startswith("ang_rows: ")][0]
+    pt_ang = [line for line in portuguese["view3d_measures#facts"] if line.startswith("ang_rows: ")][0]
+    assert en_ang == pt_ang
+
+
+def test_the_view3d_plot_does_not_follow_the_language(english, portuguese):
+    """view3d.plot written in pt_BR and read/written in en produces identical JSON (R2.2)."""
+    assert english["view3d_plot_file#facts"] == portuguese["view3d_plot_file#facts"]
+    en_facts = english["view3d_plot_file#facts"]
+    orig = [line.removeprefix("original_json: ") for line in en_facts if line.startswith("original_json: ")][0]
+    again = [line.removeprefix("again_json: ") for line in en_facts if line.startswith("again_json: ")][0]
+    assert orig == again
+    data = json.loads(orig)
+    assert data["kind"] == "view3d"
+    options = data["params"]["scf.in"]["options"]
+    assert options["style"] == "vareta"
+    assert options["background"] == "claro"
+    assert options["labels"] == "simbolo"
+
+
+def test_overlay_text_has_no_words(qapp):
+    """Painted text in overlay.py only contains chemical symbols, numbers and a b c x y z (R3.3)."""
+    from PyQt6.QtGui import QFont, QImage, QPainter
+
+    from qe_studio.core.structure3d.bonds import bonds_for
+    from qe_studio.core.structure3d.camera import Camera
+    from qe_studio.core.structure3d.options import DisplayOptions
+    from qe_studio.core.structure3d.replicate import build_scene
+    from qe_studio.ui.widgets.structure3d.overlay import draw_overlays
+    from structure3d_helpers import water
+
+    structure = water()
+    scene = build_scene(structure, bonds_for(structure), (1, 1, 1))
+    camera = Camera()
+    camera.fit(scene.box_corners(scene.cell), (400, 300))
+    size = (400.0, 300.0)
+    font = QFont()
+
+    image = QImage(400, 300, QImage.Format.Format_ARGB32_Premultiplied)
+    texts_drawn: list[str] = []
+
+    painter = QPainter(image)
+    original_draw_text = painter.drawText
+
+    def spy_draw_text(*args):
+        for arg in args:
+            if isinstance(arg, str):
+                texts_drawn.append(arg)
+        return original_draw_text(*args)
+
+    painter.drawText = spy_draw_text
+
+    labels = [(100.0, 100.0, "O1"), (150.0, 120.0, "H2"), (120.0, 150.0, "H3")]
+    spots = [(100.0, 100.0, 15.0), (150.0, 120.0, 10.0), (120.0, 150.0, 10.0)]
+    marked = [(1, spots[0]), (2, spots[1])]
+
+    opts = DisplayOptions(
+        labels="ambos",
+        show_abc=True,
+        show_xyz=True,
+    )
+    draw_overlays(
+        painter,
+        font,
+        size,
+        camera,
+        scene,
+        opts,
+        labels=labels,
+        hover_spot=spots[0],
+        current_spot=spots[1],
+        marked=marked,
+    )
+    painter.end()
+
+    assert texts_drawn
+    for text in texts_drawn:
+        assert re.fullmatch(r"[A-Za-z0-9]+", text), f"unexpected drawn text: {text!r}"
+        assert text in {"O1", "H2", "H3", "a", "b", "c", "x", "y", "z", "1", "2"}
+
