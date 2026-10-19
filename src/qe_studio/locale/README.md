@@ -38,6 +38,9 @@ In the code:
 - The per-area gate, until spec 60: `tests/i18n_areas.py` maps file prefixes to the spec of the
   series (53–59) that translates them. A spec adds its number to `DONE` when its area is translated;
   from then on, an untranslated message with a location there fails the test.
+- The code in a sentence (`lost_code_tokens`): in a finished area a translation keeps, as the source
+  writes them, the namelists (`&SYSTEM`), command-line options (`-pe`), `JOB DONE`, `#!`, cards and
+  variables (`CELL_PARAMETERS`, `celldm(1)`), backticked spans and escapes (`\r`).
 - The leak probe: `tests/i18n_probe.py` opens the window in a language, in a process of its own, and
   lists the texts of every widget. A text equal to a translated `msgid` is a leak: it reached the
   screen without `_()`. Each spec adds the scenarios of its area to `SCENARIOS`. Painted text (the
@@ -76,15 +79,20 @@ The fixed terms of the interface, the same in every message.
 | Arquivo | File |
 | Árvore | Tree |
 | Atualizar | Refresh |
+| Autovalores | Eigenvalues |
 | Aviso / AVISO | Warning / WARNING |
 | Bandas, estrutura de bandas | Bands, band structure |
 | Baixar (do cluster) | Download (from the cluster) |
 | Cálculo | Calculation |
 | Cancelar | Cancel |
+| Célula | Cell |
+| Ciclo SCF (um SCF inteiro, no relax) | SCF cycle |
 | Condução / Valência | Conduction / Valence |
 | Configurações | Settings |
 | Criar (barra lateral) | Create |
 | Criar cálculo | Create calculation |
+| Energia de Fermi, nível de Fermi | Fermi energy, Fermi level |
+| Energia total | Total energy |
 | Enviar (ao cluster) | Upload (to the cluster) |
 | Entrada / Saída (de um programa do QE) | Input / Output |
 | Erro / ERRO | Error / ERROR |
@@ -93,15 +101,23 @@ The fixed terms of the interface, the same in every message.
 | Exportar | Export |
 | Favorito | Favorite |
 | Fechar | Close |
+| Força | Force |
 | Gerar | Generate |
 | Gerar gráfico | Generate plot |
 | Gerar Plot | Generate Plot |
 | Gráfico, Gráficos (menu, painel) | Plot, Plots |
 | Grade (de arquivos) | Grid |
 | Grids (gráficos numa grade N×M) | Grids |
+| Iteração (dentro de um SCF) | SCF iteration |
+| Paralelização | Parallelization |
 | Pasta | Folder |
 | Plotar | Plot |
+| Pontos k, k-pontos | k-points |
+| Pressão | Pressure |
+| Problema de escrita (do verificador de inputs e scripts) | Syntax problem |
 | Projeto | Project |
+| Pseudopotencial | Pseudopotential |
 | Raiz, pasta raiz | Root, root folder |
 | Selo | Badge |
 | Sincronizar | Sync |
+| Tempo de CPU / de parede (WALL) | CPU time / Wall time |

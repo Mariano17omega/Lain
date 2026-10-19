@@ -10,7 +10,8 @@ given, on the same window, and the texts are read after each: those of every wid
 pages and every menu included), as in ``widget_texts``. Painted text (the badges of the tree and the
 grid, figures, the 3D view) belongs to no widget: the spec of each area tests it through its model.
 
-A spec of the series adds its scenarios to ``SCENARIOS``: a function ``(window, project)`` that
+A spec of the series adds its scenarios to ``SCENARIOS`` (spec 54's are in
+``tests/i18n_scenarios_54.py``, merged below): a function ``(window, project)`` that
 brings the window to what is checked, opening dialogs without ``exec()`` (a modal loop would wait
 forever). An unexpected exception ends the process with code 1 and the traceback on stderr: the
 app's excepthook would open a modal box instead. The last line of stdout is ``{scenario: [texts]}``.
@@ -33,6 +34,7 @@ import tempfile
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
+from i18n_scenarios_54 import SCENARIOS as SCENARIOS_54
 from qe_studio import i18n  # no texts: the language is installed before the modules that have them
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,8 +65,11 @@ def plot_scenario(window, project: Path) -> None:
 
 
 # -- spec 53: the window, its menus and the general dialogs ---------------------------------------
-def shortcuts_scenario(window, project: Path) -> None:
+def shortcuts_scenario(window, project: Path) -> list[str]:
+    """The dialog of "Ajuda ▸ Atalhos de teclado"; its rows (table cells: item data, no widget text)
+    come back as facts."""
     window.help.show_shortcuts()
+    return [" | ".join(row) for row in window.help.dialog.visible_rows()]
 
 
 def about_scenario(window, project: Path) -> None:
@@ -250,6 +255,7 @@ SCENARIOS: dict[str, Callable[..., list[str] | None]] = {
     "config": config_scenario,
     "restart": restart_scenario,
     "type_filter": type_filter_scenario,
+    **SCENARIOS_54,  # spec 54: the viewers and the Resumo (tests/i18n_scenarios_54.py)
 }
 
 

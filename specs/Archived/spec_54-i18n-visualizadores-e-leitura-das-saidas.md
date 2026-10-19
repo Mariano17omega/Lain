@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 54: depois da janela (53), a área onde o usuário passa mais tempo lendo: os visualizadores e o Resumo, e as mensagens de erro, aviso e *lint* que eles mostram. Independente de 55–59. |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (18/10/2026). Ajustes ao texto: **(a)** nenhum código de `src/` mudou. R1.5 (grep): nada compara o texto de uma mensagem. `BandsFormatError` só é capturada (`core/sniff.py:177`, `core/calculations/bands/data.py:183,188`); o texto de `PdosFormatError` vai para `FileSniff.warnings` (`sniff.py:187`) e só é testado como verdade (`core/file_kinds.py:82`) ou unido para a dica (`:100`); `TooBigError` e `LoadError` são testadas por `isinstance` (`diff_view.py:204`, `grid_loader.py:43`). Dois parecidos fora da área, inofensivos hoje: `calc_create/types/slab.py:87` (`FIELD_OF_ERROR.get(str(exc))`, área 57) e `file_kinds.py:99`. **(b)** São 157 mensagens traduzidas (a spec dizia 158) e três ajustadas na revisão das 80 que já existiam: o `msgstr` de `Fim de linha CRLF…` trazia `\\r` com duas barras (a tela mostraria `\\r`) e `-N`/`-pe` passaram de "asks for" a "needs". O `.mo` tem 899 traduzidas e 616 em português. **(c)** `{cycles} ciclos SCF` → `SCF cycles` (o termo do QE, "number of scf cycles": um SCF inteiro do relax), fora de R1.2, que manda `iteração` → `SCF iteration` e continua valendo em `Converged in N iterations`; `problema de escrita` → `syntax problem`. Os dois entraram no glossário, com o vocabulário de R1.2. **(d)** `test_code_tokens_are_kept`: o `-[A-Za-z]+ ` da spec casa `k-pontos `, `rodá-lo ` e `vc-relax `, então usa-se `(?<![\w-])-[A-Za-z]+\b`. Além dos da spec, o teste confere `UPPER_SNAKE` (`CELL_PARAMETERS`), `celldm(1)` e barras invertidas (`\r`, o defeito de (b)); roda sobre as áreas de `DONE` e é o guarda que a 57 cita. **(e)** O detector só enxerga texto de widget igual a um `msgid`, então o que tem número ou nome, e os dados de célula, voltam como **fatos**: as células da árvore do diff, as linhas do Resumo (`section.title.upper()` não é um `msgid`), o rótulo "N problemas de escrita", os banners de `read_preview` (com os limites reduzidos), a mensagem do link recusado e as linhas do diálogo de atalhos (o cenário `shortcuts` da 53 passou a devolvê-las: R3.3). R2.3: a dica do editor é um `QToolTip.showText` com `LintIssue.message`, não é texto de widget, e `LintIssue` não tem código; o cenário extra `lint` roda os dois verificadores sobre um texto por regra (33 mensagens) e o teste compara os idiomas. **(f)** Os seis cenários ficaram em `tests/i18n_scenarios_54.py` (o probe passaria de 500 linhas) e entram no `SCENARIOS` do probe; `tests/test_i18n.py` tem 541 linhas (a regra dos 500 é de `src/`). **(g)** Entregue à 55: `core/calculations/relax.py:344` e `relax_panels.py:49` mostram `f" ({QE_DEFAULT})"` sem `_()`, então `padrão do QE` (traduzido aqui: `QE default`) continua em português na legenda do gráfico; a 55 chama `_(QE_DEFAULT)` e o declara em `DYNAMIC`. **(h)** Passo manual: conferido por capturas fora da tela (`scripts/screenshot.py --language en` com `--text`, `--input`, `--summary` e `--diff text`: busca, barra de problemas, extrato, Resumo e comparação, sem texto da área em português e com os nomes do QE intactos) e pelo cenário `summary` sobre o vc-relax da fixture; abrir um vc-relax real no `uv run lain` com `QE_STUDIO_LANGUAGE=en` fica para o usuário. Medido: 4052 passed, 2 skipped na suíte da CI (4029 na 53); `tests/i18n_scenarios_54.py` 312 linhas, `tests/i18n_probe.py` 368. |
 | **Depende de** | spec 52 (portão por área, `check --area`, probe, glossário); a 53 só para o diálogo de atalhos, que mostra `TextViewer.shortcut_help` |
 | **Usada por** | 60 |
 | **Esforço** | M |
@@ -100,11 +100,11 @@ Contagem da 52 (`check --area 54`, 18/10/2026): **237 mensagens, 158 sem traduç
 
 ## Critérios de aceite e testes
 
-- [ ] Goldens e suíte de hoje passam sem regenerar.
-- [ ] `check --area 54` vazio; `test_untranslated_only_in_pending_areas` passa com a área em `DONE`.
-- [ ] `test_code_tokens_are_kept` verde sobre o catálogo real, e vermelho num `Catalog` sintético que apaga `&SYSTEM`.
-- [ ] `test_no_leaks_in_english` para os seis cenários novos; `test_portuguese_unchanged` ainda verde.
-- [ ] Plurais da área com as duas formas.
+- [x] Goldens e suíte de hoje passam sem regenerar.
+- [x] `check --area 54` vazio; `test_untranslated_only_in_pending_areas` passa com a área em `DONE`.
+- [x] `test_code_tokens_are_kept` verde sobre o catálogo real, e vermelho num `Catalog` sintético que apaga `&SYSTEM`.
+- [x] `test_no_leaks_in_english` para os seis cenários novos; `test_portuguese_unchanged` ainda verde.
+- [x] Plurais da área com as duas formas.
 - [ ] Passo manual de aceite: com `QE_STUDIO_LANGUAGE=en`, abrir a saída de um `vc-relax` real, o Resumo e a comparação de
       dois inputs; nenhum texto da área em português; os nomes do QE intactos.
-- [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.
+- [x] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py` e a suíte `-m "not realdata and not perf"` verdes.

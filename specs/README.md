@@ -18,7 +18,7 @@ relacionados e em ordem de prioridade. A internacionalização (`spec_end`, agor
 fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implementação separado, nesta ordem (a série do idioma segue a numeração, 52 primeiro):
 
 ```
-/plan implementar specs/spec_54-i18n-visualizadores-e-leitura-das-saidas.md
+/plan implementar specs/spec_55-i18n-graficos-grids-e-atomos.md
 ```
 
 ## Roadmap
@@ -87,7 +87,7 @@ fica por último. Cada spec é autossuficiente e pode virar um `/plan` de implem
 | 51 | [spec_51-criar-calculo-numerar-pasta.md](Archived/spec_51-criar-calculo-numerar-pasta.md) | "Criar cálculo": caixa "Numerar" põe `<N>_` na frente da pasta (`2_Bands_Al`), N = maior número das pastas irmãs + 1, qualquer tipo | 25, 26, 28 | P | Sonnet 5.5 |
 | 52 | [spec_52-i18n-base-e-cobertura-por-area.md](Archived/spec_52-i18n-base-e-cobertura-por-area.md) | Base do idioma gradual: `.mo` parcial, portão de cobertura por área (`AREAS`/`DONE`), paridade de `{campos}` e tags, armadilhas do `_()`, detector de vazamento em subprocesso, `screenshot.py --language`, glossário | `spec_end` (infra no HEAD) | M | Opus 5.5 |
 | 53 | [spec_53-i18n-janela-principal-e-dialogos.md](Archived/spec_53-i18n-janela-principal-e-dialogos.md) | Inglês da janela, menus, árvore, grade, menu de contexto, diálogos gerais e `core/*.py` (181 mensagens); o detector ganha o canal de fatos | 52 | M | Sonnet 5.5 |
-| 54 | [spec_54-i18n-visualizadores-e-leitura-das-saidas.md](spec_54-i18n-visualizadores-e-leitura-das-saidas.md) | Inglês dos visualizadores de texto/input/diff/Resumo e de `core/qe/` (158 pendentes); nomes do QE intactos | 52 | M | Sonnet 5.5 |
+| 54 | [spec_54-i18n-visualizadores-e-leitura-das-saidas.md](Archived/spec_54-i18n-visualizadores-e-leitura-das-saidas.md) | Inglês dos visualizadores de texto/input/diff/Resumo e de `core/qe/` (157 mensagens); nomes do QE intactos; teste dos pedaços de código; o detector devolve fatos de tabelas e verificadores | 52 | M | Sonnet 5.5 |
 | 55 | [spec_55-i18n-graficos-grids-e-atomos.md](spec_55-i18n-graficos-grids-e-atomos.md) | Inglês dos gráficos (texto dentro da figura), painel de ajustes, Grids e átomos (232 pendentes); CSV e `.plot` independentes do idioma | 52, 54 | G | Sonnet 5.5 |
 | 56 | [spec_56-i18n-criar-calculo-base-e-superficies.md](spec_56-i18n-criar-calculo-base-e-superficies.md) | Inglês da janela do "Criar cálculo", editor de caminho k e pacote `surface/` (129 pendentes); `geracao.md` no idioma da interface | 52 | M | Sonnet 5.5 |
 | 57 | [spec_57-i18n-criar-calculo-tipos.md](spec_57-i18n-criar-calculo-tipos.md) | Inglês dos 10 tipos do "Criar cálculo": campos, dicas com nomes do QE, validações (161 pendentes); `.in` e `.qsub` idênticos nos dois idiomas | 52, 54, 56 | M | Opus 5.5 |
@@ -146,7 +146,7 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–53, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+Specs já implementadas (1–54, inclusive 27-1 … 27-9) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
 raiz ficam as propostas ainda abertas (`spec_end`) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 

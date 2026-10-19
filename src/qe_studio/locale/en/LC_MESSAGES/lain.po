@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-18 19:34-0400\n"
+"POT-Creation-Date: 2026-10-18 20:01-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -235,11 +235,11 @@ msgstr "({rows} of {total})"
 
 #: core/qsub_lint.py
 msgid "-N pede o nome do job"
-msgstr "-N asks for the job name"
+msgstr "-N needs the job name"
 
 #: core/qsub_lint.py
 msgid "-pe pede o ambiente paralelo e o número de slots (por exemplo: -pe physica 64)"
-msgstr "-pe asks for the parallel environment and the number of slots (for example: -pe physica 64)"
+msgstr "-pe needs the parallel environment and the number of slots (for example: -pe physica 64)"
 
 #: core/calc_create/types/charge_diff.py
 msgid ". Vale para os quatro inputs do pp.x"
@@ -2280,7 +2280,7 @@ msgstr "Filter ▾"
 
 #: core/qsub_lint.py
 msgid "Fim de linha CRLF: o bash do cluster lê o \\r como parte do comando"
-msgstr "CRLF line ending: the cluster's bash reads the \\\\r as part of the command"
+msgstr "CRLF line ending: the cluster's bash reads the \\r as part of the command"
 
 #: core/structure3d/options.py
 msgid "Fio"
@@ -2543,7 +2543,7 @@ msgstr "INCOMPLETE"
 
 #: ui/widgets/diff_view.py
 msgid "Ignorar espaços e comentários"
-msgstr ""
+msgstr "Ignore whitespace and comments"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Imagem"
@@ -2556,7 +2556,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Incompleto"
-msgstr ""
+msgstr "Incomplete"
 
 #: ui/palette_controller.py
 msgid "Indexando pastas…"
@@ -2592,17 +2592,17 @@ msgstr ""
 
 #: core/qe/scf_from_relax.py
 msgid "Input do relax não encontrado na pasta"
-msgstr ""
+msgstr "Relax input not found in the folder"
 
 #: core/text_preview.py
 #, python-brace-format
 msgid "Input grande ({human_size}): a escrita não foi verificada, só o realce."
-msgstr ""
+msgstr "Large input ({human_size}): syntax was not checked, only highlighted."
 
 #: core/qe/input_edit.py
 #, python-brace-format
 msgid "Input não pôde ser lido: {exc}"
-msgstr ""
+msgstr "The input could not be read: {exc}"
 
 #: core/calc_create/fragments.py
 #, python-brace-format
@@ -2627,31 +2627,31 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Início"
-msgstr ""
+msgstr "Start"
 
 #: ui/widgets/text_viewer.py
 msgid "Ir ao fim"
-msgstr ""
+msgstr "Go to end"
 
 #: ui/widgets/text_viewer.py
 msgid "Ir ao fim (Ctrl+End)"
-msgstr ""
+msgstr "Go to end (Ctrl+End)"
 
 #: ui/widgets/text_viewer.py
 msgid "Ir ao início"
-msgstr ""
+msgstr "Go to start"
 
 #: ui/widgets/text_viewer.py
 msgid "Ir ao início (Ctrl+Home)"
-msgstr ""
+msgstr "Go to start (Ctrl+Home)"
 
 #: ui/widgets/input_view.py
 msgid "Ir ao primeiro"
-msgstr ""
+msgstr "Go to first"
 
 #: ui/widgets/input_view.py
 msgid "Ir ao primeiro problema (F8: próximo, Shift+F8: anterior)"
-msgstr ""
+msgstr "Go to the first problem (F8: next, Shift+F8: previous)"
 
 #: ui/actions.py
 msgid "Ir para a grade"
@@ -2671,20 +2671,20 @@ msgstr "Go to the plot settings"
 
 #: ui/widgets/text_viewer.py
 msgid "Ir à linha"
-msgstr ""
+msgstr "Go to line"
 
 #: ui/widgets/text_viewer.py
 msgid "Ir à linha (Ctrl+L)"
-msgstr ""
+msgstr "Go to line (Ctrl+L)"
 
 #: ui/widgets/input_view.py
 #, python-brace-format
 msgid "Ir à linha {line}"
-msgstr ""
+msgstr "Go to line {line}"
 
 #: ui/widgets/text_viewer.py
 msgid "Ir à linha…"
-msgstr ""
+msgstr "Go to line…"
 
 #: core/calculations/scf.py
 msgid "Iteração SCF"
@@ -2799,11 +2799,11 @@ msgstr ""
 #: ui/widgets/summary_view.py
 #, python-brace-format
 msgid "Lendo {name}…"
-msgstr ""
+msgstr "Reading {name}…"
 
 #: ui/widgets/summary_view.py
 msgid "Ler o arquivo de novo (o job pode estar rodando)"
-msgstr ""
+msgstr "Read the file again (the job may be running)"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Ligação: d < fator × (r₁ + r₂)"
@@ -2855,7 +2855,7 @@ msgstr ""
 
 #: ui/widgets/text_viewer.py
 msgid "Linha:"
-msgstr ""
+msgstr "Line:"
 
 #: ui/dialogs/grid_dialog.py
 msgid "Linhas"
@@ -2873,7 +2873,7 @@ msgstr ""
 #: ui/widgets/markdown_view.py
 #, python-brace-format
 msgid "Link não aberto: {target}"
-msgstr ""
+msgstr "Link not opened: {target}"
 
 #: ui/widgets/file_grid.py
 msgid "Lista"
@@ -2917,7 +2917,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Magnetização absoluta"
-msgstr ""
+msgstr "Absolute magnetization"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Magnetização inicial"
@@ -2925,7 +2925,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Magnetização total"
-msgstr ""
+msgstr "Total magnetization"
 
 #: core/calculations/params.py
 msgid "Maior intervalo na janela"
@@ -2937,7 +2937,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Malha k"
-msgstr ""
+msgstr "k-point mesh"
 
 #: ui/dialogs/sync_dialog.py
 msgid "Manter local"
@@ -2966,7 +2966,7 @@ msgstr ""
 #: core/text_preview.py
 #, python-brace-format
 msgid "Markdown grande ({human_size}): exibido como texto, sem renderizar."
-msgstr ""
+msgstr "Large Markdown ({human_size}): shown as text, not rendered."
 
 #: ui/dialogs/atoms.py
 msgid "Marque ao menos um átomo"
@@ -3002,11 +3002,11 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Memória disponível"
-msgstr ""
+msgstr "Available memory"
 
 #: core/qe/summary/build.py
 msgid "Mensagens"
-msgstr ""
+msgstr "Messages"
 
 #: ui/help_controller.py
 #, python-brace-format
@@ -3069,19 +3069,19 @@ msgstr ""
 
 #: ui/widgets/text_viewer.py
 msgid "Mostrar o Markdown renderizado"
-msgstr ""
+msgstr "Show the rendered Markdown"
 
 #: ui/widgets/text_viewer.py
 msgid "Mostrar o texto do arquivo"
-msgstr ""
+msgstr "Show the file text"
 
 #: ui/widgets/input_view.py
 msgid "Mostrar ou ocultar o extrato do input"
-msgstr ""
+msgstr "Show or hide the input extract"
 
 #: ui/widgets/summary_widgets.py
 msgid "Mostrar ou ocultar os detalhes"
-msgstr ""
+msgstr "Show or hide the details"
 
 #: ui/widgets/bars.py
 msgid "Mostrar/ocultar arquivos"
@@ -3127,12 +3127,12 @@ msgstr ""
 
 #: ui/widgets/diff_view.py
 msgid "Namelist"
-msgstr ""
+msgstr "Namelist"
 
 #: core/qe/input_lint.py
 #, python-brace-format
 msgid "Namelist desconhecida &{upper}"
-msgstr ""
+msgstr "Unknown namelist &{upper}"
 
 #: ui/actions.py
 msgid "Navegar"
@@ -3152,7 +3152,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Nenhum aviso ou erro"
-msgstr ""
+msgstr "No warnings or errors"
 
 #: ui/first_run.py
 msgid ""
@@ -3294,8 +3294,8 @@ msgstr ""
 #, python-brace-format
 msgid "Não convergiu ({count} iteração)"
 msgid_plural "Não convergiu ({count} iterações)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Not converged ({count} iteration)"
+msgstr[1] "Not converged ({count} iterations)"
 
 #: core/calculations/scf.py
 #, python-brace-format
@@ -3312,7 +3312,7 @@ msgstr ""
 #: ui/widgets/text_viewer.py
 #, python-brace-format
 msgid "Não foi possível abrir o arquivo: {error}"
-msgstr ""
+msgstr "Could not open the file: {error}"
 
 #: ui/widgets/context_menu.py
 #, python-brace-format
@@ -3337,7 +3337,7 @@ msgstr ""
 #: ui/widgets/diff_view.py
 #, python-brace-format
 msgid "Não foi possível comparar: {error}"
-msgstr ""
+msgstr "Could not compare: {error}"
 
 #: core/calc_create/writer.py
 #, python-brace-format
@@ -3357,7 +3357,7 @@ msgstr "Could not create {path}: {error}"
 #: core/qe/input_edit.py
 #, python-brace-format
 msgid "Não foi possível editar {what}: {exc}"
-msgstr ""
+msgstr "Could not edit {what}: {exc}"
 
 #: ui/plot_workflow.py
 msgid "Não foi possível gerar o gráfico"
@@ -3371,7 +3371,7 @@ msgstr ""
 #: core/qe/scf_from_relax.py
 #, python-brace-format
 msgid "Não foi possível gravar {name}: {value}"
-msgstr ""
+msgstr "Could not write {name}: {value}"
 
 #: ui/dialogs/mapping.py
 msgid "Não foi possível identificar todos os arquivos"
@@ -3390,7 +3390,7 @@ msgstr ""
 #: ui/widgets/summary_view.py
 #, python-brace-format
 msgid "Não foi possível ler o arquivo: {error}"
-msgstr ""
+msgstr "Could not read the file: {error}"
 
 #: core/calculations/bands/data.py
 msgid "Não foi possível ler os autovalores:\n"
@@ -3403,12 +3403,12 @@ msgstr ""
 #: core/calc_create/scf_info.py core/qe/scf_from_relax.py core/structure3d/source.py
 #, python-brace-format
 msgid "Não foi possível ler {name}: {value}"
-msgstr ""
+msgstr "Could not read {name}: {value}"
 
 #: core/qe/scf_from_relax.py
 #, python-brace-format
 msgid "Não foi possível montar o SCF: {issues}"
-msgstr ""
+msgstr "Could not build the SCF: {issues}"
 
 #: ui/dialogs/calc_create/dialog.py
 #, python-brace-format
@@ -3461,7 +3461,7 @@ msgstr "Hidden levels"
 
 #: core/qe/summary/build.py
 msgid "Nós"
-msgstr ""
+msgstr "Nodes"
 
 #: core/calc_create/types/script.py
 msgid "Núcleos (NP)"
@@ -3481,7 +3481,7 @@ msgstr ""
 
 #: core/qe/input_lexer.py
 msgid "Número inválido"
-msgstr ""
+msgstr "Invalid number"
 
 #: core/calc_create/types/slab.py
 msgid "O + H adicionados"
@@ -3510,6 +3510,8 @@ msgid ""
 "O SCF usa o mesmo prefix ({prefix}) e outdir do relax: rodá-lo regrava {save} e impede reiniciar "
 "o relax. Mude o prefix ou o outdir antes de rodar."
 msgstr ""
+"The SCF uses the same prefix ({prefix}) and outdir as the relax: running it rewrites {save} and "
+"prevents restarting the relax. Change the prefix or the outdir before running it."
 
 #: core/calc_create/unit.py
 #, python-brace-format
@@ -3551,7 +3553,7 @@ msgstr "The language changes when Lain restarts."
 
 #: core/qe/scf_from_relax.py
 msgid "O input"
-msgstr ""
+msgstr "The input"
 
 #: core/file_kinds.py
 msgid "O job registrou mensagens de erro (arquivo não vazio)"
@@ -3559,7 +3561,7 @@ msgstr "The job logged error messages (non-empty file)"
 
 #: core/text_preview.py
 msgid "O job registrou mensagens de erro."
-msgstr ""
+msgstr "The job logged error messages."
 
 #: core/projects.py
 msgid "O nome não pode começar com ponto"
@@ -3623,7 +3625,7 @@ msgstr "OK"
 
 #: ui/widgets/text_viewer.py
 msgid "Ocorrência anterior"
-msgstr ""
+msgstr "Previous occurrence"
 
 #: ui/widgets/explorer.py
 msgid "Ocultar arquivos da árvore"
@@ -3648,12 +3650,12 @@ msgstr ""
 #: core/qsub_lint.py
 #, python-brace-format
 msgid "Opção desconhecida do qsub: {token}"
-msgstr ""
+msgstr "Unknown qsub option: {token}"
 
 #: core/qe/input_lint.py
 #, python-brace-format
 msgid "Opção inválida para {name}: {option}"
-msgstr ""
+msgstr "Invalid option for {name}: {option}"
 
 #: core/calculations/pdos/params.py
 msgid "Orbital"
@@ -3669,11 +3671,11 @@ msgstr ""
 
 #: ui/widgets/diff_view.py
 msgid "Os dois arquivos lado a lado"
-msgstr ""
+msgstr "Both files side by side"
 
 #: ui/widgets/diff_view.py
 msgid "Os inputs são equivalentes: nenhum parâmetro nem card difere."
-msgstr ""
+msgstr "The inputs are equivalent: no parameter or card differs."
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Os átomos da superfície (na janela do topo) das espécies candidatas"
@@ -3707,7 +3709,7 @@ msgstr ""
 
 #: core/qe/projwfc.py
 msgid "PDOS resolvida em k (kresolveddos) não é suportada"
-msgstr ""
+msgstr "k-resolved PDOS (kresolveddos) is not supported"
 
 #: core/calculations/params.py
 msgid "PNG"
@@ -3727,27 +3729,27 @@ msgstr "Command palette"
 
 #: core/qe/summary/build.py
 msgid "Paralelização"
-msgstr ""
+msgstr "Parallelization"
 
 #: ui/widgets/diff_view.py
 msgid "Parâmetro"
-msgstr ""
+msgstr "Parameter"
 
 #: core/qe/summary/build.py
 msgid "Parâmetro de rede (alat)"
-msgstr ""
+msgstr "Lattice parameter (alat)"
 
 #: ui/dialogs/calc_create/form.py ui/widgets/diff_view.py
 msgid "Parâmetros"
-msgstr ""
+msgstr "Parameters"
 
 #: core/qe/input_lexer.py
 msgid "Parêntese não fechado"
-msgstr ""
+msgstr "Unclosed parenthesis"
 
 #: core/qe/input_lexer.py
 msgid "Parêntese sem abertura"
-msgstr ""
+msgstr "Unmatched closing parenthesis"
 
 #: core/calculations/relax.py
 msgid "Passo BFGS"
@@ -3767,7 +3769,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Passos BFGS"
-msgstr ""
+msgstr "BFGS steps"
 
 #: core/calc_create/types/relax.py
 msgid "Passos máximos (nstep)"
@@ -3929,6 +3931,8 @@ msgstr ""
 #, python-brace-format
 msgid "Posições em alat com a célula em {unit}: o alat do SCF seria outro e o Lain não converte unidades"
 msgstr ""
+"Positions in alat with the cell in {unit}: the SCF alat would be different and Lain does not "
+"convert units"
 
 #: core/calc_create/fragments.py
 msgid "Posições em crystal_sg não são suportadas"
@@ -3977,7 +3981,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Pressão"
-msgstr ""
+msgstr "Pressure"
 
 #: core/calculations/relax_panels.py
 msgid "Pressão (kbar)"
@@ -3993,11 +3997,11 @@ msgstr ""
 
 #: ui/widgets/text_viewer.py
 msgid "Problema anterior de escrita"
-msgstr ""
+msgstr "Previous syntax problem"
 
 #: core/qe/summary/build.py
 msgid "Processos MPI"
-msgstr ""
+msgstr "MPI processes"
 
 #: ui/dialogs/open_with.py
 msgid "Procurar…"
@@ -4005,7 +4009,7 @@ msgstr "Browse…"
 
 #: core/qe/summary/build.py
 msgid "Programa"
-msgstr ""
+msgstr "Program"
 
 #: ui/widgets/project_combo.py
 msgid "Projeto"
@@ -4040,7 +4044,7 @@ msgstr ""
 
 #: ui/widgets/text_viewer.py
 msgid "Próxima ocorrência"
-msgstr ""
+msgstr "Next occurrence"
 
 #: ui/widgets/plot_view.py
 msgid "Próxima vista"
@@ -4056,11 +4060,11 @@ msgstr "Next (Enter, F3)"
 
 #: ui/widgets/text_viewer.py
 msgid "Próximo problema de escrita"
-msgstr ""
+msgstr "Next syntax problem"
 
 #: core/qe/summary/build.py
 msgid "Pseudopotenciais"
-msgstr ""
+msgstr "Pseudopotentials"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Pseudopotencial"
@@ -4072,11 +4076,11 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "RAM máx. estimada por processo"
-msgstr ""
+msgstr "Estimated max RAM per process"
 
 #: core/qe/summary/build.py
 msgid "RAM total estimada"
-msgstr ""
+msgstr "Estimated total RAM"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Raio"
@@ -4172,7 +4176,7 @@ msgstr "Removed from favorites: {name}"
 
 #: ui/widgets/text_viewer.py
 msgid "Renderizado"
-msgstr ""
+msgstr "Rendered"
 
 #: ui/rename_controller.py
 #, python-brace-format
@@ -4253,7 +4257,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Resultados"
-msgstr ""
+msgstr "Results"
 
 #: ui/widgets/context_menu.py
 msgid "Resumo"
@@ -4339,7 +4343,7 @@ msgstr ""
 
 #: core/qe/pw_output.py
 msgid "SCF não convergiu"
-msgstr ""
+msgstr "SCF did not converge"
 
 #: core/calc_create/types/supercell.py
 #, python-brace-format
@@ -4431,7 +4435,7 @@ msgstr ""
 #: core/text_preview.py
 #, python-brace-format
 msgid "Script grande ({human_size}): a escrita não foi verificada, só o realce."
-msgstr ""
+msgstr "Large script ({human_size}): syntax was not checked, only highlighted."
 
 #: ui/dialogs/rename.py
 msgid "Se esta pasta também existe no cluster, a próxima sincronização trará de volta o nome original."
@@ -4486,7 +4490,7 @@ msgstr "No JOB DONE: job running or interrupted"
 
 #: core/qe/summary/build.py
 msgid "Sem convergência registrada"
-msgstr ""
+msgstr "No convergence recorded"
 
 #: core/calculations/bands/gap.py
 msgid "Sem gap para a legenda: HOMO e LUMO impressos pelo pw.x coincidem"
@@ -4538,7 +4542,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Serial"
-msgstr ""
+msgstr "Serial"
 
 #: core/calc_create/preview.py
 #, python-brace-format
@@ -4606,7 +4610,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Sistema"
-msgstr ""
+msgstr "System"
 
 #: ui/theme/manager.py
 msgid "Sistema (claro agora)"
@@ -4730,7 +4734,7 @@ msgstr ""
 
 #: ui/widgets/diff_view.py
 msgid "Só o que difere, parâmetro por parâmetro"
-msgstr ""
+msgstr "Only what differs, parameter by parameter"
 
 #: ui/dialogs/calc_create/mode_switch.py
 msgid "Só os campos do padrão do tipo; o resto segue o SCF e o config.yaml"
@@ -4803,11 +4807,11 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Tempo (CPU)"
-msgstr ""
+msgstr "CPU time"
 
 #: core/qe/summary/build.py
 msgid "Tempo (WALL)"
-msgstr ""
+msgstr "Wall time"
 
 #: ui/actions.py
 msgid "Testar conexão"
@@ -4815,11 +4819,11 @@ msgstr "Test connection"
 
 #: ui/widgets/diff_view.py ui/widgets/text_viewer.py
 msgid "Texto"
-msgstr ""
+msgstr "Text"
 
 #: core/qe/summary/build.py
 msgid "Threads por processo MPI"
-msgstr ""
+msgstr "Threads per MPI process"
 
 #: ui/dialogs/calc_create/preview.py
 msgid "Tipo"
@@ -4847,7 +4851,7 @@ msgstr "File type"
 
 #: core/qe/summary/build.py
 msgid "Tipos atômicos"
-msgstr ""
+msgstr "Atomic types"
 
 #: core/calculations/relax.py
 msgid "Todos"
@@ -4902,7 +4906,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Término"
-msgstr ""
+msgstr "End"
 
 #: core/calculations/params.py ui/dialogs/grid_cells.py
 msgid "Título"
@@ -4931,7 +4935,7 @@ msgstr ""
 #: core/qe/input_lexer.py
 #, python-brace-format
 msgid "Valor ausente para {name}"
-msgstr ""
+msgstr "Missing value for {name}"
 
 #: core/calc_create/types/base.py
 #, python-brace-format
@@ -4945,7 +4949,7 @@ msgstr ""
 
 #: core/qe/input_lexer.py
 msgid "Valor lógico inválido: use .true. ou .false."
-msgstr ""
+msgstr "Invalid logical value: use .true. or .false."
 
 #: core/calculations/bands/params.py core/calculations/bands/render.py
 msgid "Valência"
@@ -5002,7 +5006,7 @@ msgstr ""
 
 #: ui/widgets/text_viewer.py
 msgid "Visualizador de texto"
-msgstr ""
+msgstr "Text viewer"
 
 #: ui/widgets/context_menu.py ui/widgets/structure3d/canvas.py ui/widgets/structure3d/window.py
 msgid "Visualização 3D"
@@ -5061,7 +5065,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Volume (inicial → final)"
-msgstr ""
+msgstr "Volume (initial → final)"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Volume (Å³)"
@@ -5069,7 +5073,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Volume da célula"
-msgstr ""
+msgstr "Cell volume"
 
 #: core/calc_create/types/adsorption.py
 msgid "Vácuo acima da molécula"
@@ -5130,15 +5134,15 @@ msgstr ""
 
 #: core/qsub_lint.py
 msgid "\\ no fim da linha seguido de espaço: a continuação de linha não funciona"
-msgstr ""
+msgstr "\\ at the end of the line followed by a space: the line continuation does not work"
 
 #: core/qe/cell_card.py
 msgid "a célula"
-msgstr ""
+msgstr "the cell"
 
 #: core/qe/scf_from_relax.py
 msgid "a célula final"
-msgstr ""
+msgstr "the final cell"
 
 #: ui/widgets/structure3d/window.py
 msgid "a pasta do cálculo não existe mais"
@@ -5155,7 +5159,7 @@ msgstr ""
 #: core/qe/projwfc.py
 #, python-brace-format
 msgid "agrupamento desconhecido: {grouping}"
-msgstr ""
+msgstr "unknown grouping: {grouping}"
 
 #: core/config.py
 #, python-brace-format
@@ -5164,7 +5168,7 @@ msgstr "file given by {origin} not found"
 
 #: core/qe/bands_x.py
 msgid "arquivo sem dados"
-msgstr ""
+msgstr "file has no data"
 
 #: core/calculations/bands/detection.py
 #, python-brace-format
@@ -5184,7 +5188,7 @@ msgstr ""
 
 #: core/qe/bands_x.py
 msgid "bandas com números diferentes de pontos k"
-msgstr ""
+msgstr "bands with different numbers of k-points"
 
 #: core/calc_create/types/bandas.py
 msgid "bands.x grava <filband> e <filband>.gnu"
@@ -5200,15 +5204,15 @@ msgstr ""
 
 #: core/qe/relax.py
 msgid "cabeçalho"
-msgstr ""
+msgstr "header"
 
 #: core/qe/bands_x.py
 msgid "cabeçalho &plot ausente"
-msgstr ""
+msgstr "&plot header missing"
 
 #: core/qe/projwfc.py
 msgid "cabeçalho '#' ausente"
-msgstr ""
+msgstr "'#' header missing"
 
 #: core/calc_create/surface/fixing.py
 msgid "camada inferior"
@@ -5229,11 +5233,11 @@ msgstr ""
 
 #: ui/widgets/diff_view.py
 msgid "card"
-msgstr ""
+msgstr "card"
 
 #: core/qsub_lint.py
 msgid "case sem esac"
-msgstr ""
+msgstr "case without esac"
 
 #: core/calc_create/types/slab_fields.py
 #, python-brace-format
@@ -5252,12 +5256,12 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "colinear (nspin=2)"
-msgstr ""
+msgstr "collinear (nspin=2)"
 
 #: core/qe/projwfc.py
 #, python-brace-format
 msgid "colunas não reconhecidas em {name}"
-msgstr ""
+msgstr "unrecognized columns in {name}"
 
 #: ui/app.py ui/main_window.py
 msgid "config.yaml inválido"
@@ -5273,7 +5277,7 @@ msgstr "config.yaml reloaded."
 
 #: core/qe/lattice.py
 msgid "conjunto de celldm"
-msgstr ""
+msgstr "set of celldm values"
 
 #: core/calculations/base.py
 msgid "conteúdo"
@@ -5298,7 +5302,7 @@ msgstr ""
 
 #: core/qe/relax.py
 msgid "critérios"
-msgstr ""
+msgstr "criteria"
 
 #: core/calc_create/types/charge.py
 msgid "cube do Gaussian (3D)"
@@ -5306,7 +5310,7 @@ msgstr ""
 
 #: core/qe/lattice.py
 msgid "célula de volume nulo"
-msgstr ""
+msgstr "cell with zero volume"
 
 #: core/calc_create/types/supercell.py
 msgid "da supercélula"
@@ -5331,7 +5335,7 @@ msgstr "detecting…"
 
 #: ui/widgets/diff_view.py
 msgid "diferente"
-msgstr ""
+msgstr "different"
 
 #: core/calc_create/surface/fixing.py
 msgid "do SCF"
@@ -5339,7 +5343,7 @@ msgstr ""
 
 #: core/qsub_lint.py
 msgid "do fora de um laço for/while/until"
-msgstr ""
+msgstr "do outside a for/while/until loop"
 
 #: core/calc_create/types/slab_fields.py
 msgid "do slab"
@@ -5347,15 +5351,15 @@ msgstr ""
 
 #: core/qsub_lint.py
 msgid "done sem for/while/until correspondente"
-msgstr ""
+msgstr "done without a matching for/while/until"
 
 #: core/qe/pw_output.py
 msgid "duas energias de Fermi (↑/↓): referência na média, linhas separadas no gráfico"
-msgstr ""
+msgstr "two Fermi energies (↑/↓): reference at the average, separate lines in the plot"
 
 #: core/qe/bands_x.py
 msgid "eixo x difere entre bandas"
-msgstr ""
+msgstr "x axis differs between bands"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
@@ -5380,7 +5384,7 @@ msgstr ""
 
 #: core/qe/relax.py
 msgid "entrada"
-msgstr ""
+msgstr "input"
 
 #: core/calculations/bands/detection.py
 msgid "entrada de bandas não encontrada: pontos k sem rótulos"
@@ -5393,7 +5397,7 @@ msgstr ""
 
 #: core/qsub_lint.py
 msgid "esac sem case correspondente"
-msgstr ""
+msgstr "esac without a matching case"
 
 #: core/calculations/pdos/table.py
 msgid "espelhado"
@@ -5401,12 +5405,12 @@ msgstr ""
 
 #: core/qe/bands_x.py
 msgid "esperadas 2 colunas (x, E)"
-msgstr ""
+msgstr "expected 2 columns (x, E)"
 
 #: core/qe/bands_x.py
 #, python-brace-format
 msgid "esperados {nks} pontos k com {nbnd} bandas"
-msgstr ""
+msgstr "expected {nks} k-points with {nbnd} bands"
 
 #: core/calc_create/surface/fixing.py
 msgid "espécies e vizinhos"
@@ -5430,11 +5434,11 @@ msgstr ""
 
 #: core/qe/lattice.py
 msgid "faltam celldm(1) ou A no &SYSTEM"
-msgstr ""
+msgstr "celldm(1) or A missing in &SYSTEM"
 
 #: core/qsub_lint.py
 msgid "fi sem if correspondente"
-msgstr ""
+msgstr "fi without a matching if"
 
 #: core/calc_create/types/charge.py
 #, python-brace-format
@@ -5476,26 +5480,26 @@ msgstr ""
 
 #: core/qe/lattice.py
 msgid "ibrav = 0 sem CELL_PARAMETERS"
-msgstr ""
+msgstr "ibrav = 0 without CELL_PARAMETERS"
 
 #: core/qe/lattice.py
 #, python-brace-format
 msgid "ibrav = {ibrav} não existe"
-msgstr ""
+msgstr "ibrav = {ibrav} does not exist"
 
 #: core/qe/cell_card.py
 #, python-brace-format
 msgid "ibrav = {ibrav} trocado por 0: {cell} vai em CELL_PARAMETERS"
-msgstr ""
+msgstr "ibrav = {ibrav} replaced by 0: {cell} goes in CELL_PARAMETERS"
 
 #: core/qe/lattice.py
 #, python-brace-format
 msgid "ibrav ausente ou inválido ({ibrav_text})"
-msgstr ""
+msgstr "ibrav missing or invalid ({ibrav_text})"
 
 #: core/qsub_lint.py
 msgid "if sem fi"
-msgstr ""
+msgstr "if without fi"
 
 #: core/filtering.py
 msgid "imagens"
@@ -5520,7 +5524,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "k-pontos irredutíveis"
-msgstr ""
+msgstr "Irreducible k-points"
 
 #: core/config.py
 msgid "largura e altura devem estar entre 0 e 50 polegadas"
@@ -5536,7 +5540,7 @@ msgstr ""
 
 #: ui/widgets/diff_view.py
 msgid "linha"
-msgstr ""
+msgstr "line"
 
 #: core/calc_create/fragments.py
 #, python-brace-format
@@ -5546,12 +5550,12 @@ msgstr ""
 #: core/qe/lattice.py
 #, python-brace-format
 msgid "linha de ATOMIC_POSITIONS ilegível: {strip}"
-msgstr ""
+msgstr "unreadable ATOMIC_POSITIONS line: {strip}"
 
 #: core/qe/lattice.py
 #, python-brace-format
 msgid "linha de {what} ilegível: {strip}"
-msgstr ""
+msgstr "unreadable {what} line: {strip}"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "lista de candidatos"
@@ -5597,8 +5601,8 @@ msgstr ""
 #, python-brace-format
 msgid "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha"
 msgid_plural "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "nat = {nat}, but ATOMIC_POSITIONS has {count} line"
+msgstr[1] "nat = {nat}, but ATOMIC_POSITIONS has {count} lines"
 
 #: core/calc_create/fragments.py
 #, python-brace-format
@@ -5608,7 +5612,7 @@ msgstr ""
 #: core/qe/scf_from_relax.py
 #, python-brace-format
 msgid "nat = {value} no input, {count} posições na saída"
-msgstr ""
+msgstr "nat = {value} in the input, {count} positions in the output"
 
 #: core/calc_create/surface/merge.py
 msgid "nbnd removido: o pw.x calcula o padrão para o sistema com a molécula"
@@ -5625,7 +5629,7 @@ msgstr "none"
 
 #: core/qe/projwfc.py
 msgid "nenhum arquivo pdos_atm# encontrado"
-msgstr ""
+msgstr "no pdos_atm# file found"
 
 #: core/project_data.py
 msgid "nenhuma"
@@ -5674,7 +5678,7 @@ msgstr ""
 
 #: core/qe/input_extract.py core/qe/summary/build.py
 msgid "não colinear"
-msgstr ""
+msgstr "non-collinear"
 
 #: core/calc_create/types/supercell.py
 msgid "não definido no SCF (o padrão do pw.x)"
@@ -5714,7 +5718,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "não polarizado"
-msgstr ""
+msgstr "unpolarized"
 
 #: core/sync/preview.py
 msgid "não será alterado"
@@ -5723,7 +5727,7 @@ msgstr ""
 #: core/qe/bands_x.py
 #, python-brace-format
 msgid "não é um arquivo de bandas numérico: {exc}"
-msgstr ""
+msgstr "not a numeric bands file: {exc}"
 
 #: core/config.py
 msgid "o arquivo deve conter um mapeamento YAML (chave: valor)"
@@ -5757,7 +5761,7 @@ msgstr ""
 #: core/qe/input_diff.py
 #, python-brace-format
 msgid "opção {a} ↔ {b}"
-msgstr ""
+msgstr "option {a} ↔ {b}"
 
 #: core/calculations/bands/detection.py
 msgid "os canais ↑/↓ têm pontos k diferentes"
@@ -5785,7 +5789,7 @@ msgstr "other"
 
 #: core/qe/relax.py
 msgid "padrão do QE"
-msgstr ""
+msgstr "QE default"
 
 #: core/calculations/relax.py
 #, python-brace-format
@@ -5817,7 +5821,7 @@ msgstr "folder above"
 
 #: core/qe/projwfc.py
 msgid "pdos_tot ausente: total = soma das projeções"
-msgstr ""
+msgstr "pdos_tot missing: total = sum of the projections"
 
 #: core/calculations/pdos/module.py
 msgid "pdos_tot e arquivos de PDOS por átomo detectados"
@@ -5909,7 +5913,7 @@ msgstr "outputs"
 
 #: core/calc_create/fragments.py core/qe/lattice.py
 msgid "sem ATOMIC_POSITIONS"
-msgstr ""
+msgstr "no ATOMIC_POSITIONS"
 
 #: core/filtering.py
 msgid "sem estado"
@@ -5947,7 +5951,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "spin-órbita"
-msgstr ""
+msgstr "spin-orbit"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "symprec do spglib, que agrupa os átomos equivalentes (as letras da coluna Sítio)"
@@ -5960,11 +5964,11 @@ msgstr ""
 
 #: ui/widgets/diff_view.py
 msgid "só em A"
-msgstr ""
+msgstr "only in A"
 
 #: ui/widgets/diff_view.py
 msgid "só em B"
-msgstr ""
+msgstr "only in B"
 
 #: core/calculations/bands/detection.py
 msgid "só o canal ↑ foi encontrado: rode o bands.x com spin_component = 2"
@@ -5990,7 +5994,7 @@ msgstr ""
 #: core/qe/lattice.py
 #, python-brace-format
 msgid "unidade de CELL_PARAMETERS desconhecida: {unit}"
-msgstr ""
+msgstr "unknown CELL_PARAMETERS unit: {unit}"
 
 #: ui/widgets/kpath_editor.py
 msgid "vazio"
@@ -6152,8 +6156,8 @@ msgstr[1] ""
 #, python-brace-format
 msgid "{count} linha difere"
 msgid_plural "{count} linhas diferem"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} line differs"
+msgstr[1] "{count} lines differ"
 
 #: core/sync/preview.py
 #, python-brace-format
@@ -6180,7 +6184,7 @@ msgstr ""
 #: core/qe/summary/build.py
 #, python-brace-format
 msgid "{cycles} ciclos SCF, {steps} passos BFGS"
-msgstr ""
+msgstr "{cycles} SCF cycles, {steps} BFGS steps"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
@@ -6219,7 +6223,7 @@ msgstr[1] ""
 #: core/qe/summary/build.py
 #, python-brace-format
 msgid "{flavor}, {count} processadores"
-msgstr ""
+msgstr "{flavor}, {count} processors"
 
 #: core/sync/rsync.py
 #, python-brace-format
@@ -6316,7 +6320,7 @@ msgstr ""
 #: core/qe/input_extract.py
 #, python-brace-format
 msgid "{mode} {n} pontos"
-msgstr ""
+msgstr "{mode} {n} points"
 
 #: core/calculations/relax.py
 #, python-brace-format
@@ -6436,12 +6440,12 @@ msgstr ""
 #: core/qe/scf_from_relax.py
 #, python-brace-format
 msgid "{name} não tem o bloco final de coordenadas (Begin final coordinates)"
-msgstr ""
+msgstr "{name} has no final coordinates block (Begin final coordinates)"
 
 #: core/qe/scf_from_relax.py
 #, python-brace-format
 msgid "{name} não é um input do pw.x"
-msgstr ""
+msgstr "{name} is not a pw.x input"
 
 #: core/calc_create/scf_info.py core/structure3d/source.py
 #, python-brace-format
@@ -6451,7 +6455,7 @@ msgstr ""
 #: core/qe/scf_from_relax.py
 #, python-brace-format
 msgid "{name} não é um relax/vc-relax (calculation = '{value}')"
-msgstr ""
+msgstr "{name} is not a relax/vc-relax (calculation = '{value}')"
 
 #: core/calc_create/surface/geometry.py
 #, python-brace-format
@@ -6468,7 +6472,7 @@ msgstr ""
 #: core/qe/projwfc.py
 #, python-brace-format
 msgid "{name} sem dados"
-msgstr ""
+msgstr "{name} has no data"
 
 #: core/calc_create/surface/adsorb.py
 #, python-brace-format
@@ -6483,12 +6487,12 @@ msgstr ""
 #: core/qe/input_diff.py
 #, python-brace-format
 msgid "{name}: arquivo grande demais para comparar"
-msgstr ""
+msgstr "{name}: file too large to compare"
 
 #: core/qe/projwfc.py
 #, python-brace-format
 msgid "{name}: grade de energia diferente, interpolada"
-msgstr ""
+msgstr "{name}: different energy grid, interpolated"
 
 #: core/calculations/bands/data.py
 #, python-brace-format
@@ -6503,12 +6507,12 @@ msgstr ""
 #: core/qe/input_diff.py
 #, python-brace-format
 msgid "{name}: só em A"
-msgstr ""
+msgstr "{name}: only in A"
 
 #: core/qe/input_diff.py
 #, python-brace-format
 msgid "{name}: só em B"
-msgstr ""
+msgstr "{name}: only in B"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
@@ -6561,15 +6565,15 @@ msgstr "{n} items selected"
 #, python-brace-format
 msgid "{n} problema de escrita no input"
 msgid_plural "{n} problemas de escrita no input"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} syntax problem in the input"
+msgstr[1] "{n} syntax problems in the input"
 
 #: ui/widgets/input_view.py
 #, python-brace-format
 msgid "{n} problema de escrita no script"
 msgid_plural "{n} problemas de escrita no script"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} syntax problem in the script"
+msgstr[1] "{n} syntax problems in the script"
 
 #: core/calc_create/types/adsorption.py
 #, python-brace-format
@@ -6589,7 +6593,7 @@ msgstr ""
 #: core/qe/summary/build.py
 #, python-brace-format
 msgid "{smearing} (largura {width} Ry)"
-msgstr ""
+msgstr "{smearing} (width {width} Ry)"
 
 #: core/calculations/scf.py
 #, python-brace-format
@@ -6635,17 +6639,17 @@ msgstr ""
 #: core/qe/lattice.py
 #, python-brace-format
 msgid "{what} incompleto"
-msgstr ""
+msgstr "{what} is incomplete"
 
 #: core/qe/lattice.py
 #, python-brace-format
 msgid "{what} inválido para o ibrav"
-msgstr ""
+msgstr "{what} is invalid for this ibrav"
 
 #: core/qsub_lint.py
 #, python-brace-format
 msgid "{word} sem done"
-msgstr ""
+msgstr "{word} without done"
 
 #: core/calculations/scf.py
 msgid "|ΔE| entre iterações"
@@ -6720,7 +6724,7 @@ msgstr ""
 
 #: core/qe/summary/build.py
 msgid "Átomos na célula"
-msgstr ""
+msgstr "Atoms in the cell"
 
 #: ui/widgets/params_body.py
 msgid "Átomos…"
