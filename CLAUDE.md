@@ -58,6 +58,7 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
   favorites/recents) in `<local_root>/.lain/` (only `core/project_data.py` names that folder); plot settings
   (`<kind>.plot`, `view3d.plot`) and exports in `<simulation>/plots/`. Nothing else is written into simulation
   folders.
+- **Numbers:** a decimal **point** everywhere text is shown or written (`decimal()` in `surface/report.py`, `QLocale.c()` in spin boxes), as QE reads it, in both languages; a comma typed by the user is read as a point. The one exception is the CSV export (`core/plotting/table.py`: `;` and a decimal comma, for Excel/Origin in pt-BR); `tests/test_decimal_point.py` guards both.
 - **Data integrity:** never overwrite a user file without asking (`core/unique_names.py`, `_2` suffixes; the export
   asks first). Data files are written whole with `core/appdirs.py:atomic_write_text`.
 

@@ -366,7 +366,7 @@ def test_another_geometry_keeps_the_selection_and_warns(tmp_path, stores):
     choose(session_of(pdos_folder(tmp_path, ("Al", "O"), "a"), stores), stores, [2])
     moved = session_of(pdos_folder(tmp_path, ("Al", "O"), "b", moved={2: 0.5}), stores)
     assert moved.params.atoms == [2] and moved.defaults.atoms == [2]
-    distance = f"{0.5 * ALAT:.1f}".replace(".", ",")
+    distance = f"{0.5 * ALAT:.1f}"
     assert notes_of(moved) == (
         "A seleção de átomos salva foi feita com outras coordenadas "
         f"(átomo 2 moveu {distance} Å). Confira em ‘Átomos…’",

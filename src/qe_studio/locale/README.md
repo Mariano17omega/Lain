@@ -48,6 +48,9 @@ In the code:
   `EXCEPTIONS` of `tests/i18n_static.py` with the reason; the probe's `csv` and `plot_files` scenarios
   compare what is written between the languages. A data token shown to the user (`N_("padrão do QE")`)
   is translated where it is shown, once.
+- Numbers use the decimal point in both languages (QE reads `.`: `15.10 Å`, never `15,10`); a literal
+  such as `0.05 eV` in a message is written with the point too. The CSV export is the one file with a
+  decimal comma (spec 32).
 - The leak probe: `tests/i18n_probe.py` opens the window in a language, in a process of its own, and
   lists the texts of every widget. A text equal to a translated `msgid` is a leak: it reached the
   screen without `_()`. Each spec adds the scenarios of its area to `SCENARIOS`. Painted text (the
@@ -83,20 +86,23 @@ The fixed terms of the interface, the same in every message.
 | Abrir local de origem | Show in file manager |
 | Ajuste do gráfico | Plot settings |
 | Alargamento | Smearing |
-| Arquivo | File |
+| Arquivo, Arquivos | File, Files |
 | Árvore | Tree |
 | Átomo | Atom |
 | Atualizar | Refresh |
 | Autovalores | Eigenvalues |
+| Avançado / Padrão (modo dos campos do Criar cálculo) | Advanced / Standard |
 | Aviso / AVISO | Warning / WARNING |
 | Bandas, estrutura de bandas | Bands, band structure |
 | Baixar (do cluster) | Download (from the cluster) |
 | Cálculo | Calculation |
+| Caminho k (das bandas) | k-path |
 | Cancelar | Cancel |
 | Célula | Cell |
 | Ciclo SCF (um SCF inteiro, no relax) | SCF cycle |
 | Condução / Valência | Conduction / Valence |
 | Configurações | Settings |
+| Continuar (passo seguinte de uma janela) | Continue |
 | Criar (barra lateral) | Create |
 | Criar cálculo | Create calculation |
 | Energia de Fermi, nível de Fermi | Fermi energy, Fermi level |
@@ -119,6 +125,7 @@ The fixed terms of the interface, the same in every message.
 | Grids (gráficos numa grade N×M) | Grids |
 | Iteração (dentro de um SCF) | SCF iteration |
 | Limiar (de convergência) | Threshold |
+| Numerar (a pasta do Criar cálculo) | Number |
 | Painel (do gráfico) | Panel |
 | Paralelização | Parallelization |
 | Passo (do BFGS) | BFGS step |
@@ -126,6 +133,7 @@ The fixed terms of the interface, the same in every message.
 | Plotar | Plot |
 | Pontos k, k-pontos | k-points |
 | Pressão | Pressure |
+| Prévia (dos arquivos a criar) | Preview |
 | Problema de escrita (do verificador de inputs e scripts) | Syntax problem |
 | Projeto | Project |
 | Pseudopotencial | Pseudopotential |

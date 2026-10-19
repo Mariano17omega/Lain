@@ -95,7 +95,7 @@ def test_choosing_a_scf_fills_the_field_and_plans_again(qtbot, make_dialog, chos
     assert chosen.starts == [BULK.parent]  # the SCF's folder
     assert isinstance(field.value(), ScfInfo) and field.value().name == MOLECULE.name
     assert field.message.isHidden() and field.edit.text() == str(MOLECULE)
-    assert "Molécula" in report(tabs) and "15,10 Å" in report(tabs)
+    assert "Molécula" in report(tabs) and "15.10 Å" in report(tabs)
     assert tabs.dirty
 
 

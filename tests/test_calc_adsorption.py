@@ -179,7 +179,7 @@ def test_no_atom_marked_is_the_tables_problem():
         (
             {"site_from": "coordenadas", "coords_1": "0.5 0.5 0.1"},
             "coords_1",
-            "As coordenadas 0,5 0,5 0,1 estão a",
+            "As coordenadas 0.5 0.5 0.1 estão a",
         ),
         ({"mode": "bidentado", "site": (43,)}, "site", "Bidentado: marque dois átomos"),
         ({"height_window": "0"}, "height_window", "A janela da superfície deve ser maior que zero"),
@@ -247,12 +247,12 @@ def test_the_report():
     )
     lines = text.splitlines()
     for line in (
-        "- **SCF da molécula**: scf-H3CHg.in: HgCH3 (Hg 1, C 1, H 3), altura 2,60 Å, âncora Hg1",
+        "- **SCF da molécula**: scf-H3CHg.in: HgCH3 (Hg 1, C 1, H 3), altura 2.60 Å, âncora Hg1",
         "- **Coordenação**: bidentado (sítio pela lista de candidatos)",
         "- **H removidos**: H 59, H 62",
         "- **Átomos**: 71 (66 da superfície + 5 da molécula: Al 8, Si 8, O 36, H 17, Hg 1, C 1)",
-        "- **Distâncias âncora–sítio**: Hg–O 43 2,00 Å; Hg–O 46 2,00 Å",
-        "- **Vácuo acima da molécula**: 12,36 Å",
+        "- **Distâncias âncora–sítio**: Hg–O 43 2.00 Å; Hg–O 46 2.00 Å",
+        "- **Vácuo acima da molécula**: 12.36 Å",
         "- **Átomos fixos**: 28/66 (Si 8, O 20), regra 'do SCF'",
         "- **k-points**: 3 4 1 0 0 0 (da superfície: a célula não muda)",
     ):
@@ -260,7 +260,7 @@ def test_the_report():
     anchors = next(line for line in lines if line.startswith("- **Átomos âncora**"))
     assert "O 43 (" in anchors and "; grupo A)" in anchors and "O 46 (" in anchors
     assert any(
-        line.startswith("- **Posição do âncora**") and "erguido 1,08 Å" in line for line in lines
+        line.startswith("- **Posição do âncora**") and "erguido 1.08 Å" in line for line in lines
     )
 
 

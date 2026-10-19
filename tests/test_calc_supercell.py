@@ -110,8 +110,8 @@ def test_the_report_of_the_001():
     for line in (
         "- **Repetições**: 2 × 1 × 1",
         "- **Átomos**: 68 (Al 8, Si 8, O 36, H 16)",
-        "- **|a|, |b|, |c|**: 10,379; 9,008; 21,126 Å",
-        "- **Vácuo medido**: 15,07 Å ao longo de c",
+        "- **|a|, |b|, |c|**: 10.379; 9.008; 21.126 Å",
+        "- **Vácuo medido**: 15.07 Å ao longo de c",
         "- **Átomos fixos**: 28/68 (Si 8, O 20), regra 'do SCF'",
         "- **nbnd**: não definido no SCF (o padrão do pw.x)",
         "- **k-points**: 3 4 1 0 0 0 (do SCF 6 4 1 0 0 0, ÷ repetições; vácuo 1)",
@@ -121,8 +121,8 @@ def test_the_report_of_the_001():
 
 def test_the_report_of_the_010():
     text = report(plan(read(SLAB_010), fix_rule="camada inferior"))
-    assert "- **Vácuo medido**: 15,25 Å ao longo de c" in text
-    assert "- **|a|, |b|, |c|**: 10,379; 7,403; 26,425 Å" in text
+    assert "- **Vácuo medido**: 15.25 Å ao longo de c" in text
+    assert "- **|a|, |b|, |c|**: 10.379; 7.403; 26.425 Å" in text
     assert "- **Átomos fixos**: 36/80 (Al 4, Si 4, O 20, H 8), regra 'camada inferior'" in text
 
 
@@ -198,7 +198,7 @@ def test_the_standard_mode_shows_the_repetitions():
 
 def test_vacuum_below_the_minimum_is_a_note():
     result = plan(vacuum_min=16)
-    assert "Vácuo de 15,1 Å ao longo de c, abaixo do mínimo de 16,0 Å" in result.notes
+    assert "Vácuo de 15.1 Å ao longo de c, abaixo do mínimo de 16.0 Å" in result.notes
     assert not result.errors
     assert not any("abaixo do mínimo" in note for note in plan().notes)
     assert "vacuum_min" in plan(vacuum_min=-1).problems

@@ -113,7 +113,7 @@ def _species(
                     "Espécie {label} sem linha em ATOMIC_SPECIES (massa e pseudopotencial vazios)"
                 ).format(label=label)
             )
-    radius = f"{UNKNOWN_RADIUS:.1f}".replace(".", ",")
+    radius = f"{UNKNOWN_RADIUS:.1f}"
     warnings += [
         _("Espécie sem elemento conhecido: {label} (cinza, raio {radius} Å)").format(
             label=s.label, radius=radius

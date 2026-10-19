@@ -58,7 +58,7 @@ def drift_note(drift: GeometryDrift) -> str:
         return _(
             "A seleção de átomos salva foi feita com outra estrutura ({saved} átomos; esta tem {current}). {CHECK_ATOMS}"
         ).format(saved=saved, current=current, CHECK_ATOMS=CHECK_ATOMS)
-    distance = f"{drift.distance or 0.0:.1f}".replace(".", ",")
+    distance = f"{drift.distance or 0.0:.1f}"
     return _(
         "A seleção de átomos salva foi feita com outras coordenadas (átomo {atom} moveu {distance} Å). {CHECK_ATOMS}"
     ).format(atom=drift.atom, distance=distance, CHECK_ATOMS=CHECK_ATOMS)

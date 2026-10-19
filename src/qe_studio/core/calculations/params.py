@@ -163,7 +163,7 @@ GAP_METHOD_FIELD = ParamField(
         "ou pela DOS total perto de E_F.\n"
         "HOMO/LUMO do SCF: o par que o pw.x imprime (só com ocupações fixas e nbnd maior que as "
         "bandas ocupadas).\n"
-        "Maior intervalo na janela: o maior vazio de pelo menos 0,05 eV entre as energias visíveis; "
+        "Maior intervalo na janela: o maior vazio de pelo menos 0.05 eV entre as energias visíveis; "
         "muda com E mín e E máx."
     ),
     requires="legend_gap",

@@ -55,15 +55,15 @@ def test_the_neighbours_are_the_scripts(model):
         candidate = by_index[row["index"] + 1]
         assert [label for label, _d in candidate.neighbors] == [s for s, _d in row["neighbors"]]
         assert np.allclose([d for _l, d in candidate.neighbors], [d for _s, d in row["neighbors"]])
-    assert candidate_note(by_index[41]) == "A (4) · H 0,97 · Al 1,91 · Al 1,92"
+    assert candidate_note(by_index[41]) == "A (4) · H 0.97 · Al 1.91 · Al 1.92"
 
 
 def test_a_narrower_window_leaves_no_o(model):
-    """At 0,5 Å only the hydroxyl H are on top: no O, the script's own error there."""
+    """At 0.5 Å only the hydroxyl H are on top: no O, the script's own error there."""
     assert golden("candidates_001")["variants"]["window_0.5"]["error"].startswith("no surface O")
     assert find(model, window=0.5) == ()
     assert len(find(model, window=1.0)) == 12
-    assert no_candidates_text(("O",), 0.5) == "Nenhum átomo de O a até 0,5 Å do topo"
+    assert no_candidates_text(("O",), 0.5) == "Nenhum átomo de O a até 0.5 Å do topo"
 
 
 def test_species_o_h_adds_the_hydrogens(model):
@@ -107,10 +107,10 @@ def test_the_table_rows(model):
     rows = site_rows(read(SUPERCELL_001), {})
     assert rows.unit == "crystal" and rows.error == "" and len(rows.rows) == 12
     first = rows.rows[0]
-    assert (first.index, first.label, first.note) == (41, "O", "A (4) · H 0,97 · Al 1,91 · Al 1,92")
+    assert (first.index, first.label, first.note) == (41, "O", "A (4) · H 0.97 · Al 1.91 · Al 1.92")
     assert first.x == f"{model.frac[40, 0]:.5f}"
     assert site_rows(read(SUPERCELL_001), {"height_window": "0.5"}).error == (
-        "Nenhum átomo de O a até 0,5 Å do topo"
+        "Nenhum átomo de O a até 0.5 Å do topo"
     )
     assert site_rows(read(SUPERCELL_001), {"height_window": "-1"}).error == (
         "A janela da superfície deve ser maior que zero"

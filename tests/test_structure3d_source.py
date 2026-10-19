@@ -81,7 +81,7 @@ def test_atom_names_are_qe_numbers():
     assert atom_name(structure, AtomRef(42, (1, 0, 0))) == "O43(1,0,0)"
     unknown = structure_of_text(SI_TEXT.replace("Si", "X"))
     assert atom_name(unknown, AtomRef(1)) == "X2"
-    assert unknown.source.warnings == ("Espécie sem elemento conhecido: X (cinza, raio 1,0 Å)",)
+    assert unknown.source.warnings == ("Espécie sem elemento conhecido: X (cinza, raio 1.0 Å)",)
 
 
 SI_TEXT = SI_SCF.read_text()

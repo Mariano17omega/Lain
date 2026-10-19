@@ -120,7 +120,7 @@ class PdosType(CalcType):
                 _("Alargamento (degauss, Ry)"),
                 "float",
                 DEFAULT_DEGAUSS,
-                _("degauss (em Ry; 0.000735 Ry ≈ 0,01 eV): ignorado com tetraedros"),
+                _("degauss (em Ry; 0.000735 Ry ≈ 0.01 eV): ignorado com tetraedros"),
             ),
             _projwfc(
                 "ngauss",

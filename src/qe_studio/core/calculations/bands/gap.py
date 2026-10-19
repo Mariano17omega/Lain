@@ -116,7 +116,7 @@ NO_HOMO_LUMO_NOTE = _(
 )
 CLOSED_HOMO_LUMO_NOTE = _("Sem gap para a legenda: HOMO e LUMO impressos pelo pw.x coincidem")
 NO_WINDOW_GAP_NOTE = _(
-    "Sem gap para a legenda: nenhum intervalo vazio de pelo menos 0,05 eV na janela de energia"
+    "Sem gap para a legenda: nenhum intervalo vazio de pelo menos 0.05 eV na janela de energia"
 )
 
 

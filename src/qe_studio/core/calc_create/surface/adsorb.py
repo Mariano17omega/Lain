@@ -94,7 +94,8 @@ class Adsorbed:
 
 
 def parse_coords(text: str) -> np.ndarray | None:
-    """``"0.23 0.67 0.58"`` (or with decimal commas, or ``;``) as three numbers; None otherwise."""
+    """``"0.23 0.67 0.58"`` (a decimal comma is read as a point; ``;`` separates too) as three numbers;
+    None otherwise."""
     words = [word for word in _SEPARATORS.split(text.strip()) if word]
     if len(words) != 3:
         return None
@@ -111,7 +112,7 @@ def _name(model: Model, index: int, numbers: Sequence[int] | None = None) -> str
 
 
 def _number_text(values: np.ndarray) -> str:
-    return " ".join(f"{value:g}".replace(".", ",") for value in values)
+    return " ".join(f"{value:g}" for value in values)
 
 
 def _match(model: Model, text: str, tol: float, which: int) -> int:

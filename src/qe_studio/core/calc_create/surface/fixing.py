@@ -114,7 +114,7 @@ def fixed_atoms(
     if count and len(indices) >= count:
         raise SurfaceError(ALL_FIXED)
     if not indices and rule != NONE:
-        notes.append(_("Nenhum átomo ficou fixo pela regra '{rule}'").format(rule=rule))
+        notes.append(_("Nenhum átomo ficou fixo pela regra '{rule}'").format(rule=_(rule)))
     return FixResult(tuple(int(i) for i in indices), tuple(notes))
 
 

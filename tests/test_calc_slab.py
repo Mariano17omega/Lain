@@ -78,23 +78,23 @@ def test_the_report_of_the_010():
     text = report(script_plan("slab_010"))
     assert text.startswith("# Relatório da geração\n\n- **SCF de origem**: scf-kaolinite.in\n")
     for line in (
-        "- **Vácuo pedido**: 15,10 Å = 10,50 + molécula 2,60 + adsorção 2,00",
-        "- **Vácuo medido**: 15,10 Å",
+        "- **Vácuo pedido**: 15.10 Å = 10.50 + molécula 2.60 + adsorção 2.00",
+        "- **Vácuo medido**: 15.10 Å",
         "- **Superfície**: eixo b empilhado (010), invertida",
         "- **Átomos**: 40 (Al 4, Si 4, O 21, H 11)",
-        "- **|a|, |b|, |c|**: 5,190; 7,403; 26,425 Å",
-        "- **Fator f**: 2,9334 × eixo b do bulk",
+        "- **|a|, |b|, |c|**: 5.190; 7.403; 26.425 Å",
+        "- **Fator f**: 2.9334 × eixo b do bulk",
         "- **Átomos fixos**: 18/40 (Al 2, Si 2, O 10, H 4), regra 'camada inferior'",
-        "- **H reconectados**: H27–O19 (0,974 Å), H32–O24 (0,971 Å)",
+        "- **H reconectados**: H27–O19 (0.974 Å), H32–O24 (0.971 Å)",
         "- **k-points**: 6 4 1 0 0 0 (do SCF 6 4 4 0 0 0; vácuo 1)",
     ):
         assert line in text.splitlines()
-    assert "Al2: O35 + H36 (Al–O 2,038 Å)" in text
+    assert "Al2: O35 + H36 (Al–O 2.038 Å)" in text
 
 
 def test_the_001_with_the_molecule_has_15_10_of_vacuum():
     result = script_plan("slab_001")
-    assert "- **Vácuo medido**: 15,10 Å" in report(result)
+    assert "- **Vácuo medido**: 15.10 Å" in report(result)
     assert "- **Átomos fixos**: 14/34 (Si 4, O 10), regra 'espécies e vizinhos'" in report(result)
     assert NO_MOLECULE_NOTE not in result.notes
 
@@ -104,7 +104,7 @@ def test_without_a_molecule_the_vacuum_is_the_minimum():
     model = model_from_plan(input_text(result))
     assert model.cell[2, 2] - np.ptp(model.cart[:, 2]) == pytest.approx(10.5, abs=1e-6)
     assert NO_MOLECULE_NOTE in result.notes
-    assert "- **Vácuo pedido**: 10,50 Å (o vácuo mínimo; sem molécula)" in report(result)
+    assert "- **Vácuo pedido**: 10.50 Å (o vácuo mínimo; sem molécula)" in report(result)
 
 
 def test_the_folder_is_a_unit():
@@ -188,7 +188,7 @@ def test_a_molecule_that_is_no_molecule_is_noted():
 
 def test_a_scf_that_already_has_vacuum_is_noted():
     notes = plan(read(SLAB_001)).notes
-    assert "O SCF já tem 15,1 Å de vácuo ao longo de c: parece uma superfície" in notes
+    assert "O SCF já tem 15.1 Å de vácuo ao longo de c: parece uma superfície" in notes
 
 
 def test_a_skewed_cell_with_2dxy_is_noted():
@@ -205,7 +205,7 @@ def test_the_report_is_written_with_the_rest(tmp_path):
     result = script_plan("slab_010")
     created = create_folder(tmp_path, SLAB, "kao", result)
     assert [p.name for p in created.files] == ["slab.qsub", "vc-relax_kaolinite.in", REPORT_NAME]
-    assert "H27–O19 (0,974 Å)" in (created.folder / REPORT_NAME).read_text()
+    assert "H27–O19 (0.974 Å)" in (created.folder / REPORT_NAME).read_text()
 
 
 def test_the_al_scf_plans_too():

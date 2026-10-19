@@ -84,9 +84,11 @@ def mesh_summary(mesh: KMesh | None) -> str:
     if mesh is None:
         return _("Vazio: mantém o K_POINTS do SCF")
     n1, n2, n3 = mesh.n
-    return _("{n1}×{n2}×{n3} = {count} k-points na rede (o pw.x reduz pela simetria)").format(
-        n1=n1, n2=n2, n3=n3, count=mesh.count
-    )
+    return ngettext(
+        "{n1}×{n2}×{n3} = {count} k-point na rede (o pw.x reduz pela simetria)",
+        "{n1}×{n2}×{n3} = {count} k-points na rede (o pw.x reduz pela simetria)",
+        mesh.count,
+    ).format(n1=n1, n2=n2, n3=n3, count=mesh.count)
 
 
 def file_rows(files: Sequence[PlannedFile], edited: Collection[str] = ()) -> list[FileRow]:

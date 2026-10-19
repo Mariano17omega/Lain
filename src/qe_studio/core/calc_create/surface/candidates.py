@@ -195,7 +195,7 @@ def candidates_for(
 
 
 def candidate_note(candidate: Candidate) -> str:
-    """``A (4) · H 0,97 · Al 1,91``: the group, how many in the window and the bonded neighbours."""
+    """``A (4) · H 0.97 · Al 1.91``: the group, how many in the window and the bonded neighbours."""
     near = "".join(f" · {label} {decimal(distance)}" for label, distance in candidate.neighbors)
     return f"{candidate.group} ({candidate.multiplicity}){near}"
 

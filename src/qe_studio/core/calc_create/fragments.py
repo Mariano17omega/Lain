@@ -15,7 +15,7 @@ import functools
 from collections.abc import Collection
 from dataclasses import dataclass
 
-from ...i18n import _
+from ...i18n import _, ngettext
 from ..qe.input_edit import InputEditor
 from ..qe.pw_input import fortran_float
 from .edits import put_number
@@ -91,9 +91,11 @@ def _positions(editor: InputEditor) -> tuple[str, list[str], str]:
         return (
             "",
             [],
-            _("nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas").format(
-                nat=nat, count=len(rows)
-            ),
+            ngettext(
+                "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha",
+                "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas",
+                len(rows),
+            ).format(nat=nat, count=len(rows)),
         )
     return unit, rows[:nat], ""
 

@@ -16,6 +16,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+# The one file with a decimal comma (spec 32): Excel and Origin in a Portuguese locale read it so.
+# Everything else Lain writes uses the point, as QE does (tests/test_decimal_point.py).
 DELIMITER = ";"
 LINE_END = "\n"
 BOM = "\ufeff"  # Excel in a Portuguese locale reads a CSV as UTF-8 only with it

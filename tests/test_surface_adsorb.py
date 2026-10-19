@@ -94,10 +94,10 @@ def test_coordinates_too_far_are_refused(surface):
     with pytest.raises(SiteError) as caught:
         site_atoms(surface, SiteRequest(coords=(text,)))
     assert caught.value.role == "first"
-    shown = " ".join(f"{float(v):g}".replace(".", ",") for v in text.split())
+    shown = " ".join(f"{float(v):g}" for v in text.split())
     assert str(caught.value) == (
-        f"As coordenadas {shown} estão a 0,8 Å do átomo mais próximo (O 43): nenhum átomo a até "
-        "0,5 Å"
+        f"As coordenadas {shown} estão a 0.8 Å do átomo mais próximo (O 43): nenhum átomo a até "
+        "0.5 Å"
     )
 
 
@@ -158,14 +158,14 @@ def test_a_short_distance_is_a_contact(surface, molecule):
     with pytest.raises(SiteError) as caught:
         put(surface, molecule, (43,), distance=1.2)
     assert caught.value.role == "distance"
-    assert str(caught.value) == "O âncora fica a 1,2 Å de O 43: aumente a distância de adsorção"
+    assert str(caught.value) == "O âncora fica a 1.2 Å de O 43: aumente a distância de adsorção"
 
 
 def test_low_clearance_and_vacuum_are_notes(surface, molecule):
     result = put(surface, molecule, (43, 46), h_clearance=2.5, vacuum_min=13.0)
     assert result.notes == (
-        "Folga abaixo de 2,5 Å: âncora···H 2,17 Å; o relax ajusta",
-        "Vácuo de 12,4 Å acima da molécula, abaixo do mínimo de 13,0 Å",
+        "Folga abaixo de 2.5 Å: âncora···H 2.17 Å; o relax ajusta",
+        "Vácuo de 12.4 Å acima da molécula, abaixo do mínimo de 13.0 Å",
     )
 
 

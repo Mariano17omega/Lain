@@ -12,7 +12,7 @@ from surface_helpers import BULK, MOLECULE, SLAB_001, SLAB_010, SUPERCELL_001, r
 
 BULK_TEXT = (
     "scf-kaolinite.in parece o SCF de um bulk: não há vácuo ao longo de c (maior intervalo vazio: "
-    "1,85 Å). Escolha o SCF de uma superfície relaxada (Slab ou Supercélula)."
+    "1.85 Å). Escolha o SCF de uma superfície relaxada (Slab ou Supercélula)."
 )
 
 

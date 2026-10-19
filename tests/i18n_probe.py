@@ -11,10 +11,11 @@ pages and every menu included), as in ``widget_texts``. Painted text (the badges
 grid, figures, the 3D view) belongs to no widget: the spec of each area tests it through its model.
 
 A spec of the series adds its scenarios to ``SCENARIOS`` (spec 54's are in
-``tests/i18n_scenarios_54.py``, spec 55's in ``tests/i18n_scenarios_55.py``, merged below): a function ``(window, project)`` that
-brings the window to what is checked, opening dialogs without ``exec()`` (a modal loop would wait
-forever). An unexpected exception ends the process with code 1 and the traceback on stderr: the
-app's excepthook would open a modal box instead. The last line of stdout is ``{scenario: [texts]}``.
+``tests/i18n_scenarios_54.py``, 55's in ``…_55.py``, 56's in ``…_56.py``, merged below): a function
+``(window, project)`` that brings the window to what is checked, opening dialogs without ``exec()``
+(a modal loop would wait forever). An unexpected exception ends the process with code 1 and the
+traceback on stderr: the app's excepthook would open a modal box instead. The last line of stdout
+is ``{scenario: [texts]}``.
 
 A scenario may also return a list of *facts*, what no widget shows: the order of the menus, the
 output of ``--help``, the text of an error, what the grid lists. They come in the same JSON as
@@ -37,6 +38,7 @@ from pathlib import Path
 import i18n_scenarios_55
 from i18n_scenarios_54 import SCENARIOS as SCENARIOS_54
 from i18n_scenarios_55 import SCENARIOS as SCENARIOS_55
+from i18n_scenarios_56 import SCENARIOS as SCENARIOS_56
 from qe_studio import i18n  # no texts: the language is installed before the modules that have them
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -259,6 +261,7 @@ SCENARIOS: dict[str, Callable[..., list[str] | None]] = {
     "type_filter": type_filter_scenario,
     **SCENARIOS_54,  # spec 54: the viewers and the Resumo (tests/i18n_scenarios_54.py)
     **SCENARIOS_55,  # spec 55: the plots, the atoms, the Grids and the export (…_55.py)
+    **SCENARIOS_56,  # spec 56: the Criar cálculo window, the k-path editor, derive (…_56.py)
 }
 
 

@@ -158,7 +158,7 @@ def test_reader_warnings_are_lines_of_the_cell_section(windows):
     window = windows.open(structure=structure_of_text(text, SI_SCF))
     lines = [label.text() for label in window.panel.warnings]
     assert lines[0].startswith("⚠ Espécie X sem linha em ATOMIC_SPECIES")
-    assert lines[1] == "⚠ Espécie sem elemento conhecido: X (cinza, raio 1,0 Å)"
+    assert lines[1] == "⚠ Espécie sem elemento conhecido: X (cinza, raio 1.0 Å)"
     assert window.warning.isVisibleTo(window) and "Espécie X" in window.warning.toolTip()
 
 

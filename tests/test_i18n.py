@@ -285,9 +285,10 @@ def test_a_local_underscore_is_found():
 # The marker calls whose message is not a literal. The extraction cannot see them: the data they get
 # must be marked with N_ where it is defined, and the spec of the area tests it in English at run
 # time (53: filter_bar; 55: param_widgets, Method.label, the relax thresholds' "QE default"; 56:
-# form.py; 57: adsorption.py). A new one
+# form.py, the rule of the fixed atoms; 57: adsorption.py). A new one
 # goes here, with that test.
 DYNAMIC = [
+    ("core/calc_create/surface/fixing.py", "rule"),
     ("core/calc_create/types/adsorption.py", "FROM_COORDS"),
     ("core/calc_create/types/adsorption.py", "FROM_LIST"),
     ("core/calculations/base.py", "self.value"),
@@ -324,8 +325,13 @@ AREA_55 = [
     "files_roles",
 ]
 FACTS_55 = ["figures", "csv"]
+# Spec 56: the "Criar cálculo" window (step 1 in both modes, step 2 of a Slab, its messages), the
+# k-path editor and "Gerar SCF convergido". The facts: the notes of preview.py, geracao.md, the combos.
+AREA_56 = ["calc_create_setup", "calc_create_files", "kpath_editor", "derive", "calc_create_errors"]
+FACTS_56 = ["calc_create_notices", "report_text", "combo_data"]
 # The scenarios with texts to check for leaks: spec 52's two, spec 53's eleven (the window, its
-# menus and the general dialogs), spec 54's six, spec 55's nine. The next specs of the series add theirs.
+# menus and the general dialogs), spec 54's six, spec 55's nine, spec 56's five. The next specs of
+# the series add theirs.
 LEAK_SCENARIOS = [
     "main",
     "plot",
@@ -341,6 +347,7 @@ LEAK_SCENARIOS = [
     "tree",
     *AREA_54,
     *AREA_55,
+    *AREA_56,
     "first_run",
 ]
 # What no widget shows (the probe's "facts"). They run before ``first_run``, whose overlay stays on.
@@ -349,7 +356,7 @@ FACT_SCENARIOS = ["menus", "cli", "config", "restart", "type_filter", "lint"]
 
 @pytest.fixture(scope="module")
 def english():
-    order = [*LEAK_SCENARIOS[:-1], *FACT_SCENARIOS, *FACTS_55, LEAK_SCENARIOS[-1]]
+    order = [*LEAK_SCENARIOS[:-1], *FACT_SCENARIOS, *FACTS_55, *FACTS_56, LEAK_SCENARIOS[-1]]
     return probe_texts("en", *order)
 
 
@@ -357,7 +364,16 @@ def english():
 def portuguese():
     dialogs_55 = AREA_55[5:]  # the scenarios whose facts are compared with the English ones
     return probe_texts(
-        "pt_BR", "main", "shortcuts", "tree", *AREA_54, *FACT_SCENARIOS, *dialogs_55, *FACTS_55
+        "pt_BR",
+        "main",
+        "shortcuts",
+        "tree",
+        *AREA_54,
+        *FACT_SCENARIOS,
+        *dialogs_55,
+        *FACTS_55,
+        *AREA_56,
+        *FACTS_56,
     )
 
 
@@ -472,6 +488,28 @@ def test_the_plurals_of_the_area_have_both_forms(po):
     ]
     assert area_55  # the area has plurals, and each has two forms that differ
     assert [tool.sources(m)[0] for m in area_55 if len(set(tool.forms(m))) != 2] == []
+
+    # Spec 56: the folder's files and the k-points of a mesh.
+    assert forms[
+        ("Pasta {name} criada com {count} arquivo", "Pasta {name} criada com {count} arquivos")
+    ] == ("Folder {name} created with {count} file", "Folder {name} created with {count} files")
+    assert forms[
+        (
+            "{n1}×{n2}×{n3} = {count} k-point na rede (o pw.x reduz pela simetria)",
+            "{n1}×{n2}×{n3} = {count} k-points na rede (o pw.x reduz pela simetria)",
+        )
+    ] == (
+        "{n1}×{n2}×{n3} = {count} k-point in the mesh (pw.x reduces it by symmetry)",
+        "{n1}×{n2}×{n3} = {count} k-points in the mesh (pw.x reduces them by symmetry)",
+    )
+    area_56 = [
+        message
+        for message in tool.messages(po)
+        if len(tool.sources(message)) == 2
+        and any(area_of(filename) == 56 for filename, _line in message.locations)
+    ]
+    assert len(area_56) >= 3  # the lines of ATOMIC_POSITIONS (shared with 54), the files, the mesh
+    assert [tool.sources(m)[0] for m in area_56 if len(set(tool.forms(m))) != 2] == []
 
 
 # -- spec 54: the viewers and the reading of the QE outputs ------------------------------------------
@@ -751,3 +789,214 @@ def test_the_atoms_and_grids_windows_speak_english(english, portuguese):
     assert "Cell 1: position (1, 2) is outside the 1 × 1 grid." in grid
     assert "Rows and columns range from 1 to 6." in grid
     assert "Grade “1” salva." in portuguese["grid_dialog#facts"]
+
+
+# -- spec 56: "Criar cálculo", the k-path editor and the report of the generation -------------------
+def fact(facts: list[str], prefix: str) -> str:
+    """The first fact that starts with ``prefix``."""
+    return next(text for text in facts if text.startswith(prefix))
+
+
+def test_the_report_title_follows_the_language_and_its_rows_do_not(english, portuguese):
+    """``report_text`` writes the title in the language of the interface and every row as it was
+    given (the labels of a type's rows are spec 57's): R2.2."""
+    rows = ["", "- **rótulo**: valor", "- **Número**: 3.14", "name: geracao.md", "key: report"]
+    assert english["report_text#facts"] == ["# Generation report", *rows]
+    assert portuguese["report_text#facts"] == ["# Relatório da geração", *rows]
+
+
+def test_the_report_tab_shows_what_is_written(english, portuguese):
+    """The "Relatório" tab, the planned file and ``geracao.md`` on disk are the same text, in each
+    language; the file keeps its name and only the prose follows the interface (R2.1, R2.3)."""
+    for facts, title in (
+        (english["calc_create_files#facts"], "# Generation report\n"),
+        (portuguese["calc_create_files#facts"], "# Relatório da geração\n"),
+    ):
+        texts = [
+            fact(facts, f"{kind}:\n").partition("\n")[2]
+            for kind in ("preview", "planned", "written")
+        ]
+        assert texts[0] == texts[1] == texts[2] != ""
+        assert texts[0].startswith(title)
+        assert "name: geracao.md" in facts
+        assert fact(facts, "files: ").split()[1] == "geracao.md"
+    assert fact(english["calc_create_files#facts"], "files: ") == fact(
+        portuguese["calc_create_files#facts"], "files: "
+    )
+
+
+def test_the_files_tab_names_the_kind_of_each_file(english, portuguese):
+    assert [f for f in english["calc_create_files#facts"] if f.startswith("row: ")] == [
+        "row: slab.qsub | SGE script",
+        "row: vc-relax_kaolinite.in | pw.x input",
+        "row: geracao.md | Report",
+    ]
+    assert [f for f in portuguese["calc_create_files#facts"] if f.startswith("row: ")] == [
+        "row: slab.qsub | Script SGE",
+        "row: vc-relax_kaolinite.in | Input do pw.x",
+        "row: geracao.md | Relatório",
+    ]
+    assert any(
+        f.startswith("note: Set jobs.pseudo_dir in config.yaml")
+        for f in english["calc_create_files#facts"]
+    )
+
+
+def test_combo_data_is_the_value(english, portuguese):
+    """A combo shows the label of the language and keeps the Portuguese token as its data, for every
+    choice field of every type: ``currentData()`` is what ``plan`` reads (R2, R3.2)."""
+
+    def data(facts: list[str]) -> list[str]:
+        return [text for text in facts if text.startswith("data ")]
+
+    assert data(english["combo_data#facts"]) == data(portuguese["combo_data#facts"])
+    assert len(data(english["combo_data#facts"])) > 10  # the types have choices to compare
+    shown = english["combo_data#facts"]
+    assert (
+        "data slab.fix_rule: ['camada inferior', 'espécies e vizinhos', 'nenhum'] now camada inferior"
+        in shown
+    )
+    assert "text slab.fix_rule: ['bottom layer', 'species and neighbors', 'none']" in shown
+    assert (
+        "text adsorption.fix_rule: ['bottom layer', 'species and neighbors', 'from the SCF', 'none']"
+        in shown
+    )
+    assert "text supercell.fix_rule: ['camada inferior'" in "\n".join(
+        portuguese["combo_data#facts"]
+    )
+
+
+def test_the_window_of_calc_create_follows_the_language(english, portuguese):
+    """Step 1 and the switch of modes (R3.1): the title of the step, the switch and the rebuild notes."""
+    en, pt = english["calc_create_setup#facts"], portuguese["calc_create_setup#facts"]
+    assert en[0].startswith("Will be created: ") and pt[0].startswith("Será criada: ")
+    assert en[1:3] == ["2 · Files", "Standard"] and pt[1:3] == ["2 · Arquivos", "Padrão"]
+    assert en[3] == "This change redoes the next step: the fields go back to their defaults"
+    assert en[4] == f"{en[3]} and the file edits are lost"
+    assert pt[4] == f"{pt[3]} e as edições dos arquivos se perdem"
+    shown = english["calc_create_setup"]
+    for text in (
+        "Only the type's standard fields; the rest follows the SCF and config.yaml",
+        "Number",
+    ):
+        assert text in shown
+    assert "Padrão" not in shown and "Avançado" not in shown
+
+
+def test_the_errors_of_the_window_and_the_core_follow_the_language(english, portuguese):
+    """What "Continuar" says it needs, what the folder name and the SCF are refused for, and what the
+    core reports (R3.1, R1.2): the same errors, each in its language."""
+    en, pt = english["calc_create_errors#facts"], portuguese["calc_create_errors#facts"]
+    for facts, expected in (
+        (
+            en,
+            [
+                "no scf: Choose the SCF input",
+                "name: Use only unaccented letters, digits, dot, hyphen and underscore in the name",
+                "not an input: bands.dat.gnu does not look like a Quantum ESPRESSO input",
+                "not an scf: The file is not an SCF (calculation = 'relax')",
+                "taken: Will be created: Bands_Al_1 — Bands_Al already exists",
+                "writer name: Invalid file name: 'a/b'",
+                "writer place: The folder <dir>/nao_existe does not exist",
+                "scf head: The file is not a pw.x input (no &SYSTEM)",
+                "kmesh: the k-point mesh needs n1, n2, n3 ≥ 1",
+                "kmesh: the mesh shifts are 0 or 1",
+                "fixing: No atom was fixed by the rule 'from the SCF'",
+            ],
+        ),
+        (
+            pt,
+            [
+                "no scf: Escolha o input de SCF",
+                "name: Use só letras sem acento, números, ponto, hífen e sublinhado no nome",
+                "not an input: bands.dat.gnu não parece um input do Quantum ESPRESSO",
+                "not an scf: O arquivo não é um SCF (calculation = 'relax')",
+                "taken: Será criada: Bands_Al_1 — já existe Bands_Al",
+                "writer name: Nome de arquivo inválido: 'a/b'",
+                "writer place: A pasta <dir>/nao_existe não existe",
+                "scf head: O arquivo não é um input do pw.x (sem &SYSTEM)",
+                "kmesh: a rede de k-points precisa de n1, n2, n3 ≥ 1",
+                "kmesh: os deslocamentos da rede são 0 ou 1",
+                "fixing: Nenhum átomo ficou fixo pela regra 'do SCF'",
+            ],
+        ),
+    ):
+        assert [text for text in expected if text not in facts] == []
+    assert fact(en, "bulk: ").startswith("bulk: scf-kaolinite.in looks like the SCF of a bulk: ")
+    assert fact(en, "bulk: ").endswith("Choose the SCF of a relaxed surface (Slab or Supercell).")
+    # A number is written with the point in both languages (QE reads it so; CLAUDE.md, "Numbers").
+    assert "1.85 Å" in fact(en, "bulk: ") and "1.85 Å" in fact(pt, "bulk: ")
+    assert fact(en, "writer write: ").startswith("writer write: Could not write <name>: ")
+    assert fact(pt, "writer write: ").startswith("writer write: Não foi possível gravar <name>: ")
+    # The token of the rule is shown by its label: the data ("do SCF") never leaks into the sentence.
+    assert "'camada inferior'" not in "\n".join(en) and "'do SCF'" not in "\n".join(en)
+
+
+def test_the_notices_and_the_counts_of_the_preview(english, portuguese):
+    assert english["calc_create_notices#facts"] == [
+        "Empty: keeps the K_POINTS of the SCF",
+        "1×1×1 = 1 k-point in the mesh (pw.x reduces it by symmetry)",
+        "4×4×2 = 32 k-points in the mesh (pw.x reduces them by symmetry)",
+        "notice: Folder Bands_Al created with 1 file",
+        "details:   bands.in",
+        "notice: Folder Bands_Al created with 2 files. Use ‘Upload to cluster’ to take the folder to the cluster",
+        "details: Bands already existed: created as Bands_Al",
+        "place: Outside the root folder: detection and sync only see folders inside it",
+        "place: The folder will be created outside a project and will show up as a new project.",
+    ]
+    assert portuguese["calc_create_notices#facts"] == [
+        "Vazio: mantém o K_POINTS do SCF",
+        "1×1×1 = 1 k-point na rede (o pw.x reduz pela simetria)",
+        "4×4×2 = 32 k-points na rede (o pw.x reduz pela simetria)",
+        "notice: Pasta Bands_Al criada com 1 arquivo",
+        "details:   bands.in",
+        "notice: Pasta Bands_Al criada com 2 arquivos. Use ‘Enviar ao cluster’ para levar a pasta ao cluster",
+        "details: Bands já existia: criada como Bands_Al",
+        "place: Fora da pasta raiz: a detecção e a sincronização só enxergam pastas dentro dela",
+        "place: A pasta será criada fora de um projeto e aparecerá como um projeto novo.",
+    ]
+
+
+def test_the_cluster_reminder_names_the_action_as_the_menu_does(po):
+    """The notice quotes the "Enviar ao cluster" item: its English text is the menu's, word for word."""
+    items = {
+        tool.sources(m)[0]: tool.forms(m)[0]
+        for m in tool.messages(po)
+        if tool.is_translated(m) and len(tool.sources(m)) == 1
+    }
+    quoted = items["Use ‘Enviar ao cluster’ para levar a pasta ao cluster"]
+    assert f"‘{items['Enviar ao cluster']}’" in quoted
+
+
+def test_the_k_path_editor_follows_the_language(english, portuguese):
+    en, pt = english["kpath_editor#facts"], portuguese["kpath_editor#facts"]
+    assert len(en) == len(pt)  # the same cells carry a note
+    assert "cell 3,4: 'break' The path jumps from this point to the next one (weight 1)" in en
+    assert "cell 3,4: 'quebra' O caminho salta deste ponto para o próximo (peso 1)" in pt
+    assert any("Segment A→L collapses on the x axis of bands.x" in text for text in en)
+    assert all("‘Distribute by length’" in text for text in en if "Segment" in text)
+    assert all("‘Distribuir pelo comprimento’" in text for text in pt if "Segmento" in text)
+    assert [text for text in en if text.startswith("typed")] == [
+        "typed 'abc': Invalid value: abc",
+        "typed '': Invalid value: empty",
+    ]
+    assert [text for text in pt if text.startswith("typed")] == [
+        "typed 'abc': Valor inválido: abc",
+        "typed '': Valor inválido: vazio",
+    ]
+    assert "no cell: SCF structure not readable" in en
+    assert "no cell: Estrutura do SCF não legível" in pt
+    shown = english["kpath_editor"]
+    for text in ("Label", "Points", "Move up", "Mark segment break", "Points per Å⁻¹"):
+        assert text in shown
+
+
+def test_the_converged_scf_speaks_english(english, portuguese):
+    en, pt = english["derive#facts"], portuguese["derive#facts"]
+    assert en[0] == "toast: scf_convergido_silicon.in created"
+    assert pt[0] == "toast: scf_convergido_silicon.in criado"
+    assert "The SCF uses the same prefix (silicon) and outdir as the relax" in en[1]
+    assert "O SCF usa o mesmo prefix (silicon) e outdir do relax" in pt[1]
+    assert en[2] == "warning: Generate converged SCF | Relax input not found in the folder"
+    assert pt[2] == "warning: Gerar SCF convergido | Input do relax não encontrado na pasta"
+    assert "Generate converged SCF" in english["derive"]

@@ -62,7 +62,7 @@ AREAS: dict[str, int] = {
     "ui/structure3d_controller.py": 59,
 }
 
-DONE: set[int] = {53, 54, 55}
+DONE: set[int] = {53, 54, 55, 56}
 
 
 def area_of(filename: str) -> int:

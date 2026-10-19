@@ -664,7 +664,7 @@ def test_the_site_table_follows_its_fields(qtbot, dialog):
     assert isinstance(legend, QLabel) and legend.text().startswith("Monodentado: marque")
     type_into(qtbot, tabs.widget_of("site_species"), "O")
     assert table.table.rowCount() == 0 and not legend.isHidden()
-    assert legend.text() == "Nenhum átomo de O a até 0,5 Å do topo"
+    assert legend.text() == "Nenhum átomo de O a até 0.5 Å do topo"
     dialog.set_mode("padrao")  # the hidden window and species take their defaults
     assert table.table.rowCount() == 12
     assert legend.text().startswith("Monodentado: marque")
