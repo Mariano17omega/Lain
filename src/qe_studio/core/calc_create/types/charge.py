@@ -13,7 +13,7 @@ import shlex
 from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
-from ....i18n import _
+from ....i18n import N_, _
 from ..render import render
 from ..scf_info import ScfInfo
 from ..unit import UNIT_OUTDIR, absolute, climbs
@@ -29,29 +29,37 @@ DEFAULT_PLOT_NUM = 0  # electron (pseudo-)charge density
 DEFAULT_IFLAG = 3
 DEFAULT_OUTPUT_FORMAT = 5
 
-# The codes of INPUT_PP (QE 7.1) the form offers, with the label the window shows.
+# The codes of INPUT_PP (QE 7.1) the form offers. A choice is the code and its label in one token,
+# the same in every language (the combo shows it through _(), spec 57 R3.1); ``code_of`` reads the
+# code back.
 IFLAGS = {
-    0: _("média esférica (1D)"),
-    1: _("gráfico 1D"),
-    2: _("gráfico 2D"),
-    3: _("grade 3D"),
-    4: _("gráfico 2D polar numa esfera"),
+    0: N_("0 — média esférica (1D)"),
+    1: N_("1 — gráfico 1D"),
+    2: N_("2 — gráfico 2D"),
+    3: N_("3 — grade 3D"),
+    4: N_("4 — gráfico 2D polar numa esfera"),
 }
 OUTPUT_FORMATS = {
-    0: "gnuplot (1D)",
-    2: "plotrho (2D)",
-    3: _("XCrySDen (2D ou região 3D)"),
-    5: _("XSF para XCrySDen (3D, grade FFT inteira)"),
-    6: _("cube do Gaussian (3D)"),
-    7: "gnuplot (2D)",
+    0: N_("0 — gnuplot (1D)"),
+    2: N_("2 — plotrho (2D)"),
+    3: N_("3 — XCrySDen (2D ou região 3D)"),
+    5: N_("5 — XSF para XCrySDen (3D, grade FFT inteira)"),
+    6: N_("6 — cube do Gaussian (3D)"),
+    7: N_("7 — gnuplot (2D)"),
 }
+CODE_SEPARATOR = " — "  # between the code and the label of a choice, in every language
 # The formats pp.x writes for an ``iflag``; it ignores ``output_format`` on the others (1D, polar).
 FORMATS_OF_IFLAG = {2: (2, 3, 7), 3: (3, 5, 6)}
 
 
 def choice(code: int, labels: dict[int, str]) -> str:
-    """``5`` → ``'5 — XSF para XCrySDen (3D, grade FFT inteira)'``: what the combo shows."""
-    return f"{code} — {labels[code]}"
+    """``5`` → ``'5 — XSF para XCrySDen (3D, grade FFT inteira)'``: the value of the choice."""
+    return labels[code]
+
+
+def label_of(code: int, labels: dict[int, str]) -> str:
+    """The label of a choice as the combo shows it, without its code: ``'gráfico 2D'``."""
+    return _(labels[code]).partition(CODE_SEPARATOR)[2]
 
 
 def code_of(text: object, default: int) -> int:
@@ -120,7 +128,7 @@ def format_problem(iflag: int, output_format: int) -> str | None:
     ).format(
         output_format=output_format,
         iflag=iflag,
-        IFLAGS=IFLAGS[iflag],
+        IFLAGS=label_of(iflag, IFLAGS),
         join=", ".join(str(code) for code in allowed),
     )
 

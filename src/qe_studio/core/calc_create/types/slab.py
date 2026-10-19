@@ -246,7 +246,7 @@ def structure_facts(
     """The lines of ``geracao.md`` about the slab; atoms are numbered from 1."""
     labels, cell = model.labels, model.cell
     heights = model.cart[:, 2]
-    flip = "invertida" if options.flip else _("não invertida")
+    flip = _("invertida") if options.flip else _("não invertida")
     lengths = "; ".join(decimal(float(np.linalg.norm(row)), 3) for row in cell)
     facts: Facts = [
         (

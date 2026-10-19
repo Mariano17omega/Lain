@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from ....i18n import _
 from ..scf_info import ScfInfo
 from ..surface import SurfaceError
-from ..surface.fixing import BOTTOM, SPECIES, FixResult, fixed_atoms
+from ..surface.fixing import BOTTOM, NONE, SPECIES, FixResult, fixed_atoms
 from ..surface.model import Model
 from .base import FormField, Work
 
@@ -91,6 +91,8 @@ def fix_fields(
     species: str = "Si",
     neighbors: str = "O",
 ) -> list[FormField]:
+    # The rules as the combo shows them: the tooltips quote its labels, not the tokens.
+    bottom, by_species, none = _(BOTTOM), _(SPECIES), _(NONE)
     return [
         FormField(
             FIX_RULE,
@@ -101,8 +103,8 @@ def fix_fields(
             choices=tuple(rules),
             tooltip=(
                 _(
-                    "'{BOTTOM}': os átomos abaixo da fração da espessura; '{SPECIES}': as espécies fixas e os vizinhos ligados a elas; 'nenhum': todos livres"
-                ).format(BOTTOM=BOTTOM, SPECIES=SPECIES)
+                    "'{BOTTOM}': os átomos abaixo da fração da espessura; '{SPECIES}': as espécies fixas e os vizinhos ligados a elas; '{NONE}': todos livres"
+                ).format(BOTTOM=bottom, SPECIES=by_species, NONE=none)
             ),
         ),
         FormField(
@@ -112,8 +114,8 @@ def fix_fields(
             0.5,
             group=group,
             tooltip=_(
-                "'{BOTTOM}': fixa os átomos abaixo desta fração da espessura (0,5 = metade)"
-            ).format(BOTTOM=BOTTOM),
+                "'{BOTTOM}': fixa os átomos abaixo desta fração da espessura (0.5 = metade)"
+            ).format(BOTTOM=bottom),
         ),
         FormField(
             FIX_SPECIES,
@@ -122,7 +124,7 @@ def fix_fields(
             species,
             group=group,
             tooltip=_("'{SPECIES}': rótulos de ATOMIC_SPECIES, separados por espaço").format(
-                SPECIES=SPECIES
+                SPECIES=by_species
             ),
         ),
         FormField(
@@ -133,7 +135,7 @@ def fix_fields(
             group=group,
             tooltip=_(
                 "'{SPECIES}': rótulos dos vizinhos ligados às espécies fixas que também ficam fixos"
-            ).format(SPECIES=SPECIES),
+            ).format(SPECIES=by_species),
         ),
     ]
 
@@ -204,6 +206,6 @@ def fixed_fact(labels: Sequence[str], fix: FixResult, rule: str) -> tuple[str, s
     return (
         _("Átomos fixos"),
         _("{count}/{count_2}{which}, regra '{rule}'").format(
-            count=len(fix.indices), count_2=len(labels), which=which, rule=rule
+            count=len(fix.indices), count_2=len(labels), which=which, rule=_(rule)
         ),
     )

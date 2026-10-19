@@ -21,14 +21,18 @@ from babel.messages.mofile import read_mo
 
 from i18n_areas import AREAS, DONE, area_of
 from i18n_helpers import (
+    CODE_TOKENS,
     first_lines,
+    fragment_leaks,
     leaks,
     lost_code_tokens,
     probe_texts,
     script,
     untranslated_in_done,
 )
+from i18n_scenarios_57 import TYPE_IDS
 from i18n_static import (
+    ACCENTED,
     SOURCE,
     check_source,
     check_tree,
@@ -285,15 +289,23 @@ def test_a_local_underscore_is_found():
 # The marker calls whose message is not a literal. The extraction cannot see them: the data they get
 # must be marked with N_ where it is defined, and the spec of the area tests it in English at run
 # time (53: filter_bar; 55: param_widgets, Method.label, the relax thresholds' "QE default"; 56:
-# form.py, the rule of the fixed atoms; 57: adsorption.py). A new one
-# goes here, with that test.
+# form.py, the rule of the fixed atoms; 57: the rules and the coordination in the tooltips and in
+# geracao.md, the label of a pp.x code, the title of a tab of fields). A new one goes here, with that
+# test.
 DYNAMIC = [
     ("core/calc_create/surface/fixing.py", "rule"),
     ("core/calc_create/types/adsorption.py", "FROM_COORDS"),
     ("core/calc_create/types/adsorption.py", "FROM_LIST"),
+    ("core/calc_create/types/adsorption.py", "mode"),
+    ("core/calc_create/types/charge.py", "labels[code]"),
+    ("core/calc_create/types/surface_fields.py", "BOTTOM"),
+    ("core/calc_create/types/surface_fields.py", "NONE"),
+    ("core/calc_create/types/surface_fields.py", "SPECIES"),
+    ("core/calc_create/types/surface_fields.py", "rule"),
     ("core/calculations/base.py", "self.value"),
     ("core/calculations/relax_panels.py", "QE_DEFAULT"),
     ("ui/dialogs/calc_create/form.py", "choice"),
+    ("ui/dialogs/calc_create/tabs_page.py", "group"),
     ("ui/widgets/filter_bar.py", "value"),
     ("ui/widgets/filter_bar.py", "value"),
     ("ui/widgets/param_widgets.py", "title"),
@@ -329,9 +341,15 @@ FACTS_55 = ["figures", "csv"]
 # k-path editor and "Gerar SCF convergido". The facts: the notes of preview.py, geracao.md, the combos.
 AREA_56 = ["calc_create_setup", "calc_create_files", "kpath_editor", "derive", "calc_create_errors"]
 FACTS_56 = ["calc_create_notices", "report_text", "combo_data"]
+# Spec 57: step 2 of each type (its fields) and what each type refuses; the files of a Slab (facts).
+AREA_57 = [
+    *(f"calc_create_{type_id}" for type_id in TYPE_IDS),
+    *(f"calc_create_validation_{type_id}" for type_id in TYPE_IDS),
+]
+FACTS_57 = ["slab_files"]
 # The scenarios with texts to check for leaks: spec 52's two, spec 53's eleven (the window, its
-# menus and the general dialogs), spec 54's six, spec 55's nine, spec 56's five. The next specs of
-# the series add theirs.
+# menus and the general dialogs), spec 54's six, spec 55's nine, spec 56's five, spec 57's twenty.
+# The next specs of the series add theirs.
 LEAK_SCENARIOS = [
     "main",
     "plot",
@@ -348,6 +366,7 @@ LEAK_SCENARIOS = [
     *AREA_54,
     *AREA_55,
     *AREA_56,
+    *AREA_57,
     "first_run",
 ]
 # What no widget shows (the probe's "facts"). They run before ``first_run``, whose overlay stays on.
@@ -356,7 +375,14 @@ FACT_SCENARIOS = ["menus", "cli", "config", "restart", "type_filter", "lint"]
 
 @pytest.fixture(scope="module")
 def english():
-    order = [*LEAK_SCENARIOS[:-1], *FACT_SCENARIOS, *FACTS_55, *FACTS_56, LEAK_SCENARIOS[-1]]
+    order = [
+        *LEAK_SCENARIOS[:-1],
+        *FACT_SCENARIOS,
+        *FACTS_55,
+        *FACTS_56,
+        *FACTS_57,
+        LEAK_SCENARIOS[-1],
+    ]
     return probe_texts("en", *order)
 
 
@@ -374,6 +400,8 @@ def portuguese():
         *FACTS_55,
         *AREA_56,
         *FACTS_56,
+        *AREA_57,
+        *FACTS_57,
     )
 
 
@@ -510,6 +538,17 @@ def test_the_plurals_of_the_area_have_both_forms(po):
     ]
     assert len(area_56) >= 3  # the lines of ATOMIC_POSITIONS (shared with 54), the files, the mesh
     assert [tool.sources(m)[0] for m in area_56 if len(set(tool.forms(m))) != 2] == []
+
+    # Spec 57: the anchor atoms of the report and the bonds a slab's cut leaves open.
+    assert forms[("Átomo âncora", "Átomos âncora")] == ("Anchor atom", "Anchor atoms")
+    area_57 = [
+        message
+        for message in tool.messages(po)
+        if len(tool.sources(message)) == 2
+        and any(area_of(filename) == 57 for filename, _line in message.locations)
+    ]
+    assert len(area_57) == 3
+    assert [tool.sources(m)[0] for m in area_57 if len(set(tool.forms(m))) != 2] == []
 
 
 # -- spec 54: the viewers and the reading of the QE outputs ------------------------------------------
@@ -864,6 +903,15 @@ def test_combo_data_is_the_value(english, portuguese):
     assert "text supercell.fix_rule: ['camada inferior'" in "\n".join(
         portuguese["combo_data#facts"]
     )
+    # A code of pp.x and its label are one token (spec 57 R3.1): the data is the same text.
+    assert (
+        "data charge.iflag: ['0 — média esférica (1D)', '1 — gráfico 1D', '2 — gráfico 2D', "
+        "'3 — grade 3D', '4 — gráfico 2D polar numa esfera'] now 3 — grade 3D"
+    ) in shown
+    assert (
+        "text charge.iflag: ['0 — spherical average (1D)', '1 — 1D plot', '2 — 2D plot', "
+        "'3 — 3D grid', '4 — 2D polar plot on a sphere']"
+    ) in shown
 
 
 def test_the_window_of_calc_create_follows_the_language(english, portuguese):
@@ -1000,3 +1048,264 @@ def test_the_converged_scf_speaks_english(english, portuguese):
     assert en[2] == "warning: Generate converged SCF | Relax input not found in the folder"
     assert pt[2] == "warning: Gerar SCF convergido | Input do relax não encontrado na pasta"
     assert "Generate converged SCF" in english["derive"]
+
+
+# -- spec 57: the calculation types of "Criar cálculo" ---------------------------------------------
+TYPES_EN = (
+    "types: SCF | Relax | VC-Relax | Bands | PDOS | Charge | Charge difference | Slab | Supercell"
+    " | Molecule on surface"
+)
+TYPES_PT = (
+    "types: SCF | Relax | VC-Relax | Bandas | PDOS | Carga | Diferença de carga | Slab"
+    " | Supercélula | Molécula na superfície"
+)
+QSUB_HEADER = "########       Configuração do pw.x         ########"
+# Choice fields whose values are QE's own tokens: the combo shows them as written, in both
+# languages, so they are no message (R3.1).
+QE_CHOICES = {
+    "axis": "the stacked axis and its Miller index, c (001)",
+    "cell_dofree": "&CELL cell_dofree",
+    "cell_dynamics": "&CELL cell_dynamics",
+    "ion_dynamics": "&IONS ion_dynamics",
+    "occupations": "&SYSTEM occupations",
+}
+
+
+def keyed(facts: list[str], prefix: str) -> dict[str, str]:
+    """The facts ``<prefix> <key>: <text>`` as ``{key: text}``, in order."""
+    found = {}
+    for text in facts:
+        if text.startswith(f"{prefix} "):
+            key, _sep, rest = text.removeprefix(f"{prefix} ").partition(": ")
+            found[key] = rest
+    return found
+
+
+def lost_code(pairs: dict[str, tuple[str, str]]) -> list[str]:
+    """The pieces of code (``CODE_TOKENS``) of a Portuguese text that its English one lacks: what the
+    window composes (a tooltip with its namelist, a message with its label) checked as shown."""
+    return [
+        f"{key}: lost {token!r}"
+        for key, (portuguese, english) in pairs.items()
+        for pattern in CODE_TOKENS
+        for token in sorted(set(pattern.findall(portuguese)) - set(pattern.findall(english)))
+    ]
+
+
+def no_portuguese(facts: list[str], po) -> list[str]:
+    """An accented letter or a short message of the area left in Portuguese inside an English text."""
+    return [text for text in facts if ACCENTED.search(text)] + fragment_leaks(facts, po, {56, 57})
+
+
+def test_the_probe_knows_every_type():
+    from qe_studio.core.calc_create.types import REGISTRY
+
+    assert tuple(calc_type.id for calc_type in REGISTRY) == TYPE_IDS
+
+
+def test_the_fields_of_every_type_follow_the_language(english, portuguese, po):
+    """Step 2 of each type in the avancado mode (R3.2): the same fields in both languages, each label
+    and tooltip in English, with the keywords, namelists and units of QE as written (R1.2)."""
+    for type_id in TYPE_IDS:
+        en, pt = english[f"calc_create_{type_id}#facts"], portuguese[f"calc_create_{type_id}#facts"]
+        en_fields, pt_fields = keyed(en, "field"), keyed(pt, "field")
+        assert list(en_fields) == list(pt_fields) != [], type_id
+        assert no_portuguese(en, po) == [], type_id
+        assert lost_code({key: (pt_fields[key], en_fields[key]) for key in pt_fields}) == []
+        assert (en[0], pt[0]) == (TYPES_EN, TYPES_PT)
+    slab = english["calc_create_slab#facts"]
+    assert "scf: Bulk SCF *" in slab and "tab: Surface" in slab
+    assert keyed(slab, "field")["fix_rule"] == (
+        "Fixed atoms (if_pos 0 0 0) | 'bottom layer': the atoms below the fraction of the thickness;"
+        " 'species and neighbors': the fixed species and the neighbors bonded to them; 'none': all"
+        " free"
+    )
+    assert "tab: Superfície" in portuguese["calc_create_slab#facts"]
+    assert {"tab: Molecule", "tab: Site"} <= set(english["calc_create_adsorption#facts"])
+    assert "tab: Atoms" in english["calc_create_charge_diff#facts"]
+    assert "tab: Supercell" in english["calc_create_supercell#facts"]
+    relax = keyed(english["calc_create_relax#facts"], "field")
+    assert relax["nstep"] == (
+        "Maximum steps (nstep) | &CONTROL nstep: maximum number of optimization steps"
+    )
+    assert relax["ion_dynamics"] == "Ion dynamics (ion_dynamics) | &IONS ion_dynamics"  # data
+    pdos = keyed(english["calc_create_pdos#facts"], "field")
+    assert pdos["ngauss"] == "Smearing type (ngauss) | &PROJWFC ngauss: ignored with tetrahedra"
+
+
+def test_the_checks_of_every_type_follow_the_language(english, portuguese, po):
+    """What each type says of an empty required field and of the values it refuses (R1.4, R3.2):
+    the same problems on the same fields, each message read whole in English."""
+    for type_id in TYPE_IDS:
+        scenario = f"calc_create_validation_{type_id}#facts"
+        en, pt = english[scenario], portuguese[scenario]
+        assert len(en) == len(pt), type_id
+        for state in ("empty", "typed"):
+            assert list(keyed(en, f"{state} problem")) == list(keyed(pt, f"{state} problem"))
+        assert any(text.startswith("typed error: ") for text in en), type_id  # something refused
+        assert no_portuguese(en, po) == [], type_id
+        assert lost_code({str(n): pair for n, pair in enumerate(zip(pt, en, strict=True))}) == []
+    for type_id, expected in {
+        "scf": ["typed note: Job name adjusted to job_de_teste (up to 15 characters: letters, digits, . _ -)"],
+        "relax": [
+            "typed error: Invalid value in Maximum steps (nstep): abc",
+            "typed note: NP = 64 is not a multiple of nk = 7: pw.x stops with an error (mp_start_pools)",
+        ],
+        "charge": ["typed error: output_format = 5 does not apply to iflag = 2 (2D plot): use 2, 3, 7"],
+        "slab": [
+            "typed error: The adsorption distance must be greater than or equal to zero",
+            "typed error: The bond tolerance must be greater than zero",
+            "typed error: Edge metals: Xx is not in the ATOMIC_SPECIES of the SCF",
+            "typed error: Fill in Fixed species",
+            "typed note: No atom was fixed by the rule 'species and neighbors'",
+        ],
+        "supercell": [
+            "typed error: The minimum vacuum must be greater than zero",
+            "typed error: The fixed fraction of the thickness goes from 0 (exclusive) to 1",
+        ],
+        "adsorption": [
+            "empty error: Fill in Molecule SCF",
+            "typed legend site: The surface window must be greater than zero",
+            "typed tip h_clearance: The minimum clearance must be greater than or equal to zero",
+        ],
+    }.items():  # fmt: skip
+        shown = english[f"calc_create_validation_{type_id}#facts"]
+        assert [text for text in expected if text not in shown] == [], type_id
+    charge = portuguese["calc_create_validation_charge#facts"]
+    assert (
+        "typed error: output_format = 5 não vale para iflag = 2 (gráfico 2D): use 2, 3, 7" in charge
+    )
+
+
+def files_of(facts: list[str]) -> dict[str, str]:
+    """``{name: text}`` of the files a scenario wrote (its ``file <name>:`` facts)."""
+    found = {}
+    for text in facts:
+        head, _sep, body = text.partition("\n")
+        if head.startswith("file "):
+            found[head.removeprefix("file ").removesuffix(":")] = body
+    return found
+
+
+def test_a_slab_writes_the_same_inputs_in_both_languages(english, portuguese, po):
+    """The same Slab (with the molecule) made in pt_BR and in en (R2.2): the input and the script
+    byte for byte, the script's header in Portuguese in both (R2.3), no message in the input."""
+    en_files = files_of(english["slab_files#facts"])
+    pt_files = files_of(portuguese["slab_files#facts"])
+    assert (
+        sorted(en_files) == sorted(pt_files) == ["geracao.md", "slab.qsub", "vc-relax_kaolinite.in"]
+    )
+    assert en_files["vc-relax_kaolinite.in"] == pt_files["vc-relax_kaolinite.in"]
+    assert en_files["slab.qsub"] == pt_files["slab.qsub"]
+    assert QSUB_HEADER in en_files["slab.qsub"]
+    texts = {
+        text
+        for message in tool.messages(po)
+        if tool.is_translated(message)
+        and any(area_of(filename) in {56, 57} for filename, _line in message.locations)
+        for text in (*tool.sources(message), *tool.forms(message))
+        if " " in text
+    }
+    assert sorted(text for text in texts if text in en_files["vc-relax_kaolinite.in"]) == []
+
+
+def test_the_report_of_a_slab_follows_the_language(english, portuguese, po):
+    """``geracao.md`` of that Slab (R2.1, R2.2): the same lines with the same numbers, each label the
+    translation of the Portuguese one, nothing left in Portuguese; the tab, the plan and the file are
+    the same text in each language (R2.4)."""
+    en_facts, pt_facts = english["slab_files#facts"], portuguese["slab_files#facts"]
+    en_report = files_of(en_facts)["geracao.md"]
+    pt_report = files_of(pt_facts)["geracao.md"]
+    for facts, report in ((en_facts, en_report), (pt_facts, pt_report)):
+        shown = [fact(facts, f"{kind}:\n").partition("\n")[2] for kind in ("preview", "planned")]
+        assert shown == [report, report]
+    en, pt = en_report.splitlines(), pt_report.splitlines()
+    assert len(en) == len(pt) > 10
+    number = re.compile(r"\d+(?:\.\d+)?")
+    assert [number.findall(line) for line in en] == [number.findall(line) for line in pt]
+    row = re.compile(r"- \*\*(.+?)\*\*: ")
+    en_labels = [found.group(1) for line in en if (found := row.match(line))]
+    pt_labels = [found.group(1) for line in pt if (found := row.match(line))]
+    translated = {
+        tool.sources(m)[0]: tool.forms(m)[0]
+        for m in tool.messages(po)
+        if tool.is_translated(m) and len(tool.sources(m)) == 1
+    }
+    assert en_labels == [translated.get(label, label) for label in pt_labels] != pt_labels
+    assert no_portuguese(en, po) == []
+    assert (en[0], pt[0]) == ("# Generation report", "# Relatório da geração")
+    for line in (
+        "- **Requested vacuum**: 15.10 Å = 10.50 + molecule 2.60 + adsorption 2.00",
+        "- **Surface**: axis c stacked (001), not flipped",
+        "- **Fixed atoms**: 18/34 (Si 4, O 12, H 2), rule 'bottom layer'",
+        "- **k-points**: 6 4 1 0 0 0 (from the SCF 6 4 4 0 0 0; vacuum 1)",
+    ):
+        assert line in en
+    assert "- **Átomos fixos**: 18/34 (Si 4, O 12, H 2), regra 'camada inferior'" in pt
+
+
+def test_choice_values_are_marked(po):
+    """Every value of a choice of every type is a message of the catalog, translated (marked with N_
+    where it is defined): the combo shows ``_(value)`` and keeps the value (R3.1). QE's own tokens
+    are the exception, and a code of pp.x keeps its code in English."""
+    from qe_studio.core.calc_create.types import REGISTRY
+    from qe_studio.core.calc_create.types.charge import CODE_SEPARATOR, IFLAGS, OUTPUT_FORMATS
+
+    from calc_helpers import JOBS, al
+    from surface_helpers import BULK, SLAB_001, read
+
+    translated = {
+        tool.sources(m)[0]: tool.forms(m)[0]
+        for m in tool.messages(po)
+        if tool.is_translated(m) and len(tool.sources(m)) == 1
+    }
+    scf_of = {"slab": read(BULK), "supercell": read(SLAB_001), "adsorption": read(SLAB_001)}
+    unmarked, tokens = [], []
+    for calc_type in REGISTRY:
+        fields = calc_type.fields(scf_of.get(calc_type.id) or al(), JOBS, "x")
+        for form_field in (f for f in fields if f.kind == "choice"):
+            for value in form_field.choices:
+                if form_field.id in QE_CHOICES:
+                    tokens.append(value)
+                elif value not in translated:
+                    unmarked.append(f"{calc_type.id}.{form_field.id}: {value!r}")
+    assert unmarked == []
+    assert len(tokens) > 20 and [t for t in tokens if t in translated or not t.isascii()] == []
+    for value in (*IFLAGS.values(), *OUTPUT_FORMATS.values()):
+        code = value.partition(CODE_SEPARATOR)[0]
+        assert translated[value].startswith(f"{code}{CODE_SEPARATOR}"), value
+
+
+def test_a_lost_qe_keyword_is_found():
+    """A keyword a field names is kept like a namelist (R1.2): a catalog that swaps ``nstep`` for
+    ``steps`` fails ``test_code_tokens_are_kept``."""
+    where = "core/calc_create/types/relax.py"
+    swapped = catalog(
+        (
+            "&CONTROL nstep: número máximo de passos da otimização",
+            "&CONTROL steps: maximum number of optimization steps",
+            where,
+        ),
+        ("Passos máximos (nstep)", "Maximum steps (steps)", where),
+        ("Convergência das forças (forc_conv_thr)", "Force convergence (force threshold)", where),
+    )
+    assert sorted(lost_code_tokens(swapped, {57})) == [
+        "'&CONTROL nstep: número máximo de passos da otimização': lost '&CONTROL nstep'",
+        "'&CONTROL nstep: número máximo de passos da otimização': lost 'nstep'",
+        "'Convergência das forças (forc_conv_thr)': lost 'forc_conv_thr'",
+        "'Passos máximos (nstep)': lost 'nstep'",
+    ]
+    assert lost_code_tokens(swapped, {56}) == []
+
+
+def test_a_fragment_left_in_portuguese_is_found():
+    """The token of a choice formatted without ``_()`` inside an English sentence (R2.1)."""
+    source = catalog(
+        ("camada inferior", "bottom layer", "core/calc_create/surface/fixing.py"),
+        ("{label} deve ser {limit}", "{label} must be {limit}", "core/calc_create/types/base.py"),
+    )
+    shown = ["18/34, rule 'camada inferior'", "18/34, rule 'bottom layer'", "camadas inferiores"]
+    assert fragment_leaks(shown, source, {56, 57}) == [
+        "'camada inferior' in \"18/34, rule 'camada inferior'\""
+    ]
+    assert fragment_leaks(shown, source, {55}) == []

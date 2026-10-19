@@ -40,6 +40,7 @@ from .adsorption_fields import (
     COORDS,
     FROM_COORDS,
     FROM_LIST,
+    MONODENTATE,
     SITE,
     default_rule,
     input_tab_fields,
@@ -210,7 +211,6 @@ class AdsorptionType(RelaxType):
     ) -> Facts:
         """The lines of ``geracao.md`` about the site and the placement (atoms numbered from 1, the
         surface's SCF numbering)."""
-        values = work.values
         groups = _groups(work, request)
         sites = []
         for number in placed.sites:
@@ -225,10 +225,11 @@ class AdsorptionType(RelaxType):
         position = ", ".join(decimal(float(v), 3) for v in model.cart[placed.anchor])
         molecule_atoms = len(model) - placed.n_slab
         how = _(FROM_COORDS) if request.coords is not None else _(FROM_LIST)
+        mode = BIDENTATE if request.bidentate else MONODENTATE
         facts: Facts = [
             (
                 _("Coordenação"),
-                _("{values} (sítio pela {how})").format(values=values["mode"], how=how),
+                _("{values} (sítio pela {how})").format(values=_(mode), how=how),
             ),
             (
                 ngettext("Átomo âncora", "Átomos âncora", len(sites)),

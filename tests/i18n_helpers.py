@@ -72,16 +72,25 @@ def leaks(texts: Iterable[str], catalog) -> list[str]:
     return sorted({text for text in texts if without_mnemonics(text) in translated})
 
 
+# Variables of QE's inputs that a field of "Criar cálculo" names without a namelist or an underscore
+# ("Passos máximos (nstep)"): spec 57 R1.2.
+QE_NAMES = (
+    *("nstep", "nbnd", "nk", "NP", "degauss", "ngauss", "filpdos", "filband", "fileout", "iflag"),
+    *("occupations", "press", "symprec", "DeltaE", "Emin", "Emax"),
+)
 # The pieces of code inside a sentence that a translation must keep as written (spec 54 R1.3). A
 # command-line option is not preceded by a word character or a hyphen: the "-pontos" of "k-pontos"
 # and the "-relax" of "vc-relax" are words.
 CODE_TOKENS = (
     re.compile(r"`[^`]+`"),
     re.compile(r"&[A-Z_]+"),  # a namelist
+    re.compile(r"&[A-Z_]+ [a-z][a-z_]*"),  # a namelist and the variable it names: &CONTROL nstep
     re.compile(r"(?<![\w-])-[A-Za-z]+\b"),  # an option: -pe, -N
     re.compile(r"\bJOB DONE\b"),
     re.compile(r"#!"),
     re.compile(r"\b[A-Z]+_[A-Z_]+\b"),  # a card or a variable: CELL_PARAMETERS
+    re.compile(r"\b[a-z]+(?:_[a-z0-9]+)+\b"),  # a variable: forc_conv_thr, spin_component
+    re.compile(r"\b(?:" + "|".join(QE_NAMES) + r")\b"),
     re.compile(r"\b[a-z]+\(\d\)"),  # celldm(1)
     re.compile(r"\\+[A-Za-z]"),  # an escape shown as text: \r
 )
@@ -102,6 +111,37 @@ def lost_code_tokens(catalog, done: set[int]) -> list[str]:
                 for token in sorted(set(pattern.findall(source)) - set(pattern.findall(string))):
                     found.append(f"{source!r}: lost {token!r}")
     return found
+
+
+FRAGMENT_WORDS = 4  # longer messages are sentences, not the pieces a composed text takes
+
+
+def fragment_leaks(texts: Iterable[str], catalog, areas: set[int]) -> list[str]:
+    """Portuguese pieces inside composed texts (spec 57 R2.1): a short translated message of
+    ``areas``, with no field, found word for word in a text (``regra 'camada inferior'``, the
+    token of a choice formatted without ``_()``), as ``'<piece>' in '<text>'``."""
+    tool = script()
+    pieces = set()
+    for message in tool.messages(catalog):
+        if not any(area_of(filename) in areas for filename, _line in message.locations):
+            continue
+        for source, string in zip(tool.sources(message), tool.forms(message), strict=False):
+            if (
+                string
+                and string != source
+                and "{" not in source
+                and len(source.split()) <= FRAGMENT_WORDS
+                and len(source) >= 4
+            ):
+                pieces.add(source)
+    pieces -= HOMOGRAPHS
+    patterns = {piece: re.compile(rf"(?<!\w){re.escape(piece)}(?!\w)") for piece in pieces}
+    return sorted(
+        f"{piece!r} in {text!r}"
+        for text in texts
+        for piece, pattern in patterns.items()
+        if pattern.search(text)
+    )
 
 
 def untranslated_in_done(catalog, done: set[int]) -> list[str]:

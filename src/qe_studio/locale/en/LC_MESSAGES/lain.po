@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-18 21:17-0400\n"
+"POT-Creation-Date: 2026-10-19 00:28-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -181,17 +181,17 @@ msgstr "'/' without an open namelist"
 
 #: core/calc_create/types/surface_fields.py
 #, python-brace-format
-msgid "'{BOTTOM}': fixa os átomos abaixo desta fração da espessura (0,5 = metade)"
+msgid "'{BOTTOM}': fixa os átomos abaixo desta fração da espessura (0.5 = metade)"
 msgstr "'{BOTTOM}': fixes the atoms below this fraction of the thickness (0.5 = half)"
 
 #: core/calc_create/types/surface_fields.py
 #, python-brace-format
 msgid ""
 "'{BOTTOM}': os átomos abaixo da fração da espessura; '{SPECIES}': as espécies fixas e os vizinhos"
-" ligados a elas; 'nenhum': todos livres"
+" ligados a elas; '{NONE}': todos livres"
 msgstr ""
 "'{BOTTOM}': the atoms below the fraction of the thickness; '{SPECIES}': the fixed species and the"
-" neighbors bonded to them; 'nenhum': all free"
+" neighbors bonded to them; '{NONE}': all free"
 
 #: core/calc_create/types/surface_fields.py
 #, python-brace-format
@@ -245,13 +245,57 @@ msgstr ". Applies to the four pp.x inputs"
 msgid "0 = fundo da legenda opaco, 1 = invisível. Vale com a moldura ligada."
 msgstr "0 = opaque legend background, 1 = invisible. Applies with the frame on."
 
+#: core/calc_create/types/charge.py
+msgid "0 — gnuplot (1D)"
+msgstr "0 — gnuplot (1D)"
+
+#: core/calc_create/types/charge.py
+msgid "0 — média esférica (1D)"
+msgstr "0 — spherical average (1D)"
+
 #: ui/dialogs/calc_create/dialog.py
 msgid "1 · Configuração"
 msgstr "1 · Setup"
 
+#: core/calc_create/types/charge.py
+msgid "1 — gráfico 1D"
+msgstr "1 — 1D plot"
+
 #: ui/dialogs/calc_create/dialog.py
 msgid "2 · Arquivos"
 msgstr "2 · Files"
+
+#: core/calc_create/types/charge.py
+msgid "2 — gráfico 2D"
+msgstr "2 — 2D plot"
+
+#: core/calc_create/types/charge.py
+msgid "2 — plotrho (2D)"
+msgstr "2 — plotrho (2D)"
+
+#: core/calc_create/types/charge.py
+msgid "3 — XCrySDen (2D ou região 3D)"
+msgstr "3 — XCrySDen (2D or 3D region)"
+
+#: core/calc_create/types/charge.py
+msgid "3 — grade 3D"
+msgstr "3 — 3D grid"
+
+#: core/calc_create/types/charge.py
+msgid "4 — gráfico 2D polar numa esfera"
+msgstr "4 — 2D polar plot on a sphere"
+
+#: core/calc_create/types/charge.py
+msgid "5 — XSF para XCrySDen (3D, grade FFT inteira)"
+msgstr "5 — XSF for XCrySDen (3D, whole FFT grid)"
+
+#: core/calc_create/types/charge.py
+msgid "6 — cube do Gaussian (3D)"
+msgstr "6 — Gaussian cube (3D)"
+
+#: core/calc_create/types/charge.py
+msgid "7 — gnuplot (2D)"
+msgstr "7 — gnuplot (2D)"
 
 #: core/calc_create/types/slab.py
 msgid "; girada para o eixo ficar em +z"
@@ -2567,11 +2611,11 @@ msgstr "Lower left"
 
 #: core/calc_create/types/base.py
 msgid "Input de SCF"
-msgstr ""
+msgstr "SCF input"
 
 #: core/calc_create/types/surface_fields.py
 msgid "Input de SCF da molécula (pw.x, calculation = 'scf'); é lido, nunca alterado"
-msgstr ""
+msgstr "SCF input of the molecule (pw.x, calculation = 'scf'); it is read, never changed"
 
 #: core/calc_create/preview.py
 msgid "Input do QE"
@@ -2614,7 +2658,7 @@ msgstr "Invert"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Inverter a superfície"
-msgstr ""
+msgstr "Flip the surface"
 
 #: core/qe/summary/build.py
 msgid "Início"
@@ -2691,7 +2735,7 @@ msgstr "Iteration min."
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Janela da superfície (Å)"
-msgstr ""
+msgstr "Surface window (Å)"
 
 #: core/projects.py
 msgid "Já existe um projeto com esse nome"
@@ -2727,29 +2771,29 @@ msgstr ""
 #: core/calc_create/types/slab_fields.py
 #, python-brace-format
 msgid "K_POINTS automatic {of}. {hint}"
-msgstr ""
+msgstr "K_POINTS automatic {of}. {hint}"
 
 #: core/calc_create/types/fields.py
 #, python-brace-format
 msgid "K_POINTS automatic: n1 n2 n3 e os deslocamentos s1 s2 s3 (0 ou 1){keep}"
-msgstr ""
+msgstr "K_POINTS automatic: n1 n2 n3 and the shifts s1 s2 s3 (0 or 1){keep}"
 
 #: core/calc_create/types/bandas.py
 msgid "K_POINTS crystal_b: pontos de alta simetria e pontos até o próximo"
-msgstr ""
+msgstr "K_POINTS crystal_b: high-symmetry points and the points to the next one"
 
 #: core/calc_create/types/slab.py
 msgid "K_POINTS gamma do SCF mantido: confira se basta para a célula do slab"
-msgstr ""
+msgstr "K_POINTS gamma of the SCF kept: check that it is enough for the slab cell"
 
 #: core/calc_create/types/supercell.py
 msgid "K_POINTS gamma do SCF mantido: confira se basta para a supercélula"
-msgstr ""
+msgstr "K_POINTS gamma of the SCF kept: check that it is enough for the supercell"
 
 #: core/calc_create/types/adsorption.py
 #, python-brace-format
 msgid "K_POINTS {value} da superfície mantido"
-msgstr ""
+msgstr "K_POINTS {value} of the surface kept"
 
 #: core/calculations/bands/params.py
 msgid "Lado a lado"
@@ -2806,14 +2850,14 @@ msgstr ""
 
 #: core/calc_create/types/slab.py
 msgid "Ligações a O cortadas"
-msgstr ""
+msgstr "Cut bonds to O"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "Ligações {bonds} cortadas não foram completadas: {metals} não está em '{label}'"
 msgid_plural "Ligações {bonds} cortadas não foram completadas: {metals} não estão em '{label}'"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Cut {bonds} bonds were not completed: {metals} is not in '{label}'"
+msgstr[1] "Cut {bonds} bonds were not completed: {metals} are not in '{label}'"
 
 #: ui/widgets/params_body.py
 #, python-brace-format
@@ -3006,7 +3050,7 @@ msgstr "{menu} menu"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Metais da borda"
-msgstr ""
+msgstr "Edge metals"
 
 #: ui/dialogs/calc_create/mode_switch.py
 msgid "Modo dos campos"
@@ -3018,11 +3062,11 @@ msgstr "Frame"
 
 #: core/calc_create/types/adsorption_fields.py core/calc_create/types/slab.py
 msgid "Molécula"
-msgstr ""
+msgstr "Molecule"
 
 #: core/calc_create/types/adsorption.py
 msgid "Molécula na superfície"
-msgstr ""
+msgstr "Molecule on surface"
 
 #: core/calc_create/surface/adsorb.py
 msgid "Monodentado: marque um átomo"
@@ -3032,11 +3076,11 @@ msgstr "Monodentate: mark one atom"
 msgid ""
 "Monodentado: marque um átomo. Bidentado: marque dois. Mesma letra = sítios equivalentes por "
 "simetria"
-msgstr ""
+msgstr "Monodentate: mark one atom. Bidentate: mark two. Same letter = sites equivalent by symmetry"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Monodentado: o âncora sobre um átomo. Bidentado: entre dois átomos, no ponto médio"
-msgstr ""
+msgstr "Monodentate: the anchor above one atom. Bidentate: between two atoms, at the midpoint"
 
 #: core/calculations/params.py
 msgid "Mostra o gap (CBM − VBM) na legenda. Sem efeito em sistema metálico."
@@ -3102,11 +3146,11 @@ msgstr "Gap method"
 #: core/calc_create/types/script.py
 #, python-brace-format
 msgid "NP = {np} não é múltiplo de nk = {nk}: o pw.x para com erro (mp_start_pools)"
-msgstr ""
+msgstr "NP = {np} is not a multiple of nk = {nk}: pw.x stops with an error (mp_start_pools)"
 
 #: core/calc_create/types/script.py
 msgid "NP deve ser ao menos 1"
-msgstr ""
+msgstr "NP must be at least 1"
 
 #: core/sync/preview.py core/sync/report.py
 msgid "Nada a enviar."
@@ -3228,34 +3272,34 @@ msgstr "Invalid file name: {name!r}"
 #: core/calc_create/types/files.py
 #, python-brace-format
 msgid "Nome de arquivo inválido: {name} (só letras sem acento, números, ponto, hífen e sublinhado)"
-msgstr ""
+msgstr "Invalid file name: {name} (only unaccented letters, digits, dot, hyphen and underscore)"
 
 #: core/calc_create/types/files.py
 #, python-brace-format
 msgid "Nome de arquivo inválido: {name} (use <nome>.in)"
-msgstr ""
+msgstr "Invalid file name: {name} (use <name>.in)"
 
 #: core/calc_create/types/files.py
 #, python-brace-format
 msgid "Nome de arquivo repetido: {name}"
-msgstr ""
+msgstr "Repeated file name: {name}"
 
 #: core/calc_create/types/files.py
 msgid "Nome do arquivo"
-msgstr ""
+msgstr "File name"
 
 #: core/calc_create/types/files.py
 msgid "Nome do input na pasta nova (termina em .in); a saída tem o mesmo nome com .out"
-msgstr ""
+msgstr "Name of the input in the new folder (ends in .in); the output has the same name with .out"
 
 #: core/calc_create/types/script.py
 msgid "Nome do job"
-msgstr ""
+msgstr "Job name"
 
 #: core/calc_create/types/script.py
 #, python-brace-format
 msgid "Nome do job ajustado para {name} (até 15 caracteres: letras, números, . _ -)"
-msgstr ""
+msgstr "Job name adjusted to {name} (up to 15 characters: letters, digits, . _ -)"
 
 #: ui/dialogs/new_project.py
 msgid "Nome do projeto"
@@ -3461,7 +3505,7 @@ msgstr "Nodes"
 
 #: core/calc_create/types/script.py
 msgid "Núcleos (NP)"
-msgstr ""
+msgstr "Cores (NP)"
 
 #: core/structure3d/options.py
 msgid "Número"
@@ -3469,11 +3513,13 @@ msgstr ""
 
 #: core/calc_create/types/fields.py
 msgid "Número de bandas (nbnd)"
-msgstr ""
+msgstr "Number of bands (nbnd)"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Número do átomo na ordem do SCF da molécula; vazio = o mais pesado (o primeiro num empate)"
 msgstr ""
+"Number of the atom in the order of the molecule's SCF; empty = the heaviest (the first one in a "
+"tie)"
 
 #: core/qe/input_lexer.py
 msgid "Número inválido"
@@ -3481,7 +3527,7 @@ msgstr "Invalid number"
 
 #: core/calc_create/types/slab.py
 msgid "O + H adicionados"
-msgstr ""
+msgstr "O + H added"
 
 #: ui/app.py
 msgid "O Lain já está aberto com esta configuração. Abrir mesmo assim?"
@@ -3490,7 +3536,7 @@ msgstr "Lain is already open with this configuration. Open anyway?"
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "O SCF já tem {decimal} Å de vácuo ao longo de {axis}: parece uma superfície"
-msgstr ""
+msgstr "The SCF already has {decimal} Å of vacuum along {axis}: it looks like a surface"
 
 #: core/calc_create/surface/write.py
 msgid "O SCF tem CONSTRAINTS, que numeram os átomos: remova o card para gerar a estrutura nova"
@@ -3537,7 +3583,7 @@ msgstr "The path jumps from this point to the next one (weight 1)"
 
 #: core/calc_create/types/slab_fields.py
 msgid "O eixo da célula do SCF que é esticado para abrir o vácuo; os outros dois formam o plano"
-msgstr ""
+msgstr "The axis of the SCF cell that is stretched to open the vacuum; the other two form the plane"
 
 #: core/calc_create/surface/slab.py
 msgid "O eixo empilhado está no plano da superfície"
@@ -3591,7 +3637,7 @@ msgstr "The vacuum must be greater than zero"
 #: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
 #: core/calc_create/types/supercell.py
 msgid "O vácuo mínimo"
-msgstr ""
+msgstr "The minimum vacuum"
 
 #: core/calc_create/surface/adsorb.py
 #, python-brace-format
@@ -3611,6 +3657,8 @@ msgstr "Atom {value} does not exist (1 to {count})"
 #: core/calc_create/types/adsorption_fields.py
 msgid "O átomo âncora vai sobre o sítio e o eixo âncora → resto da molécula, na normal da superfície"
 msgstr ""
+"The anchor atom goes above the site, and the anchor → rest of the molecule axis along the surface"
+" normal"
 
 #: core/calc_create/surface/adsorb.py
 #, python-brace-format
@@ -3631,7 +3679,7 @@ msgstr "Hide files from the tree"
 
 #: core/calc_create/types/pdos.py
 msgid "Ocupações (occupations)"
-msgstr ""
+msgstr "Occupations (occupations)"
 
 #: ui/widgets/structure3d/window.py
 msgid "Olhar ao longo de x, y ou z (as teclas A, B e C olham ao longo de a, b e c)"
@@ -3677,7 +3725,7 @@ msgstr "The inputs are equivalent: no parameter or card differs."
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Os átomos da superfície (na janela do topo) das espécies candidatas"
-msgstr ""
+msgstr "The surface atoms (in the top window) of the candidate species"
 
 #: core/calc_create/surface/fixing.py
 #, python-brace-format
@@ -3755,7 +3803,7 @@ msgstr "BFGS step"
 
 #: core/calc_create/types/pdos.py
 msgid "Passo de energia (DeltaE, eV)"
-msgstr ""
+msgstr "Energy step (DeltaE, eV)"
 
 #: core/calculations/relax.py
 msgid "Passo máx."
@@ -3771,7 +3819,7 @@ msgstr "BFGS steps"
 
 #: core/calc_create/types/relax.py
 msgid "Passos máximos (nstep)"
-msgstr ""
+msgstr "Maximum steps (nstep)"
 
 #: ui/palette_controller.py
 msgid "Pasta"
@@ -3789,7 +3837,7 @@ msgstr "Bands folder not found: {folder}"
 
 #: core/calc_create/types/charge_diff.py
 msgid "Pasta dos .xsf"
-msgstr ""
+msgstr "Folder of the .xsf files"
 
 #: core/sync/report.py
 msgid "Pasta já sincronizada: nada a transferir."
@@ -3850,7 +3898,7 @@ msgstr "Folders"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Pela lista: os átomos marcados na tabela. Por coordenadas: o átomo mais próximo de cada x y z"
-msgstr ""
+msgstr "By the list: the atoms marked in the table. By coordinates: the atom nearest to each x y z"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Perspectiva"
@@ -3923,7 +3971,7 @@ msgstr ""
 
 #: core/calc_create/types/adsorption.py
 msgid "Posição do âncora"
-msgstr ""
+msgstr "Anchor position"
 
 #: core/qe/scf_from_relax.py
 #, python-brace-format
@@ -3946,20 +3994,20 @@ msgstr "Estimated accuracy (Ry)"
 
 #: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
 msgid "Preencha Espécies candidatas"
-msgstr ""
+msgstr "Fill in Candidate species"
 
 #: core/calc_create/types/surface_fields.py
 msgid "Preencha Espécies fixas"
-msgstr ""
+msgstr "Fill in Fixed species"
 
 #: core/calc_create/types/slab.py
 msgid "Preencha a rede de k-points: o SCF não tem K_POINTS automatic"
-msgstr ""
+msgstr "Fill in the k-point mesh: the SCF has no K_POINTS automatic"
 
 #: core/calc_create/types/base.py
 #, python-brace-format
 msgid "Preencha {label}"
-msgstr ""
+msgstr "Fill in {label}"
 
 #: core/calculations/pdos/params.py
 msgid "Preencher estados ocupados"
@@ -3967,7 +4015,7 @@ msgstr "Fill occupied states"
 
 #: core/calc_create/types/pdos.py
 msgid "Prefixo dos arquivos PDOS (filpdos)"
-msgstr ""
+msgstr "Prefix of the PDOS files (filpdos)"
 
 #: ui/dialogs/sync_dialog.py ui/dialogs/sync_pages.py
 msgid "Preparando transferência…"
@@ -3987,7 +4035,7 @@ msgstr "Pressure (kbar)"
 
 #: core/calc_create/types/vc_relax.py
 msgid "Pressão (press, kbar)"
-msgstr ""
+msgstr "Pressure (press, kbar)"
 
 #: ui/widgets/structure3d/window.py
 msgid "Print"
@@ -4109,11 +4157,11 @@ msgstr "Collapse all"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Reconectar H cortados"
-msgstr ""
+msgstr "Reattach cut H"
 
 #: core/calc_create/types/fields.py core/calc_create/types/slab_fields.py
 msgid "Rede de k-points"
-msgstr ""
+msgstr "k-point mesh"
 
 #: core/sync/rsync.py
 msgid "Rede indisponível."
@@ -4194,7 +4242,7 @@ msgstr "Rename {name}"
 
 #: core/calc_create/types/supercell.py
 msgid "Repetir ao longo do vácuo (c) empilha slabs: o vácuo entre eles não muda"
-msgstr ""
+msgstr "Repeating along the vacuum (c) stacks slabs: the vacuum between them does not change"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Repetição"
@@ -4207,7 +4255,7 @@ msgstr ""
 
 #: core/calc_create/types/supercell.py
 msgid "Repetições"
-msgstr ""
+msgstr "Repetitions"
 
 #: core/calc_create/surface/supercell.py
 #, python-brace-format
@@ -4217,7 +4265,7 @@ msgstr "Repetitions along {AXIS_NAMES}: 1 to {MAX_REPEAT}"
 #: core/calc_create/types/supercell.py
 #, python-brace-format
 msgid "Repetições ao longo de {axis}"
-msgstr ""
+msgstr "Repetitions along {axis}"
 
 #: ui/widgets/plot_view.py
 msgid "Reset"
@@ -4298,7 +4346,7 @@ msgstr ""
 
 #: core/calc_create/types/slab_fields.py
 msgid "Rótulos das espécies cujas ligações a O cortadas são completadas com O + H"
-msgstr ""
+msgstr "Labels of the species whose cut bonds to O are completed with O + H"
 
 #: core/calculations/bands/params.py
 msgid "Rótulos k"
@@ -4306,7 +4354,7 @@ msgstr "k labels"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Rótulos ou elementos, separados por espaço, dos átomos da lista"
-msgstr ""
+msgstr "Labels or elements, separated by spaces, of the atoms of the list"
 
 #: core/calculations/pdos/params.py
 msgid "SCF"
@@ -4314,32 +4362,32 @@ msgstr "SCF"
 
 #: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
 msgid "SCF da molécula"
-msgstr ""
+msgstr "Molecule SCF"
 
 #: core/calc_create/types/slab_fields.py
 msgid "SCF da molécula (opcional)"
-msgstr ""
+msgstr "Molecule SCF (optional)"
 
 #: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
 #, python-brace-format
 msgid "SCF da molécula: {exc}"
-msgstr ""
+msgstr "Molecule SCF: {exc}"
 
 #: core/calc_create/types/adsorption.py
 msgid "SCF da superfície"
-msgstr ""
+msgstr "Surface SCF"
 
 #: core/calc_create/types/supercell.py
 msgid "SCF da superfície (ou do bulk)"
-msgstr ""
+msgstr "Surface (or bulk) SCF"
 
 #: core/calc_create/types/slab.py core/calc_create/types/supercell.py
 msgid "SCF de origem"
-msgstr ""
+msgstr "Source SCF"
 
 #: core/calc_create/types/slab.py
 msgid "SCF do bulk"
-msgstr ""
+msgstr "Bulk SCF"
 
 #: core/qe/pw_output.py
 msgid "SCF não convergiu"
@@ -4348,7 +4396,7 @@ msgstr "SCF did not converge"
 #: core/calc_create/types/supercell.py
 #, python-brace-format
 msgid "SCF sem vácuo: supercélula de bulk, cell_dofree = '{}'"
-msgstr ""
+msgstr "SCF without vacuum: bulk supercell, cell_dofree = '{}'"
 
 #: core/file_kinds.py core/filtering.py
 msgid "SEM ERROS"
@@ -4426,7 +4474,7 @@ msgstr "relax/vc-relax output (pw.x)"
 #: core/calc_create/types/script.py
 #, python-brace-format
 msgid "Script ({script})"
-msgstr ""
+msgstr "Script ({script})"
 
 #: core/calc_create/preview.py
 msgid "Script SGE"
@@ -4460,6 +4508,8 @@ msgid ""
 "Selecionados → isolated (só eles); o resto → clean (sem eles). Δρ = ρ(base) − ρ(clean) − "
 "ρ(isolated)"
 msgstr ""
+"Selected → isolated (only them); the rest → clean (without them). Δρ = ρ(base) − ρ(clean) − "
+"ρ(isolated)"
 
 #: ui/widgets/structure3d/measures.py
 #, python-brace-format
@@ -4520,7 +4570,7 @@ msgstr "No gap for the legend: metallic system along the path"
 
 #: core/calc_create/types/slab.py
 msgid "Sem molécula: o vácuo é o mínimo"
-msgstr ""
+msgstr "No molecule: the vacuum is the minimum"
 
 #: core/calc_create/writer.py
 #, python-brace-format
@@ -4663,7 +4713,7 @@ msgstr "Sum of the selected atoms"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Somada ao vácuo só quando há molécula"
-msgstr ""
+msgstr "Added to the vacuum only when there is a molecule"
 
 #: core/calculations/bands/module.py core/calculations/pdos/params.py
 msgid "Spin"
@@ -4683,7 +4733,7 @@ msgstr "Replace grid"
 
 #: core/calc_create/types/supercell.py
 msgid "Supercélula"
-msgstr ""
+msgstr "Supercell"
 
 #: core/calc_create/surface/supercell.py
 #, python-brace-format
@@ -4692,11 +4742,11 @@ msgstr "Supercell too large for Lain: {total} atoms (maximum {MAX_ATOMS})"
 
 #: core/calc_create/types/slab.py core/calc_create/types/slab_fields.py
 msgid "Superfície"
-msgstr ""
+msgstr "Surface"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Superfície (eixo empilhado)"
-msgstr ""
+msgstr "Surface (stacked axis)"
 
 #: core/calculations/params.py
 msgid "Superior direita"
@@ -4731,6 +4781,8 @@ msgid ""
 "Só avisa: abaixo dela, a folga do âncora aos H da superfície ou do resto da molécula à superfície"
 " (o relax ajusta)"
 msgstr ""
+"Warning only: below it, the clearance from the anchor to the surface H, or from the rest of the "
+"molecule to the surface (the relax adjusts it)"
 
 #: ui/widgets/atom_table.py
 msgid "Só espécie ▸"
@@ -4747,14 +4799,16 @@ msgstr "Only the type's standard fields; the rest follows the SCF and config.yam
 #: core/calc_create/types/slab_fields.py
 msgid "Só para o vácuo: soma a altura da molécula e a distância de adsorção ao vácuo mínimo"
 msgstr ""
+"For the vacuum only: adds the height of the molecule and the adsorption distance to the minimum "
+"vacuum"
 
 #: core/calc_create/types/supercell.py
 msgid "Só verifica: abaixo dele ao longo de c, o plano avisa (a célula não muda)"
-msgstr ""
+msgstr "Check only: below it along c, a warning is shown (the cell does not change)"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Só verifica: abaixo dele, acima da molécula, o plano avisa (a célula não muda)"
-msgstr ""
+msgstr "Check only: below it, above the molecule, a warning is shown (the cell does not change)"
 
 #: core/calculations/bands/params.py core/calculations/pdos/params.py
 msgid "Só ↑"
@@ -4835,7 +4889,7 @@ msgstr "Type"
 
 #: core/calc_create/types/pdos.py
 msgid "Tipo de alargamento (ngauss)"
-msgstr ""
+msgstr "Smearing type (ngauss)"
 
 #: ui/dialogs/calc_create/setup_page.py
 msgid "Tipo de cálculo"
@@ -4847,7 +4901,7 @@ msgstr "Calculation type:"
 
 #: core/calc_create/types/charge.py
 msgid "Tipo de gráfico (iflag)"
-msgstr ""
+msgstr "Plot type (iflag)"
 
 #: ui/widgets/file_grid.py
 msgid "Tipo do arquivo"
@@ -4875,19 +4929,21 @@ msgstr "All atoms would be fixed"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Tolerância das coordenadas (Å)"
-msgstr ""
+msgstr "Coordinate tolerance (Å)"
 
 #: core/calc_create/types/surface_fields.py
 msgid "Tolerância de ligação (× soma dos raios covalentes)"
-msgstr ""
+msgstr "Bond tolerance (× sum of the covalent radii)"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Tolerância de simetria (Å)"
-msgstr ""
+msgstr "Symmetry tolerance (Å)"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Toma o segundo vetor do plano com o sinal trocado: o lado de cima da camada vai para baixo"
 msgstr ""
+"Takes the second vector of the plane with its sign flipped: the top side of the layer goes to the"
+" bottom"
 
 #: core/calculations/bands/params.py
 msgid "Topo da valência (VBM)"
@@ -4922,7 +4978,7 @@ msgstr "Cell titles"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Um H cuja ligação cruza o corte vai para junto do átomo a que está ligado"
-msgstr ""
+msgstr "An H whose bond crosses the cut is moved next to the atom it is bonded to"
 
 #: ui/widgets/bars.py
 msgid "Unir gráficos abertos numa grade N×M (uma só figura)"
@@ -4944,7 +5000,7 @@ msgstr "Missing value for {name}"
 #: core/calc_create/types/base.py
 #, python-brace-format
 msgid "Valor inválido em {label}: {value}"
-msgstr ""
+msgstr "Invalid value in {label}: {value}"
 
 #: ui/widgets/kpath_editor.py
 #, python-brace-format
@@ -4969,11 +5025,11 @@ msgstr ""
 
 #: core/calc_create/types/supercell.py
 msgid "Vazio = a do SCF dividida pelas repetições"
-msgstr ""
+msgstr "Empty = the SCF's mesh divided by the repetitions"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Vazio = a do SCF reescalada: o eixo do vácuo vale 1"
-msgstr ""
+msgstr "Empty = the SCF's mesh rescaled: the vacuum axis gets 1"
 
 #: ui/dialogs/calc_create/kmesh.py
 #, python-brace-format
@@ -5027,7 +5083,7 @@ msgstr ""
 
 #: core/calc_create/types/surface_fields.py
 msgid "Vizinhos fixos"
-msgstr ""
+msgstr "Fixed neighbors"
 
 #: ui/widgets/structure3d/panel_atom.py
 msgid "Vizinhos ligados"
@@ -5081,7 +5137,7 @@ msgstr "Cell volume"
 
 #: core/calc_create/types/adsorption.py
 msgid "Vácuo acima da molécula"
-msgstr ""
+msgstr "Vacuum above the molecule"
 
 #: core/calc_create/surface/adsorb.py
 #, python-brace-format
@@ -5091,37 +5147,31 @@ msgstr "Vacuum of {decimal} Å above the molecule, below the minimum of {decimal
 #: core/calc_create/types/supercell.py
 #, python-brace-format
 msgid "Vácuo de {} Å ao longo de c, abaixo do mínimo de {} Å"
-msgstr ""
+msgstr "Vacuum of {} Å along c, below the minimum of {} Å"
 
 #: core/calc_create/types/slab.py core/calc_create/types/supercell.py
 msgid "Vácuo medido"
-msgstr ""
+msgstr "Measured vacuum"
 
 #: core/calc_create/types/adsorption_fields.py core/calc_create/types/slab_fields.py
 #: core/calc_create/types/supercell.py
 msgid "Vácuo mínimo (Å)"
-msgstr ""
+msgstr "Minimum vacuum (Å)"
 
 #: core/calc_create/types/slab.py
 msgid "Vácuo pedido"
-msgstr ""
+msgstr "Requested vacuum"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Vácuo perpendicular acima da camada; com a molécula, soma a altura dela e a distância de adsorção"
 msgstr ""
-
-#: core/calc_create/types/charge.py
-msgid "XCrySDen (2D ou região 3D)"
-msgstr ""
+"Perpendicular vacuum above the layer; with the molecule, its height and the adsorption distance "
+"are added"
 
 #: core/xcrysden.py
 #, python-brace-format
 msgid "XCrysDen não encontrado: {target}."
 msgstr "XCrysDen not found: {target}."
-
-#: core/calc_create/types/charge.py
-msgid "XSF para XCrySDen (3D, grade FFT inteira)"
-msgstr ""
 
 #: core/config.py
 #, python-brace-format
@@ -5198,7 +5248,7 @@ msgstr "bands with different numbers of k-points"
 
 #: core/calc_create/types/bandas.py
 msgid "bands.x grava <filband> e <filband>.gnu"
-msgstr ""
+msgstr "bands.x writes <filband> and <filband>.gnu"
 
 #: core/calculations/bands/module.py
 msgid "bands.x/.gnu detectados"
@@ -5206,7 +5256,7 @@ msgstr "bands.x/.gnu detected"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "bidentado"
-msgstr ""
+msgstr "bidentate"
 
 #: core/qe/relax.py
 msgid "cabeçalho"
@@ -5251,6 +5301,8 @@ msgid ""
 "cell_dofree = '{}' numa célula de eixos não ortogonais: o INPUT_PW avisa que algumas opções de "
 "cell_dofree não funcionam com eixos não ortogonais"
 msgstr ""
+"cell_dofree = '{}' in a cell with non-orthogonal axes: INPUT_PW warns that some cell_dofree "
+"options do not work with non-orthogonal axes"
 
 #: core/config.py
 msgid "chave desconhecida"
@@ -5295,7 +5347,7 @@ msgstr "convergence NOT reached"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "coordenadas"
-msgstr ""
+msgstr "coordinates"
 
 #: core/config.py
 #, python-brace-format
@@ -5304,15 +5356,11 @@ msgstr "invalid color: {value!r}"
 
 #: core/calc_create/types/adsorption.py
 msgid "corrija os campos marcados"
-msgstr ""
+msgstr "fix the marked fields"
 
 #: core/qe/relax.py
 msgid "critérios"
 msgstr "criteria"
-
-#: core/calc_create/types/charge.py
-msgid "cube do Gaussian (3D)"
-msgstr ""
 
 #: core/qe/lattice.py
 msgid "célula de volume nulo"
@@ -5320,7 +5368,7 @@ msgstr "cell with zero volume"
 
 #: core/calc_create/types/supercell.py
 msgid "da supercélula"
-msgstr ""
+msgstr "of the supercell"
 
 #: core/filtering.py
 msgid "dados"
@@ -5328,7 +5376,7 @@ msgstr "data"
 
 #: core/calc_create/types/pdos.py
 msgid "degauss (em Ry; 0.000735 Ry ≈ 0.01 eV): ignorado com tetraedros"
-msgstr ""
+msgstr "degauss (in Ry; 0.000735 Ry ≈ 0.01 eV): ignored with tetrahedra"
 
 #: core/calc_create/edits.py
 #, python-brace-format
@@ -5353,7 +5401,7 @@ msgstr "do outside a for/while/until loop"
 
 #: core/calc_create/types/slab_fields.py
 msgid "do slab"
-msgstr ""
+msgstr "of the slab"
 
 #: core/qsub_lint.py
 msgid "done sem for/while/until correspondente"
@@ -5370,7 +5418,7 @@ msgstr "x axis differs between bands"
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "eixo {axis} empilhado ({HKL}), {flip}"
-msgstr ""
+msgstr "axis {axis} stacked ({HKL}), {flip}"
 
 #: core/calculations/scf.py
 msgid "em andamento"
@@ -5428,7 +5476,7 @@ msgstr "incomplete run (no JOB DONE)"
 
 #: core/calc_create/types/adsorption.py
 msgid "falta o SCF da molécula"
-msgstr ""
+msgstr "the molecule SCF is missing"
 
 #: core/qe/lattice.py
 msgid "faltam celldm(1) ou A no &SYSTEM"
@@ -5441,15 +5489,15 @@ msgstr "fi without a matching if"
 #: core/calc_create/types/charge.py
 #, python-brace-format
 msgid "fileout deve ser relativo e ficar dentro da pasta (sem .. nem / inicial): {fileout}"
-msgstr ""
+msgstr "fileout must be relative and inside the folder (no .. or leading /): {fileout}"
 
 #: core/calc_create/types/pdos.py
 msgid "filpdos: os arquivos são <filpdos>.pdos_atm#…"
-msgstr ""
+msgstr "filpdos: the files are <filpdos>.pdos_atm#…"
 
 #: core/calc_create/types/slab.py core/calc_create/types/supercell.py
 msgid "gamma (do SCF)"
-msgstr ""
+msgstr "gamma (from the SCF)"
 
 #: core/calculations/bands/data.py
 msgid "gap indeterminado: E_F fora de [VBM, CBM] no caminho"
@@ -5459,22 +5507,6 @@ msgstr "gap undetermined: E_F outside [VBM, CBM] along the path"
 #, python-brace-format
 msgid "gap pela posição de E_F: {n:g} elétrons não enchem bandas inteiras"
 msgstr "gap from the position of E_F: {n:g} electrons do not fill whole bands"
-
-#: core/calc_create/types/charge.py
-msgid "grade 3D"
-msgstr ""
-
-#: core/calc_create/types/charge.py
-msgid "gráfico 1D"
-msgstr ""
-
-#: core/calc_create/types/charge.py
-msgid "gráfico 2D"
-msgstr ""
-
-#: core/calc_create/types/charge.py
-msgid "gráfico 2D polar numa esfera"
-msgstr ""
 
 #: core/qe/lattice.py
 msgid "ibrav = 0 sem CELL_PARAMETERS"
@@ -5514,6 +5546,10 @@ msgstr "give at least one format"
 #: core/filtering.py
 msgid "inputs"
 msgstr "inputs"
+
+#: core/calc_create/types/slab.py
+msgid "invertida"
+msgstr "flipped"
 
 #: core/calculations/scf.py
 #, python-brace-format
@@ -5557,7 +5593,7 @@ msgstr "unreadable {what} line: {strip}"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "lista de candidatos"
-msgstr ""
+msgstr "candidate list"
 
 #: ui/app.py
 msgid "log detalhado"
@@ -5569,11 +5605,11 @@ msgstr "total magnetization"
 
 #: core/calc_create/types/surface_fields.py
 msgid "maior ou igual a zero"
-msgstr ""
+msgstr "greater than or equal to zero"
 
 #: core/calc_create/types/surface_fields.py
 msgid "maior que zero"
-msgstr ""
+msgstr "greater than zero"
 
 #: core/calculations/base.py
 msgid "manual"
@@ -5589,11 +5625,7 @@ msgstr "molecule–surface"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "monodentado"
-msgstr ""
-
-#: core/calc_create/types/charge.py
-msgid "média esférica (1D)"
-msgstr ""
+msgstr "monodentate"
 
 #: core/calc_create/fragments.py core/qe/lattice.py
 #, python-brace-format
@@ -5630,16 +5662,16 @@ msgstr "none"
 
 #: core/calc_create/types/pdos.py
 msgid "ngauss: ignorado com tetraedros"
-msgstr ""
+msgstr "ngauss: ignored with tetrahedra"
 
 #: core/calc_create/types/script.py
 #, python-brace-format
 msgid "nk = {nk} é maior que NP = {np}: o pw.x para com erro (mp_start_pools)"
-msgstr ""
+msgstr "nk = {nk} is greater than NP = {np}: pw.x stops with an error (mp_start_pools)"
 
 #: core/calc_create/types/script.py
 msgid "nk deve ser ao menos 1"
-msgstr ""
+msgstr "nk must be at least 1"
 
 #: core/calculations/base.py
 msgid "nome"
@@ -5659,7 +5691,7 @@ msgstr ""
 
 #: core/calc_create/types/bandas.py
 msgid "nspin = 2: o bands.x roda uma vez por canal (spin_component 1 e 2)"
-msgstr ""
+msgstr "nspin = 2: bands.x runs once per channel (spin_component 1 and 2)"
 
 #: core/calc_create/surface/merge.py
 #, python-brace-format
@@ -5677,7 +5709,7 @@ msgstr "non-collinear"
 
 #: core/calc_create/types/supercell.py
 msgid "não definido no SCF (o padrão do pw.x)"
-msgstr ""
+msgstr "not set in the SCF (the pw.x default)"
 
 #: ui/widgets/nav_sections.py
 msgid "não encontrada"
@@ -5711,7 +5743,7 @@ msgstr "not installed"
 
 #: core/calc_create/types/slab.py
 msgid "não invertida"
-msgstr ""
+msgstr "not flipped"
 
 #: core/qe/summary/build.py
 msgid "não polarizado"
@@ -5780,7 +5812,7 @@ msgstr "the mesh shifts are 0 or 1"
 #: core/calc_create/types/charge.py
 #, python-brace-format
 msgid "output_format = {output_format} não vale para iflag = {iflag} ({IFLAGS}): use {join}"
-msgstr ""
+msgstr "output_format = {output_format} does not apply to iflag = {iflag} ({IFLAGS}): use {join}"
 
 #: core/filtering.py
 msgid "outros"
@@ -5832,7 +5864,7 @@ msgstr ""
 
 #: core/calc_create/types/charge.py
 msgid "plot_num deve ser 0 ou maior"
-msgstr ""
+msgstr "plot_num must be 0 or greater"
 
 #: core/calc_create/kpath.py
 #, python-brace-format
@@ -5841,7 +5873,7 @@ msgstr "point {n}"
 
 #: core/calc_create/types/charge_diff.py
 msgid "pp.x diferença"
-msgstr ""
+msgstr "pp.x difference"
 
 #: core/calculations/scf.py
 #, python-brace-format
@@ -5858,6 +5890,8 @@ msgid ""
 "projwfc.in sem ngauss/degauss: com tetraedros o projwfc.x usa o método dos tetraedros (um degauss"
 " no input o desligaria)"
 msgstr ""
+"projwfc.in without ngauss/degauss: with tetrahedra projwfc.x uses the tetrahedron method (a "
+"degauss in the input would turn it off)"
 
 #: core/calc_create/unit.py
 #, python-brace-format
@@ -5875,7 +5909,7 @@ msgstr ""
 
 #: core/calc_create/types/script.py
 msgid "pw.x -nk: número de pools (grupos de k-points); NP deve ser múltiplo de nk"
-msgstr ""
+msgstr "pw.x -nk: number of pools (groups of k-points); NP must be a multiple of nk"
 
 #: ui/widgets/kpath_editor.py
 msgid "quebra"
@@ -5939,7 +5973,7 @@ msgstr "no type"
 
 #: core/calc_create/types/supercell.py
 msgid "sem vácuo (bulk)"
-msgstr ""
+msgstr "no vacuum (bulk)"
 
 #: core/calc_create/edits.py
 #, python-brace-format
@@ -5956,7 +5990,7 @@ msgstr "spin-orbit"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "symprec do spglib, que agrupa os átomos equivalentes (as letras da coluna Sítio)"
-msgstr ""
+msgstr "spglib's symprec, which groups the equivalent atoms (the letters of the Site column)"
 
 #: ui/dialogs/calc_create/kmesh.py
 #, python-brace-format
@@ -6007,7 +6041,7 @@ msgstr "empty = do not write"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "vazio = o mais pesado"
-msgstr ""
+msgstr "empty = the heaviest"
 
 #: ui/dialogs/calc_create/form.py
 #, python-brace-format
@@ -6034,7 +6068,7 @@ msgstr "x min"
 #: core/calc_create/types/adsorption_fields.py
 #, python-brace-format
 msgid "{NOUNS} deve ser maior que zero"
-msgstr ""
+msgstr "{NOUNS} must be greater than zero"
 
 #: core/calculations/bands/render.py
 #, python-brace-format
@@ -6059,7 +6093,7 @@ msgstr "{card} removed: the atoms changed"
 #: core/calc_create/types/adsorption.py
 #, python-brace-format
 msgid "{count} ({n_slab} da superfície + {molecule_atoms} da molécula: {counts})"
-msgstr ""
+msgstr "{count} ({n_slab} of the surface + {molecule_atoms} of the molecule: {counts})"
 
 #: core/sync/preview.py
 #, python-brace-format
@@ -6180,7 +6214,7 @@ msgstr "{count} relax/vc-relax outputs in the folder; showing {name}. The others
 #: core/calc_create/types/surface_fields.py
 #, python-brace-format
 msgid "{count}/{count_2}{which}, regra '{rule}'"
-msgstr ""
+msgstr "{count}/{count_2}{which}, rule '{rule}'"
 
 #: core/qe/summary/build.py
 #, python-brace-format
@@ -6190,22 +6224,22 @@ msgstr "{cycles} SCF cycles, {steps} BFGS steps"
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "{decimal} Å (o vácuo mínimo; sem molécula)"
-msgstr ""
+msgstr "{decimal} Å (the minimum vacuum; no molecule)"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "{decimal} Å = {decimal_2} + molécula {decimal_3} + adsorção {decimal_4}"
-msgstr ""
+msgstr "{decimal} Å = {decimal_2} + molecule {decimal_3} + adsorption {decimal_4}"
 
 #: core/calc_create/types/supercell.py
 #, python-brace-format
 msgid "{decimal} Å ao longo de c"
-msgstr ""
+msgstr "{decimal} Å along c"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "{decimal} × eixo {axis} do bulk"
-msgstr ""
+msgstr "{decimal} × the bulk's {axis} axis"
 
 #: core/sync/_process.py
 #, python-brace-format
@@ -6280,7 +6314,7 @@ msgstr ""
 #: core/calc_create/types/surface_fields.py
 #, python-brace-format
 msgid "{label} deve ser {limit}"
-msgstr ""
+msgstr "{label} must be {limit}"
 
 #: core/calc_create/surface/merge.py
 #, python-brace-format
@@ -6295,28 +6329,28 @@ msgstr "{label}: the surface pseudopotential applies ({join})"
 #: core/calc_create/types/surface_fields.py
 #, python-brace-format
 msgid "{label}: {join} não está em ATOMIC_SPECIES do SCF"
-msgstr ""
+msgstr "{label}: {join} is not in the ATOMIC_SPECIES of the SCF"
 
 #: core/calc_create/types/adsorption.py
 #, python-brace-format
 msgid "{mesh_text} (da superfície: a célula não muda)"
-msgstr ""
+msgstr "{mesh_text} (the surface's: the cell does not change)"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "{mesh_text} (do SCF {mesh_text_2}; vácuo 1)"
-msgstr ""
+msgstr "{mesh_text} (from the SCF {mesh_text_2}; vacuum 1)"
 
 #: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
 #: core/calc_create/types/supercell.py
 #, python-brace-format
 msgid "{mesh} (digitada)"
-msgstr ""
+msgstr "{mesh} (typed)"
 
 #: core/calc_create/types/supercell.py
 #, python-brace-format
 msgid "{mesh} (do SCF {scf}, {how})"
-msgstr ""
+msgstr "{mesh} (from the SCF {scf}, {how})"
 
 #: core/qe/input_extract.py
 #, python-brace-format
@@ -6524,12 +6558,12 @@ msgstr "{name}: only in B"
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "{name}: {counts}, altura {decimal} Å, âncora {anchor}{turned}"
-msgstr ""
+msgstr "{name}: {counts}, height {decimal} Å, anchor {anchor}{turned}"
 
 #: core/calc_create/types/adsorption.py
 #, python-brace-format
 msgid "{name}: {formula} ({counts}), altura {decimal} Å, âncora {anchor}{turned}"
-msgstr ""
+msgstr "{name}: {formula} ({counts}), height {decimal} Å, anchor {anchor}{turned}"
 
 #: ui/dialogs/calc_create/setup_page.py
 #, python-brace-format
@@ -6585,7 +6619,7 @@ msgstr[1] "{n} syntax problems in the script"
 #: core/calc_create/types/adsorption.py
 #, python-brace-format
 msgid "{position} Å (erguido {decimal} Å)"
-msgstr ""
+msgstr "{position} Å (raised {decimal} Å)"
 
 #: core/sync/request.py
 #, python-brace-format
@@ -6621,8 +6655,8 @@ msgstr "{tooltip} Gap along the k path; the true indirect gap may lie outside it
 #, python-brace-format
 msgid "{total} ligação metal–O cortada na borda ({bonds}); marque '{label}' para fechá-la com OH"
 msgid_plural "{total} ligações metal–O cortadas na borda ({bonds}); marque '{label}' para fechá-las com OH"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{total} metal–O bond cut at the edge ({bonds}); check '{label}' to close it with OH"
+msgstr[1] "{total} metal–O bonds cut at the edge ({bonds}); check '{label}' to close them with OH"
 
 #: core/calculations/relax.py
 #, python-brace-format
@@ -6641,7 +6675,7 @@ msgstr[1] "{truncated} incomplete iterations ignored"
 #: core/calc_create/types/adsorption.py
 #, python-brace-format
 msgid "{values} (sítio pela {how})"
-msgstr ""
+msgstr "{values} (site by {how})"
 
 #: core/qe/lattice.py
 #, python-brace-format
@@ -6682,16 +6716,16 @@ msgstr "Atom {index} {species}"
 #: core/calc_create/types/adsorption.py
 msgid "Átomo âncora"
 msgid_plural "Átomos âncora"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Anchor atom"
+msgstr[1] "Anchor atoms"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Átomo âncora (nº na molécula)"
-msgstr ""
+msgstr "Anchor atom (no. in the molecule)"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Átomo âncora na superfície"
-msgstr ""
+msgstr "Anchor atom on the surface"
 
 #: core/calc_create/surface/molecule.py
 #, python-brace-format
@@ -6715,19 +6749,19 @@ msgstr "Atoms of {formula}"
 
 #: core/calc_create/types/charge_diff.py
 msgid "Átomos do SCF isolated; os demais formam o SCF clean"
-msgstr ""
+msgstr "Atoms of the isolated SCF; the others form the clean SCF"
 
 #: core/calc_create/types/charge_diff.py
 msgid "Átomos do fragmento isolado"
-msgstr ""
+msgstr "Atoms of the isolated fragment"
 
 #: core/calc_create/types/surface_fields.py
 msgid "Átomos fixos"
-msgstr ""
+msgstr "Fixed atoms"
 
 #: core/calc_create/types/surface_fields.py
 msgid "Átomos fixos (if_pos 0 0 0)"
-msgstr ""
+msgstr "Fixed atoms (if_pos 0 0 0)"
 
 #: core/qe/summary/build.py
 msgid "Átomos na célula"
@@ -6751,11 +6785,11 @@ msgstr "anchor···H"
 
 #: core/calc_create/types/supercell.py
 msgid "÷ repetições"
-msgstr ""
+msgstr "÷ repetitions"
 
 #: core/calc_create/types/supercell.py
 msgid "÷ repetições; vácuo 1"
-msgstr ""
+msgstr "÷ repetitions; vacuum 1"
 
 #: core/calculations/pdos/render.py
 msgid "↑ contínua"

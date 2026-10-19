@@ -133,10 +133,13 @@ EXCEPTIONS: set[tuple[str, str]] = {
     ("core/sync/planner.py", "atualizar"),
     ("core/sync/push_plan.py", "enviar"),  # PushAction value: the preview shows PUSH_TITLES
     ("ui/widgets/structure3d/panel.py", " px"),  # a unit
-    ("core/calc_create/types/pdos.py", "&PROJWFC "),  # namelist names of the tooltips
+    # The parameters of QE a field of "Criar cálculo" names, the same in both languages (spec 57
+    # R1.3): the namelist each &PROJWFC tooltip starts with, two tooltips that are only the name of
+    # the parameter, and QE's own term for -nk.
+    ("core/calc_create/types/pdos.py", "&PROJWFC "),
     ("core/calc_create/types/relax.py", "&IONS ion_dynamics"),
     ("core/calc_create/types/vc_relax.py", "&CELL cell_dynamics"),
-    ("core/calc_create/types/script.py", "Pools (nk)"),  # QE's own term
+    ("core/calc_create/types/script.py", "Pools (nk)"),
     # File data that does not follow the language (spec 55 R2, R3): a CSV column, the first line
     # of a synced ``.plot``. The legend shows the sum of the atoms through its own ``_()``.
     ("core/calculations/pdos/render.py", "Soma dos átomos selecionados"),

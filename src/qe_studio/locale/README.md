@@ -86,18 +86,22 @@ The fixed terms of the interface, the same in every message.
 | Abrir local de origem | Show in file manager |
 | Ajuste do gráfico | Plot settings |
 | Alargamento | Smearing |
+| Âncora, átomo âncora (da molécula na superfície) | Anchor, anchor atom |
 | Arquivo, Arquivos | File, Files |
 | Árvore | Tree |
 | Átomo | Atom |
+| Átomos fixos (if_pos 0 0 0) | Fixed atoms |
 | Atualizar | Refresh |
 | Autovalores | Eigenvalues |
 | Avançado / Padrão (modo dos campos do Criar cálculo) | Advanced / Standard |
 | Aviso / AVISO | Warning / WARNING |
 | Bandas, estrutura de bandas | Bands, band structure |
 | Baixar (do cluster) | Download (from the cluster) |
+| Bidentado / Monodentado | Bidentate / Monodentate |
 | Cálculo | Calculation |
 | Caminho k (das bandas) | k-path |
 | Cancelar | Cancel |
+| Carga, Diferença de carga (tipos do Criar cálculo) | Charge, Charge difference |
 | Célula | Cell |
 | Ciclo SCF (um SCF inteiro, no relax) | SCF cycle |
 | Condução / Valência | Conduction / Valence |
@@ -116,6 +120,7 @@ The fixed terms of the interface, the same in every message.
 | Exportar | Export |
 | Favorito | Favorite |
 | Fechar | Close |
+| Folga (distância mínima) | Clearance |
 | Força | Force |
 | Gerar | Generate |
 | Gerar gráfico | Generate plot |
@@ -125,6 +130,7 @@ The fixed terms of the interface, the same in every message.
 | Grids (gráficos numa grade N×M) | Grids |
 | Iteração (dentro de um SCF) | SCF iteration |
 | Limiar (de convergência) | Threshold |
+| Molécula na superfície (tipo do Criar cálculo) | Molecule on surface |
 | Numerar (a pasta do Criar cálculo) | Number |
 | Painel (do gráfico) | Panel |
 | Paralelização | Parallelization |
@@ -138,6 +144,12 @@ The fixed terms of the interface, the same in every message.
 | Projeto | Project |
 | Pseudopotencial | Pseudopotential |
 | Raiz, pasta raiz | Root, root folder |
+| Rede de k-points (K_POINTS automatic) | k-point mesh |
 | Selo | Badge |
 | Sincronizar | Sync |
+| Sítio (de adsorção) | Site |
+| Slab | Slab |
+| Supercélula | Supercell |
+| Superfície | Surface |
 | Tempo de CPU / de parede (WALL) | CPU time / Wall time |
+| Vácuo | Vacuum |

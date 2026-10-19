@@ -105,8 +105,8 @@ class TabsPage(QWidget):
         self._keys: list[str] = []  # the file tabs, in order
         self._tab_of: dict[str, QWidget] = {}  # file key → its tab
         files, groups = self._groups()
-        for group, fields in groups:
-            self.tabs.addTab(self._group_tab(theme, group, fields), group)
+        for group, fields in groups:  # the group is a token marked with N_ by its type
+            self.tabs.addTab(self._group_tab(theme, group, fields), _(group))
         for planned, fields in files:
             tab = self._file_tab(theme, planned, fields)
             self.tabs.addTab(tab, planned.tab_label)

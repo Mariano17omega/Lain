@@ -37,6 +37,7 @@ __all__ = [
     "FROM_LIST",
     "MODES",
     "MOLECULE_TAB",
+    "MONODENTATE",
     "SITE",
     "SITE_PARAMS",
     "SITE_TAB",
