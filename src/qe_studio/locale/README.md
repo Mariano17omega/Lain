@@ -73,6 +73,11 @@ In the code:
 - Keep the `…` of an action that asks something before acting and the keys shown in a text
   (`Ctrl+G`).
 - Units and symbols as in the source: `eV`, `Ry/Bohr`, `Å`, `E_F`, `Γ`.
+- Sync: `Download` and `Upload` name the two directions in every menu, button, preview and report. A
+  sentence that says what is **not** done keeps its negation and its subject (`Already on the cluster, will
+  not be changed`): `test_the_sync_catalog_keeps_every_negation` fails a translation of area 58 that drops it.
+  The hint for a failed connection follows the language; the ssh/rsync text it is chosen by, the log and
+  the `SSH_ASKPASS` password never do.
 
 ## Glossary
 
@@ -129,7 +134,9 @@ The fixed terms of the interface, the same in every message.
 | Grade (de arquivos) | Grid |
 | Grids (gráficos numa grade N×M) | Grids |
 | Iteração (dentro de um SCF) | SCF iteration |
+| Já existe no cluster (arquivo que o envio não altera) | Already on the cluster |
 | Limiar (de convergência) | Threshold |
+| Mais recente no computador (cópia local mais nova que a do cluster) | Newer on this computer |
 | Molécula na superfície (tipo do Criar cálculo) | Molecule on surface |
 | Numerar (a pasta do Criar cálculo) | Number |
 | Painel (do gráfico) | Panel |

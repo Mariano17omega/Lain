@@ -11,7 +11,7 @@ pages and every menu included), as in ``widget_texts``. Painted text (the badges
 grid, figures, the 3D view) belongs to no widget: the spec of each area tests it through its model.
 
 A spec of the series adds its scenarios to ``SCENARIOS`` (spec 54's are in
-``tests/i18n_scenarios_54.py``, 55's to 57's in ``…_55.py`` to ``…_57.py``, merged below): a function
+``tests/i18n_scenarios_54.py``, 55's to 57's in ``…_55.py`` to ``…_58.py``, merged below): a function
 ``(window, project)`` that brings the window to what is checked, opening dialogs without ``exec()``
 (a modal loop would wait forever). An unexpected exception ends the process with code 1 and the
 traceback on stderr: the app's excepthook would open a modal box instead. The last line of stdout
@@ -40,6 +40,7 @@ from i18n_scenarios_54 import SCENARIOS as SCENARIOS_54
 from i18n_scenarios_55 import SCENARIOS as SCENARIOS_55
 from i18n_scenarios_56 import SCENARIOS as SCENARIOS_56
 from i18n_scenarios_57 import SCENARIOS as SCENARIOS_57
+from i18n_scenarios_58 import SCENARIOS as SCENARIOS_58
 from qe_studio import i18n  # no texts: the language is installed before the modules that have them
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -264,6 +265,7 @@ SCENARIOS: dict[str, Callable[..., list[str] | None]] = {
     **SCENARIOS_55,  # spec 55: the plots, the atoms, the Grids and the export (…_55.py)
     **SCENARIOS_56,  # spec 56: the Criar cálculo window, the k-path editor, derive (…_56.py)
     **SCENARIOS_57,  # spec 57: the fields and checks of each type, the files of a Slab (…_57.py)
+    **SCENARIOS_58,  # spec 58: the sync window, its reports, menu and failures (…_58.py)
 }
 
 

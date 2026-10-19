@@ -113,6 +113,26 @@ def lost_code_tokens(catalog, done: set[int]) -> list[str]:
     return found
 
 
+# A Portuguese negation and the words that carry it over in English. A translation of a sentence
+# that says what is not done (spec 58 R1.2: "não será alterado") must say it too.
+NEGATION_PT = re.compile(r"\b(?:não|nunca|nenhum|nenhuma)\b", re.IGNORECASE)
+NEGATION_EN = re.compile(r"\b(?:not|never|no|none|cannot)\b|n't", re.IGNORECASE)
+
+
+def lost_negations(catalog, areas: set[int]) -> list[str]:
+    """The messages of ``areas`` whose Portuguese says "não" (or "nunca"…) and a translation, in some
+    plural form, that says no negation: ``'<text>': <form> says nothing is not done``."""
+    tool = script()
+    found = []
+    for message in tool.messages(catalog):
+        if not any(area_of(filename) in areas for filename, _line in message.locations):
+            continue
+        for source, string in zip(tool.sources(message), tool.forms(message), strict=False):
+            if string and NEGATION_PT.search(source) and not NEGATION_EN.search(string):
+                found.append(f"{source!r}: {string!r} has no negation")
+    return found
+
+
 FRAGMENT_WORDS = 4  # longer messages are sentences, not the pieces a composed text takes
 
 

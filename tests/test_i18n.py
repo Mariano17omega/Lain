@@ -26,6 +26,7 @@ from i18n_helpers import (
     fragment_leaks,
     leaks,
     lost_code_tokens,
+    lost_negations,
     probe_texts,
     script,
     untranslated_in_done,
@@ -347,9 +348,12 @@ AREA_57 = [
     *(f"calc_create_validation_{type_id}" for type_id in TYPE_IDS),
 ]
 FACTS_57 = ["slab_files"]
+# Spec 58: the sync window of a download and of an upload (preview, progress, conflict), how a run
+# ends, the menu and the failures. Each also returns facts: the cells of the preview, the reports.
+AREA_58 = ["sync_preview_pull", "sync_preview_push", "sync_report", "sync_menu", "sync_failures"]
 # The scenarios with texts to check for leaks: spec 52's two, spec 53's eleven (the window, its
-# menus and the general dialogs), spec 54's six, spec 55's nine, spec 56's five, spec 57's twenty.
-# The next specs of the series add theirs.
+# menus and the general dialogs), spec 54's six, spec 55's nine, spec 56's five, spec 57's twenty,
+# spec 58's five. The next specs of the series add theirs.
 LEAK_SCENARIOS = [
     "main",
     "plot",
@@ -367,6 +371,7 @@ LEAK_SCENARIOS = [
     *AREA_55,
     *AREA_56,
     *AREA_57,
+    *AREA_58,
     "first_run",
 ]
 # What no widget shows (the probe's "facts"). They run before ``first_run``, whose overlay stays on.
@@ -402,6 +407,7 @@ def portuguese():
         *FACTS_56,
         *AREA_57,
         *FACTS_57,
+        *AREA_58,
     )
 
 
@@ -549,6 +555,32 @@ def test_the_plurals_of_the_area_have_both_forms(po):
     ]
     assert len(area_57) == 3
     assert [tool.sources(m)[0] for m in area_57 if len(set(tool.forms(m))) != 2] == []
+
+    # Spec 58: the counts of the sync (the files of a preview, a report, a progress).
+    assert forms[("{count} arquivo baixado.", "{count} arquivos baixados.")] == (
+        "{count} file downloaded.",
+        "{count} files downloaded.",
+    )
+    assert forms[("{done}/{total} arquivo", "{done}/{total} arquivos")] == (
+        "{done}/{total} file",
+        "{done}/{total} files",
+    )
+    assert forms[("Enviando {count} arquivo…", "Enviando {count} arquivos…")] == (
+        "Uploading {count} file…",
+        "Uploading {count} files…",
+    )
+    area_58 = [
+        message
+        for message in tool.messages(po)
+        if len(tool.sources(message)) == 2
+        and any(area_of(filename) == 58 for filename, _line in message.locations)
+    ]
+    assert len(area_58) == 14
+    # The two forms differ, but for a sentence with no word that changes with the number.
+    assert sorted(tool.sources(m)[0] for m in area_58 if len(set(tool.forms(m))) != 2) == [
+        "{count} já existe no cluster (não será alterado)",
+        "{count} mais recente no computador (não será alterado)",
+    ]
 
 
 # -- spec 54: the viewers and the reading of the QE outputs ------------------------------------------
@@ -1309,3 +1341,254 @@ def test_a_fragment_left_in_portuguese_is_found():
         "'camada inferior' in \"18/34, rule 'camada inferior'\""
     ]
     assert fragment_leaks(shown, source, {55}) == []
+
+
+# -- spec 58: the cluster and the sync -------------------------------------------------------------
+def sync_facts(facts: list[str], prefix: str) -> list[str]:
+    """The lines of a sync scenario that start with ``prefix``, without it."""
+    return [text.removeprefix(prefix) for text in facts if text.startswith(prefix)]
+
+
+def test_the_values_of_the_actions_are_data():
+    """The preview shows ``ACTION_TITLES``, never the value of an action (R1.4)."""
+    from qe_studio.core.sync.planner import Action
+    from qe_studio.core.sync.push_plan import PushAction
+
+    assert [action.value for action in Action] == ["novo", "atualizar", "local mais recente"]
+    assert [action.value for action in PushAction] == ["enviar", "já existe"]
+
+
+def test_the_sync_facts_have_the_same_shape_in_both_languages(english, portuguese):
+    """The same lines, with the same numbers (counts, sizes, dates, exit codes), in both languages."""
+    for scenario in AREA_58:
+        en, pt = english[f"{scenario}#facts"], portuguese[f"{scenario}#facts"]
+        assert len(en) == len(pt) > 10, scenario
+        differ = [
+            f"{a!r} / {b!r}"
+            for a, b in zip(en, pt, strict=True)
+            if re.findall(r"\d+", a) != re.findall(r"\d+", b)
+        ]
+        assert differ == [], scenario
+
+
+def test_the_sync_speaks_english_without_leaving_portuguese_in_it(english, po):
+    for scenario in AREA_58:
+        facts = english[f"{scenario}#facts"]
+        assert [text for text in facts if ACCENTED.search(text)] == [], scenario
+        assert fragment_leaks(facts, po, {58}) == [], scenario
+
+
+def test_the_preview_of_a_download_follows_the_language(english, portuguese):
+    en, pt = english["sync_preview_pull#facts"], portuguese["sync_preview_pull#facts"]
+    assert sync_facts(en, "pull summary: ") == [
+        "3 new files (105.0 MB) · 1 to update (2.0 MB) · 2 newer on this computer (will not be changed)"
+    ]
+    assert sync_facts(pt, "pull summary: ") == [
+        "3 arquivos novos (105.0 MB) · 1 a atualizar (2.0 MB) · 2 mais recentes no computador (não serão alterados)"
+    ]
+    # The sections, their notes and the label of the folder being synced.
+    rows = sync_facts(en, "pull row ")
+    assert rows[0].startswith("New (3) | 105.0 MB")
+    assert "To update (1) | 2.0 MB |  | will ask for confirmation" in rows
+    assert "Newer on this computer (2) | 9.8 KB |  | will not be changed" in rows
+    assert "  (synced folder) | 10.0 KB |  | " in rows
+    assert rows[-1].startswith("    p1.png | 4.9 KB | ") and rows[-1].endswith(
+        "| will not be changed"
+    )
+    assert sync_facts(en, "pull header: ") == ["File | Size | Date on the cluster | Note"]
+    assert sync_facts(pt, "pull header: ") == ["Arquivo | Tamanho | Data no cluster | Nota"]
+    # Singular and plural, the large files, the window and the buttons.
+    assert sync_facts(en, "pull count 1: ") == [
+        "1 new file (10.0 KB) · 1 to update (2.0 MB) · 1 newer on this computer (will not be changed)"
+    ]
+    assert sync_facts(pt, "pull count 1: ") == [
+        "1 arquivo novo (10.0 KB) · 1 a atualizar (2.0 MB) · 1 mais recente no computador (não será alterado)"
+    ]
+    assert sync_facts(en, "pull large ") == [
+        "1: 1 large file adds up to 101.0 MB",
+        "2: 2 large files add up to 202.0 MB",
+    ]
+    assert sync_facts(en, "pull title: ") == ["Syncing with the cluster"]
+    assert sync_facts(en, "pull confirm: ") == ["Download"]
+    assert sync_facts(pt, "pull confirm: ") == ["Baixar"]
+    assert sync_facts(en, "pull transfer ") == [
+        "1: Transferring 1 file… | 1/1 file",
+        "2: Transferring 2 files… | 1/2 files",
+    ]
+    assert sync_facts(en, "pull waiting: ") == ["Waiting for your decision…"]
+    assert sync_facts(pt, "pull waiting: ") == ["Aguardando sua decisão…"]
+    shown = english["sync_preview_pull"]
+    for text in ("Keep local", "Overwrite this one", "Overwrite all in this folder", "Cancel sync"):
+        assert text in shown
+    assert "The local file would be overwritten" in shown
+
+
+def test_the_preview_of_an_upload_says_what_is_not_changed(english, portuguese):
+    """The sentences that promise something stay as promises: the subject and the negation (R1.2)."""
+    en, pt = english["sync_preview_push#facts"], portuguese["sync_preview_push#facts"]
+    assert sync_facts(en, "push summary: ") == [
+        "2 files to upload (101.0 MB) · 1 already on the cluster (will not be changed)"
+    ]
+    assert sync_facts(pt, "push summary: ") == [
+        "2 arquivos a enviar (101.0 MB) · 1 já existe no cluster (não será alterado)"
+    ]
+    rows = sync_facts(en, "push row ")
+    assert rows[0].startswith("To upload (2 · 101.0 MB) | 101.0 MB")
+    assert any(
+        row.startswith("Already on the cluster, will not be changed (1) | 7.0 MB") for row in rows
+    )
+    assert rows[-1].endswith("| will not be changed")  # the file the cluster has
+    assert sync_facts(pt, "push row ")[-1].endswith("| não será alterado")
+    assert sync_facts(en, "push count ") == [
+        "1: 1 file to upload (900 B) · 1 already on the cluster (will not be changed)",
+        "2: 2 files to upload (101.0 MB) · 2 already on the cluster (will not be changed)",
+    ]
+    assert sync_facts(en, "push header: ") == ["File | Size | Local date | Note"]
+    assert sync_facts(en, "push title: ") == ["Uploading to the cluster"]
+    assert sync_facts(en, "push scope: ")[0].startswith("Upload to the cluster: ")
+    assert sync_facts(en, "push confirm: ") == ["Upload"]
+    assert sync_facts(pt, "push confirm: ") == ["Enviar"]
+    assert sync_facts(en, "push transfer ") == [
+        "1: Uploading 1 file… | 1/1 file",
+        "2: Uploading 2 files… | 1/2 files",
+    ]
+
+
+def test_the_report_of_a_run_follows_the_language(english, portuguese):
+    en, pt = english["sync_report#facts"], portuguese["sync_report#facts"]
+    assert "pull done 1 message: 1 file downloaded." in en
+    assert "pull done 2 message: 2 files downloaded." in en
+    assert "pull done 1 message: 1 conflict kept in the local version." in en
+    assert "pull done 2 message: 2 conflicts kept in the local version." in en
+    assert "pull done 2 message: 2 newer local files kept." in en
+    assert (
+        "pull done 1 message: 1 file changed locally during the preview and was not downloaded."
+        in en
+    )
+    assert (
+        "pull done 2 message: 2 files changed locally during the preview and were not downloaded."
+        in en
+    )
+    assert "pull done 2 details: Changed locally (not downloaded) (2):" in en
+    assert "pull done 2 details: Newer on this computer (2):" in en
+    assert "pull done 2 details: Local folder: <root>/03_bands" in en
+    assert "pull done 2 details: Pasta local: <root>/03_bands" in pt
+    assert "push done 1 message: 1 already existed on the cluster and was not changed." in en
+    assert "push done 2 message: 2 already existed on the cluster and were not changed." in en
+    assert "push done 2 details: Already on the cluster (not changed) (2):" in en
+    assert "push done 2 details: Uploaded (2):" in en
+    assert "push up-to-date message: Nothing to upload." in en
+    assert "pull up-to-date message: Folder already in sync: nothing to transfer." in en
+    assert "pull cancelled message: Sync cancelled." in en
+    assert "push cancelled message: Upload cancelled." in en
+    assert "push done 2 message: 2 arquivos enviados." in pt
+    assert "push done 2 message: 2 já existiam no cluster e não foram alterados." in pt
+    # A refused password is told by the flag, not by the text: both languages set it.
+    assert "auth: True" in en and "auth: True" in pt
+    assert (
+        "pull denied message: Sync failed: Authentication refused by the cluster (check the user, key or password)."
+        in en
+    )
+    assert "Details" in english["sync_report"]  # the toast
+
+
+def test_the_menu_and_the_scope_follow_the_language(english, portuguese):
+    en, pt = english["sync_menu#facts"], portuguese["sync_menu#facts"]
+    for fact in (
+        "pull folder menu_text: Sync 04_pdos_orbitals/orbitals",
+        "pull project menu_text: Sync project 01_relax",
+        "pull root menu_text: Sync all",
+        "push folder menu_text: Upload 04_pdos_orbitals/orbitals to cluster…",
+        "push root menu_text: Upload folder to cluster…",
+        "pull root tooltip: Download from the cluster: everything",
+        "action _project_action: Sync all",
+        "titles: Sync | Upload to cluster",
+        "off cluster: cluster not configured (offline)",
+    ):
+        assert fact in en, fact
+    for fact in (  # the same, in the language of the source
+        "pull folder menu_text: Sincronizar 04_pdos_orbitals/orbitals",
+        "pull root tooltip: Baixar do cluster: tudo",
+        "push root menu_text: Enviar pasta ao cluster…",
+        "titles: Sincronização | Envio ao cluster",
+    ):
+        assert fact in pt, fact
+    assert "push root: Choose a calculation folder; the whole root folder is not uploaded." in en
+    assert "push project: Choose a calculation folder; the whole project is not uploaded." in en
+    assert "push root: Escolha uma pasta de cálculo; a pasta raiz inteira não é enviada." in pt
+    assert (
+        "refusal pull outside: /elsewhere is not inside the configured local folder (<root>)" in en
+    )
+    assert (
+        "action _project_action: Sync project 01_relax | Download from the cluster: project 01_relax"
+        in en
+    )
+    shown = english["sync_menu"]
+    for text in (
+        "Sync all",
+        "Sync 04_pdos_orbitals/orbitals",
+        "Upload 04_pdos_orbitals/orbitals to cluster…",
+    ):
+        assert text in shown, text
+
+
+def test_failure_hints_follow_stderr(english, portuguese, po):
+    """The needle is matched in the English stderr of ssh and rsync; the hint is the only thing that
+    follows the language (R2.1): each needle picks its own hint, in the same order, and only the
+    refusal of the credentials is ``auth_failed``."""
+    from qe_studio.core.sync.rsync import AUTH_DENIED, FAILURE_HINTS
+
+    translated = {
+        tool.sources(m)[0]: tool.forms(m)[0] for m in tool.messages(po) if tool.is_translated(m)
+    }
+
+    def hints(facts: list[str]) -> list[tuple[str, str, str]]:
+        found = []
+        for index, (needle, _hint) in enumerate(FAILURE_HINTS):
+            [line] = [text for text in facts if text.startswith(f"hint {index} ")]
+            head, _sep, rest = line.removeprefix(f"hint {index} ").partition(": ")
+            assert head == needle
+            shown, _sep, flags = rest.partition(" | ")
+            found.append((needle, shown, flags))
+        return found
+
+    pt = hints(portuguese["sync_failures#facts"])
+    en = hints(english["sync_failures#facts"])
+    assert len({shown for _needle, shown, _flags in pt}) == len(FAILURE_HINTS)  # one hint each
+    for (needle, shown_pt, flags_pt), (_n, shown_en, flags_en) in zip(pt, en, strict=True):
+        assert shown_en == translated[shown_pt], needle
+        assert flags_en == flags_pt, needle  # which failure it is does not depend on the language
+        assert ("auth=True" in flags_en) == (needle == AUTH_DENIED), needle
+    # What is not a needle: precedence, the interrupted stream and rsync's own exit code.
+    other_pt = sync_facts(portuguese["sync_failures#facts"], "other ")
+    other_en = sync_facts(english["sync_failures#facts"], "other ")
+    assert [text.split(" | ")[1:] for text in other_en] == [
+        text.split(" | ")[1:] for text in other_pt
+    ]
+    assert other_en[0].startswith("0: Unknown host key.") and "auth=False" in other_en[0]
+    assert other_en[1].startswith("1: Authentication refused by the cluster")
+    assert other_en[2].startswith("2: Connection interrupted (the cluster closed the connection")
+    assert other_en[3].startswith("3: rsync exited with code 23: something no one foresaw")
+    assert other_en[4].startswith("4: rsync exited with code 23. ")
+    assert sync_facts(english["sync_failures#facts"], "run ") == [
+        "no rsync: rsync not found (sync.rsync_binary).",
+        "no program: could not run /nonexistent/ssh",
+        "unexpected: unexpected error (ValueError: boom)",
+    ]
+
+
+def test_the_sync_catalog_keeps_every_negation(po):
+    """A translation of "não será alterado" that dropped the "not" would promise the opposite."""
+    assert lost_negations(po, {58}) == []
+
+
+def test_a_dropped_negation_is_found():
+    source = catalog(
+        ("não será alterado", "will be changed", "core/sync/preview.py"),
+        ("não serão alterados", "will not be changed", "core/sync/preview.py"),
+        ("Pasta não encontrada", "Folder missing", "ui/app.py"),
+    )
+    assert lost_negations(source, {58}) == [
+        "'não será alterado': 'will be changed' has no negation"
+    ]
+    assert len(lost_negations(source, {53})) == 1

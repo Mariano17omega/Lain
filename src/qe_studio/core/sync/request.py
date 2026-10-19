@@ -123,7 +123,7 @@ class SyncScope:
     @property
     def label(self) -> str:
         if self.whole_project:
-            return "tudo"
+            return _("tudo")
         if self.project:
             return _("projeto {project}").format(project=self.project)
         return _("{relative} (e subpastas)").format(relative=self.relative)

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-19 00:28-0400\n"
+"POT-Creation-Date: 2026-10-19 01:08-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -2762,11 +2762,11 @@ msgstr "“{name}” already exists in this folder."
 
 #: core/sync/preview.py
 msgid "Já existem no cluster, não serão alterados"
-msgstr ""
+msgstr "Already on the cluster, will not be changed"
 
 #: core/sync/report.py
 msgid "Já existiam no cluster (não alterados)"
-msgstr ""
+msgstr "Already on the cluster (not changed)"
 
 #: core/calc_create/types/slab_fields.py
 #, python-brace-format
@@ -2916,7 +2916,7 @@ msgstr "List"
 
 #: core/sync/_process.py
 msgid "Listando arquivos no cluster…"
-msgstr ""
+msgstr "Listing files on the cluster…"
 
 #: ui/dialogs/calc_create/setup_page.py
 msgid "Local"
@@ -2924,7 +2924,7 @@ msgstr "Location"
 
 #: ui/dialogs/sync_dialog.py
 msgid "Local:"
-msgstr ""
+msgstr "Local:"
 
 #: ui/dialogs/sync_dialog.py
 #, python-brace-format
@@ -2932,6 +2932,8 @@ msgid ""
 "Local: {local}\n"
 "Cluster: {remote}"
 msgstr ""
+"Local: {local}\n"
+"Cluster: {remote}"
 
 #: core/calculations/relax.py core/calculations/scf.py ui/excepthook.py ui/help_controller.py
 msgid "Log"
@@ -2968,7 +2970,7 @@ msgstr "Largest gap in the window"
 
 #: core/sync/preview.py core/sync/report.py
 msgid "Mais recentes no computador"
-msgstr ""
+msgstr "Newer on this computer"
 
 #: core/qe/summary/build.py
 msgid "Malha k"
@@ -2976,11 +2978,11 @@ msgstr "k-point mesh"
 
 #: ui/dialogs/sync_dialog.py
 msgid "Manter local"
-msgstr ""
+msgstr "Keep local"
 
 #: core/sync/report.py
 msgid "Mantidos na versão local"
-msgstr ""
+msgstr "Kept in the local version"
 
 #: ui/dialogs/mapping.py
 msgid "Mapear arquivos manualmente"
@@ -3137,7 +3139,7 @@ msgstr ""
 
 #: core/sync/report.py
 msgid "Mudaram localmente (não baixados)"
-msgstr ""
+msgstr "Changed locally (not downloaded)"
 
 #: core/calculations/params.py
 msgid "Método do gap"
@@ -3154,11 +3156,11 @@ msgstr "NP must be at least 1"
 
 #: core/sync/preview.py core/sync/report.py
 msgid "Nada a enviar."
-msgstr ""
+msgstr "Nothing to upload."
 
 #: core/sync/preview.py
 msgid "Nada a transferir."
-msgstr ""
+msgstr "Nothing to transfer."
 
 #: ui/widgets/diff_view.py
 msgid "Namelist"
@@ -3311,7 +3313,7 @@ msgstr "Invalid name."
 
 #: ui/dialogs/sync_pages.py
 msgid "Nota"
-msgstr ""
+msgstr "Note"
 
 #: ui/dialogs/overwrite.py
 msgid "Nova versão"
@@ -3319,7 +3321,7 @@ msgstr "New version"
 
 #: core/sync/preview.py
 msgid "Novos"
-msgstr ""
+msgstr "New"
 
 #: ui/dialogs/calc_create/setup_page.py
 msgid "Numerar"
@@ -3566,7 +3568,7 @@ msgstr "The file"
 
 #: ui/dialogs/sync_dialog.py
 msgid "O arquivo local seria sobrescrito"
-msgstr ""
+msgstr "The local file would be overwritten"
 
 #: core/calc_create/scf_info.py
 #, python-brace-format
@@ -3841,7 +3843,7 @@ msgstr "Folder of the .xsf files"
 
 #: core/sync/report.py
 msgid "Pasta já sincronizada: nada a transferir."
-msgstr ""
+msgstr "Folder already in sync: nothing to transfer."
 
 #: core/config.py
 #, python-brace-format
@@ -3851,11 +3853,11 @@ msgstr "Local folder not found: {local_root}"
 #: core/sync/report.py
 #, python-brace-format
 msgid "Pasta local: {local_dir}"
-msgstr ""
+msgstr "Local folder: {local_dir}"
 
 #: core/sync/rsync.py
 msgid "Pasta não encontrada no cluster."
-msgstr ""
+msgstr "Folder not found on the cluster."
 
 #: core/detection.py
 #, python-brace-format
@@ -3865,7 +3867,7 @@ msgstr "Folder not found: {folder}"
 #: core/sync/request.py
 #, python-brace-format
 msgid "Pasta não encontrada: {path}"
-msgstr ""
+msgstr "Folder not found: {path}"
 
 #: ui/navigation_controller.py
 #, python-brace-format
@@ -4019,11 +4021,11 @@ msgstr "Prefix of the PDOS files (filpdos)"
 
 #: ui/dialogs/sync_dialog.py ui/dialogs/sync_pages.py
 msgid "Preparando transferência…"
-msgstr ""
+msgstr "Preparing transfer…"
 
 #: ui/dialogs/sync_pages.py
 msgid "Preparando…"
-msgstr ""
+msgstr "Preparing…"
 
 #: core/qe/summary/build.py
 msgid "Pressão"
@@ -4165,7 +4167,7 @@ msgstr "k-point mesh"
 
 #: core/sync/rsync.py
 msgid "Rede indisponível."
-msgstr ""
+msgstr "Network unavailable."
 
 #: core/calculations/pdos/params.py
 msgid "Referenciar a E_F"
@@ -4580,11 +4582,11 @@ msgstr "No write permission in {parent}"
 #: ui/sync_coordinator.py
 #, python-brace-format
 msgid "Senha de {account} (não é salva):"
-msgstr ""
+msgstr "Password for {account} (not saved):"
 
 #: ui/sync_coordinator.py
 msgid "Senha do cluster"
-msgstr ""
+msgstr "Cluster password"
 
 #: core/config.py
 msgid "Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave."
@@ -4610,7 +4612,7 @@ msgstr "Will be created: {name} — {asked} already exists"
 
 #: core/sync/preview.py
 msgid "Serão enviados"
-msgstr ""
+msgstr "To upload"
 
 #: ui/widgets/structure3d/panel.py
 msgid "Setas a, b, c da célula"
@@ -4622,7 +4624,7 @@ msgstr ""
 
 #: core/sync/request.py
 msgid "Sincronizando com o cluster"
-msgstr ""
+msgstr "Syncing with the cluster"
 
 #: ui/widgets/bars.py
 msgid "Sincronizando…"
@@ -4639,7 +4641,7 @@ msgstr "Sync selected folder"
 #: core/sync/request.py
 #, python-brace-format
 msgid "Sincronizar projeto {project}"
-msgstr ""
+msgstr "Sync project {project}"
 
 #: core/sync/request.py ui/actions.py
 msgid "Sincronizar tudo"
@@ -4648,19 +4650,19 @@ msgstr "Sync all"
 #: core/sync/request.py
 #, python-brace-format
 msgid "Sincronizar {elide_start}"
-msgstr ""
+msgstr "Sync {elide_start}"
 
 #: ui/sync_coordinator.py
 msgid "Sincronização"
-msgstr ""
+msgstr "Sync"
 
 #: core/sync/report.py
 msgid "Sincronização cancelada."
-msgstr ""
+msgstr "Sync cancelled."
 
 #: core/sync/request.py
 msgid "Sincronização desligada: configure cluster.host, cluster.user e paths.remote_root"
-msgstr ""
+msgstr "Sync is off: set cluster.host, cluster.user and paths.remote_root"
 
 #: core/qe/summary/build.py
 msgid "Sistema"
@@ -4692,7 +4694,7 @@ msgstr "Overwrite"
 
 #: ui/dialogs/sync_dialog.py
 msgid "Sobrescrever este"
-msgstr ""
+msgstr "Overwrite this one"
 
 #: ui/dialogs/overwrite.py
 #, python-brace-format
@@ -4701,7 +4703,7 @@ msgstr "Overwrite or save as a new version ({stem})?"
 
 #: ui/dialogs/sync_dialog.py
 msgid "Sobrescrever todos nesta pasta"
-msgstr ""
+msgstr "Overwrite all in this folder"
 
 #: core/calculations/pdos/params.py
 msgid "Soma (↑ + ↓)"
@@ -4953,8 +4955,8 @@ msgstr "Valence band maximum (VBM)"
 #, python-brace-format
 msgid "Transferindo {count} arquivo…"
 msgid_plural "Transferindo {count} arquivos…"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Transferring {count} file…"
+msgstr[1] "Transferring {count} files…"
 
 #: core/calculations/params.py
 msgid "Transparência"
@@ -5310,7 +5312,7 @@ msgstr "unknown key"
 
 #: ui/sync_coordinator.py
 msgid "cluster não configurado"
-msgstr ""
+msgstr "cluster not configured"
 
 #: core/qe/summary/build.py
 msgid "colinear (nspin=2)"
@@ -5447,7 +5449,7 @@ msgstr "bands input not found: k-points without labels"
 #: core/sync/_process.py
 #, python-brace-format
 msgid "erro inesperado ({name}: {exc})"
-msgstr ""
+msgstr "unexpected error ({name}: {exc})"
 
 #: core/qsub_lint.py
 msgid "esac sem case correspondente"
@@ -5722,7 +5724,7 @@ msgstr ""
 #: core/sync/_process.py
 #, python-brace-format
 msgid "não foi possível executar {argv}"
-msgstr ""
+msgstr "could not run {argv}"
 
 #: core/calculations/bands/detection.py
 msgid ""
@@ -5751,7 +5753,7 @@ msgstr "unpolarized"
 
 #: core/sync/preview.py
 msgid "não será alterado"
-msgstr ""
+msgstr "will not be changed"
 
 #: core/qe/bands_x.py
 #, python-brace-format
@@ -5860,7 +5862,7 @@ msgstr "pdos_tot and per-atom PDOS files detected"
 
 #: core/sync/preview.py
 msgid "pedirá confirmação"
-msgstr ""
+msgstr "will ask for confirmation"
 
 #: core/calc_create/types/charge.py
 msgid "plot_num deve ser 0 ou maior"
@@ -5883,7 +5885,7 @@ msgstr "accuracy {accuracy_ry:.1e} Ry"
 #: core/sync/request.py
 #, python-brace-format
 msgid "projeto {project}"
-msgstr ""
+msgstr "project {project}"
 
 #: core/calc_create/types/pdos.py
 msgid ""
@@ -5917,16 +5919,16 @@ msgstr "break"
 
 #: core/sync/_process.py
 msgid "rsync não encontrado (sync.rsync_binary)."
-msgstr ""
+msgstr "rsync not found (sync.rsync_binary)."
 
 #: core/sync/rsync.py
 msgid "rsync não está instalado no cluster."
-msgstr ""
+msgstr "rsync is not installed on the cluster."
 
 #: core/sync/rsync.py
 #, python-brace-format
 msgid "rsync terminou com código {exit_code}"
-msgstr ""
+msgstr "rsync exited with code {exit_code}"
 
 #: core/config.py
 #, python-brace-format
@@ -6026,6 +6028,10 @@ msgstr "the whole root folder"
 msgid "todos"
 msgstr "all"
 
+#: core/sync/request.py
+msgid "tudo"
+msgstr "everything"
+
 #: core/qe/lattice.py
 #, python-brace-format
 msgid "unidade de CELL_PARAMETERS desconhecida: {unit}"
@@ -6098,63 +6104,63 @@ msgstr "{count} ({n_slab} of the surface + {molecule_atoms} of the molecule: {co
 #: core/sync/preview.py
 #, python-brace-format
 msgid "{count} a atualizar ({human_size})"
-msgstr ""
+msgstr "{count} to update ({human_size})"
 
 #: core/sync/preview.py
 #, python-brace-format
 msgid "{count} arquivo a enviar ({size})"
 msgid_plural "{count} arquivos a enviar ({size})"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} file to upload ({size})"
+msgstr[1] "{count} files to upload ({size})"
 
 #: core/sync/report.py
 #, python-brace-format
 msgid "{count} arquivo baixado."
 msgid_plural "{count} arquivos baixados."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} file downloaded."
+msgstr[1] "{count} files downloaded."
 
 #: core/sync/report.py
 #, python-brace-format
 msgid "{count} arquivo enviado."
 msgid_plural "{count} arquivos enviados."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} file uploaded."
+msgstr[1] "{count} files uploaded."
 
 #: core/sync/preview.py
 #, python-brace-format
 msgid "{count} arquivo grande soma {size}"
 msgid_plural "{count} arquivos grandes somam {size}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} large file adds up to {size}"
+msgstr[1] "{count} large files add up to {size}"
 
 #: core/sync/report.py
 #, python-brace-format
 msgid "{count} arquivo local mais recente mantido."
 msgid_plural "{count} arquivos locais mais recentes mantidos."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} newer local file kept."
+msgstr[1] "{count} newer local files kept."
 
 #: core/sync/report.py
 #, python-brace-format
 msgid "{count} arquivo mudou localmente durante a prévia e não foi baixado."
 msgid_plural "{count} arquivos mudaram localmente durante a prévia e não foram baixados."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} file changed locally during the preview and was not downloaded."
+msgstr[1] "{count} files changed locally during the preview and were not downloaded."
 
 #: core/sync/preview.py
 #, python-brace-format
 msgid "{count} arquivo novo ({size})"
 msgid_plural "{count} arquivos novos ({size})"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} new file ({size})"
+msgstr[1] "{count} new files ({size})"
 
 #: core/sync/report.py
 #, python-brace-format
 msgid "{count} conflito mantido na versão local."
 msgid_plural "{count} conflitos mantidos na versão local."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} conflict kept in the local version."
+msgstr[1] "{count} conflicts kept in the local version."
 
 #: core/calculations/pdos/module.py
 #, python-brace-format
@@ -6177,15 +6183,15 @@ msgstr[1] "{count} iterations"
 #, python-brace-format
 msgid "{count} já existe no cluster (não será alterado)"
 msgid_plural "{count} já existem no cluster (não serão alterados)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} already on the cluster (will not be changed)"
+msgstr[1] "{count} already on the cluster (will not be changed)"
 
 #: core/sync/report.py
 #, python-brace-format
 msgid "{count} já existia no cluster e não foi alterado."
 msgid_plural "{count} já existiam no cluster e não foram alterados."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} already existed on the cluster and was not changed."
+msgstr[1] "{count} already existed on the cluster and were not changed."
 
 #: core/qe/input_diff.py
 #, python-brace-format
@@ -6198,8 +6204,8 @@ msgstr[1] "{count} lines differ"
 #, python-brace-format
 msgid "{count} mais recente no computador (não será alterado)"
 msgid_plural "{count} mais recentes no computador (não serão alterados)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{count} newer on this computer (will not be changed)"
+msgstr[1] "{count} newer on this computer (will not be changed)"
 
 #: core/calculations/pdos/render.py
 #, python-brace-format
@@ -6245,8 +6251,8 @@ msgstr "{decimal} × the bulk's {axis} axis"
 #, python-brace-format
 msgid "{done}/{total} arquivo"
 msgid_plural "{done}/{total} arquivos"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{done}/{total} file"
+msgstr[1] "{done}/{total} files"
 
 #: core/calculations/grid/render.py
 #, python-brace-format
@@ -6263,7 +6269,7 @@ msgstr "{flavor}, {count} processors"
 #: core/sync/rsync.py
 #, python-brace-format
 msgid "{folder} não está dentro da pasta local configurada ({root})"
-msgstr ""
+msgstr "{folder} is not inside the configured local folder ({root})"
 
 #: core/project_data.py
 #, python-brace-format
@@ -6624,7 +6630,7 @@ msgstr "{position} Å (raised {decimal} Å)"
 #: core/sync/request.py
 #, python-brace-format
 msgid "{relative} (e subpastas)"
-msgstr ""
+msgstr "{relative} (and subfolders)"
 
 #: core/calc_create/preview.py
 #, python-brace-format
