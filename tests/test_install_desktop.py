@@ -54,7 +54,8 @@ def test_install_into_a_prefix(installer, tmp_path, capsys):
     assert installer.main(["--prefix", str(tmp_path)]) == 0
 
     desktop = tmp_path / "applications" / "lain.desktop"
-    assert desktop.read_bytes() == (ROOT / "packaging" / "lain.desktop").read_bytes()
+    assert desktop.read_text(encoding="utf-8") == installer.launcher_text()
+    assert read_entry(desktop)["Path"] == str(ROOT)  # the menu starts where config.yaml is
     for size in SIZES:
         installed = tmp_path / "icons" / "hicolor" / f"{size}x{size}" / "apps" / "lain.png"
         assert installed.read_bytes() == (icon_dir() / f"lain-{size}.png").read_bytes()
@@ -64,9 +65,42 @@ def test_install_into_a_prefix(installer, tmp_path, capsys):
 
 
 def test_default_location_is_xdg_data_home(installer, tmp_path, monkeypatch):
+    monkeypatch.setattr(installer, "refresh_caches", lambda: [])  # never touch the real menu cache
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     assert installer.main([]) == 0
     assert (tmp_path / "data" / "applications" / "lain.desktop").is_file()
     monkeypatch.delenv("XDG_DATA_HOME")
     monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path / "home"))
     assert installer.default_data_home() == tmp_path / "home" / ".local" / "share"
+
+
+def test_refresh_caches_only_for_the_real_default_location(installer, tmp_path, monkeypatch):
+    """A ``--prefix`` install (tests, an alternate location) never rebuilds the menu's cache: the
+    running desktop does not serve that prefix's files anyway."""
+    calls = []
+    monkeypatch.setattr(installer, "refresh_caches", lambda: calls.append(1) or [])
+
+    assert installer.main(["--prefix", str(tmp_path)]) == 0
+    assert calls == []
+
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    assert installer.main([]) == 0
+    assert calls == [1]
+
+
+def test_refresh_caches_runs_known_tools_and_ignores_missing_ones(installer, monkeypatch):
+    ran = []
+    monkeypatch.setattr(
+        installer.shutil,
+        "which",
+        lambda name: "/usr/bin/" + name if name != "kbuildsycoca5" else None,
+    )
+    monkeypatch.setattr(
+        installer.subprocess, "run", lambda command, **kwargs: ran.append(command) or None
+    )
+
+    assert installer.refresh_caches() == [
+        "update-desktop-database",
+        "kbuildsycoca6 --noincremental",
+    ]
+    assert [c[0] for c in ran] == ["update-desktop-database", "kbuildsycoca6"]

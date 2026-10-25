@@ -72,6 +72,51 @@ git-ignored because it may hold credentials.
 - The cluster's host key must already be in `~/.ssh/known_hosts`: connect once with
   `ssh user@host` in a terminal. Unknown keys are never accepted automatically.
 
+`auth` only chooses the method (`key` or `password`); it never holds the password itself. Which
+fields apply to each method:
+
+| field | used with | meaning |
+|---|---|---|
+| `host`, `port`, `user` | both | where and as whom to log in |
+| `auth` | both | `key` or `password` |
+| `key_path` | `key` | path to your **private** key (default `~/.ssh/id_ed25519`); ignored with `password` |
+| `password_env` | `password` | **name** of the environment variable holding the password (not the password) |
+| `password` | `password` | the password itself, in plain text (discouraged) |
+
+#### Connecting with an SSH key
+
+No password to store or type. One-time setup:
+
+```bash
+ssh-keygen -t ed25519                  # skip if ~/.ssh/id_ed25519 already exists (never overwrite it)
+ssh-copy-id -i ~/.ssh/id_ed25519.pub -p 22 your_user@cluster.example.org
+ssh -i ~/.ssh/id_ed25519 your_user@cluster.example.org   # must log in without asking for the cluster password
+```
+
+The last command also adds the cluster to `~/.ssh/known_hosts`. Then:
+
+```yaml
+paths:
+  local_root: ~/qe_simulations
+  remote_root: /home/your_user/qe_simulations   # matching folder on the cluster
+
+cluster:
+  host: cluster.example.org
+  port: 22
+  user: your_user
+  auth: key
+  key_path: ~/.ssh/id_ed25519
+  connect_timeout: 10
+```
+
+If the key has a passphrase, load it before starting Lain, because ssh runs non-interactively:
+
+```bash
+eval "$(ssh-agent -s)"                 # only if no agent is running
+ssh-add ~/.ssh/id_ed25519
+uv run lain
+```
+
 #### Connecting with a password
 
 `host`, `user` and `remote_root` must be set, or sync stays disabled:
@@ -108,6 +153,24 @@ The password reaches Lain in one of three ways, most recommended first:
 Either way the password reaches ssh through `SSH_ASKPASS` (`qe-studio-askpass`) and never appears
 on a command line or in logs; `sshpass` is not needed. After editing the file, use "Recarregar
 config.yaml" or restart Lain.
+
+#### "Authentication refused by the cluster"
+
+ssh reached the cluster and the cluster said no, so host and port are right. Check, in order:
+
+- `user` is your real login (not the `seu_usuario` placeholder of the example file).
+- `auth` is exactly `key` or `password`, appears once, and does not contain the password.
+- `key`: `key_path` exists and its public key is in `~/.ssh/authorized_keys` on the cluster; a
+  passphrase-protected key is loaded in `ssh-agent`.
+- `password`: the variable named by `password_env` is set in the environment that started Lain
+  (an app launched from the desktop menu does not see a variable exported in another terminal).
+- Lain reads the config you think it does (lookup order above); `uv run lain --verbose` logs it.
+
+Test outside Lain with the same values; if this fails too, the problem is the credential, not the app:
+
+```bash
+ssh -p 22 -i ~/.ssh/id_ed25519 your_user@cluster.example.org   # drop -i for password login
+```
 
 ### How sync decides
 
