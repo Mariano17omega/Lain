@@ -13,10 +13,10 @@ e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 
 **sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
 medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
-padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez), em grupos de itens
+padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`, as specs 52–60) fechou por último. Cada spec é
-autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 60 estão implementadas; a próxima
-rodada começa na 61.
+autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 60 estão implementadas; as 61–66 são
+rascunhos para revisão.
 
 ## Roadmap
 
@@ -91,6 +91,12 @@ rodada começa na 61.
 | 58 | [spec_58-i18n-cluster-e-sincronizacao.md](Archived/spec_58-i18n-cluster-e-sincronizacao.md) | Inglês da prévia, relatório, envio e falhas do ssh (57 pendentes); garantias de segurança do sync preservadas | 52 | P | Sonnet 5.5 |
 | 59 | [spec_59-i18n-visualizacao-3d.md](Archived/spec_59-i18n-visualizacao-3d.md) | Inglês da janela 3D (68 pendentes): ids de `view3d.plot` intactos, texto pintado e medidas copiadas, `_` local renomeado | 52 | P | Sonnet 5.5 |
 | 60 | [spec_60-i18n-fechamento.md](Archived/spec_60-i18n-fechamento.md) | Remove o portão, catálogo completo, dados guardados iguais nos dois idiomas, entrada real, README "Idioma", cabeçalho do `.po`, arquiva a `spec_end` | 52–59 | M | Sonnet 5.5 |
+| 61 | [spec_61-config-do-checkout-e-pasta-de-dados.md](spec_61-config-do-checkout-e-pasta-de-dados.md) | `lain` em qualquer terminal lê o `config.yaml` do checkout (hoje só o menu, pelo `Path=` do lançador); `paths.data` guarda o `QSettings`, o `lain.lock` e o fallback das raízes, relativa ao `config.yaml`, com cópia única do estado antigo | 18, 48, 27-3, 60 | M | Opus 5.5 |
+| 62 | [spec_62-arvore-botao-que-oculta-e-sem-recentes.md](spec_62-arvore-botao-que-oculta-e-sem-recentes.md) | "Árvore" da barra lateral mostra e oculta a árvore (como o da barra superior); a seção "Recentes" sai do painel (os recentes ficam na paleta Ctrl+K) | 1, 16, 49 | P | Sonnet 5.5 |
+| 63 | [spec_63-sincronizacao-por-checksum.md](spec_63-sincronizacao-por-checksum.md) | `sync.checksum: true` (padrão): o dry run do "Baixar" compara pelo conteúdo (`--checksum`) e o plano entende `>fc`; arquivo igual com outra data não pergunta, diferente com a mesma data pergunta | 17, 27-3, 58 | P | Sonnet 5.5 |
+| 64 | [spec_64-jobs-do-cluster-na-barra-superior.md](spec_64-jobs-do-cluster-na-barra-superior.md) | "Executando: <nome>" à esquerda do LED (troca a cada 5 s), a fila do `qstatus -a` num painel com cache da sessão (5 min), o LED alimentado pela consulta; rodapé do caminho sai de `main_window.py` (R0) e executor cancelável de comandos remotos (R1) | 33, 17, 27-3, 27-5, 7 | M/G | Opus 5.5 |
+| 65 | [spec_65-modo-cluster-navegar-nos-arquivos-remotos.md](spec_65-modo-cluster-navegar-nos-arquivos-remotos.md) | Botão "Cluster": árvore e grade listam o cluster (`rsync --list-only`, cache de 60 s), com fundo vermelho e indicador de espera; "Baixar" no menu (pasta ou arquivo, pelo pull com prévia) | 64, 62, 17, 27-3, 31, 15, 19 | G | Opus 5.5 |
+| 66 | [spec_66-modo-cluster-plotar-por-tmp-remote.md](spec_66-modo-cluster-plotar-por-tmp-remote.md) | Plotar no modo cluster copia a pasta para `<espelho>/tmp_remote/` (sobrescrita sem perguntar, prévia só com arquivo > 100 MB), figuras e `.plot` em `tmp_remote/plots_remote/`; `tmp_remote` fora da detecção da pasta-mãe e do rsync | 65, 63, 17, 22, 32, 3, 48 | M | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](Archived/spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementada pelas specs 52–60 (arquivada com a 60) | 52–60 | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -139,11 +145,16 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 16. **Idioma, em série (52–60, decisão de 18/10/2026):** a 52 primeiro (portão por área, `.mo` parcial, detector); 53–59 são
     independentes entre si e podem sair em qualquer ordem (a 55 usa o vocabulário da 54, a 57 os termos da 56 e o vocabulário da 54);
     a 60 por último, quando todas as áreas fecharam. O português continuou o padrão; o inglês ficou completo com a 60 (catálogo sem mensagem pendente, verificado no CI).
+17. **Configuração, árvore, sync e cluster (61–66, decisão de 25/10/2026):** o defeito primeiro (61 R1: `lain` no terminal abre sem o
+    `config.yaml`; pode sair sozinho), depois as pequenas e independentes (62 árvore, 63 checksum), a 64 (jobs; abre a folga em
+    `ui/main_window.py` e o executor de comandos remotos) e por último o modo cluster em cadeia: 65 (navegar e "Baixar") e 66 (plotar
+    por `tmp_remote`). 61, 62 e 63 podem sair em qualquer ordem; a 65 precisa da 64 (R0 e R1) e conversa com a 62 (página da árvore); a
+    66 precisa da 65 e aproveita a 63.
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
 Specs já implementadas (1–60, inclusive 27-1 … 27-9, e a `spec_end`) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (nenhuma hoje) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+raiz ficam as propostas ainda abertas (61–66) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
@@ -463,6 +474,29 @@ sem inglês compilado e sem teste.
 | 3 | Solucionar os problemas das tentativas interrompidas | spec 52: R0 (erro não reproduzido; commitar a árvore), R1 (`.mo` parcial: hoje nada foi compilado e `en` mostra português), R2 (sem `test_i18n.py`), R3 (`screenshot.py` sem idioma; o fixture em processo da `spec_end` R4.2 é impossível) e R4 (`ERROR_BADGE = "ERRO"` sem `_()`, `_` local em `palette_controller.py:221`, seis `_(variável)` sem teste) |
 | 3a | …defeitos achados ao verificar | 55 R2 (CSV da PDOS mudaria de cabeçalho com o idioma), 56 R2 e 57 R2 (`geracao.md` e `.qsub` gravados em disco), 59 R4 (`_` local nos arquivos 3D) |
 
+## Rastreabilidade: ideias da décima terceira rodada (25/10/2026) → specs
+
+As ideias vieram em `Ideias.md` (25/10/2026); cada spec cita o trecho de origem. Na conversa o usuário escolheu o checksum (comparar pelo
+conteúdo, ligado por padrão) e trocou a cópia do plot remoto da pasta espelho para `tmp_remote/`.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Botão "Tree" da barra lateral mostra e oculta a árvore, como o da barra superior | spec 62, R1 (nos ajustes do gráfico, o clique mostra a árvore: decisão 1) |
+| 2 | Remover a seção "Recents" do painel da árvore | spec 62, R2 (os recentes ficam guardados e na paleta Ctrl+K) |
+| 3 | `paths.data` no `config.yaml`: pasta dos arquivos de configuração do Lain, alternativa a `~/.config/qe-studio/`, que a cópia da pasta leva junto | spec 61, R2 (`QSettings`, `lain.lock` e `roots/`; log e cache ficam em `~/.cache`) |
+| 4a | Pelo menu iniciar o `config.yaml` é lido; pelo terminal (`lain` fora da pasta do projeto), não | spec 61, R1 (reproduzido: `find_config` só olha o `cwd` e `~/.config`; o menu acha pelo `Path=` não commitado do lançador) |
+| 4b | Sempre ler o `config.yaml` da raiz do projeto Lain, em qualquer terminal | spec 61, R1 (passo do checkout depois do `./config.yaml`; testes isolados por `QE_STUDIO_NO_CHECKOUT_CONFIG`) |
+| 5a | Novo botão: árvore e grade mostram as pastas e arquivos do cluster até o próximo clique | spec 65, R3–R4 (botão "Cluster" na barra lateral) |
+| 5b | Fundo muda só como indicação visual, em tom vermelho | spec 65, R4.2 (`remote_panel`, `remote_accent`; no claro, vermelho pálido e sem `text_muted`, medido) |
+| 5c | No menu do botão direito, "download" no lugar de "upload" | spec 65, R5 ("Baixar" de pasta ou arquivo, pelo pull com prévia e perguntas) |
+| 5d | Animação durante a espera das requisições remotas | spec 65, R4.3 (indicador sobre a lista e no rodapé; cache de 60 s) |
+| 5e | Plot continua funcionando no modo remoto, baixando antes o necessário | spec 66 (cópia da pasta em `<espelho>/tmp_remote/`, figuras em `plots_remote/`, sobrescrita sem perguntar: decisão do usuário) |
+| 6 | Checksum na sincronização | spec 63 (`--checksum` no dry run do "Baixar", padrão ligado; a conferência depois da transferência o rsync já faz) |
+| 7 | O LED fica verde conectado e vermelho sem conexão | spec 64, R6.2 (já é assim pelo teste TCP; a consulta dos jobs passa a alimentá-lo com um login de verdade) |
+| 8 | "Running: <name>" à esquerda do LED, ou "No job running"; troca a cada 5 s, configurável | spec 64, R2–R4 (jobs do usuário = `owner` do `qstatus -a`; `cluster.jobs_rotate_seconds`) |
+| 9 | Clique abre a lista de todos os jobs (`qstatus -a`): name, owner, submit time, running in; cache da sessão atualizado a cada 5 min, configurável | spec 64, R5–R6 (`cluster.jobs_poll_seconds`; na execução a data é a de início) |
+| — | (`report.md` F11) Monitor de jobs | spec 64 (só a leitura da fila) |
+
 ## Decisões já tomadas (30/09/2026)
 - Workspace **sempre** oculto ao abrir o Lain, com a largura lembrada.
 - Relax: **uma figura com dois painéis**, com parâmetros "Painéis" (ambos/|ΔE|/força) e "Escala".
@@ -607,3 +641,18 @@ Decisões de 18/10/2026 (décima segunda rodada, specs 52–60):
 - **Dados que ficam fora do idioma:** CSV, `.plot`, `view3d.plot`, nomes de exportação, inputs `.in` e o cabeçalho do `.qsub` (em português nos dois idiomas). **Seguem a interface:** figuras e imagens exportadas, o `geracao.md` do "Criar cálculo" e o texto copiado das medidas 3D.
 - **Glossário** em `src/qe_studio/locale/README.md`, fechado na 52 (Pasta → Folder, Árvore → Tree, Grade → Grid, Criar cálculo → Create calculation, Baixar/Enviar → Download/Upload…; "Generate Plot" é a única exceção à caixa de frase), decidido pelo usuário na revisão da 52.
 - **Modelos:** Opus 5.5 na 52 (contrato de teste de oito specs) e na 57 (dicas que citam parâmetros do QE); Sonnet 5.5 nas demais.
+
+Decisões de 25/10/2026 (décima terceira rodada, specs 61–66):
+- **Seis specs**, por área: configuração (61), árvore (62), checksum (63), jobs (64) e o modo cluster em duas (65 navegar e baixar; 66 plotar).
+- **Checksum (63), decidido pelo usuário:** comparar pelo conteúdo (`rsync --checksum` no dry run do "Baixar"), **ligado por padrão**
+  (`sync.checksum: true`, com opção de desligar). A conferência depois da transferência não entra: o rsync já confere cada arquivo
+  transferido. O envio não usa `--checksum`.
+- **Plot no modo cluster (66), decidido pelo usuário:** a pasta remota é copiada para `<pasta espelho>/tmp_remote/` (não para a própria
+  pasta espelho, como ele escolhera antes), as figuras e o `.plot` vão para `tmp_remote/plots_remote/`; uma nova cópia **sobrescreve sem
+  perguntar**, só dentro de `tmp_remote`, e as pastas ficam até o usuário apagá-las. A prévia só aparece com arquivo acima de 100 MB
+  (escolha "só quando precisa"); a listagem acontece sempre. `tmp_remote/` nunca é sincronizada e não entra na detecção da pasta-mãe.
+- **Assumidas para a revisão:** `./config.yaml` vence o do checkout (61); `paths.data` relativa ao `config.yaml`, só com `QSettings` e
+  `data_dir()` (61); recentes continuam guardados e na paleta (62); jobs do usuário pelo `owner` do `qstatus -a`, textos-fonte em
+  português com o inglês pedido no catálogo, consulta só com a janela ativa (64); botão "Cluster" na barra lateral, grade remota em lista,
+  "Rsync" sem mudança no modo cluster (65); nomes das figuras com `tmp_remote` no prefixo, raiz e projeto recusados (66).
+- **Modelo recomendado:** Opus 5.5 para 61, 64, 65 e 66; Sonnet 5.5 para 62 e 63.
