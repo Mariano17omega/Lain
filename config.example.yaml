@@ -1,6 +1,7 @@
 # Lain: QE Studio configuration.
 # Copy to config.yaml (git-ignored) and adjust. Lain looks for its config in:
-#   1. --config PATH   2. $QE_STUDIO_CONFIG   3. ./config.yaml   4. ~/.config/qe-studio/config.yaml
+#   1. --config PATH   2. $QE_STUDIO_CONFIG   3. ./config.yaml   4. config.yaml in the Lain checkout
+#   (the repository an editable install runs from)   5. ~/.config/qe-studio/config.yaml
 
 paths:
   # Local folder holding the simulation tree shown in the explorer.
@@ -11,6 +12,11 @@ paths:
   # itself. Empty: "Abrir com XCrysDen" in the right-click menu stays disabled.
   # Reload with "Recarregar config.yaml".
   xcrysden_path: ""
+  # Folder for Lain's data (interface state, instance lock). Relative to this file; empty: the
+  # system's default places. Copying the folder of this file with it takes Lain's state along.
+  # Changes apply when Lain restarts.
+  # data: data
+  data: ""
 
 cluster:
   host: cluster.example.org

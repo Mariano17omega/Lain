@@ -1,4 +1,9 @@
-"""Per-user application directories (no Qt dependency so core stays testable headless)."""
+"""Per-user application directories (no Qt dependency so core stays testable headless).
+
+The data folder is the system's (``default_data_dir``) unless the config's ``paths.data`` fixed
+another one at startup (``set_data_dir``, spec 61): then the lock, the fallback of read-only roots and
+the QSettings file (``settings_file``) live there and travel with the folder.
+"""
 
 from __future__ import annotations
 
@@ -9,10 +14,18 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from ..i18n import _
+
 APP_DIR = "qe-studio"
+SETTINGS_FILE = "settings.ini"  # the QSettings of a ``paths.data`` folder (spec 61 R2.2)
+
+# The ``paths.data`` of this process (``set_data_dir``): the folder asked for and the one in use.
+_asked: Path | None = None
+_fixed: Path | None = None
 
 
-def data_dir() -> Path:
+def default_data_dir() -> Path:
+    """The system's data folder for the app (XDG on Linux), where it is with no ``paths.data``."""
     if sys.platform == "win32":
         base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
     else:
@@ -20,9 +33,51 @@ def data_dir() -> Path:
     return base / APP_DIR
 
 
+def data_dir() -> Path:
+    """The app's data folder in use: the ``paths.data`` fixed at startup, else the default one."""
+    return _fixed or default_data_dir()
+
+
+def set_data_dir(path: Path | None) -> str | None:
+    """Fix the data folder of this process (``paths.data``, spec 61 R2.3); None: the default one.
+
+    The folder is made and must be writable; when it cannot be used nothing is fixed and the
+    warning to show comes back (the session uses the default folder).
+    """
+    global _asked, _fixed
+    _asked, _fixed = path, None
+    if path is None:
+        return None
+    try:
+        if path.exists() and not path.is_dir():
+            error = _("não é uma pasta")
+        else:
+            path.mkdir(parents=True, exist_ok=True)
+            error = None if os.access(path, os.W_OK | os.X_OK) else _("não é gravável")
+    except OSError as exc:
+        error = exc.strerror or str(exc)
+    if error is None:
+        _fixed = path
+        return None
+    text = _("A pasta de dados {folder} não pode ser usada ({error}); usando {default}.")
+    return text.format(folder=path, error=error, default=default_data_dir())
+
+
+def data_dir_differs(path: Path | None) -> bool:
+    """Whether ``path`` is another ``paths.data`` than the one asked for at startup (it changes
+    only on a restart). The folder asked for, not the one in use: an unusable one does not nag."""
+    return path != _asked
+
+
+def settings_file() -> Path | None:
+    """The QSettings file of the fixed ``paths.data``; None: the system's QSettings."""
+    return _fixed / SETTINGS_FILE if _fixed is not None else None
+
+
 def cache_dir() -> Path:
+    # Cache, not configuration: never in ``paths.data`` (spec 61, decision 2).
     if sys.platform == "win32":
-        return data_dir() / "cache"
+        return default_data_dir() / "cache"
     return Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / APP_DIR
 
 

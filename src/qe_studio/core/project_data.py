@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..i18n import _
-from .appdirs import data_dir
+from .appdirs import data_dir, default_data_dir
 
 log = logging.getLogger(__name__)
 
@@ -110,7 +110,8 @@ class StoreFile:
         path = location.folder / self.name
         if path == self.path:
             return False
-        self.path, self.legacy = path, data_dir() / self.name
+        # The files from before spec 48 are in the system's folder, never in a ``paths.data`` one.
+        self.path, self.legacy = path, default_data_dir() / self.name
         return True
 
     def read_legacy(self) -> object | None:

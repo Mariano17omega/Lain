@@ -26,10 +26,14 @@ from pydantic import (
     model_validator,
 )
 
+import qe_studio
+
 from ..i18n import _
 from .fontscale import MAX_SCALE, MIN_SCALE
 
 ENV_CONFIG = "QE_STUDIO_CONFIG"
+# Set and not empty: the lookup skips the checkout's config.yaml (the tests, spec 61 R1.5).
+ENV_NO_CHECKOUT = "QE_STUDIO_NO_CHECKOUT_CONFIG"
 CONFIG_NAME = "config.yaml"
 
 
@@ -87,11 +91,23 @@ class PathsConfig(_Section):
     # Where XCrySDen is installed: its folder or the ``xcrysden`` script itself. None (blank):
     # "Abrir com XCrysDen" is disabled (spec 45). Existence is not checked here: the menu says why.
     xcrysden_path: str | None = None
+    # Lain's own data (the QSettings file, the instance lock, the fallback of read-only roots). None
+    # (blank): the system's places. A relative path is made absolute by ``parse_config`` (spec 61 R2).
+    data: Path | None = None
 
     @field_validator("local_root")
     @classmethod
     def _expand(cls, value: Path) -> Path:
         return Path(os.path.expandvars(str(value))).expanduser()
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def _expand_data(cls, value: object) -> object:
+        # Before validation: a blank string would become Path("."), the current folder.
+        if not isinstance(value, str | os.PathLike):
+            return value  # None, or a wrong type pydantic reports
+        text = str(value).strip()
+        return Path(os.path.expandvars(text)).expanduser() if text else None
 
     @field_validator("remote_root")
     @classmethod
@@ -283,12 +299,25 @@ def user_config_path() -> Path:
     return base / "qe-studio" / CONFIG_NAME
 
 
+def checkout_dir() -> Path | None:
+    """The repository the package runs from (``<checkout>/src/qe_studio``, an editable install), whose
+    ``config.yaml`` is found from any folder (spec 61 R1); None for an installed package or when
+    ``$QE_STUDIO_NO_CHECKOUT_CONFIG`` is set. Reads ``os.environ``, not the lookup's ``environ``."""
+    if os.environ.get(ENV_NO_CHECKOUT):
+        return None
+    init = Path(qe_studio.__file__).resolve()
+    root = init.parents[2]
+    return root if init.parents[1].name == "src" and (root / "pyproject.toml").is_file() else None
+
+
 def find_config(
     cli_path: str | os.PathLike[str] | None = None,
     environ: Mapping[str, str] | None = None,
     cwd: Path | None = None,
+    checkout: Path | None = None,
 ) -> Path | None:
-    """First existing config in search order; explicit paths must exist."""
+    """First existing config in search order; explicit paths must exist. ``checkout``: the
+    repository whose config.yaml comes after ``./config.yaml`` (None: ``checkout_dir()``)."""
     environ = os.environ if environ is None else environ
     for explicit, origin in ((cli_path, "--config"), (environ.get(ENV_CONFIG), ENV_CONFIG)):
         if explicit:
@@ -298,7 +327,11 @@ def find_config(
                     path, [_("arquivo indicado por {origin} não encontrado").format(origin=origin)]
                 )
             return path
-    for candidate in ((cwd or Path.cwd()) / CONFIG_NAME, user_config_path()):
+    checkout = checkout_dir() if checkout is None else checkout
+    candidates = [(cwd or Path.cwd()) / CONFIG_NAME]
+    if checkout is not None:
+        candidates.append(checkout / CONFIG_NAME)
+    for candidate in (*candidates, user_config_path()):
         if candidate.is_file():
             return candidate
     return None
@@ -365,9 +398,18 @@ def parse_config(
         raise ConfigError(path, [_("o arquivo deve conter um mapeamento YAML (chave: valor)")])
     data = _drop_removed_keys(data, [] if warnings is None else warnings)
     try:
-        return AppConfig.model_validate(data)
+        config = AppConfig.model_validate(data)
     except ValidationError as exc:
         raise ConfigError(path, _format_validation(exc)) from exc
+    _anchor_data(config.paths, path)
+    return config
+
+
+def _anchor_data(paths: PathsConfig, path: Path | None) -> None:
+    """A relative ``paths.data`` is relative to the folder of the config file that sets it, so a
+    copied folder works anywhere (spec 61 R2.1); with no file there is nothing to anchor it to."""
+    if paths.data is not None and not paths.data.is_absolute():
+        paths.data = Path(os.path.abspath(path.parent / paths.data)) if path is not None else None
 
 
 def _warnings(config: AppConfig) -> list[str]:

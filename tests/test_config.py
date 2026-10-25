@@ -2,13 +2,16 @@ from pathlib import Path
 
 import pytest
 
+import qe_studio
 from qe_studio.core.config import (
     DEFAULT_ATOMOS_COLORS,
     ENV_CONFIG,
+    ENV_NO_CHECKOUT,
     AppConfig,
     ConfigError,
     JobsConfig,
     LoadedConfig,
+    checkout_dir,
     find_config,
     load_config,
     parse_config,
@@ -70,6 +73,47 @@ def test_search_order(tmp_path, monkeypatch):
 
     user_cfg.unlink()
     assert find_config(None, {}, tmp_path) is None
+
+    # Spec 61 R1.2: the checkout's config.yaml comes after ./config.yaml, before the user's.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    checkout_cfg = write(repo / "config.yaml", "{}")
+    write(user_cfg, "{}")
+    write(cwd_cfg, "{}")
+    assert find_config(None, {}, tmp_path, checkout=repo) == cwd_cfg
+    cwd_cfg.unlink()
+    assert find_config(None, {}, tmp_path, checkout=repo) == checkout_cfg
+    assert find_config(None, {}, repo, checkout=repo) == checkout_cfg  # the cwd is the checkout
+    assert find_config(None, {ENV_CONFIG: str(env_cfg)}, tmp_path, checkout=repo) == env_cfg
+    checkout_cfg.unlink()
+    assert find_config(None, {}, tmp_path, checkout=repo) == user_cfg
+    user_cfg.unlink()
+    assert find_config(None, {}, tmp_path, checkout=repo) is None
+
+
+def test_checkout_dir_finds_the_source_tree(monkeypatch):
+    """Spec 61 R1.1: the tests run from the repository, an editable install of the package."""
+    monkeypatch.delenv(ENV_NO_CHECKOUT, raising=False)
+    found = checkout_dir()
+    assert found == ROOT
+    assert (found / "pyproject.toml").is_file() and (found / "src" / "qe_studio").is_dir()
+    monkeypatch.setenv(ENV_NO_CHECKOUT, "1")
+    assert checkout_dir() is None
+    monkeypatch.setenv(ENV_NO_CHECKOUT, "")  # empty: not set
+    assert checkout_dir() == ROOT
+
+
+def test_checkout_dir_is_none_outside_a_source_tree(tmp_path, monkeypatch):
+    monkeypatch.delenv(ENV_NO_CHECKOUT, raising=False)
+    installed = tmp_path / "lib" / "python3.11" / "site-packages" / "qe_studio" / "__init__.py"
+    monkeypatch.setattr(qe_studio, "__file__", str(installed))
+    assert checkout_dir() is None
+    # A src/ layout with no pyproject.toml is not a checkout either.
+    monkeypatch.setattr(qe_studio, "__file__", str(tmp_path / "x" / "src" / "qe_studio" / "a.py"))
+    assert checkout_dir() is None
+    (tmp_path / "x").mkdir()
+    write(tmp_path / "x" / "pyproject.toml", "")
+    assert checkout_dir() == (tmp_path / "x").resolve()
 
 
 def test_explicit_missing_path_is_an_error(tmp_path):
@@ -363,3 +407,35 @@ def test_language_is_auto_by_default_and_documented(tmp_path):
     example = ROOT / "config.example.yaml"
     assert "language" in example.read_text(encoding="utf-8")
     assert load_config(example, environ={}, cwd=tmp_path).config.ui.language == "auto"
+
+
+# -- paths.data (spec 61 R2.1) -------------------------------------------------------------------
+def test_data_is_unset_by_default_and_documented(tmp_path):
+    assert AppConfig().paths.data is None
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "  data:" in example.read_text(encoding="utf-8")
+        assert load_config(example, environ={}, cwd=tmp_path).config.paths.data is None
+
+
+def test_relative_data_is_relative_to_the_config_file(tmp_path, monkeypatch):
+    folder = tmp_path / "a"
+    folder.mkdir()
+
+    def data(value: str):
+        path = write(folder / "config.yaml", f"paths:\n  data: {value}\n")
+        return load_config(path, environ={}, cwd=tmp_path).config.paths.data
+
+    assert data("dados") == folder / "dados"
+    assert data("../b/dados") == tmp_path / "b" / "dados"
+    assert data("~/lain-data") == Path.home() / "lain-data"
+    monkeypatch.setenv("LAIN_DATA", str(tmp_path / "env"))
+    assert data("$LAIN_DATA/d") == tmp_path / "env" / "d"
+    assert data(str(tmp_path / "abs")) == tmp_path / "abs"
+    assert data("''") is None
+    assert data("'   '") is None
+    # No file to anchor a relative folder to (a config built in code): none.
+    assert parse_config({"paths": {"data": "dados"}}).paths.data is None
+    assert parse_config({"paths": {"data": str(tmp_path)}}).paths.data == tmp_path

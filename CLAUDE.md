@@ -50,11 +50,13 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 - **Old internal names, on purpose** (existing configs keep working): package `qe_studio`, `QE_STUDIO_*` env vars,
   `~/.config/qe-studio`, `~/.cache/qe-studio`, QSettings keys, `qe-studio-askpass`. Product and CLI are `lain`.
   Never rename them.
-- **Config:** lookup order `--config`, `$QE_STUDIO_CONFIG`, `./config.yaml`, `~/.config/qe-studio/config.yaml`.
+- **Config:** lookup order `--config`, `$QE_STUDIO_CONFIG`, `./config.yaml`, `<checkout>/config.yaml` (the repository
+  an editable install runs from; tests turn it off with `QE_STUDIO_NO_CHECKOUT_CONFIG`), `~/.config/qe-studio/config.yaml`.
   `config.yaml` is git-ignored (may hold credentials). There is no settings window (PRD §6): a new setting is a
   pydantic field in `core/config.py` plus both copies of `config.example.yaml` (root and
   `src/qe_studio/resources/`, kept identical by `tests/test_config.py`).
-- **Where state lives:** UI state in QSettings; per-root data (folder mappings, grids, PDOS atom selections,
+- **Where state lives:** UI state in QSettings (`<paths.data>/settings.ini` when the config sets `paths.data`, which
+  also holds `core/appdirs.py:data_dir()`; fixed at startup by `set_data_dir`); per-root data (folder mappings, grids, PDOS atom selections,
   favorites/recents) in `<local_root>/.lain/` (only `core/project_data.py` names that folder); plot settings
   (`<kind>.plot`, `view3d.plot`) and exports in `<simulation>/plots/`. Nothing else is written into simulation
   folders.

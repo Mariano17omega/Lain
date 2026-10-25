@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-19 02:34-0400\n"
-"PO-Revision-Date: 2026-10-19 02:34-0400\n"
+"POT-Creation-Date: 2026-10-25 01:05-0400\n"
+"PO-Revision-Date: 2026-10-25 01:05-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -346,6 +346,15 @@ msgstr "The surface window"
 #, python-brace-format
 msgid "A molécula de {name} não parece isolada: só {decimal} Å de vácuo na caixa dela"
 msgstr "The {name} molecule does not look isolated: only {decimal} Å of vacuum in its box"
+
+#: ui/restart_notice.py
+msgid "A pasta de dados muda ao reiniciar o Lain."
+msgstr "The data folder changes when Lain restarts."
+
+#: core/appdirs.py
+#, python-brace-format
+msgid "A pasta de dados {folder} não pode ser usada ({error}); usando {default}."
+msgstr "The data folder {folder} cannot be used ({error}); using {default}."
 
 #: core/calc_create/types/charge_diff.py
 #, python-brace-format
@@ -1122,6 +1131,10 @@ msgstr "Config"
 #, python-brace-format
 msgid "Configuração inválida{where}:\n"
 msgstr "Invalid configuration{where}:\n"
+
+#: ui/help_controller.py
+msgid "Configurações da interface"
+msgstr "Interface settings"
 
 #: ui/help_controller.py
 msgid "Configurações do projeto"
@@ -5759,10 +5772,18 @@ msgstr "unpolarized"
 msgid "não será alterado"
 msgstr "will not be changed"
 
+#: core/appdirs.py
+msgid "não é gravável"
+msgstr "not writable"
+
 #: core/qe/bands_x.py
 #, python-brace-format
 msgid "não é um arquivo de bandas numérico: {exc}"
 msgstr "not a numeric bands file: {exc}"
+
+#: core/appdirs.py
+msgid "não é uma pasta"
+msgstr "not a folder"
 
 #: core/config.py
 msgid "o arquivo deve conter um mapeamento YAML (chave: valor)"

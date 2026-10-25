@@ -97,6 +97,22 @@ def test_startup_language_order(tmp_path):
     assert startup_language(missing, {}, "pt_BR") == "pt_BR"  # reported later by load_config
 
 
+def test_startup_language_reads_the_checkout_config_from_any_folder(tmp_path, monkeypatch):
+    """Spec 61 R1.3: ``lain`` typed in a folder with no config.yaml speaks the checkout's language."""
+    from qe_studio.core import config
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    write_config(repo, "ui:\n  language: en\n")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    monkeypatch.setattr(config, "checkout_dir", lambda: repo)
+    assert startup_language(None, {}, "pt_BR") == "en"
+    monkeypatch.setattr(config, "checkout_dir", lambda: None)
+    assert startup_language(None, {}, "pt_BR") == "pt_BR"  # the system, as before
+
+
 def test_install_startup_language_follows_the_command_line(tmp_path):
     path = write_config(tmp_path, "ui:\n  language: en\n")
     assert install_startup_language(["--config", str(path), "--verbose"], environ={}) == "en"

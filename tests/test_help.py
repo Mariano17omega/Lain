@@ -138,6 +138,8 @@ def test_about_rows_have_versions_and_paths(main_window):
     assert rows["Config"] == "nenhum"
     assert rows["Log"] == str(log_path())
     assert rows["Dados"] == str(data_dir())
+    # Spec 61 R2.8: the file of the QSettings in use (``paths.data/settings.ini`` or the system's).
+    assert rows["Configurações da interface"] == main_window.settings.fileName()
 
 
 def test_about_says_where_the_project_settings_are(main_window, demo_project):

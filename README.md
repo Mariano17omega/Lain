@@ -45,8 +45,10 @@ uv tool install --editable .
 lain
 ```
 
-Outside the repository `./config.yaml` is not found, so keep your config in
-`~/.config/qe-studio/config.yaml` (or point `$QE_STUDIO_CONFIG` at it).
+From any folder, `lain` reads the `config.yaml` at the root of this repository (the checkout the
+editable install runs from), unless the folder you are in has a `config.yaml` of its own. A
+non-editable install (`uv tool install .` without `--editable`) has no checkout to look in: keep the
+config in `~/.config/qe-studio/config.yaml`, point `$QE_STUDIO_CONFIG` at it, or pass `--config`.
 
 ### Desktop integration (optional)
 
@@ -61,8 +63,26 @@ uv run python scripts/install_desktop.py --prefix DIR # or into another data dir
 
 All settings live in `config.yaml` (there is no settings window); see
 [`config.example.yaml`](config.example.yaml) for every key. Lain looks for it in `--config`,
-`$QE_STUDIO_CONFIG`, `./config.yaml`, then `~/.config/qe-studio/config.yaml`. `config.yaml` is
-git-ignored because it may hold credentials.
+`$QE_STUDIO_CONFIG`, `./config.yaml`, the repository's `config.yaml` (editable install), then
+`~/.config/qe-studio/config.yaml`. `config.yaml` is git-ignored because it may hold credentials.
+
+### Portable data (`paths.data`)
+
+Besides `config.yaml`, Lain keeps the state of the interface (window size, panel widths, theme, last
+folder…) in `~/.config/qe-studio/QE Studio.conf` and a little data of its own (the instance lock, the
+settings of a read-only project root) in `~/.local/share/qe-studio`. Set `paths.data` to keep both in
+a folder of your choice instead:
+
+```yaml
+paths:
+  data: data   # relative to the folder of this config.yaml
+```
+
+The interface state then lives in `<data>/settings.ini`. Copy the folder holding `config.yaml` and
+`data/` anywhere and Lain starts there as you left it. The first start with a new `paths.data` copies
+the current interface state into it once (the old file is kept). A change of `paths.data` applies when
+Lain restarts. The log and caches stay in `~/.cache/qe-studio`, and each project's own settings stay in
+`<local_root>/.lain/`. A `data/` folder at the root of this repository is git-ignored.
 
 ### Cluster authentication
 

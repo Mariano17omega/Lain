@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 61, a primeira da rodada: R1 é um defeito do uso diário (no terminal, fora da pasta do projeto, o Lain abre sem o `config.yaml`, em português e com a raiz padrão) e pode sair sozinho, antes de tudo |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (25/10/2026). Ajustes: **(a)** `open_settings(path, legacy=None)` (em `ui/app.py`) recebe o `QSettings` antigo (padrão: `QSettings()`): o Qt guarda o caminho do `QSettings` padrão uma vez por processo, então um teste não consegue apontá-lo para o seu XDG temporário; os testes passam um `QSettings` INI; **(b)** `appdirs.data_dir_differs(path)` compara com a pasta **pedida** na partida, não com a em uso: uma pasta inutilizável não avisa a cada recarga; **(c)** `cache_dir()` no Windows usa `default_data_dir()` (o cache nunca vai para `paths.data`, decisão 2); **(d)** o teste de `startup_language` troca `config.checkout_dir` (monkeypatch), pois `startup_language` não ganhou `checkout=`; **(e)** os testes do checkout e de `paths.data` no config ficam em `tests/test_config.py`; o de pasta inutilizável é parametrizado (arquivo, pasta sem escrita, pasta dentro de uma sem escrita: o `strerror` segue o locale, só a forma é conferida); extras: `test_nothing_to_copy_leaves_the_new_settings_empty` e `test_a_reload_keeps_the_data_dir_of_the_session` (o toast pela janela); **(f)** aceite manual: de `/tmp`, o `lain` instalado acha `/home/m/Projetos/Lain/config.yaml` e o `--help` sai em inglês; abrir a janela fica com o usuário. |
 | **Depende de** | spec 18 (primeira execução: `LoadedConfig.first_run`, "Criar config…"), spec 48 (`project_data.fallback_folder`, que usa `data_dir()`), spec 27-3 (`lain.lock` em `data_dir()`), spec 60 (`startup_language` lê o `config.yaml` antes da janela) |
 | **Usada por** | nenhuma |
 | **Esforço** | M (R1: P; R2: M) |
@@ -178,15 +178,15 @@ guarda são o estado da interface (o `QSettings`) e a pasta de dados do app (`da
 
 ## Critérios de aceite e testes
 
-- [ ] Sem `paths.data` e com o `config.yaml` no `cwd`, nada muda: `test_config.py`, `test_first_run.py`, `test_language.py` e
+- [x] Sem `paths.data` e com o `config.yaml` no `cwd`, nada muda: `test_config.py`, `test_first_run.py`, `test_language.py` e
       `test_i18n_closing.py` passam sem alteração de expectativa (só o `test_search_order` ganha os passos novos).
-- [ ] `lain` aberto de `/tmp` lê o `config.yaml` do checkout, idioma incluído (`test_search_order`, `test_language.py`; passo manual: `cd /tmp
+- [x] `lain` aberto de `/tmp` lê o `config.yaml` do checkout, idioma incluído (`test_search_order`, `test_language.py`; passo manual: `cd /tmp
       && lain` abre em inglês com a raiz do config).
-- [ ] A suíte inteira passa nesta máquina com `/home/m/Projetos/Lain/config.yaml` presente (variável do `conftest.py`).
-- [ ] `paths.data` relativa ao config, expandida, vazia = `None` (`test_relative_data_is_relative_to_the_config_file`).
-- [ ] `QSettings`, `lain.lock` e `roots/` vão para a pasta (`test_set_data_dir_moves_lock_and_fallback`); cópia única do `QSettings`
+- [x] A suíte inteira passa nesta máquina com `/home/m/Projetos/Lain/config.yaml` presente (variável do `conftest.py`).
+- [x] `paths.data` relativa ao config, expandida, vazia = `None` (`test_relative_data_is_relative_to_the_config_file`).
+- [x] `QSettings`, `lain.lock` e `roots/` vão para a pasta (`test_set_data_dir_moves_lock_and_fallback`); cópia única do `QSettings`
       antigo (`test_settings_are_copied_once`); pasta copiada leva o estado (`test_copying_the_folder_takes_the_settings`).
-- [ ] Pasta inutilizável: aviso e lugares padrão (`test_unusable_data_dir_falls_back_with_a_warning`).
-- [ ] Recarregar com outra pasta avisa que muda ao reiniciar (`test_reload_with_another_data_dir_tells_to_restart`).
-- [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py`, `scripts/i18n.py check` e a suíte
+- [x] Pasta inutilizável: aviso e lugares padrão (`test_unusable_data_dir_falls_back_with_a_warning`).
+- [x] Recarregar com outra pasta avisa que muda ao reiniciar (`test_reload_with_another_data_dir_tells_to_restart`).
+- [x] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py`, `scripts/i18n.py check` e a suíte
       `-m "not realdata and not perf"` verdes.

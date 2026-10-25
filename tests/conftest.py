@@ -14,6 +14,9 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 # The texts the tests compare are the Portuguese source ones, whatever the machine's language is
 # (the modules are imported with no language installed, which is the source language too).
 os.environ["QE_STUDIO_LANGUAGE"] = "pt_BR"
+# The config lookup never finds the checkout's own config.yaml (spec 61 R1.5): a developer's file
+# would answer the tests that expect none.
+os.environ["QE_STUDIO_NO_CHECKOUT_CONFIG"] = "1"
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -47,6 +50,15 @@ def _empty_dataset_cache():
     drop_cached()
     yield
     drop_cached()
+
+
+@pytest.fixture(autouse=True)
+def _default_data_dir():
+    """A ``paths.data`` fixed by a test (spec 61) is not the next test's data folder."""
+    from qe_studio.core import appdirs
+
+    yield
+    appdirs.set_data_dir(None)
 
 
 @pytest.fixture(autouse=True)

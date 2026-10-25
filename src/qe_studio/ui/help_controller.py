@@ -38,12 +38,14 @@ class HelpController(QObject):
         providers: Sequence[Callable[[], ShortcutRows]],
         loaded: Callable[[], LoadedConfig],
         open_file: Callable[[Path], None],
+        settings_file: Callable[[], str],
         parent: QObject | None = None,
     ):
         super().__init__(parent)
         self.window = window
         self._actions, self._providers = actions, providers
         self._loaded, self._open_file = loaded, open_file
+        self._settings_file = settings_file  # the file of the QSettings in use (spec 61 R2.8)
         self.dialog: ShortcutsDialog | None = None
 
     @classmethod
@@ -63,6 +65,7 @@ class HelpController(QObject):
             providers,
             lambda: window.loaded,
             window.open_file,
+            lambda: window.settings.fileName(),
             parent=window,
         )
 
@@ -129,6 +132,7 @@ class HelpController(QObject):
             (_("Config"), str(config_path) if config_path else _("nenhum")),
             (_("Log"), str(log_path())),
             (_("Dados"), str(data_dir())),
+            (_("Configurações da interface"), self._settings_file()),
             (_("Configurações do projeto"), describe(loaded.config.paths.local_root)),  # spec 48
         ]
         return rows

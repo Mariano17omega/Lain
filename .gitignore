@@ -221,6 +221,8 @@ __marimo__/
 # Lain: per-user config (may hold cluster credentials)
 /config.yaml
 /screenshots/
+# Lain: paths.data of a config.yaml in the checkout (spec 61)
+/data/
 
 # Lain: Documentation/Exemplo-SLAB/lib is the user's own scripts (specs 40-42), not a build directory
 !/Documentation/Exemplo-SLAB/lib/

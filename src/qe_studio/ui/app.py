@@ -14,7 +14,7 @@ from PyQt6.QtCore import QLockFile, QSettings, QThreadPool
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from .. import APP_NAME, __version__
-from ..core.appdirs import lock_path, log_path
+from ..core.appdirs import lock_path, log_path, set_data_dir, settings_file
 from ..core.config import ConfigError, load_config
 from ..core.plotting.style import register_fonts
 from ..i18n import _
@@ -131,6 +131,29 @@ def finish(
     return code  # only reached when ``exit_now`` is replaced (tests)
 
 
+def open_settings(path: Path | None, legacy: QSettings | None = None) -> QSettings:
+    """The QSettings of the session: the system's, or the ``settings.ini`` of ``paths.data``.
+
+    A ``settings.ini`` with no key yet gets a copy of ``legacy`` (the system's QSettings) once, so
+    the interface comes back as it was; the old file is left as it is (spec 61 R2.5).
+    """
+    if path is None:
+        return QSettings()
+    settings = QSettings(str(path), QSettings.Format.IniFormat)
+    if settings.allKeys():
+        return settings
+    source = legacy if legacy is not None else QSettings()
+    keys = source.allKeys()
+    for key in keys:
+        settings.setValue(key, source.value(key))
+    if keys:
+        settings.sync()
+        logging.getLogger("qe_studio").info(
+            "interface settings copied from %s to %s (%d keys)", source.fileName(), path, len(keys)
+        )
+    return settings
+
+
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="lain", description=APP_NAME)
     parser.add_argument("--config", help=_("caminho do config.yaml"))
@@ -148,13 +171,16 @@ def main(argv: list[str] | None = None) -> int:
     install_qt_translator(app)
     register_fonts()
 
-    settings = QSettings()
     try:
         loaded = load_config(args.config)
     except ConfigError as exc:
         ThemeManager("dark").apply(app)
         QMessageBox.critical(None, _("config.yaml inválido"), str(exc))
         return 2
+    # The data folder comes from the config, and the QSettings may live in it (spec 61 R2.4).
+    if warning := set_data_dir(loaded.config.paths.data):
+        loaded.warnings.insert(0, warning)
+    settings = open_settings(settings_file())
 
     mode = str(settings.value("ui/theme", loaded.config.ui.theme))
     theme = ThemeManager(
