@@ -451,3 +451,32 @@ def test_checksum_is_on_by_default_and_documented(tmp_path):
         assert "checksum:" in example.read_text(encoding="utf-8")
         assert load_config(example, environ={}, cwd=tmp_path).config.sync.checksum is True
     assert parse_config({"sync": {"checksum": False}}).sync.checksum is False
+
+
+# -- the cluster's jobs (spec 64 R3) ---------------------------------------------------------------
+def test_the_jobs_keys_have_defaults_and_limits():
+    cluster = AppConfig().cluster
+    assert cluster.jobs_command == "qstatus -a"
+    assert (cluster.jobs_poll_seconds, cluster.jobs_rotate_seconds) == (300, 5)
+    assert parse_config({"cluster": {"jobs_command": "  "}}).cluster.jobs_command == ""
+    for key, value in (
+        ("jobs_poll_seconds", 29),
+        ("jobs_rotate_seconds", 0),
+        ("jobs_rotate_seconds", 3601),
+    ):
+        with pytest.raises(ConfigError):
+            parse_config({"cluster": {key: value}})
+    edge = parse_config({"cluster": {"jobs_poll_seconds": 30, "jobs_rotate_seconds": 3600}})
+    assert (edge.cluster.jobs_poll_seconds, edge.cluster.jobs_rotate_seconds) == (30, 3600)
+
+
+def test_the_jobs_keys_are_in_both_examples(tmp_path):
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        text = example.read_text(encoding="utf-8")
+        for key in ("jobs_command:", "jobs_poll_seconds:", "jobs_rotate_seconds:"):
+            assert key in text
+        cluster = load_config(example, environ={}, cwd=tmp_path).config.cluster
+        assert cluster.jobs_command == "qstatus -a"

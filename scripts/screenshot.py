@@ -80,6 +80,29 @@ def wait_for(signal, timeout_ms: int = 5000) -> None:
     loop.exec()
 
 
+# The cluster's queue the jobs indicator shows (spec 64): the screenshots never log in to a cluster.
+DEMO_JOBS = """\
+Running jobs:
+ job-ID  # name                      owner      start time          running in
+------------------------------------------------------------------------------
+  23538 32 Nd2Fe14B-4f-129           usuario_a  10/15/2026 17:53:02 physica.q
+  23601 32 MoS2-bands                usuario    10/23/2026 09:12:40 physica.q
+
+Waiting jobs:
+ job-ID  # name                      owner      submit time
+-------------------------------------------------------------------
+  23542 32 Sm3NbO8-HP-130            usuario_a  10/15/2026 18:05:21
+  23644 32 MoS2-pdos                 usuario    10/22/2026 23:39:04
+"""
+
+
+def demo_jobs(_config, _password=None):
+    """``fetch_jobs`` of the screenshots: ``DEMO_JOBS``, at once."""
+    from qe_studio.core.cluster_jobs import parse_qstatus
+
+    return parse_qstatus(DEMO_JOBS)
+
+
 def open_window(project: Path, tmp: Path, theme_name: str, scale: float):
     """The main window on ``project`` as the screenshots show it: the theme applied, the folders
     detected, ``03_bands`` selected and its ``bands.in`` open. A ``QApplication`` must exist; the
@@ -89,9 +112,11 @@ def open_window(project: Path, tmp: Path, theme_name: str, scale: float):
     from PyQt6.QtWidgets import QApplication
 
     from qe_studio.core.config import LoadedConfig, parse_config
+    from qe_studio.ui import jobs_controller
     from qe_studio.ui.main_window import MainWindow
     from qe_studio.ui.theme.manager import ThemeManager
 
+    jobs_controller.fetch_jobs = demo_jobs  # no login to the example cluster
     config = parse_config(
         {
             "paths": {"local_root": str(project), "remote_root": "/scratch/usuario/MoS2"},

@@ -362,6 +362,12 @@ def _first_cause(stderr: str) -> tuple[str, str] | None:
     return next(((needle, hint) for needle, hint in FAILURE_HINTS if needle in stderr), None)
 
 
+def known_cause(stderr: str) -> str | None:
+    """The explanation of the first known cause found in ``stderr`` (ssh's, or rsync's), if any."""
+    cause = _first_cause(stderr)
+    return cause[1] if cause is not None else None
+
+
 def is_auth_failure(stderr: str) -> bool:
     """The cluster refused the credentials (the remembered password is then wrong): the first known
     cause in ``stderr`` is the authentication one."""

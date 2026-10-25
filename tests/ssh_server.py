@@ -9,6 +9,10 @@ gets exit status 127 and is logged, never executed. No SFTP, no shell, no pty: L
 ``exec``. The one compound command is a push's ``mkdir -p <dir> && rsync --server …`` (spec 27,
 ``--rsync-path``): ``<dir>`` is made in Python, only inside the served folder, then rsync runs.
 
+A test adds commands of its own with ``commands``, by name: ``{"qstatus": [sys.executable,
+script]}`` runs ``qstatus -a`` as ``<python> <script> -a`` in the served folder (the cluster's job
+list, spec 64 R7). They are allowed and logged like the others; the rest of the allowlist is the same.
+
 The ``ssh`` client never reads the real ``~/.ssh`` (OpenSSH uses the passwd home, not ``$HOME``):
 ``LocalSSHServer.ssh_binary()`` writes a throwaway ``ssh_config`` and ``known_hosts`` and returns
 the value for ``sync.ssh_binary`` (``"ssh -F <tmp>/ssh_config"``).
@@ -150,8 +154,16 @@ class LocalSSHServer:
     """Threaded paramiko server. ``drop_after_bytes``, ``reject_auth`` and ``stall_banner`` are
     failure modes a test switches on before connecting."""
 
-    def __init__(self, root: Path, keys: ServerKeys, workdir: Path):
+    def __init__(
+        self,
+        root: Path,
+        keys: ServerKeys,
+        workdir: Path,
+        commands: dict[str, list[str]] | None = None,
+    ):
         self.root = root
+        # ``commands`` of the test, by argv[0] (``commands()`` is the log of what ran)
+        self.extra_commands = dict(commands or {})
         self.keys = keys
         self.workdir = workdir
         self.password = PASSWORD
@@ -323,6 +335,8 @@ class LocalSSHServer:
         if argv[:2] == ["mkdir", "-p"] and argv[3:4] == ["&&"]:  # a push's --rsync-path
             mkdir, argv = self._inside_root(argv[2]), argv[4:]
             allowed = mkdir is not None and argv[:2] == ["rsync", "--server"]
+        elif argv and argv[0] in self.extra_commands:
+            argv, allowed = [*self.extra_commands[argv[0]], *argv[1:]], True
         else:
             allowed = argv[:2] == ["rsync", "--server"] or bool(argv and argv[0] in PROBE_COMMANDS)
         record = ExecRecord(session.user, session.method, command, allowed=allowed)

@@ -199,6 +199,7 @@ class TopBar(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 0, 8, 0)
         layout.setSpacing(8)
+        self._layout = layout
 
         # History buttons and the clickable path (spec 16 R1, R2); disabled until there is somewhere
         # to go back or forward to.
@@ -267,6 +268,10 @@ class TopBar(QWidget):
             self.plot_file.setText(label)
             self.plot_file.setToolTip(tip)
         self.plot_file.setVisible(visible)
+
+    def add_before_led(self, widget: QWidget) -> None:
+        """A widget right of "Plotar SCF" and left of the LED (the jobs of the cluster, spec 64)."""
+        self._layout.insertWidget(self._layout.indexOf(self.led), widget)
 
     def set_history(self, can_back: bool, can_forward: bool) -> None:
         self.back_button.setEnabled(can_back)

@@ -242,13 +242,16 @@ class SyncCoordinator(QObject):
             return None
         password = None
         if request.needs_password:
-            password = self._ask_password()
+            password = self.session_password()
             if password is None:
                 return None
         return request.folder, request.endpoint, password
 
-    def _ask_password(self) -> str | None:
-        if self._session_password:
+    def session_password(self, ask: bool = True) -> str | None:
+        """The password typed in this session (``auth: password`` without one in the config); with
+        ``ask``, the dialog asks for it when there is none yet. None: none, or the user cancelled.
+        The jobs of the cluster use it too (spec 64 R6.3)."""
+        if self._session_password or not ask:
             return self._session_password
         cluster = self.config.cluster
         text, ok = QInputDialog.getText(
@@ -261,6 +264,10 @@ class SyncCoordinator(QObject):
             return None
         self._session_password = text
         return text
+
+    def forget_password(self) -> None:
+        """The cluster refused it: the next run asks again."""
+        self._session_password = None
 
     def run(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
         controller = SyncController(self.config, self, password=password)
@@ -308,7 +315,7 @@ class SyncCoordinator(QObject):
         if report.status is not SyncStatus.CANCELLED:
             self.monitor.report(not report.connection_failed)
         if report.status is SyncStatus.FAILED and report.auth_failed:
-            self._session_password = None
+            self.forget_password()
         if report.changes_local:
             self.synced.emit(report.local_dir)
         # What needs attention opens over the sync window, which closes after it (spec 17 R2.3).

@@ -31,6 +31,14 @@ cluster:
   connect_timeout: 10
   # Seconds between reachability probes (TCP only, no login).
   status_poll_seconds: 300
+  # Your jobs, left of the LED, and the whole queue in one click. This command runs on the cluster
+  # over ssh, with the login above; empty turns it off. A non-interactive ssh may not have the
+  # PATH of your terminal: if qstatus is not found, give its full path (`which qstatus`).
+  jobs_command: qstatus -a
+  # Seconds between job queries (each one logs in; only while the Lain window is active).
+  jobs_poll_seconds: 300
+  # Seconds each of your running jobs stays on the bar before the next one.
+  jobs_rotate_seconds: 5
 
 sync:
   # rsync --exclude patterns (rsync semantics: trailing "/" = directories only).

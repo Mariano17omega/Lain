@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 01:34-0400\n"
-"PO-Revision-Date: 2026-10-25 01:34-0400\n"
+"POT-Creation-Date: 2026-10-25 02:09-0400\n"
+"PO-Revision-Date: 2026-10-25 02:09-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -735,11 +735,20 @@ msgstr "Keyboard shortcuts"
 msgid "Ativa"
 msgstr "Active"
 
+#: ui/widgets/jobs_popup.py
+#, python-brace-format
+msgid "Atualizado às {time}"
+msgstr "Updated at {time}"
+
 #: ui/main_window.py
 msgid "Atualizado."
 msgstr "Refreshed."
 
-#: ui/actions.py ui/widgets/summary_view.py
+#: ui/widgets/jobs_popup.py
+msgid "Atualizando…"
+msgstr "Updating…"
+
+#: ui/actions.py ui/widgets/jobs_popup.py ui/widgets/summary_view.py
 msgid "Atualizar"
 msgstr "Refresh"
 
@@ -1006,6 +1015,11 @@ msgstr "Click three atoms; the second one is the vertex."
 msgid "Clique em um átomo para ver os dados."
 msgstr "Click an atom to see its data."
 
+#: ui/jobs_controller.py
+#, python-brace-format
+msgid "Clique para informar a senha de {account} (não é salva)."
+msgstr "Click to enter the password of {account} (not saved)."
+
 #: ui/actions.py
 msgid "Cluster"
 msgstr "Cluster"
@@ -1021,6 +1035,11 @@ msgstr "Cluster unreachable"
 #: core/sync/rsync.py
 msgid "Cluster inacessível (sem rota; verifique a rede/VPN)."
 msgstr "Cluster unreachable (no route; check the network/VPN)."
+
+#: core/cluster_jobs.py
+#, python-brace-format
+msgid "Cluster inacessível (ssh terminou com código {code})."
+msgstr "Cluster unreachable (ssh exited with code {code})."
 
 #: core/sync/rsync.py
 msgid "Cluster inacessível (tempo de conexão esgotado)."
@@ -1155,6 +1174,19 @@ msgstr "Check in ‘Atoms…’"
 #: ui/dialogs/sync_dialog.py
 msgid "Conflito de sincronização"
 msgstr "Sync conflict"
+
+#: ui/jobs_controller.py
+#, python-brace-format
+msgid "Consultando a fila do cluster ({account})…"
+msgstr "Querying the cluster queue ({account})…"
+
+#: ui/jobs_controller.py
+msgid "Consultando jobs…"
+msgstr "Querying jobs…"
+
+#: ui/widgets/jobs_popup.py
+msgid "Consultando o cluster…"
+msgstr "Querying the cluster…"
 
 #: ui/dialogs/calc_create/dialog.py
 msgid "Continuar"
@@ -1672,6 +1704,10 @@ msgstr ""
 "Two atoms are bonded when their distance is up to this fraction of the sum of the covalent radii "
 "(ASE table, the same as in the scripts)"
 
+#: ui/widgets/jobs_popup.py
+msgid "Dono"
+msgstr "Owner"
+
 #: ui/widgets/summary_widgets.py
 #, python-brace-format
 msgid "Duplo clique: abrir a saída na linha {line}"
@@ -1771,6 +1807,11 @@ msgstr[1] "In progress ({count} iterations)"
 #, python-brace-format
 msgid "Em andamento · {iterations} · {accuracy}"
 msgstr "In progress · {iterations} · {accuracy}"
+
+#: ui/widgets/jobs_popup.py
+#, python-brace-format
+msgid "Em execução ({n})"
+msgstr "Running ({n})"
 
 #: core/calc_create/types/pdos.py
 msgid "Emin deve ser menor que Emax"
@@ -1888,6 +1929,10 @@ msgstr "Upload folder to cluster…"
 #, python-brace-format
 msgid "Enviar {elide_start} ao cluster…"
 msgstr "Upload {elide_start} to cluster…"
+
+#: ui/widgets/jobs_popup.py
+msgid "Envio / início"
+msgstr "Submitted / started"
 
 #: ui/sync_coordinator.py
 msgid "Envio ao cluster"
@@ -2157,6 +2202,11 @@ msgstr "Delete the saved grid “{name}”?"
 msgid "Excluir grade"
 msgstr "Delete grid"
 
+#: ui/jobs_controller.py
+#, python-brace-format
+msgid "Executando: {name}"
+msgstr "Running: {name}"
+
 #: core/file_kinds.py
 msgid "Execução concluída (JOB DONE)"
 msgstr "Run finished (JOB DONE)"
@@ -2201,6 +2251,11 @@ msgstr "Final F {force_ry_bohr:.1e} Ry/Bohr"
 #: ui/plot_workflow.py
 msgid "Falha ao carregar os dados do gráfico."
 msgstr "Failed to load the plot data."
+
+#: ui/jobs_controller.py
+#, python-brace-format
+msgid "Falha ao consultar os jobs: {error}"
+msgstr "Could not query the jobs: {error}"
 
 #: ui/services.py
 #, python-brace-format
@@ -2293,6 +2348,14 @@ msgstr "Tools"
 #: core/calculations/params.py
 msgid "Figura"
 msgstr "Figure"
+
+#: ui/widgets/jobs_popup.py
+msgid "Fila"
+msgstr "Queue"
+
+#: ui/widgets/jobs_popup.py
+msgid "Fila do cluster"
+msgstr "Cluster queue"
 
 #: ui/widgets/file_grid.py
 msgid "Filtrar a grade"
@@ -2754,6 +2817,18 @@ msgstr "Iteration min."
 msgid "Janela da superfície (Å)"
 msgstr "Surface window (Å)"
 
+#: ui/widgets/jobs_indicator.py
+msgid "Jobs do cluster"
+msgstr "Cluster jobs"
+
+#: ui/jobs_controller.py
+msgid "Jobs indisponíveis"
+msgstr "Jobs unavailable"
+
+#: ui/jobs_controller.py
+msgid "Jobs: informe a senha"
+msgstr "Jobs: enter the password"
+
 #: core/projects.py
 msgid "Já existe um projeto com esse nome"
 msgstr "A project with this name already exists"
@@ -3175,6 +3250,11 @@ msgstr "NP = {np} is not a multiple of nk = {nk}: pw.x stops with an error (mp_s
 msgid "NP deve ser ao menos 1"
 msgstr "NP must be at least 1"
 
+#: ui/widgets/jobs_popup.py
+#, python-brace-format
+msgid "Na fila ({n})"
+msgstr "Queued ({n})"
+
 #: core/sync/preview.py core/sync/report.py
 msgid "Nada a enviar."
 msgstr "Nothing to upload."
@@ -3239,6 +3319,14 @@ msgstr "No plot open."
 msgid "Nenhum gráfico aberto: os ajustes aparecem junto com o gráfico."
 msgstr "No plot open: the settings appear together with the plot."
 
+#: ui/jobs_controller.py
+msgid "Nenhum job em execução"
+msgstr "No job running"
+
+#: ui/widgets/jobs_popup.py
+msgid "Nenhum job no cluster."
+msgstr "No jobs on the cluster."
+
 #: core/calculations/scf.py
 msgid "Nenhum painel selecionado"
 msgstr "No panel selected"
@@ -3279,7 +3367,7 @@ msgstr "No saved grid"
 msgid "Nenhuma iteração SCF completa em {name}."
 msgstr "No complete SCF iteration in {name}."
 
-#: ui/dialogs/grid_dialog.py ui/widgets/file_grid.py
+#: ui/dialogs/grid_dialog.py ui/widgets/file_grid.py ui/widgets/jobs_popup.py
 msgid "Nome"
 msgstr "Name"
 
@@ -3416,6 +3504,11 @@ msgstr "Could not create {path}: {error}"
 #, python-brace-format
 msgid "Não foi possível editar {what}: {exc}"
 msgstr "Could not edit {what}: {exc}"
+
+#: core/cluster_jobs.py
+#, python-brace-format
+msgid "Não foi possível executar o ssh ({error})."
+msgstr "Could not run ssh ({error})."
 
 #: ui/plot_workflow.py
 msgid "Não foi possível gerar o gráfico"
@@ -3603,6 +3696,16 @@ msgstr "The file is passed as the last argument; no shell is used."
 #: ui/widgets/kpath_editor.py
 msgid "O caminho salta deste ponto para o próximo (peso 1)"
 msgstr "The path jumps from this point to the next one (weight 1)"
+
+#: core/cluster_jobs.py
+#, python-brace-format
+msgid "O cluster não respondeu a {command} a tempo."
+msgstr "The cluster did not answer {command} in time."
+
+#: core/cluster_jobs.py
+#, python-brace-format
+msgid "O comando {command} não foi encontrado no cluster (cluster.jobs_command)."
+msgstr "The command {command} was not found on the cluster (cluster.jobs_command)."
 
 #: core/calc_create/types/slab_fields.py
 msgid "O eixo da célula do SCF que é esticado para abrir o vácuo; os outros dois formam o plano"
@@ -4462,6 +4565,11 @@ msgstr "Bands output (pw.x)"
 msgid "Saída de relax/vc-relax do pw.x com passos BFGS"
 msgstr "pw.x relax/vc-relax output with BFGS steps"
 
+#: core/cluster_jobs.py
+#, python-brace-format
+msgid "Saída de {command} não reconhecida."
+msgstr "Output of {command} not recognized."
+
 #: core/calculations/info.py
 msgid "Saída do QE sem tipo plotável"
 msgstr "QE output with no plottable type"
@@ -4634,6 +4742,15 @@ msgstr "To upload"
 #: ui/widgets/structure3d/panel.py
 msgid "Setas a, b, c da célula"
 msgstr "Cell a, b, c arrows"
+
+#: ui/jobs_controller.py
+#, python-brace-format
+msgid ""
+"Seus jobs: {running} em execução, {waiting} na fila · atualizado às {time}. Clique para ver a "
+"fila do cluster."
+msgstr ""
+"Your jobs: {running} running, {waiting} queued · updated at {time}. Click to see the cluster "
+"queue."
 
 #: ui/widgets/structure3d/canvas.py
 msgid "Shift+Arrastar ou botão do meio"
@@ -4889,6 +5006,10 @@ msgstr "CPU time"
 #: core/qe/summary/build.py
 msgid "Tempo (WALL)"
 msgstr "Wall time"
+
+#: ui/widgets/jobs_popup.py
+msgid "Tentar de novo"
+msgstr "Try again"
 
 #: ui/actions.py
 msgid "Testar conexão"
@@ -5575,6 +5696,11 @@ msgstr "flipped"
 msgid "iteração {n}"
 msgstr "iteration {n}"
 
+#: ui/widgets/jobs_popup.py
+#, python-brace-format
+msgid "job-ID {job_id} · {slots} slots"
+msgstr "job-ID {job_id} · {slots} slots"
+
 #: core/qe/summary/build.py
 msgid "k-pontos irredutíveis"
 msgstr "Irreducible k-points"
@@ -6121,6 +6247,11 @@ msgstr "{candidate} is not executable."
 msgid "{card} removido: os átomos mudaram"
 msgstr "{card} removed: the atoms changed"
 
+#: core/cluster_jobs.py
+#, python-brace-format
+msgid "{command} terminou com código {code}"
+msgstr "{command} exited with code {code}"
+
 #: core/calc_create/types/adsorption.py
 #, python-brace-format
 msgid "{count} ({n_slab} da superfície + {molecule_atoms} da molécula: {counts})"
@@ -6628,7 +6759,7 @@ msgid_plural "{n} itens"
 msgstr[0] "{n} item"
 msgstr[1] "{n} items"
 
-#: ui/main_window.py
+#: ui/footer_path.py
 #, python-brace-format
 msgid "{n} itens selecionados"
 msgstr "{n} items selected"

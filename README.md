@@ -211,6 +211,32 @@ A folder whose differing files are all newer locally is reported as "local is ne
 is transferred (PRD §5.2). Files that exist only locally, such as generated `plots/`, never block
 a pull.
 
+### Cluster jobs
+
+With the cluster configured, the top bar shows your jobs left of the LED: "Executando: <name>" for
+a job of yours that is running (with several, the name changes every `jobs_rotate_seconds`), or
+"Nenhum job em execução". A click opens the whole queue of the cluster, running and waiting, with
+the name, owner, start or submission time and queue of each job; yours are in bold. Lain reads it
+by running `cluster.jobs_command` on the cluster over ssh, with the login and options of the sync,
+when the window opens and then every `jobs_poll_seconds` while it is active. The last answer is kept
+in memory for the session ("Atualizar" asks again); nothing is written to disk. Each query is a real
+login, so it also turns the LED green or red.
+
+```yaml
+cluster:
+  jobs_command: qstatus -a     # empty turns the indicator off
+  jobs_poll_seconds: 300       # at least 30
+  jobs_rotate_seconds: 5
+```
+
+The listing read is the one of `qstatus -a` (SGE): "Running jobs:" and "Waiting jobs:" sections,
+one job per line. ssh runs the command without a terminal, so the `PATH` of your login shell may be
+missing: if the indicator says "Jobs indisponíveis" with "comando … não foi encontrado", give the
+full path (`which qstatus` on the cluster), e.g. `jobs_command: /opt/sge/bin/qstatus -a`. A refused
+login or a missing command stops the automatic queries until "Atualizar" or "Recarregar
+config.yaml". With `auth: password` and no password known, Lain asks for it only when you click the
+indicator, and keeps it for the session as the sync does.
+
 ## Usage
 
 1. Pick a simulation folder in the explorer; badges show what was detected

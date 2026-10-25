@@ -38,8 +38,10 @@ from .derive_controller import DeriveController
 from .dialogs.open_many import MANY_FILES, ask_open_many
 from .first_run import FirstRunController
 from .focus_controller import FocusController
+from .footer_path import FooterPath
 from .grids_controller import GridsController
 from .help_controller import HelpController
+from .jobs_controller import JobsController
 from .layout_controller import LayoutController
 from .navigation_controller import NavigationController
 from .palette_controller import PaletteController
@@ -176,6 +178,7 @@ class MainWindow(QMainWindow):
             parent=self,
         )
         self.item_actions = ItemActions(self, self.service, self.navigation.is_favorite)
+        self.footer = FooterPath.for_window(self)  # the path on the right of the status bar
         self.plot_settings = PlotSettingsStore(self)
         self.plot_workflow = PlotWorkflow(
             service=self.service,
@@ -198,6 +201,7 @@ class MainWindow(QMainWindow):
             current_folder=self.current_folder,
             refresh=self.refresh_folder,
         )
+        self.jobs = JobsController.for_window(self)  # the cluster's jobs on the top bar (spec 64)
         self.help = HelpController.for_window(self)
         self.command_palette = PaletteController.for_window(self)
         self.first_run = FirstRunController.for_window(self)
@@ -220,8 +224,6 @@ class MainWindow(QMainWindow):
         self.explorer.file_activated.connect(self.open_file)
         self.files.file_activated.connect(self.open_file)
         self.files.folder_activated.connect(self.explorer.select_path)
-        self.files.file_selected.connect(self._on_file_selected)
-        self.files.selection_changed.connect(self._on_selection_changed)
         self.files.files_activated.connect(self.open_files)
         self.explorer.item_menu_requested.connect(self._show_item_menu)
         self.files.item_menu_requested.connect(self._show_item_menu)
@@ -277,12 +279,6 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     # -- navigation -----------------------------------------------------------------------------
-    def _relative(self, path: Path) -> str:
-        try:
-            return str(path.relative_to(self.root)) or "."
-        except ValueError:
-            return str(path)
-
     def current_folder(self) -> Path:
         return self.explorer.current_folder()
 
@@ -291,18 +287,7 @@ class MainWindow(QMainWindow):
             self.files.set_folder(folder)
         self.navigation.visited(folder)
         self.sync.show_scope(folder)
-        self.status.set_path(self._relative(folder))
-
-    def _on_file_selected(self, path: Path) -> None:
-        if len(self.files.selected_paths()) <= 1:  # a selection of several has its own text
-            self.status.set_path(self._relative(path))
-
-    def _on_selection_changed(self, paths: list[Path]) -> None:
-        """Footer of the grid selection (spec 16 R5.3): the count for several items."""
-        if len(paths) > 1:
-            self.status.set_path(_("{n} itens selecionados").format(n=len(paths)))
-        else:
-            self.status.set_path(self._relative(paths[0] if paths else self.files.folder))
+        self.footer.show_folder(folder)
 
     def open_file(self, path: Path) -> None:
         kind = viewer_kind(path)
@@ -440,6 +425,7 @@ class MainWindow(QMainWindow):
         self.service.paranoid_refresh = self.config.ui.paranoid_refresh
         self.theme.set_font_scale(self.config.ui.font_scale)
         self.sync.set_config(self.config)
+        self.jobs.set_config(self.config)
         self.explorer.apply_config(self.root, self.config.ui)
         self.files.apply_config(self.root, self.config.ui.hidden_dirs)
         self.project.config_applied(old_root)  # the views were reset to the root (spec 31)

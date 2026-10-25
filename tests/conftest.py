@@ -156,6 +156,16 @@ def window_factory(qtbot, demo_project, tmp_path, monkeypatch):
 
     monkeypatch.setattr(QMenu, "exec", blocking_menu)
 
+    from qe_studio.core.cluster_jobs import JobsFailure
+    from qe_studio.ui import jobs_controller
+
+    def no_cluster(_config, _password=None):
+        # A window with a cluster in its config never logs in for its jobs (spec 64): an answer
+        # that leaves the LED alone. ``jobs_helpers.cluster_window`` gives a test its own.
+        return JobsFailure("no cluster in the tests", local=True)
+
+    monkeypatch.setattr(jobs_controller, "fetch_jobs", no_cluster)
+
     from qe_studio.core.compounds import CompoundStore
     from qe_studio.core.config import LoadedConfig, parse_config
     from qe_studio.core.folder_memory import FolderMemory

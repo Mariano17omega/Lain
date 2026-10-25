@@ -1,0 +1,57 @@
+/* The cluster's jobs (spec 64): the indicator left of the LED and the queue popup under it. */
+#jobsIndicator {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_secondary};
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 3px 6px;
+    min-height: 0;
+    text-align: left;
+}
+#jobsIndicator:hover {
+    background: ${hover};
+    color: ${text};
+}
+#jobsPopup {
+    background: ${popover};
+    border: 1px solid ${border_strong};
+    border-radius: 6px;
+}
+#jobsPopup QLabel {
+    background: transparent;
+}
+#jobsTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: ${text};
+}
+#jobsNote {
+    font-size: 11px;
+    color: ${text_secondary};
+}
+#jobsFailure {
+    font-size: 12px;
+    color: ${error};
+}
+#jobsTable {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    background: transparent;
+    color: ${text};
+    border: 1px solid ${border};
+    border-radius: 4px;
+}
+#jobsTable QHeaderView::section {
+    background: ${chrome};
+    color: ${text_muted};
+    border: none;
+    border-bottom: 1px solid ${border};
+    padding: 4px 8px;
+    font-family: "Inter";
+    font-size: 11px;
+}
+#jobsTable::item {
+    padding: 2px 4px;
+}

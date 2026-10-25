@@ -127,6 +127,8 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 - Unknown host keys are always refused (`-o StrictHostKeyChecking=yes` is forced). Passwords reach ssh only via
   `SSH_ASKPASS` in the child env, never argv or logs.
 - rsync children run with `LC_ALL=C.UTF-8`, `TZ=UTC` and `--no-h` (its output is parsed).
+- A remote command other than rsync comes only from `config.yaml` (`cluster.jobs_command`) and runs through
+  `core/sync/command.py` with the same ssh options; nothing read from the cluster goes into a command.
 
 ### Theming and UI
 

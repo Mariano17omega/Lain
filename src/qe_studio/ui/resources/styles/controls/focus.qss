@@ -15,7 +15,8 @@ QToolButton[variant="plotTool"]:focus,
 QToolButton[variant="viewerTool"]:focus,
 QToolButton[variant="sectionHeader"]:focus,
 QToolButton[variant="summaryToggle"]:focus,
-QToolButton[variant="swatch"]:focus {
+QToolButton[variant="swatch"]:focus,
+#jobsIndicator:focus {
     border-color: ${focus_ring};
 }
 QTabBar::tab:selected:focus {

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 64: funcionalidade nova, média, independente das specs 61–63; abre a folga em `ui/main_window.py` (R0) e o executor de comandos remotos (R1) que a spec 65 usa |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (25/10/2026). Desvios: `on_folder_selected` chama `footer.show_folder` (R0: `test_main_window.py` chama o método direto, sem o sinal; `main_window.py` 435/450); `JobsFailure` ganha `local` (o `ssh` nem rodou: o LED não muda) e o tempo esgotado conta como falha de conexão; a consulta roda num pool próprio de 1 thread e o `ssh` numa sessão própria (sem terminal, morto com o grupo); o mapa de comandos do `LocalSSHServer` é `extra_commands` (`commands()` já é o log); `rsync.py` ganha `known_cause` |
 | **Depende de** | spec 33 R3 (o LED sozinho na barra superior, `usuario@host` no tooltip), spec 17 e 27-3 (`ssh_command`, `child_env`, senha da sessão, `StrictHostKeyChecking=yes`), spec 27-5 (passos do fechamento), spec 7 R7 (servidor SSH local dos testes) |
 | **Usada por** | spec 65 (R0: folga em `main_window.py`; R1: `core/sync/command.py`, novo) |
 | **Esforço** | M/G (R0: P; R1–R3: P; R4–R6: M) |

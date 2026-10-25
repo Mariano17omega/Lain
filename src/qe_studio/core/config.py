@@ -133,11 +133,20 @@ class ClusterConfig(_Section):
     password: SecretStr | None = None
     connect_timeout: int = Field(default=10, gt=0, le=300)
     status_poll_seconds: int = Field(default=300, ge=30)
+    # The job list left of the LED (spec 64): run on the cluster over ssh; empty turns it off.
+    jobs_command: str = "qstatus -a"
+    jobs_poll_seconds: int = Field(default=300, ge=30)  # only while the window is active
+    jobs_rotate_seconds: int = Field(default=5, ge=1, le=3600)  # between the user's running jobs
 
     @field_validator("key_path")
     @classmethod
     def _expand(cls, value: Path | None) -> Path | None:
         return None if value is None else Path(os.path.expandvars(str(value))).expanduser()
+
+    @field_validator("jobs_command")
+    @classmethod
+    def _strip_command(cls, value: str) -> str:
+        return value.strip()
 
     @property
     def configured(self) -> bool:
