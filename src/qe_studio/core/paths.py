@@ -1,10 +1,17 @@
-"""Folder rules of the file panels: which folders ``ui.hidden_dirs`` hides, and entry counts."""
+"""Folder rules of the file panels: which folders ``ui.hidden_dirs`` hides, the order of names, and
+entry counts."""
 
 from __future__ import annotations
 
 import fnmatch
 import os
+import re
 from pathlib import Path
+
+
+def natural_key(text: str) -> list:
+    """``run2`` before ``run10``: digit runs compare as numbers, the rest without case."""
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", text)]
 
 
 def normalize_patterns(patterns: list[str]) -> list[str]:

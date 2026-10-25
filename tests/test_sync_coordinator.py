@@ -60,7 +60,7 @@ def test_the_password_is_asked_once_per_session(qtbot, tmp_path, boxes, monkeypa
         QInputDialog, "getText", staticmethod(lambda *a, **k: asked.append(1) or ("pw", True))
     )
     monkeypatch.setattr(
-        coordinator, "run", lambda folder, endpoint, password=None: runs.append(password)
+        coordinator, "run", lambda folder, endpoint, password=None, only=None: runs.append(password)
     )
     coordinator.start(tmp_path)
     coordinator.start(tmp_path)

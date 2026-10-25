@@ -66,6 +66,7 @@ known-local-folder = [
     "calc_helpers",
     "conftest",
     "jobs_helpers",
+    "remote_helpers",
     "ssh_server",
     "surface_helpers",
     "sync_helpers",

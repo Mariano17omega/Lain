@@ -68,6 +68,8 @@ class LayoutController(QObject):
         left = panels["tree"]
         assert isinstance(left, QStackedWidget)
         self.left = left
+        # What "tree" shows: the explorer, or the cluster's tree in the cluster mode (spec 65).
+        self.tree_page: QWidget | None = left.widget(0)
         files = panels["grid"]
         assert isinstance(files, FilePanel)
         self.files = files
@@ -94,12 +96,27 @@ class LayoutController(QObject):
             self.show_tree()
 
     def _tree_shown(self) -> bool:
-        """Is the explorer tree (not the plot parameters) in view in the left panel?"""
-        return not self.panels["tree"].isHidden() and self.left.currentIndex() != PARAMS_PAGE
+        """Is the tree page (not the plot parameters) in view in the left panel?"""
+        return not self.panels["tree"].isHidden() and self._on_tree_page()
+
+    def _on_tree_page(self) -> bool:
+        return self.left.currentWidget() is self.tree_page
+
+    def set_tree_page(self, page: QWidget) -> None:
+        """The page ``tree`` stands for (spec 65: the cluster's tree, or the explorer again). The
+        left panel switches to it when it was on the tree page, not on the plot parameters."""
+        if self.left.indexOf(page) < 0:
+            self.left.addWidget(page)
+        on_tree = self._on_tree_page()
+        self.tree_page = page
+        if on_tree:
+            self.left.setCurrentWidget(page)
 
     def set_left_mode(self, mode: str) -> None:
-        """``tree`` (explorer) or ``params`` (plot parameters) in the left panel, shown."""
-        self.left.setCurrentIndex(PARAMS_PAGE if mode == "params" else 0)
+        """``tree`` (the tree page) or ``params`` (plot parameters) in the left panel, shown."""
+        page = self.left.widget(PARAMS_PAGE) if mode == "params" else self.tree_page
+        if page is not None:
+            self.left.setCurrentWidget(page)
         self.activity.set_left_mode(mode)
         self.set_panel_visible("tree", True)
 
@@ -119,7 +136,7 @@ class LayoutController(QObject):
             self.activity.grid.blockSignals(False)
         if panel == "tree":  # the sidebar button is on only while the tree page is in view
             self.activity.tree.blockSignals(True)
-            self.activity.tree.setChecked(visible and self.left.currentIndex() != PARAMS_PAGE)
+            self.activity.tree.setChecked(visible and self._on_tree_page())
             self.activity.tree.blockSignals(False)
         if panel == "workspace":
             self.workspace_visibility_changed.emit(visible)

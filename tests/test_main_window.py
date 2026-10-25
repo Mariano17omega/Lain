@@ -512,7 +512,15 @@ def test_activity_bar_has_no_plot_button(main_window):
 def test_activity_bar_holds_generate_and_grids(main_window):
     bar = main_window.activity
     order = [b for b in bar.findChildren(type(bar.tree)) if b is not bar.theme_button]
-    assert order == [bar.tree, bar.grid, bar.generate, bar.grids, bar.rsync, bar.new_calc]
+    assert order == [
+        bar.tree,
+        bar.grid,
+        bar.generate,
+        bar.grids,
+        bar.rsync,
+        bar.remote,
+        bar.new_calc,
+    ]
     for name in ("generate", "grids", "generate_requested", "grids_requested"):
         assert not hasattr(main_window.top_bar, name)
 

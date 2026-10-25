@@ -86,6 +86,8 @@ The system dynamically scans the selected directory to determine the calculation
 - Push (local to cluster, spec 27) only adds files the cluster does not have, for one calculation folder (never the
   whole project): a file that exists remotely is never changed (`--ignore-existing`), nothing is deleted, and the
   plan preview is always shown before sending, whatever `sync.confirm_plan` says.
+- Cluster mode (spec 65) lists remote folders read-only (`rsync --list-only` over the same ssh) and downloads only
+  through the pull above, with its preview.
 
 ### 5.2. Timestamp Comparison & Sync Rules
 - When "Synchronize" is clicked, the app compares folder timestamps between the cluster and local counterpart:

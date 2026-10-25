@@ -120,7 +120,7 @@ def test_password_prompt_is_used_once(
         QInputDialog, "getText", staticmethod(lambda *a, **k: asked.append(1) or ("s3cret", True))
     )
     monkeypatch.setattr(
-        window.sync, "run", lambda folder, endpoint, password=None: runs.append(password)
+        window.sync, "run", lambda folder, endpoint, password=None, only=None: runs.append(password)
     )
     window.sync.start_selected()
     window.sync.start_selected()
@@ -229,7 +229,9 @@ def test_rsync_tooltip_when_sync_is_off(qtbot, main_window):
 def test_sync_whole_project_ignores_the_selection(qtbot, window_factory, demo_project):
     window = cluster_window(window_factory, demo_project)
     runs = []
-    window.sync.run = lambda folder, endpoint, password=None: runs.append((folder, endpoint))
+    window.sync.run = lambda folder, endpoint, password=None, only=None: runs.append(
+        (folder, endpoint)
+    )
     window.explorer.select_path(demo_project / "03_bands")
     window._actions["sync.project"].trigger()
     window._actions["sync.start"].trigger()

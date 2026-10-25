@@ -18,6 +18,7 @@ NOT_CONFIGURED = _(
 SYNC_OFF = _("Sincronização desligada: configure cluster.host, cluster.user e paths.remote_root")
 PUSH_ROOT = _("Escolha uma pasta de cálculo; a pasta raiz inteira não é enviada.")
 PUSH_PROJECT = _("Escolha uma pasta de cálculo; o projeto inteiro não é enviado.")  # spec 31 R5.2
+SYNC_RUNNING = _("Há uma sincronização em andamento. Espere terminar ou cancele.")
 MENU_PATH_MAX = 40  # longer relative paths keep their end in the menu text
 
 
@@ -100,6 +101,7 @@ class SyncScope:
     enabled: bool = True
     direction: Direction = Direction.PULL
     project: str = ""  # the project's name when this is what "Sincronizar projeto" covers (spec 31)
+    file: str = ""  # the one file of the folder a "Baixar" of the cluster mode pulls (spec 65 R5.2)
 
     @property
     def push(self) -> bool:
@@ -122,6 +124,8 @@ class SyncScope:
 
     @property
     def label(self) -> str:
+        if self.file:
+            return self.local_text
         if self.whole_project:
             return _("tudo")
         if self.project:
@@ -169,6 +173,8 @@ class SyncScope:
 
     @property
     def local_text(self) -> str:
+        if self.file:
+            return f"{self.relative}/{self.file}" if self.relative else self.file
         return self.relative or "."
 
 

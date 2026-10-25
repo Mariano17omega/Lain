@@ -16,6 +16,7 @@ from qe_studio.ui.shutdown import ShutdownReport, ShutdownSequence, Step
 
 from calc_dialog_helpers import to_files
 from calc_helpers import AL_SCF
+from remote_helpers import REMOTE, FakeListing, entries, remote_window
 
 
 class Clock:
@@ -321,3 +322,20 @@ def test_finish_with_a_real_pool_that_has_a_stuck_task(monkeypatch):
     finally:
         release.set()
         pool.waitForDone(5000)
+
+
+def test_closing_with_a_listing_of_the_cluster_hung(
+    qtbot, window_factory, demo_project, monkeypatch
+):
+    """Spec 65 R6: the listing is cancelled, its ssh would be killed, and closing stays in budget."""
+    fake = FakeListing({REMOTE: entries("a")})
+    window = remote_window(window_factory, demo_project, monkeypatch, fake)
+    fake.hold()
+    window.activity.remote.click()
+    qtbot.waitUntil(lambda: fake.calls != [])
+    try:
+        window.close()
+        assert window.shutdown_report is not None and window.shutdown_report.late == []
+        assert fake.exited.wait(2) and REMOTE in fake.cancelled
+    finally:
+        fake.release()

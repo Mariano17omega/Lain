@@ -48,6 +48,7 @@ from .palette_controller import PaletteController
 from .plot_settings import PlotSettingsStore
 from .plot_workflow import PlotWorkflow
 from .project_controller import ProjectController
+from .remote_controller import RemoteController
 from .rename_controller import RenameController
 from .restart_notice import restart_notices
 from .services import DetectionService
@@ -206,6 +207,7 @@ class MainWindow(QMainWindow):
         self.command_palette = PaletteController.for_window(self)
         self.first_run = FirstRunController.for_window(self)
         self.project = ProjectController.for_window(self)  # "Projeto" dropdown (spec 31)
+        self.remote = RemoteController.for_window(self)  # the cluster mode (spec 65)
         self.focus_areas = FocusController.for_window(self)  # tab order and Ctrl+1..4
         self.grids = GridsController.for_window(self)  # "Grids" button and window (spec 23)
         self.derive = DeriveController.for_window(self)  # "Gerar SCF convergido" (spec 24)
@@ -328,6 +330,8 @@ class MainWindow(QMainWindow):
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.current_folder())))
 
     def refresh(self) -> None:
+        if self.remote.refresh():  # the cluster mode: F5 lists the cluster's folder again
+            return
         self.service.invalidate()
         self.command_palette.invalidate()  # its folder index is rebuilt on the next open
         self.project.reload()
@@ -426,6 +430,7 @@ class MainWindow(QMainWindow):
         self.theme.set_font_scale(self.config.ui.font_scale)
         self.sync.set_config(self.config)
         self.jobs.set_config(self.config)
+        self.remote.set_config(self.config)
         self.explorer.apply_config(self.root, self.config.ui)
         self.files.apply_config(self.root, self.config.ui.hidden_dirs)
         self.project.config_applied(old_root)  # the views were reset to the root (spec 31)

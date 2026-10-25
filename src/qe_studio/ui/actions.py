@@ -82,6 +82,13 @@ ACTIONS: tuple[ActionSpec, ...] = (
         separator_before=True,
     ),
     ActionSpec("sync.test", MENU_CLUSTER, _("Testar conexão"), "sync.check_connection"),
+    ActionSpec(  # the cluster mode (spec 65), also the sidebar's "Cluster"
+        "remote.toggle",
+        MENU_CLUSTER,
+        _("Ver arquivos do cluster"),
+        "remote.toggle",
+        separator_before=True,
+    ),
     ActionSpec("plot.generate", MENU_PLOTS, _("Gerar gráfico"), "generate_plot", "Ctrl+G"),
     ActionSpec("plot.export", MENU_PLOTS, _("Exportar gráfico"), "export_plot", "Ctrl+E"),
     ActionSpec("grids.open", MENU_PLOTS, _("Grids…"), "grids.open"),

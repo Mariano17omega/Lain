@@ -237,6 +237,25 @@ login or a missing command stops the automatic queries until "Atualizar" or "Rec
 config.yaml". With `auth: password` and no password known, Lain asks for it only when you click the
 indicator, and keeps it for the session as the sync does.
 
+### Cluster mode
+
+The sidebar's **Cluster** button (also "Cluster > Ver arquivos do cluster") shows the cluster's
+folders in the tree and their files in the grid, on a red background, until it is clicked again:
+then the local panels come back exactly as they were. Nothing local is read or changed meanwhile.
+
+- The view starts at the cluster side of the local folder you were in (or the closest folder above
+  it that the cluster has) and never goes above the selected project, or `remote_root`.
+- Each folder is listed over ssh with `rsync --list-only`, with the login and options of the sync.
+  A spinner shows while a folder has no answer yet. Listings are kept in memory for the session:
+  a folder seen before shows at once, and is listed again in the background after 60 s. F5 and
+  "Atualizar" list the folder shown again.
+- The list shows name, size and date only: badges and file states need the files' content.
+- Right-click an item for **Baixar** (one item at a time) or **Copiar caminho**. "Baixar" is the
+  usual pull, with its preview and its questions before anything local is overwritten: of a folder
+  into its local counterpart (created if missing), or of a single file of it.
+- With `auth: password`, the password is asked when the mode is turned on, and kept for the
+  session; a refused login is not retried until you ask ("Tentar de novo", "Atualizar", F5).
+
 ## Usage
 
 1. Pick a simulation folder in the explorer; badges show what was detected

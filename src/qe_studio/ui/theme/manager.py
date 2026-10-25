@@ -32,7 +32,7 @@ QSS_ICONS = (
     ("icon_branch_open", "expand_more", "text_muted", 14),
     ("icon_combo_arrow", "expand_more", "text_muted", 14),
 )
-STYLE_DOMAINS = ("base", "layout", "navigation", "workspace", "controls", "dialogs")
+STYLE_DOMAINS = ("base", "layout", "navigation", "workspace", "controls", "remote", "dialogs")
 
 _fonts_loaded = False
 

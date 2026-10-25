@@ -98,6 +98,26 @@ def test_badges_pass_aa_on_their_own_background(theme):
         assert contrast_ratio(tokens[fg], ground) >= AA_TEXT, fg
 
 
+@pytest.mark.parametrize("theme", THEMES)
+@pytest.mark.parametrize("token", ("text", "text_secondary", "text_meta"))
+def test_remote_panel_text_passes_aa(theme, token):
+    """The cluster mode's red panels (spec 65 R4.2): every text they paint."""
+    assert ratio(load_tokens(theme), token, "remote_panel") >= AA_TEXT
+
+
+def test_the_remote_panels_never_paint_text_muted():
+    """On the light red it fails AA (spec 65): their metadata is text_meta."""
+    import qe_studio
+
+    root = Path(qe_studio.__file__).parent
+    for name in (
+        "ui/resources/styles/remote/remote.qss",
+        "ui/widgets/remote_panels.py",
+        "ui/widgets/remote_model.py",
+    ):
+        assert "text_muted" not in (root / name).read_text(encoding="utf-8"), name
+
+
 def test_text_dim_is_not_for_informative_text():
     """text_dim stays below AA on purpose (disabled and placeholder only): nothing may read it."""
     for theme in THEMES:

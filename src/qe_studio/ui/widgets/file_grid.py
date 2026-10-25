@@ -19,6 +19,7 @@ from PyQt6.QtGui import QActionGroup, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QListView,
     QMenu,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -69,7 +70,13 @@ class FilePanel(QWidget):
         self._count_tasks = TaskGroup(self._count_pool)
         self._folder = Path(root)
 
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.pages = QStackedWidget()  # the files, or another panel in their place (spec 65)
+        outer.addWidget(self.pages)
+        self.local_page = QWidget()
+        self.pages.addWidget(self.local_page)
+        layout = QVBoxLayout(self.local_page)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.header = PanelHeader(theme, _("Arquivos"), "grid_view")
@@ -121,9 +128,9 @@ class FilePanel(QWidget):
         self.filter_bar.changed.connect(self._on_filter_changed)
         self.filter_bar.closed.connect(self.view.setFocus)
         self.filter_bar.accepted.connect(self.view.setFocus)
-        find = QShortcut(QKeySequence("Ctrl+F"), self)  # with the focus in this panel only
-        find.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        find.activated.connect(self.filter_bar.open)
+        self._find = QShortcut(QKeySequence("Ctrl+F"), self)  # with the focus in this panel only
+        self._find.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self._find.activated.connect(self.filter_bar.open)
         self._fixing_selection = False
         self._pending_select: Path | None = None  # a file to select once its folder is listed
         self._lines_timer = QTimer(self)
@@ -159,6 +166,14 @@ class FilePanel(QWidget):
         self.service.results(self._folder)  # warm the sniff cache for status labels
         self._update_count()
         self.refresh_name_lines()
+
+    def show_alternate(self, widget: QWidget | None) -> None:
+        """Show ``widget`` in place of the files (spec 65: the cluster's), or the files again
+        (None) as they were: folder, selection and filter."""
+        if widget is not None and self.pages.indexOf(widget) < 0:
+            self.pages.addWidget(widget)
+        self.pages.setCurrentWidget(widget or self.local_page)
+        self._find.setEnabled(widget is None)
 
     def set_view_root(self, folder: Path) -> None:
         """The top the grid may go up to (spec 31: the selected project, else the root): there

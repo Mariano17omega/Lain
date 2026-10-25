@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 02:09-0400\n"
-"PO-Revision-Date: 2026-10-25 02:09-0400\n"
+"POT-Creation-Date: 2026-10-25 03:45-0400\n"
+"PO-Revision-Date: 2026-10-25 03:45-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -693,6 +693,10 @@ msgstr "Files"
 msgid "Arquivos com este nome já existem em plots/"
 msgstr "Files with this name already exist in plots/"
 
+#: ui/widgets/remote_panels.py
+msgid "Arquivos do cluster"
+msgstr "Cluster files"
+
 #: core/qe/summary/build.py
 msgid "Arquivos escritos"
 msgstr "Files written"
@@ -752,7 +756,7 @@ msgstr "Updating…"
 msgid "Atualizar"
 msgstr "Refresh"
 
-#: ui/widgets/explorer.py
+#: ui/widgets/explorer.py ui/widgets/remote_panels.py
 msgid "Atualizar (F5)"
 msgstr "Refresh (F5)"
 
@@ -820,7 +824,7 @@ msgstr "B"
 msgid "Baixados"
 msgstr "Downloaded"
 
-#: core/sync/request.py
+#: core/sync/request.py ui/remote_controller.py
 msgid "Baixar"
 msgstr "Download"
 
@@ -1020,7 +1024,7 @@ msgstr "Click an atom to see its data."
 msgid "Clique para informar a senha de {account} (não é salva)."
 msgstr "Click to enter the password of {account} (not saved)."
 
-#: ui/actions.py
+#: ui/actions.py ui/widgets/bars.py ui/widgets/remote_panels.py
 msgid "Cluster"
 msgstr "Cluster"
 
@@ -1242,7 +1246,7 @@ msgstr "Coordinates of atom {value}: write three numbers, x y z"
 msgid "Coordenação"
 msgstr "Coordination"
 
-#: ui/widgets/context_menu.py
+#: ui/remote_controller.py ui/widgets/context_menu.py
 #, python-brace-format
 msgid "Copiado: {name}"
 msgid_plural "Copiados: {n} itens"
@@ -1262,7 +1266,7 @@ msgstr "Copy"
 msgid "Copiar as medidas como texto (cola numa planilha)"
 msgstr "Copy the measurements as text (pastes into a spreadsheet)"
 
-#: ui/widgets/breadcrumb.py ui/widgets/workspace.py
+#: ui/remote_controller.py ui/widgets/breadcrumb.py ui/widgets/workspace.py
 msgid "Copiar caminho"
 msgstr "Copy path"
 
@@ -2266,6 +2270,11 @@ msgstr "Failed to detect {name} (see the log)"
 msgid "Falha ao exportar"
 msgstr "Export failed"
 
+#: ui/remote_controller.py
+#, python-brace-format
+msgid "Falha ao listar a pasta: {error}"
+msgstr "Could not list the folder: {error}"
+
 #: core/sync/report.py
 #, python-brace-format
 msgid "Falha na sincronização: {error}"
@@ -2652,6 +2661,11 @@ msgstr "A figure export is in progress. Wait for it to finish and try again."
 msgid "Há uma sincronização em andamento em {where}. Espere terminar ou cancele."
 msgstr "A sync is in progress in {where}. Wait for it to finish or cancel it."
 
+#: core/sync/request.py
+#, python-brace-format
+msgid "Há uma sincronização em andamento. Espere terminar ou cancele."
+msgstr "A sync is in progress. Wait for it to finish or cancel it."
+
 #: core/file_kinds.py core/filtering.py
 msgid "INCOMPLETO"
 msgstr "INCOMPLETE"
@@ -3010,6 +3024,10 @@ msgstr "List"
 msgid "Listando arquivos no cluster…"
 msgstr "Listing files on the cluster…"
 
+#: ui/remote_controller.py
+msgid "Listando no cluster…"
+msgstr "Listing on the cluster…"
+
 #: ui/dialogs/calc_create/setup_page.py
 msgid "Local"
 msgstr "Location"
@@ -3145,6 +3163,14 @@ msgstr "{menu} menu"
 #: core/calc_create/types/slab_fields.py
 msgid "Metais da borda"
 msgstr "Edge metals"
+
+#: ui/widgets/remote_model.py
+msgid "Modificado"
+msgstr "Modified"
+
+#: ui/remote_controller.py
+msgid "Modo cluster desligado: a configuração mudou."
+msgstr "Cluster mode turned off: the configuration changed."
 
 #: ui/dialogs/calc_create/mode_switch.py
 msgid "Modo dos campos"
@@ -3368,6 +3394,7 @@ msgid "Nenhuma iteração SCF completa em {name}."
 msgstr "No complete SCF iteration in {name}."
 
 #: ui/dialogs/grid_dialog.py ui/widgets/file_grid.py ui/widgets/jobs_popup.py
+#: ui/widgets/remote_model.py
 msgid "Nome"
 msgstr "Name"
 
@@ -3504,6 +3531,11 @@ msgstr "Could not create {path}: {error}"
 #, python-brace-format
 msgid "Não foi possível editar {what}: {exc}"
 msgstr "Could not edit {what}: {exc}"
+
+#: core/remote/listing.py
+#, python-brace-format
+msgid "Não foi possível executar o rsync ({error})."
+msgstr "Could not run rsync ({error})."
 
 #: core/cluster_jobs.py
 #, python-brace-format
@@ -3696,6 +3728,11 @@ msgstr "The file is passed as the last argument; no shell is used."
 #: ui/widgets/kpath_editor.py
 msgid "O caminho salta deste ponto para o próximo (peso 1)"
 msgstr "The path jumps from this point to the next one (weight 1)"
+
+#: core/remote/listing.py
+#, python-brace-format
+msgid "O cluster não respondeu a tempo."
+msgstr "The cluster did not answer in time."
 
 #: core/cluster_jobs.py
 #, python-brace-format
@@ -3979,7 +4016,7 @@ msgstr "Local folder not found: {local_root}"
 msgid "Pasta local: {local_dir}"
 msgstr "Local folder: {local_dir}"
 
-#: core/sync/rsync.py
+#: core/remote/listing.py core/sync/rsync.py
 msgid "Pasta não encontrada no cluster."
 msgstr "Folder not found on the cluster."
 
@@ -4021,6 +4058,10 @@ msgstr "Folder: {folder}"
 #: core/fuzzy.py ui/widgets/explorer.py ui/widgets/file_grid.py
 msgid "Pastas"
 msgstr "Folders"
+
+#: ui/widgets/remote_panels.py
+msgid "Pastas do cluster"
+msgstr "Cluster folders"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Pela lista: os átomos marcados na tabela. Por coordenadas: o átomo mais próximo de cada x y z"
@@ -4663,6 +4704,10 @@ msgstr ""
 "Select a file to view\n"
 "or use “Generate plot” on a simulation folder."
 
+#: ui/remote_controller.py
+msgid "Selecione um item para baixar."
+msgstr "Select one item to download."
+
 #: core/file_kinds.py
 msgid "Sem JOB DONE: job rodando ou interrompido"
 msgstr "No JOB DONE: job running or interrupted"
@@ -4704,6 +4749,10 @@ msgstr "No molecule: the vacuum is the minimum"
 msgid "Sem permissão de escrita em {parent}"
 msgstr "No write permission in {parent}"
 
+#: core/remote/listing.py
+msgid "Sem permissão para ler esta pasta no cluster."
+msgstr "No permission to read this folder on the cluster."
+
 #: ui/sync_coordinator.py
 #, python-brace-format
 msgid "Senha de {account} (não é salva):"
@@ -4712,6 +4761,10 @@ msgstr "Password for {account} (not saved):"
 #: ui/sync_coordinator.py
 msgid "Senha do cluster"
 msgstr "Cluster password"
+
+#: ui/remote_controller.py
+msgid "Senha do cluster não informada: clique em Tentar de novo."
+msgstr "Cluster password not given: click Try again."
 
 #: core/config.py
 msgid "Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave."
@@ -4955,7 +5008,7 @@ msgid "Só ↓"
 msgstr "↓ only"
 
 #: core/calculations/params.py ui/dialogs/calc_create/preview.py ui/dialogs/sync_pages.py
-#: ui/widgets/file_grid.py
+#: ui/widgets/file_grid.py ui/widgets/remote_model.py
 msgid "Tamanho"
 msgstr "Size"
 
@@ -5007,7 +5060,7 @@ msgstr "CPU time"
 msgid "Tempo (WALL)"
 msgstr "Wall time"
 
-#: ui/widgets/jobs_popup.py
+#: ui/widgets/jobs_popup.py ui/widgets/remote_panels.py
 msgid "Tentar de novo"
 msgstr "Try again"
 
@@ -5179,6 +5232,14 @@ msgstr "Empty = default: {value}"
 #: core/calc_create/preview.py
 msgid "Vazio: mantém o K_POINTS do SCF"
 msgstr "Empty: keeps the K_POINTS of the SCF"
+
+#: ui/actions.py
+msgid "Ver arquivos do cluster"
+msgstr "Browse cluster files"
+
+#: ui/widgets/bars.py
+msgid "Ver os arquivos do cluster (clique de novo para voltar aos locais)"
+msgstr "Browse the cluster's files (click again to go back to the local ones)"
 
 #: ui/widgets/bars.py
 msgid "Verificando conexão…"
@@ -6068,7 +6129,7 @@ msgstr "pw.x -nk: number of pools (groups of k-points); NP must be a multiple of
 msgid "quebra"
 msgstr "break"
 
-#: core/sync/_process.py
+#: core/remote/listing.py core/sync/_process.py
 msgid "rsync não encontrado (sync.rsync_binary)."
 msgstr "rsync not found (sync.rsync_binary)."
 
@@ -6537,6 +6598,11 @@ msgstr[1] "{n1}×{n2}×{n3} = {count} k-points in the mesh (pw.x reduces them by
 #, python-brace-format
 msgid "{n_bands} bandas × {n_kpoints} pontos k"
 msgstr "{n_bands} bands × {n_kpoints} k-points"
+
+#: ui/widgets/remote_model.py
+#, python-brace-format
+msgid "{name} (link simbólico)"
+msgstr "{name} (symbolic link)"
 
 #: ui/widgets/context_menu.py
 #, python-brace-format

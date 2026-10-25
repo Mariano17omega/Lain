@@ -257,6 +257,23 @@ def push_transfer_command(
     ]
 
 
+def list_command(
+    config: AppConfig, remote_dir: str, version: tuple[int, ...] | None = None
+) -> list[str]:
+    """List one folder of the cluster, its subfolders not (spec 65 R1): a line per entry,
+    ``permissions size YYYY/MM/DD HH:MM:SS name``, and ``.`` for the folder itself. Its path may
+    hold names read from the cluster: ``version`` (the local rsync's) adds ``--protect-args`` on
+    the clients that do not protect remote arguments by themselves."""
+    cluster = config.cluster
+    remote = Endpoint(remote_dir, cluster.host, cluster.user)
+    return [
+        *shlex.split(config.sync.rsync_binary),
+        "--list-only",
+        *_common(config, remote, version),
+        remote.spec(),
+    ]
+
+
 @dataclass(frozen=True)
 class DryRunItem:
     code: str

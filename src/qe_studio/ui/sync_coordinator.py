@@ -21,6 +21,7 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox, QWidget
 
 from ..core.config import AppConfig
+from ..core.remote.download import only_file_rules
 from ..core.sync._process import RsyncRun
 from ..core.sync.controller import SyncController, SyncReport, SyncStatus
 from ..core.sync.monitor import ConnectionMonitor
@@ -209,13 +210,14 @@ class SyncCoordinator(QObject):
         if self._refresh is not None:
             self._refresh(local_dir)
 
-    def start(self, folder: Path) -> None:
-        """Pull ``folder`` from the cluster (the whole project when it is the root)."""
+    def start(self, folder: Path, only: str | None = None) -> None:
+        """Pull ``folder`` from the cluster (the whole project when it is the root); ``only``: just
+        that file of it (the cluster mode's "Baixar", spec 65 R5.2)."""
         if self.running:
             return
         request = self._checked(prepare_sync(self.config, folder, resolved_root=self._root), TITLE)
         if request is not None:
-            self.run(*request)
+            self.run(*request, only=only)
 
     def push(self, folder: Path) -> None:
         """Send the new files of ``folder`` to the cluster (spec 27): never the project root."""
@@ -269,10 +271,15 @@ class SyncCoordinator(QObject):
         """The cluster refused it: the next run asks again."""
         self._session_password = None
 
-    def run(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
-        controller = SyncController(self.config, self, password=password)
+    def run(
+        self, folder: Path, endpoint: Endpoint, password: str | None = None, only: str | None = None
+    ) -> None:
+        rules = only_file_rules(only) if only else None
+        controller = SyncController(self.config, self, extra_args=rules, password=password)
         project = self._project.name if self._project and folder == self._project else ""
         scope = sync_scope(self.config, folder, endpoint, resolved_root=self._root, project=project)
+        if only:  # the preview and the title say the file
+            scope = replace(scope, file=only, remote=scope.remote + only)
         dialog = self._open(controller, scope)
         controller.conflict_needed.connect(dialog.await_decision)
         controller.conflict_needed.connect(self._ask_conflict)

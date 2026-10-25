@@ -32,7 +32,9 @@ def test_sync_project_follows_the_selected_project(cluster_window, raiz):
     window = cluster_window
     action = window._actions["sync.project"]
     runs = []
-    window.sync.run = lambda folder, endpoint, password=None: runs.append((folder, endpoint.path))
+    window.sync.run = lambda folder, endpoint, password=None, only=None: runs.append(
+        (folder, endpoint.path)
+    )
     assert action.text() == "Sincronizar tudo" and "tudo" in action.toolTip()
 
     pick(window, "ilita")

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -11,17 +10,13 @@ from PyQt6.QtGui import QFileSystemModel
 
 from ...core.file_kinds import status_label
 from ...core.filtering import CategoryFilter, name_matcher
-from ...core.paths import is_hidden, normalize_patterns
+from ...core.paths import is_hidden, natural_key, normalize_patterns
 from ..file_types import visual_category
 from ..services import DetectionService
 
 REFILTER_DELAY_MS = 100  # detections arrive in bursts: filter once per burst
 
 SORT_NAME, SORT_SIZE, SORT_DATE = 0, 1, 3
-
-
-def _natural_key(text: str) -> list:
-    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", text)]
 
 
 def make_fs_model(root: Path, parent=None, dot_dot: bool = False) -> QFileSystemModel:
@@ -212,4 +207,4 @@ class FileFilterProxy(QSortFilterProxyModel):
             return fs.size(left) < fs.size(right)
         if self.sort_column == SORT_DATE:
             return fs.lastModified(left) < fs.lastModified(right)
-        return _natural_key(fs.fileName(left)) < _natural_key(fs.fileName(right))
+        return natural_key(fs.fileName(left)) < natural_key(fs.fileName(right))

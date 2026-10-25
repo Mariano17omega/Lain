@@ -1,0 +1,63 @@
+/* The cluster mode (spec 65): the cluster's tree and files on a red background, a band of
+   remote_accent on top of their headers. Their metadata is text_meta: on the light red the
+   muted text color fails AA (tests/test_theme_contrast.py). */
+#remoteTreePanel, #remoteFilePanel {
+    background: ${remote_panel};
+}
+#remoteTreePanel QWidget[variant="panelHeader"],
+#remoteFilePanel QWidget[variant="panelHeader"] {
+    background: ${remote_panel};
+    border-top: 2px solid ${remote_accent};
+}
+#remoteTree, #remoteFileList {
+    background: ${remote_panel};
+    border: none;
+    show-decoration-selected: 1;
+}
+#remoteTree::item, #remoteFileList::item {
+    height: ${row_h};
+    border: none;
+}
+#remoteTree::item:hover, #remoteFileList::item:hover {
+    background: ${hover};
+}
+#remoteTree::item:selected, #remoteFileList::item:selected {
+    background: ${accent_soft};
+    color: ${text};
+}
+#remoteTree::branch {
+    background: ${remote_panel};
+}
+#remoteTree::branch:selected {
+    background: ${accent_soft};
+}
+#remoteTree::branch:has-children:closed {
+    border-image: none;
+    image: url(${icon_branch_closed});
+}
+#remoteTree::branch:has-children:open {
+    border-image: none;
+    image: url(${icon_branch_open});
+}
+#remoteFileList QHeaderView::section {
+    background: ${remote_panel};
+    color: ${text_meta};
+    border: none;
+    border-bottom: 1px solid ${border};
+    padding: 4px 8px;
+    font-size: 11px;
+}
+#remotePath {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_meta};
+    background: ${remote_panel};
+    padding: 3px 8px;
+}
+#remoteFailure {
+    background: ${remote_panel};
+}
+#remoteMessage {
+    color: ${text_secondary};
+    background: transparent;
+}

@@ -85,3 +85,5 @@ syn_card_option: "#946006"
 diff_add_bg: "rgba(4, 120, 87, 0.14)"
 diff_del_bg: "rgba(220, 38, 38, 0.14)"
 diff_change_bg: "rgba(217, 119, 6, 0.16)"
+remote_panel: "#fdecee"    # pale: a stronger red fails AA for text_muted (the panels use text_meta)
+remote_accent: "#dc2626"

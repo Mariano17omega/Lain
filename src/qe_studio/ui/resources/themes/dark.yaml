@@ -86,3 +86,5 @@ syn_card_option: "#fcd34d" # {crystal}, automatic…
 diff_add_bg: "rgba(105, 246, 185, 0.16)"    # input diff: line only in B
 diff_del_bg: "rgba(244, 63, 94, 0.18)"      # line only in A
 diff_change_bg: "rgba(245, 158, 11, 0.18)"  # line that differs
+remote_panel: "#2a1216"    # the cluster mode's tree and files (spec 65): text, text_secondary, text_meta
+remote_accent: "#f43f5e"   # the 2 px band on top of their headers: decorative, no text on it

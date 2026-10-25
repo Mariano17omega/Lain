@@ -95,6 +95,7 @@ def steps_for(window: MainWindow) -> list[Step]:
         window.project.cancel()
         window.structure3d.cancel()
         window.jobs.cancel()  # the query's ssh is killed (spec 64 R6.5)
+        window.remote.cancel()  # the listings' ssh too (spec 65 R6)
 
     def save_state(_ms: int) -> None:
         window.navigation.shutdown()

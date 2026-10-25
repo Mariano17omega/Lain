@@ -39,6 +39,7 @@ LED_TIPS = {
     "unknown": _("Verificando conexão…"),
     "disabled": _("Cluster não configurado (config.yaml)"),
 }
+REMOTE_TIP = _("Ver os arquivos do cluster (clique de novo para voltar aos locais)")
 
 
 class StatusLed(QWidget):
@@ -102,6 +103,7 @@ class ActivityBar(QWidget):
     generate_requested = pyqtSignal()
     grids_requested = pyqtSignal()
     sync_requested = pyqtSignal()
+    remote_toggled = pyqtSignal(bool)  # "Cluster": the cluster mode on or off (spec 65)
     create_requested = pyqtSignal()  # "Criar cálculo" (spec 26)
     theme_requested = pyqtSignal()
 
@@ -139,13 +141,15 @@ class ActivityBar(QWidget):
             _("Unir gráficos abertos numa grade N×M (uma só figura)"),
         )
         self.rsync = ActivityButton(theme, "sync", _("Rsync"), _("Sincronizar com o cluster"))
+        self.remote = ActivityButton(theme, "cloud_done", _("Cluster"), REMOTE_TIP, True)
         self.new_calc = ActivityButton(
             theme, "add_circle", _("Criar"), _("Criar cálculo (scripts e inputs)")
         )
         self.theme_button = ActivityButton(
             theme, "dark_mode", _("Tema"), _("Alternar tema (Ctrl+T)")
         )
-        for button in (self.tree, self.grid, self.generate, self.grids, self.rsync, self.new_calc):
+        buttons = (self.tree, self.grid, self.generate, self.grids, self.rsync, self.remote)
+        for button in (*buttons, self.new_calc):
             layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
         layout.addStretch(1)
         layout.addWidget(self.theme_button, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -157,6 +161,7 @@ class ActivityBar(QWidget):
         self.generate.clicked.connect(self.generate_requested)
         self.grids.clicked.connect(self.grids_requested)
         self.rsync.clicked.connect(self.sync_requested)
+        self.remote.clicked.connect(self.remote_toggled)  # a click only: setChecked says nothing
         self.new_calc.clicked.connect(self.create_requested)
         self.theme_button.clicked.connect(self.theme_requested)
         theme.theme_changed.connect(self._sync_theme_button)
@@ -226,6 +231,8 @@ class TopBar(QWidget):
         layout.addWidget(self.plot_file)
         layout.addWidget(self.led)
         layout.addWidget(separator)
+        self._history = (False, False)  # what the history allows, kept while locked
+        self._remote = False  # the cluster mode is on: history and path are off (spec 65)
         self.toggles: dict[str, QToolButton] = {}
         for key, icon, text in (
             ("tree", "account_tree", _("Árvore")),
@@ -274,8 +281,16 @@ class TopBar(QWidget):
         self._layout.insertWidget(self._layout.indexOf(self.led), widget)
 
     def set_history(self, can_back: bool, can_forward: bool) -> None:
-        self.back_button.setEnabled(can_back)
-        self.forward_button.setEnabled(can_forward)
+        self._history = (can_back, can_forward)
+        self.back_button.setEnabled(can_back and not self._remote)
+        self.forward_button.setEnabled(can_forward and not self._remote)
+
+    def set_remote(self, remote: bool) -> None:
+        """The cluster mode (spec 65): the history and the clickable path, both local, are off
+        while it is on, whatever the local navigation does meanwhile."""
+        self._remote = remote
+        self.breadcrumb.setEnabled(not remote)
+        self.set_history(*self._history)
 
     def set_cluster(self, label: str, state: str) -> None:
         """Only the LED shows the cluster; ``usuario@host`` is in its tooltip (spec 33 R3). A cluster
