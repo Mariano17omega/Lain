@@ -13,9 +13,10 @@ e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 
 **sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
 medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
-padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`) e a spec 67 a **décima quarta** (25/10/2026: "Grade", "Lista" e "Ordenar" nos arquivos do cluster) e a spec 68 a **décima quinta** (25/10/2026: o popup da fila do cluster com datas curtas, barras coloridas e a coluna "Núcleos"), em grupos de itens
+padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`) e a spec 67 a **décima quarta** (25/10/2026: "Grade", "Lista" e "Ordenar" nos arquivos do cluster) e a spec 68 a **décima quinta** (25/10/2026: o popup da fila do cluster com datas curtas, barras coloridas e a coluna "Núcleos") e as specs 69–70 a
+**décima sexta** (25/10/2026: submeter um `.qsub` e cancelar simulações no modo cluster, pelo `prefix.EXIT` ou pelo `qdel`), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`, as specs 52–60) fechou por último. Cada spec é
-autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 68 estão implementadas.
+autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 69 estão implementadas; a 70 é rascunho para revisão.
 
 ## Roadmap
 
@@ -98,6 +99,8 @@ autossuficiente e pode virar um `/plan` de implementação separado. Todas as sp
 | 66 | [spec_66-modo-cluster-plotar-por-tmp-remote.md](Archived/spec_66-modo-cluster-plotar-por-tmp-remote.md) | Plotar no modo cluster copia a pasta para `<espelho>/tmp_remote/` (sobrescrita sem perguntar, prévia só com arquivo > 100 MB), figuras e `.plot` em `tmp_remote/plots_remote/`; `tmp_remote` fora da detecção da pasta-mãe e do rsync | 65, 63, 17, 22, 32, 3, 48 | M | Opus 5.5 |
 | 67 | [spec_67-modo-cluster-grade-lista-e-ordenar.md](Archived/spec_67-modo-cluster-grade-lista-e-ordenar.md) | "Grade", "Lista" e "Ordenar" no cabeçalho dos arquivos do cluster, uma escolha só para o local e o cluster; cartões e linhas desenhados pelo mesmo `CardDelegate`; `sort_entries(by="name"/"size"/"date")`; substitui a decisão "a grade remota é uma lista" da 65 | 65, 5, 37 | P | Sonnet 5.5 |
 | 68 | [spec_68-popup-de-jobs-mais-limpo.md](Archived/spec_68-popup-de-jobs-mais-limpo.md) | Popup "Fila do cluster": datas sem ano nem segundos (`Job.short_date`), barras "Running"/"Queued" verde e âmbar (tokens `job_running_*`/`job_queued_*`), coluna "Fila" trocada por "Núcleos"/"Cores" | 64 | P | Sonnet 5.5 |
+| 69 | [spec_69-modo-cluster-submeter-simulacao.md](Archived/spec_69-modo-cluster-submeter-simulacao.md) | "Submeter…" no `.qsub` do modo cluster: bloqueado se um job do usuário roda na pasta (conferido no plano e logo antes do `qsub`), confirmação com os comandos exatos e o aviso de `*.EXIT`, `cd … && chmod a+x … && qsub …`, toast "Job {id} ({nome}) submetido."; nomes do cluster validados e citados (`core/remote/actions.py`), `cluster.submit_command`, gancho no menu remoto; guarda que impede qualquer teste de chegar ao cluster | 65, 64, 27-3, 7 | M | Opus 5.5 |
+| 70 | [spec_70-modo-cluster-cancelar-simulacao.md](spec_70-modo-cluster-cancelar-simulacao.md) | Cancelar: pela pasta, `<prefix>.EXIT` quando um `<nome>.o<id>` dela é um job em execução no `qstatus` (prefix lido dos inputs do pw.x, buscados até 1 MB); pelo popup, botão nos jobs do usuário na fila e `qdel` só se a fila nova ainda o tem esperando; sempre confirmado, com o método à vista | 69, 64, 68, 65, 11 | M/G | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](Archived/spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementada pelas specs 52–60 (arquivada com a 60) | 52–60 | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -154,8 +157,8 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–66, inclusive 27-1 … 27-9, e a `spec_end`) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (nenhuma agora) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–69, inclusive 27-1 … 27-9, e a `spec_end`) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (70) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
@@ -199,7 +202,7 @@ tabela do início de cada spec. "—" = spec já implementada ou anterior a esta
 | F8 Painel Resumo | spec 12 |
 | F9 Comparar/sobrepor simulações | adiado (a multi-seleção da spec 16 é a base) |
 | F10 Acompanhamento ao vivo | adiado (inclusive "seguir arquivo") |
-| F11 Monitor de jobs | spec 64 (só a leitura da fila: `qstatus -a` do SGE, na barra superior) |
+| F11 Monitor de jobs | spec 64 (só a leitura da fila: `qstatus -a` do SGE, na barra superior); submeter e cancelar: specs 69–70 |
 | F12 CLI headless | adiado |
 | F13 Abrir pasta / recentes / assistente | adiado (só o estado vazio da primeira execução entra, spec 18 R5) |
 | F14 Chave do host pela UI / keyring | adiado |
@@ -479,6 +482,10 @@ sem inglês compilado e sem teste.
     desenho da grade local (5, 37). Não toca `ui/main_window.py`.
 19. **Popup dos jobs (68, decisão de 25/10/2026):** ajuste visual da tela da spec 64; independente das demais, só `ui/widgets/jobs_popup.py`,
     `core/cluster_jobs.py` e os temas.
+20. **Submeter e cancelar no cluster (69–70, decisão de 25/10/2026):** em cadeia. A 69 primeiro, e nela a guarda dos testes (R7) antes de
+    tudo: nenhum teste chega ao cluster, que é ambiente de produção. Depois a 69 abre a base de todo comando que muda o
+    cluster (nomes validados e citados, `run_action`, o gancho do menu remoto, o `cd … &&` do servidor dos testes) e reescreve a regra do
+    `CLAUDE.md`; a 70 usa tudo isso e é a mais delicada (um `qdel` num job em execução deixa o processo rodando fora da fila).
 
 ## Rastreabilidade: ideias da décima terceira rodada (25/10/2026) → specs
 
@@ -693,3 +700,48 @@ Decisões de 25/10/2026 (décima quinta rodada, spec 68):
 - **Assumidas para a revisão:** o msgid em português é "Núcleos" (o usuário vê "Cores" em inglês); verde para a execução e âmbar para a fila; a fila
   (`physica.q`) e a data inteira ficam no tooltip da linha.
 - **Modelo recomendado:** Sonnet 5.5.
+
+## Rastreabilidade: ideias da décima sexta rodada (25/10/2026) → specs
+
+As ideias vieram em `Ideias.md` (25/10/2026), sobre o modo cluster (65) e a fila da barra superior (64, 68); cada spec cita o trecho de origem.
+O comportamento do `prefix.EXIT` foi lido na fonte do QE 7.1 (`Modules/check_stop.f90`).
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | (como o usuário faz) `chmod a+x script.qsub` e `qsub script.qsub` na pasta; a resposta "Your job <id> ("<nome>") has been submitted" | spec 69, R2.1 (`submit_line`, `parse_submitted`) |
+| 2 | (como o usuário faz) Cancelar em andamento com `touch prefix.EXIT` na pasta do script | spec 70, R1–R2 (o `pw.x` olha a pasta de trabalho primeiro e apaga o arquivo; os comandos seguintes do script ainda rodam: decisão 8) |
+| 3 | (como o usuário faz) Cancelar na fila com `qdel job-ID`; nunca `qdel` em job em execução | spec 70, R2 (`waiting_check`, fila nova antes do `qdel`) |
+| 4 | "Submeter" no menu do botão direito sobre o `.sub` da pasta, no Ambiente Remoto | spec 69, R3–R4 ("Submeter…" só num `.qsub` do modo cluster: decisões 1 e 2) |
+| 5 | Caixa de diálogo confirmando a submissão | spec 69, R4.4 (antes de submeter, com os comandos exatos e o aviso de `*.EXIT`) |
+| 6 | Notificação quando a submissão dá certo | spec 69, R4.5 (toast "Job {id} ({nome}) submetido."; a fila é consultada de novo) |
+| 7a | "Cancelar" no menu da pasta da simulação que está rodando | spec 70, R4 ("Cancelar simulação…" em pasta ou `.qsub`: decisão 1) |
+| 7b | Conferir no `qstatus` se a simulação daquele script está em andamento | spec 70, R2 (`plan_stop` e `stop`, sempre com a fila nova: decisão 3) |
+| 7c | `prefix` extraído dos inputs (scf, nscf, bands…) da pasta | spec 70, R1 (pelo conteúdo, só pw.x, até 1 MB; um `.EXIT` por `prefix`: decisões 5 e 6) |
+| 7d | `<name_job>.o<job-ID>` com job-ID e nome iguais aos do `qstatus` | spec 69, R2.2 (`running_in`); spec 70, R2 (nome igual exatamente: decisão 7) |
+| 8a | Coluna com botões de cancelar na fila do popup da barra superior, só nos jobs em espera | spec 70, R5 (só nos jobs do usuário: decisão 4) |
+| 8b | Na fila, `qdel job-ID`; nunca `prefix.EXIT` | spec 70, R2 e R5 (o método sai de onde se clicou, não é escolhido) |
+| 8c | Conferir que o job da fila não é o que está em execução (nomes repetidos) | spec 70, R2 (pelo ID numa fila nova; um job da fila não tem `.o` nem pasta: decisão 2) |
+| 9a | Sempre um diálogo com nome do job, ID, caminho etc. antes de cancelar | spec 70, R6 (na fila, "Pasta: não informada pelo qstatus") |
+| 9b | O diálogo mostra o método (`qdel` ou `prefix.EXIT`) só para ver, não para escolher | spec 70, R6.1 (texto em negrito, sem controle; o comando exato embaixo) |
+| 10 | (revisão) A regra que proibia executar coisas no cluster era da fase inicial | spec 69, R1 e R6.1 (programas do `config.yaml`, argumentos validados e citados, só depois da confirmação) |
+| 11 | (revisão) O `.EXIT` para jobs em execução é orientação do administrador: manter como descrito | spec 70, R2 e R6 (a nota sobre os comandos seguintes do script fica só como informação) |
+| 12 | (revisão) Os inputs para ler o `prefix` vão para uma pasta local temporária | spec 70, R1.2 |
+| 13 | (revisão) '.sub' foi erro de digitação: é `.qsub` | spec 69, R4.2 |
+| 14 | (revisão) Com um script já em execução na pasta, não se submete outro | spec 69, R2.1 (`SubmitBlocked`, no plano e logo antes do `qsub`; sem a fila conferida também não) |
+| 15 | (revisão) Nenhum teste no cluster, só local: é ambiente de produção, nada roda nele sem permissão | spec 69, R7 (guarda `autouse` em `tests/conftest.py`) e R6.2 (`CLAUDE.md`, "Testing"); specs 69 e 70 sem passo de aceite no cluster |
+
+Decisões de 25/10/2026 (décima sexta rodada, specs 69–70):
+- **Duas specs em cadeia:** 69 (submeter, e a base dos comandos que mudam o cluster) e 70 (cancelar, as duas formas e a confirmação).
+- **A regra do `CLAUDE.md` muda (69 R6):** além do `jobs_command`, os programas `submit_command` (`qsub`) e `delete_command` (`qdel`) vêm do
+  `config.yaml`, `cd`, `chmod a+x` e `touch` são fixos, e um valor lido do cluster (nome de pasta, de script, `prefix`, job-ID) só entra como
+  argumento, validado (`checked_name`) e citado (`shlex.quote`); nomes com espaço ou caractere de shell são recusados.
+- **Toda ação confere o cluster logo antes de agir** (listagem e fila novas, nunca o cache do popup); a janela entre a fila nova e o `qdel`
+  (um login) fica dita na spec 70 como risco que o escalonador não deixa fechar.
+- **Decididas pelo usuário na revisão:** a regra que proibia executar no cluster era da fase inicial; `.qsub` (o '.sub' foi erro de
+  digitação); com um job do usuário em execução na pasta, **não se submete** (bloqueio, não aviso); o `.EXIT` para jobs em execução fica
+  como descrito (orientação do administrador); os inputs vão para uma pasta local temporária; **nenhum teste chega ao cluster**, que é
+  ambiente de produção (guarda nos testes, spec 69 R7, e nenhuma spec com passo de aceite nele).
+- **Assumidas para a revisão:** sem a fila conferida não se submete; o `*.EXIT` esquecido só avisa; "Submeter…" só num `.qsub`,
+  "Cancelar simulação…" em pasta ou `.qsub`; o botão de cancelar só nos jobs do usuário na fila; um `.EXIT` por `prefix` dos inputs do
+  pw.x; nome do `.o` igual exatamente ao do `qstatus`; notificação por toast.
+- **Modelo recomendado:** Opus 5.5 para 69 e 70.

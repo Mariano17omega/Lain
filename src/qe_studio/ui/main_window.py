@@ -41,6 +41,7 @@ from .focus_controller import FocusController
 from .footer_path import FooterPath
 from .grids_controller import GridsController
 from .help_controller import HelpController
+from .job_actions import JobActionsController
 from .jobs_controller import JobsController
 from .layout_controller import LayoutController
 from .navigation_controller import NavigationController
@@ -208,6 +209,7 @@ class MainWindow(QMainWindow):
         self.first_run = FirstRunController.for_window(self)
         self.project = ProjectController.for_window(self)  # "Projeto" dropdown (spec 31)
         self.remote = RemoteController.for_window(self)  # the cluster mode (spec 65)
+        self.job_actions = JobActionsController.for_window(self)  # "Submeter…" (spec 69)
         self.focus_areas = FocusController.for_window(self)  # tab order and Ctrl+1..4
         self.grids = GridsController.for_window(self)  # "Grids" button and window (spec 23)
         self.derive = DeriveController.for_window(self)  # "Gerar SCF convergido" (spec 24)

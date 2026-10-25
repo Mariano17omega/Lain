@@ -86,13 +86,17 @@ def test_a_missing_or_binary_config_means_auto(tmp_path):
     assert configured_language(binary) == "auto"
 
 
-def test_startup_language_order(tmp_path):
+def test_startup_language_order(tmp_path, monkeypatch):
     path = write_config(tmp_path, "ui:\n  language: en\n")
     assert startup_language(path, {}, "pt_BR") == "en"  # the file beats the system
     assert (
         startup_language(path, {ENV_LANGUAGE: "pt_BR"}, "en_US") == "pt_BR"
     )  # the variable, the file
-    assert startup_language(None, {}, "pt_BR") != "" and startup_language(None, {}, "de_DE") == "en"
+    empty = tmp_path / "empty"  # no ./config.yaml: never the checkout's own (spec 69 R7)
+    empty.mkdir()
+    monkeypatch.chdir(empty)
+    assert startup_language(None, {}, "pt_BR") == "pt_BR"  # no file: the system
+    assert startup_language(None, {}, "de_DE") == "en"
     missing = tmp_path / "missing.yaml"
     assert startup_language(missing, {}, "pt_BR") == "pt_BR"  # reported later by load_config
 

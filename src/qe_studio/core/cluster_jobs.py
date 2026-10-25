@@ -16,6 +16,7 @@ import logging
 import re
 import shlex
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from ..i18n import _
@@ -31,6 +32,7 @@ _TITLE = re.compile(r"^(Running|Waiting) jobs(?: for user: (\S+))?:?$")
 _DATE = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
 _TIME = re.compile(r"^\d{1,2}:\d{2}:\d{2}$")
 _ID = re.compile(r"^\d+$")
+_STDOUT = re.compile(r"^(?P<name>.+)\.o(?P<id>\d+)$")  # ``<name>.o<job-ID>``: ``#$ -j y`` output
 
 
 @dataclass(frozen=True)
@@ -63,6 +65,14 @@ class JobsSnapshot:
     def queued(self, user: str) -> tuple[Job, ...]:
         """The waiting jobs of ``user``."""
         return tuple(job for job in self.waiting if job.owner == user)
+
+
+def running_in(file_names: Iterable[str], snapshot: JobsSnapshot, user: str) -> tuple[Job, ...]:
+    """The running jobs of ``user`` whose scheduler output ``<name>.o<job-ID>`` is among
+    ``file_names`` (a folder's files): the only link the cluster gives between a job and the folder
+    it was submitted from (spec 69 R2.2). The name and the ID must both match."""
+    outputs = {(m["name"], m["id"]) for name in file_names if (m := _STDOUT.match(name))}
+    return tuple(job for job in snapshot.mine(user) if (job.name, job.job_id) in outputs)
 
 
 @dataclass(frozen=True)

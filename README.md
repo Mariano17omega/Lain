@@ -267,6 +267,18 @@ then the local panels come back exactly as they were. Nothing local is read or c
   copied.
 - With `auth: password`, the password is asked when the mode is turned on, and kept for the
   session; a refused login is not retried until you ask ("Tentar de novo", "Atualizar", F5).
+- Right-click a `.qsub` for **Submeter…** (spec 69). Lain lists the folder and asks the queue
+  (`cluster.jobs_command`) again: if one of your running jobs has its `<name>.o<job-ID>` in that
+  folder, nothing is submitted and a notice says which job; without the queue, nothing is submitted
+  either. Otherwise a dialog shows the folder and the exact commands, `cd <folder> && chmod a+x
+  <script> && qsub <script>`, and warns about a forgotten `*.EXIT` file (pw.x would stop at its
+  first check). After "Submeter", the folder and the queue are checked once more, then the commands
+  run over ssh; the notice says "Job <id> (<name>) submetido." and the queue on the top bar is asked
+  again. The program is `cluster.submit_command` (`qsub`; empty turns the item off); a `qsub` that is
+  not in the `PATH` of a non-interactive ssh needs its full path. Script and folder names (below
+  `remote_root`) must use letters, digits, `.`, `_`, `+` and `-` only. The block relies on the job
+  name in `qstatus` matching the `-N` of the script, and a job still in the queue leaves nothing in
+  the folder, so it does not block.
 
 ## Usage
 

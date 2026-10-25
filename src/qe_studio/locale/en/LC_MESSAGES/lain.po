@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 05:06-0400\n"
-"PO-Revision-Date: 2026-10-25 05:06-0400\n"
+"POT-Creation-Date: 2026-10-25 18:55-0400\n"
+"PO-Revision-Date: 2026-10-25 18:55-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -370,6 +370,20 @@ msgstr "The root folder was not found: {root}"
 msgid "A pasta será criada fora de um projeto e aparecerá como um projeto novo."
 msgstr "The folder will be created outside a project and will show up as a new project."
 
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid ""
+"A pasta tem {name}: o pw.x vai parar na primeira verificação. Apague o arquivo no cluster antes "
+"de submeter."
+msgstr ""
+"The folder has {name}: pw.x will stop at its first check. Delete the file on the cluster before "
+"submitting."
+
+#: core/remote/actions.py
+#, python-brace-format
+msgid "A pasta {folder} não está em paths.remote_root ({root})."
+msgstr "The folder {folder} is not in paths.remote_root ({root})."
+
 #: core/structure3d/view_file.py
 #, python-brace-format
 msgid "A pasta {name} não existe mais: a vista de {name_2} não foi salva em {name_3}."
@@ -405,6 +419,11 @@ msgstr ""
 #: ui/dialogs/atoms.py
 msgid "A seleção vale para todo gráfico deste composto (mesma sequência de espécies), em qualquer pasta."
 msgstr "The selection applies to every plot of this compound (same sequence of species), in any folder."
+
+#: ui/job_actions.py
+#, python-brace-format
+msgid "A submissão falhou: {message}"
+msgstr "The submission failed: {message}"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid ""
@@ -554,6 +573,10 @@ msgstr "Waiting for your decision…"
 #: ui/sync_coordinator.py
 msgid "Aguarde a sincronização em andamento."
 msgstr "Wait for the sync in progress to finish."
+
+#: ui/job_actions.py
+msgid "Aguarde: uma ação no cluster está em andamento."
+msgstr "Please wait: an action on the cluster is in progress."
 
 #: ui/help_controller.py
 #, python-brace-format
@@ -956,8 +979,9 @@ msgstr "Channel"
 msgid "Cancelando…"
 msgstr "Cancelling…"
 
-#: ui/dialogs/atoms.py ui/dialogs/calc_create/dialog.py ui/dialogs/mapping.py ui/dialogs/new_project.py
-#: ui/dialogs/open_with.py ui/dialogs/overwrite.py ui/dialogs/rename.py ui/dialogs/sync_dialog.py
+#: ui/dialogs/atoms.py ui/dialogs/calc_create/dialog.py ui/dialogs/cluster_action.py
+#: ui/dialogs/mapping.py ui/dialogs/new_project.py ui/dialogs/open_with.py ui/dialogs/overwrite.py
+#: ui/dialogs/rename.py ui/dialogs/sync_dialog.py
 msgid "Cancelar"
 msgstr "Cancel"
 
@@ -1049,7 +1073,7 @@ msgstr "Cluster unreachable"
 msgid "Cluster inacessível (sem rota; verifique a rede/VPN)."
 msgstr "Cluster unreachable (no route; check the network/VPN)."
 
-#: core/cluster_jobs.py
+#: core/cluster_jobs.py core/remote/actions.py
 #, python-brace-format
 msgid "Cluster inacessível (ssh terminou com código {code})."
 msgstr "Cluster unreachable (ssh exited with code {code})."
@@ -1090,6 +1114,10 @@ msgstr "Invalid command (check the quotes)."
 #: ui/dialogs/open_with.py
 msgid "Comando, ex.: gedit ou /opt/app/bin/app --flag"
 msgstr "Command, e.g.: gedit or /opt/app/bin/app --flag"
+
+#: ui/dialogs/cluster_action.py
+msgid "Comandos que vão rodar no cluster:"
+msgstr "Commands that will run on the cluster:"
 
 #: core/sync/push.py
 msgid "Comparando com o cluster…"
@@ -1154,6 +1182,10 @@ msgstr "Connection interrupted (no response from the cluster)."
 #: core/sync/rsync.py
 msgid "Conexão recusada pelo cluster (verifique a porta SSH)."
 msgstr "Connection refused by the cluster (check the SSH port)."
+
+#: ui/job_actions.py
+msgid "Conferindo a pasta no cluster…"
+msgstr "Checking the folder on the cluster…"
 
 #: core/sync/controller.py core/sync/push.py
 msgid "Conferindo arquivos locais…"
@@ -2292,6 +2324,11 @@ msgstr "Export failed"
 msgid "Falha ao listar a pasta: {error}"
 msgstr "Could not list the folder: {error}"
 
+#: ui/job_actions.py
+#, python-brace-format
+msgid "Falha na ação no cluster: {error}"
+msgstr "The action on the cluster failed: {error}"
+
 #: core/sync/report.py
 #, python-brace-format
 msgid "Falha na sincronização: {error}"
@@ -2843,6 +2880,11 @@ msgstr "Iteration min."
 msgid "Janela da superfície (Å)"
 msgstr "Surface window (Å)"
 
+#: ui/job_actions.py
+#, python-brace-format
+msgid "Job {job_id} ({name}) submetido."
+msgstr "Job {job_id} ({name}) submitted."
+
 #: ui/widgets/jobs_indicator.py
 msgid "Jobs do cluster"
 msgstr "Cluster jobs"
@@ -2885,6 +2927,15 @@ msgstr "Already on the cluster, will not be changed"
 #: core/sync/report.py
 msgid "Já existiam no cluster (não alterados)"
 msgstr "Already on the cluster (not changed)"
+
+#: core/remote/submit.py
+#, python-brace-format
+msgid ""
+"Já há um job seu em execução nesta pasta: {name} (job {job_id}). Espere ele terminar ou cancele-o"
+" antes de submeter outro script."
+msgstr ""
+"A job of yours is already running in this folder: {name} (job {job_id}). Wait for it to finish or"
+" cancel it before submitting another script."
 
 #: core/calc_create/types/slab_fields.py
 #, python-brace-format
@@ -3459,6 +3510,13 @@ msgstr "Project name"
 msgid "Nome inválido."
 msgstr "Invalid name."
 
+#: core/remote/actions.py
+#, python-brace-format
+msgid "Nome não suportado para um comando no cluster: {name} (use letras, números, '.', '_', '+' e '-')."
+msgstr ""
+"Name not supported in a command on the cluster: {name} (use letters, digits, '.', '_', '+' and "
+"'-')."
+
 #: ui/dialogs/sync_pages.py
 msgid "Nota"
 msgstr "Note"
@@ -3524,6 +3582,11 @@ msgstr "Could not update {name} in {folder}: {reason}"
 msgid "Não foi possível comparar: {error}"
 msgstr "Could not compare: {error}"
 
+#: core/remote/submit.py
+#, python-brace-format
+msgid "Não foi possível conferir se já roda um job nesta pasta: {message}. Nada foi submetido."
+msgstr "Could not check whether a job already runs in this folder: {message}. Nothing was submitted."
+
 #: core/calc_create/writer.py
 #, python-brace-format
 msgid "Não foi possível criar a pasta {asked}: {value}"
@@ -3549,7 +3612,7 @@ msgstr "Could not edit {what}: {exc}"
 msgid "Não foi possível executar o rsync ({error})."
 msgstr "Could not run rsync ({error})."
 
-#: core/cluster_jobs.py
+#: core/cluster_jobs.py core/remote/actions.py
 #, python-brace-format
 msgid "Não foi possível executar o ssh ({error})."
 msgstr "Could not run ssh ({error})."
@@ -3749,7 +3812,7 @@ msgstr "The path jumps from this point to the next one (weight 1)"
 msgid "O cluster não respondeu a tempo."
 msgstr "The cluster did not answer in time."
 
-#: core/cluster_jobs.py
+#: core/cluster_jobs.py core/remote/actions.py
 #, python-brace-format
 msgid "O cluster não respondeu a {command} a tempo."
 msgstr "The cluster did not answer {command} in time."
@@ -3758,6 +3821,11 @@ msgstr "The cluster did not answer {command} in time."
 #, python-brace-format
 msgid "O comando {command} não foi encontrado no cluster (cluster.jobs_command)."
 msgstr "The command {command} was not found on the cluster (cluster.jobs_command)."
+
+#: core/remote/actions.py
+#, python-brace-format
+msgid "O comando {command} não foi encontrado no cluster ({setting})."
+msgstr "The command {command} was not found on the cluster ({setting})."
 
 #: core/calc_create/types/slab_fields.py
 msgid "O eixo da célula do SCF que é esticado para abrir o vácuo; os outros dois formam o plano"
@@ -3798,6 +3866,11 @@ msgstr "The name cannot contain “/”."
 #: ui/dialogs/new_project.py
 msgid "O nome será o nome da pasta, criada na pasta raiz."
 msgstr "The name will be the name of the folder, created in the root folder."
+
+#: ui/job_actions.py
+#, python-brace-format
+msgid "O qsub terminou sem erro, mas a resposta não foi reconhecida: {line}"
+msgstr "qsub ended without an error, but its answer was not recognized: {line}"
 
 #: core/calc_create/surface/geometry.py
 #, python-brace-format
@@ -4064,6 +4137,11 @@ msgid "Pasta {name} criada com {count} arquivo"
 msgid_plural "Pasta {name} criada com {count} arquivos"
 msgstr[0] "Folder {name} created with {count} file"
 msgstr[1] "Folder {name} created with {count} files"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Pasta: {account}:{folder}"
+msgstr "Folder: {account}:{folder}"
 
 #: ui/dialogs/calc_create/preview.py
 #, python-brace-format
@@ -4934,6 +5012,37 @@ msgstr "Move up"
 #: ui/widgets/file_grid.py
 msgid "Subir uma pasta"
 msgstr "Go up one folder"
+
+#: ui/job_actions.py
+msgid "Submetendo no cluster…"
+msgstr "Submitting to the cluster…"
+
+#: ui/dialogs/cluster_action.py
+msgid "Submeter"
+msgstr "Submit"
+
+#: ui/dialogs/cluster_action.py
+msgid "Submeter no cluster"
+msgstr "Submit to the cluster"
+
+#: ui/job_actions.py
+msgid "Submeter precisa de cluster.jobs_command: é o qstatus que diz se já roda um job nesta pasta."
+msgstr ""
+"Submitting needs cluster.jobs_command: qstatus is what tells whether a job already runs in this "
+"folder."
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Submeter {script}?"
+msgstr "Submit {script}?"
+
+#: ui/job_actions.py
+msgid "Submeter…"
+msgstr "Submit…"
+
+#: ui/job_actions.py
+msgid "Submissão desligada: cluster.submit_command está vazio no config.yaml."
+msgstr "Submission turned off: cluster.submit_command is empty in config.yaml."
 
 #: ui/dialogs/grid_dialog.py
 msgid "Substituir grade"
@@ -6331,7 +6440,7 @@ msgstr "{candidate} is not executable."
 msgid "{card} removido: os átomos mudaram"
 msgstr "{card} removed: the atoms changed"
 
-#: core/cluster_jobs.py
+#: core/cluster_jobs.py core/remote/actions.py
 #, python-brace-format
 msgid "{command} terminou com código {code}"
 msgstr "{command} exited with code {code}"

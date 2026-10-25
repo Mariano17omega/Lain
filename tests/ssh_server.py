@@ -6,8 +6,13 @@ as local subprocesses (``rsync --server …`` is what rsync sends), so the **rea
 
 Only a short allowlist of commands runs (``rsync --server …``, ``true``, ``echo``); anything else
 gets exit status 127 and is logged, never executed. No SFTP, no shell, no pty: Lain only uses
-``exec``. The one compound command is a push's ``mkdir -p <dir> && rsync --server …`` (spec 27,
-``--rsync-path``): ``<dir>`` is made in Python, only inside the served folder, then rsync runs.
+``exec``. Two compound commands are understood, by the ``&&`` tokens of ``shlex.split``:
+
+- a push's ``mkdir -p <dir> && rsync --server …`` (spec 27, ``--rsync-path``): ``<dir>`` is made in
+  Python, only inside the served folder, then rsync runs;
+- ``cd <dir> && A && B …`` (a submission, spec 69 R5): every part runs in ``<dir>``, which must lie
+  inside the served folder, one after the other until one ends with a code other than 0. Every part
+  must be allowed, or the whole command gets 127 and nothing runs.
 
 A test adds commands of its own with ``commands``, by name: ``{"qstatus": [sys.executable,
 script]}`` runs ``qstatus -a`` as ``<python> <script> -a`` in the served folder (the cluster's job
@@ -148,6 +153,17 @@ class _Interface(paramiko.ServerInterface):
         text = command.decode("utf-8", "surrogateescape")
         self.server._spawn(self.server._serve_exec, channel, text, self.session)
         return True
+
+
+def _split_and(argv: list[str]) -> list[list[str]]:
+    """``A && B && C`` (tokens) as ``[A, B, C]``; an empty part stays empty (and is refused)."""
+    parts: list[list[str]] = [[]]
+    for token in argv:
+        if token == "&&":
+            parts.append([])
+        else:
+            parts[-1].append(token)
+    return parts
 
 
 class LocalSSHServer:
@@ -331,14 +347,18 @@ class LocalSSHServer:
             argv = shlex.split(command)
         except ValueError:
             argv = []
-        mkdir = None
+        mkdir = cwd = None
         if argv[:2] == ["mkdir", "-p"] and argv[3:4] == ["&&"]:  # a push's --rsync-path
             mkdir, argv = self._inside_root(argv[2]), argv[4:]
             allowed = mkdir is not None and argv[:2] == ["rsync", "--server"]
-        elif argv and argv[0] in self.extra_commands:
-            argv, allowed = [*self.extra_commands[argv[0]], *argv[1:]], True
+            parts = [argv]
+        elif argv[:1] == ["cd"] and argv[2:3] == ["&&"]:  # a submission (spec 69 R5)
+            cwd = self._inside_root(argv[1])
+            parts = [self._allowed(part) for part in _split_and(argv[3:])]
+            allowed = cwd is not None and all(part is not None for part in parts)
         else:
-            allowed = argv[:2] == ["rsync", "--server"] or bool(argv and argv[0] in PROBE_COMMANDS)
+            parts = [self._allowed(argv)]
+            allowed = parts[0] is not None
         record = ExecRecord(session.user, session.method, command, allowed=allowed)
         channel.get_transport().ack_event(channel.remote_chanid).wait(5)
         with self._lock:
@@ -351,7 +371,11 @@ class LocalSSHServer:
                 return
             if mkdir is not None:
                 mkdir.mkdir(parents=True, exist_ok=True)
-            record.status = self._run(channel, argv)
+            for part in parts:
+                assert part is not None
+                record.status = self._run(channel, part, cwd)
+                if record.status != 0:
+                    break
             if record.status is not None:
                 channel.send_exit_status(record.status)
         except (OSError, EOFError, paramiko.SSHException):
@@ -359,17 +383,28 @@ class LocalSSHServer:
         finally:
             channel.close()
 
+    def _allowed(self, argv: list[str]) -> list[str] | None:
+        """What runs for ``argv`` (a test command by its name), or None when it is not allowed."""
+        if argv and argv[0] in self.extra_commands:
+            return [*self.extra_commands[argv[0]], *argv[1:]]
+        if argv[:2] == ["rsync", "--server"] or (argv and argv[0] in PROBE_COMMANDS):
+            return argv
+        return None
+
     def _inside_root(self, folder: str) -> Path | None:
         """``folder`` (relative ones from the served folder), or None when it lies outside it."""
         root = self.root.resolve()
         path = (root / folder).resolve()
         return path if path.is_relative_to(root) else None
 
-    def _run(self, channel: paramiko.Channel, argv: list[str]) -> int | None:
-        """Run ``argv`` in the served folder wired to ``channel``. None = dropped on purpose."""
+    def _run(
+        self, channel: paramiko.Channel, argv: list[str], cwd: Path | None = None
+    ) -> int | None:
+        """Run ``argv`` in ``cwd`` (the served folder by default) wired to ``channel``. None =
+        dropped on purpose."""
         proc = subprocess.Popen(
             argv,
-            cwd=self.root,
+            cwd=cwd or self.root,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

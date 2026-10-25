@@ -480,3 +480,18 @@ def test_the_jobs_keys_are_in_both_examples(tmp_path):
             assert key in text
         cluster = load_config(example, environ={}, cwd=tmp_path).config.cluster
         assert cluster.jobs_command == "qstatus -a"
+
+
+# -- submitting a .qsub (spec 69 R2.3) -------------------------------------------------------------
+def test_the_submit_command_has_a_default_and_is_stripped(tmp_path):
+    assert AppConfig().cluster.submit_command == "qsub"
+    stripped = parse_config({"cluster": {"submit_command": "  /opt/sge/bin/qsub  "}})
+    assert stripped.cluster.submit_command == "/opt/sge/bin/qsub"
+    assert parse_config({"cluster": {"submit_command": " "}}).cluster.submit_command == ""
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "submit_command:" in example.read_text(encoding="utf-8")
+        cluster = load_config(example, environ={}, cwd=tmp_path).config.cluster
+        assert cluster.submit_command == "qsub"

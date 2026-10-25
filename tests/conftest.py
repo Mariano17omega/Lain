@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from hypothesis import settings
 
+from cluster_guard import Guard
 from ssh_server import LocalSSHServer, ServerKeys
 
 # Must be set before any PyQt6 import so tests run headless. Forced, not defaulted: a shell with
@@ -67,6 +68,19 @@ def _isolated_user_dirs(tmp_path_factory, monkeypatch):
     base = tmp_path_factory.mktemp("userdirs")
     for var in ("XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"):
         monkeypatch.setenv(var, str(base / var.lower()))
+
+
+@pytest.fixture(autouse=True)
+def _cluster_guard(tmp_path_factory, monkeypatch):
+    """The cluster is production (spec 69 R7): a test that reads the real config.yaml or contacts
+    a host that is not a test one fails (``tests/cluster_guard.py``). A test asks for this fixture
+    by name to see the guard."""
+    monkeypatch.delenv("QE_STUDIO_CONFIG", raising=False)
+    guard = Guard([tmp_path_factory.getbasetemp(), Path(__file__).parent])
+    guard.install(monkeypatch)
+    yield guard
+    if guard.violations:
+        pytest.fail("\n".join(guard.violations))
 
 
 def copy_fixture(name: str, dest: Path) -> Path:

@@ -82,6 +82,8 @@ QT_FREE = [
     "qe_studio.core.remote.listing",
     "qe_studio.core.remote.browser",
     "qe_studio.core.remote.download",
+    "qe_studio.core.remote.actions",
+    "qe_studio.core.remote.submit",
     "qe_studio.core.paths",
     "qe_studio.core.navigation",
     "qe_studio.core.filtering",

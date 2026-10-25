@@ -7,16 +7,18 @@ from types import SimpleNamespace
 
 import pytest
 from PyQt6 import sip
-from PyQt6.QtCore import QThreadPool
+from PyQt6.QtCore import QPoint, QThreadPool
 
+from qe_studio.core.remote import submit as submit_module
 from qe_studio.core.tasks import run_task
 from qe_studio.ui import app, shutdown
 from qe_studio.ui.dialogs.calc_create import dialog as dialog_module
 from qe_studio.ui.shutdown import ShutdownReport, ShutdownSequence, Step
+from qe_studio.ui.widgets.remote_model import RemotePath
 
 from calc_dialog_helpers import to_files
 from calc_helpers import AL_SCF
-from remote_helpers import REMOTE, FakeListing, entries, remote_window
+from remote_helpers import REMOTE, FakeListing, entries, menu_spy, remote_window
 
 
 class Clock:
@@ -339,3 +341,21 @@ def test_closing_with_a_listing_of_the_cluster_hung(
         assert fake.exited.wait(2) and REMOTE in fake.cancelled
     finally:
         fake.release()
+
+
+def test_closing_with_a_submission_hung(qtbot, window_factory, demo_project, monkeypatch):
+    """Spec 69 R4.6: the check of a submission is cancelled, its ssh would be killed, and closing
+    stays in budget."""
+    folders = FakeListing({f"{REMOTE}/03_bands": entries(files=("bands.qsub",))})
+    monkeypatch.setattr(submit_module, "list_remote", folders)
+    window = remote_window(window_factory, demo_project, monkeypatch, FakeListing())
+    folders.hold()
+    menu_spy(monkeypatch, choose="Submeter…")
+    window.remote.show_menu([RemotePath(f"{REMOTE}/03_bands/bands.qsub", False)], QPoint())
+    qtbot.waitUntil(lambda: folders.calls != [])
+    try:
+        window.close()
+        assert window.shutdown_report is not None and window.shutdown_report.late == []
+        assert folders.exited.wait(2) and folders.cancelled == [f"{REMOTE}/03_bands"]
+    finally:
+        folders.release()

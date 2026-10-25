@@ -64,6 +64,7 @@ known-first-party = ["qe_studio"]
 known-local-folder = [
     "calc_dialog_helpers",
     "calc_helpers",
+    "cluster_guard",
     "conftest",
     "jobs_helpers",
     "remote_helpers",

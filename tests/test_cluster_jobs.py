@@ -10,6 +10,7 @@ from qe_studio.core.cluster_jobs import (
     classify,
     fetch_jobs,
     parse_qstatus,
+    running_in,
 )
 from qe_studio.core.config import parse_config
 from qe_studio.core.sync.command import CommandResult
@@ -175,3 +176,36 @@ def test_fetch_runs_the_configured_command_with_the_time_limit(monkeypatch):
     assert isinstance(result, JobsSnapshot) and len(result.waiting) == 3
     ((argv, timeout_s),) = seen
     assert argv[-2:] == [f"{USER}@hpc.example", "qstatus"] and timeout_s == 35
+
+
+# -- spec 69 R2.2: a running job of the user in a folder ---------------------------------------------
+def test_a_running_job_is_in_the_folder_of_its_output():
+    jobs = parse_qstatus(with_mine("Bands-kao-b", "PDS-B"))  # jobs 24000 and 24001
+    names = ["bands.qsub", "Bands-kao-b.o24000", "bands.out"]
+    assert [job.job_id for job in running_in(names, jobs, USER)] == ["24000"]
+    assert [job.name for job in running_in([*names, "PDS-B.o24001"], jobs, USER)] == [
+        "Bands-kao-b",
+        "PDS-B",
+    ]
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Bands-kao-b.o23000",  # an old run: its ID is not in the queue
+        "Bands-kao-b.e24000",  # the error stream, not the output
+        "Outro.o24000",  # the same ID with another name
+        "Bands-kao-b.o24000.bak",
+        "Bands-kao-b.po24000",
+    ],
+)
+def test_other_files_are_no_running_job(name):
+    jobs = parse_qstatus(with_mine("Bands-kao-b"))
+    assert running_in([name], jobs, USER) == ()
+
+
+def test_a_job_of_another_user_or_waiting_does_not_count():
+    jobs = parse_qstatus(with_mine(waiting=1))
+    others = ["Nd2Fe14B-4f-129.o23538", "Queued-0.o25000"]  # usuario_a's running, ours waiting
+    assert running_in(others, jobs, USER) == ()
+    assert [j.job_id for j in running_in(others, jobs, "usuario_a")] == ["23538"]

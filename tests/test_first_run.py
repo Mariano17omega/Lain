@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import QMessageBox
 from grid_helpers import tree_names
 from qe_studio.core.config import LoadedConfig, load_config
 from qe_studio.core.config_template import template_text, with_local_root
+from qe_studio.core.sync import monitor
 from qe_studio.ui import first_run as first_run_module
 from qe_studio.ui.first_run import AFTER_EDIT, TEMPORARY
 
@@ -19,12 +20,15 @@ CONFIRM = "ask_create_with_folder"
 @pytest.fixture
 def home(tmp_path, monkeypatch) -> Path:
     """A home of its own (the default ``local_root`` is ``~/qe_simulations``) and a cwd with no
-    config.yaml, so the lookup finds nothing but what a test creates."""
+    config.yaml, so the lookup finds nothing but what a test creates. The config made from the
+    template names ``cluster.example.org``: its reachability probe answers without the network
+    (spec 69 R7)."""
     folder = tmp_path / "home"
     folder.mkdir()
     monkeypatch.setenv("HOME", str(folder))
     monkeypatch.delenv("QE_STUDIO_CONFIG", raising=False)
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(monitor, "probe", lambda *_args, **_kwargs: False)
     return folder
 
 

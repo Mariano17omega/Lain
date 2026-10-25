@@ -39,6 +39,11 @@ cluster:
   jobs_poll_seconds: 300
   # Seconds each of your running jobs stays on the bar before the next one.
   jobs_rotate_seconds: 5
+  # "Submeter…" on a .qsub in the cluster mode. Runs over ssh in the script's folder, after
+  # `chmod a+x`, only once you confirm it, and only if none of your jobs runs in that folder (checked
+  # with jobs_command, which it needs). Empty turns it off. As with jobs_command, a qsub that is not
+  # in the PATH of a non-interactive ssh needs its full path (`which qsub`).
+  submit_command: qsub
 
 sync:
   # rsync --exclude patterns (rsync semantics: trailing "/" = directories only).

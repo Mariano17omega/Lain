@@ -139,6 +139,34 @@ def test_a_push_folder_outside_the_served_one_is_refused(server, ssh_keys, tmp_p
     assert server.commands() == [] and len(server.commands(allowed_only=False)) == 5
 
 
+def test_cd_then_commands_run_in_that_folder_until_one_fails(ssh_keys, tmp_path):
+    """spec 69 R5: ``cd <dir> && A && B``, every part allowed, run in ``<dir>``."""
+    root, workdir = tmp_path / "cluster", tmp_path / "ssh"
+    (root / "Bands").mkdir(parents=True)
+    workdir.mkdir()
+    commands = {"pwd": ["pwd"], "false": ["false"]}
+    with LocalSSHServer(root, ssh_keys, workdir, commands=commands) as server:
+        with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+            status, out, _err = run(client, f"cd {root / 'Bands'} && pwd && echo done")
+            assert (status, out.decode()) == (0, f"{(root / 'Bands').resolve()}\ndone\n")
+            assert run(client, "cd Bands && false && echo never")[:2] == (1, b"")
+        assert server.commands()[-1] == "cd Bands && false && echo never"
+
+
+def test_a_cd_outside_the_folder_or_a_part_not_allowed_runs_nothing(server, ssh_keys, tmp_path):
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        for command in (
+            f"cd {tmp_path} && echo escaped",
+            "cd ../ && echo escaped",
+            "cd . && echo before && touch should-not-exist",  # one part refused: nothing runs
+            "cd . && && echo empty",
+        ):
+            status, out, err = run(client, command)
+            assert (status, out) == (127, b"") and b"not allowed" in err, command
+    assert not (server.root / "should-not-exist").exists()
+    assert server.commands() == [] and len(server.commands(allowed_only=False)) == 4
+
+
 def test_drop_after_bytes_cuts_the_channel_without_exit_status(server, ssh_keys):
     server.drop_after_bytes = 100
     with closing(connect(server, pkey=ssh_keys.client_key)) as client:

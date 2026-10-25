@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from PyQt6.QtCore import QPoint
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMenu
 
 from qe_studio.core.remote.listing import RemoteFailure
 from qe_studio.core.sync.monitor import ConnectionState
@@ -269,6 +269,32 @@ def test_the_menu_has_download_and_copy_only(qtbot, window, monkeypatch, demo_pr
     clipboard = QApplication.clipboard()
     assert clipboard is not None
     assert clipboard.text() == f"{BANDS}/bands.out\n{BANDS}/scf.out"
+
+
+def test_a_menu_hook_adds_its_items_before_copy(qtbot, window, monkeypatch):
+    """Spec 69 R3: a hook gets the items; what it adds goes between "Plotar" and "Copiar caminho",
+    set apart by separators. A hook that adds nothing leaves the menu of always."""
+    seen = []
+    shown = []
+
+    def hook(menu, items):
+        seen.append(items)
+        if items[0].is_dir:
+            menu.addAction("Do hook")
+
+    def exec_(menu, *_args):
+        shown.append(["-" if a.isSeparator() else a.text() for a in menu.actions()])
+
+    monkeypatch.setattr(QMenu, "exec", exec_)
+    window.remote.menu_hooks.append(hook)
+    folder = [RemotePath(f"{REMOTE}/02_scf", True)]
+    window.remote.show_menu(folder, QPoint())
+    window.remote.show_menu([RemotePath(f"{BANDS}/bands.out", False)], QPoint())
+    assert seen == [folder, [RemotePath(f"{BANDS}/bands.out", False)]]
+    assert shown == [
+        ["Baixar", "Plotar", "-", "Do hook", "-", "Copiar caminho"],
+        ["Baixar", "Copiar caminho"],
+    ]
 
 
 def test_download_waits_for_a_running_sync(qtbot, window, monkeypatch):

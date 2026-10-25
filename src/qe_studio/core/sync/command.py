@@ -1,4 +1,5 @@
-"""One command on the cluster over ssh, other than rsync (spec 64 R1): the job list.
+"""One command on the cluster over ssh, other than rsync (spec 64 R1): the job list, and the actions
+that change the cluster (spec 69, ``core/remote/actions.py``).
 
 ``run_command`` runs a child process to its end, its time limit or the cancellation of the task it
 runs in (``core/cancel.py``), and kills it in the last two cases: a hung ssh never outlives the
@@ -6,8 +7,8 @@ query that started it. The child has no stdin and no controlling terminal (a new
 never asks for a password on the terminal Lain was started from; a password reaches it only through
 ``SSH_ASKPASS`` in ``env`` (``rsync.child_env``).
 
-The text of a remote command comes from ``config.yaml`` only: nothing read from the cluster ever
-goes into one.
+A remote command is built from programs named in ``config.yaml`` only, plus the fixed words of
+``core/remote/actions.py``; a name read from the cluster enters only as a checked, quoted argument.
 """
 
 from __future__ import annotations

@@ -94,6 +94,8 @@ class RemoteController(QObject):
         self._tree_wanted: set[str] = set()  # folders whose subfolders the tree waits for
         self._local_tree: QWidget | None = None  # the left panel's tree page before the mode
         self._clock: Callable[[], float] = time.monotonic
+        # Items other modules add to the menu (spec 69 R3: "Submeter…"), given the menu and items.
+        self.menu_hooks: list[Callable[[QMenu, list[RemotePath]], None]] = []
         self._pool = QThreadPool()  # no Qt parent (CLAUDE.md, Threading)
         self._pool.setMaxThreadCount(2)
         self._tasks = TaskGroup(self._pool)
@@ -398,7 +400,8 @@ class RemoteController(QObject):
 
     # -- the menu (R5) ---------------------------------------------------------------------------
     def show_menu(self, items: list[RemotePath], pos: QPoint) -> None:
-        """ "Baixar" and "Copiar caminho": nothing of the local menu (sending, renaming, opening)."""
+        """ "Baixar", "Plotar", the hooks' items and "Copiar caminho": nothing of the local menu
+        (sending, renaming, opening)."""
         if not items:
             return
         menu = QMenu(self.file_panel)
@@ -417,6 +420,13 @@ class RemoteController(QObject):
                 enabled=not reason,
                 tooltip=reason,
             )
+        count, marker = len(menu.actions()), menu.addSeparator()
+        for hook in self.menu_hooks:
+            hook(menu, items)
+        if len(menu.actions()) == count + 1:
+            menu.removeAction(marker)  # nothing added: the menu of always
+        else:
+            menu.addSeparator()
         add_action(menu, _("Copiar caminho"), lambda: self.copy_paths(items))
         menu.exec(pos)
         menu.deleteLater()

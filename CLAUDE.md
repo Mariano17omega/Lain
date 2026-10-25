@@ -131,10 +131,14 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 - Unknown host keys are always refused (`-o StrictHostKeyChecking=yes` is forced). Passwords reach ssh only via
   `SSH_ASKPASS` in the child env, never argv or logs.
 - rsync children run with `LC_ALL=C.UTF-8`, `TZ=UTC` and `--no-h` (its output is parsed).
-- A remote command other than rsync comes only from `config.yaml` (`cluster.jobs_command`) and runs through
-  `core/sync/command.py` with the same ssh options; nothing read from the cluster goes into a command.
-- The cluster mode only lists (`rsync --list-only`, `core/remote/listing.py`) and downloads through the usual
-  pull, with its preview, or into `tmp_remote/` to plot.
+- A remote command other than rsync is built only from programs named in `config.yaml` (`cluster.jobs_command`,
+  `cluster.submit_command`) plus the fixed `cd` and `chmod a+x`, in `core/remote/actions.py` and
+  `core/sync/command.py`, with the same ssh options; a value read from the cluster (a file or folder name) enters only
+  as an argument, after `checked_name` and `shlex.quote`. A command that changes the cluster runs only after the user
+  confirms it.
+- The cluster mode lists (`rsync --list-only`, `core/remote/listing.py`), downloads through the usual pull (or into
+  `tmp_remote/` to plot) and submits a `.qsub` after a confirmation (`chmod a+x`, then `qsub`, in its folder), never
+  while a job of the user runs in that folder (`core/remote/submit.py`).
 
 ### Theming and UI
 
@@ -167,6 +171,9 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
   window.
 - Sync tests run the real `rsync` / `ssh` against `tests/ssh_server.py` (paramiko on `127.0.0.1`, allowlisted
   commands). `server.ssh_binary()` pins ssh to a temp `ssh_config`: never bypass it.
+- The cluster is production: no test or verification ever reaches it. Tests talk only to `tests/ssh_server.py`
+  (`127.0.0.1`) or fakes; the autouse guard in `tests/conftest.py` fails a test that reads the real `config.yaml` or
+  contacts any other host (spec 69 R7, `tests/cluster_guard.py`).
 - Hypothesis profiles `dev` / `ci` (`HYPOTHESIS_PROFILE=ci` in CI). Timing checks are marked `perf`.
 - Goldens (`test_figure_regression.py`, `tests/*_golden.json`) guard default behaviour: a change must pass them, not
   regenerate them.
