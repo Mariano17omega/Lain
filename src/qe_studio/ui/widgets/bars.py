@@ -115,7 +115,7 @@ class ActivityBar(QWidget):
         layout.setContentsMargins(5, 6, 5, 8)
         layout.setSpacing(4)
         self.tree = ActivityButton(
-            theme, "account_tree", _("Árvore"), _("Explorador de pastas"), True
+            theme, "account_tree", _("Árvore"), _("Mostrar/ocultar a árvore de pastas"), True
         )
         self.grid = ActivityButton(
             theme, "grid_view", _("Grade"), _("Mostrar/ocultar arquivos"), True

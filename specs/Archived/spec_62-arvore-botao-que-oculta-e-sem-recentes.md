@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 62: pequena e independente das demais da rodada; pode sair em qualquer ordem |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (25/10/2026). Sem desvios da spec; testes novos em `tests/test_main_window.py` e `tests/test_favorites_ui.py` |
 | **Depende de** | spec 1 (painéis que se ocultam mantendo a proporção: `LayoutController.set_panel_visible`), spec 16 R4 (seções "Favoritos" e "Recentes", `NavigationStore`), spec 49 (barra lateral de hoje) |
 | **Usada por** | spec 65 (o modo remoto troca a página da árvore: o botão desta spec alterna a página que estiver valendo) |
 | **Esforço** | P |
@@ -115,11 +115,11 @@ esquerda) e o botão "Árvore" da **barra superior** (à direita, junto de "Grad
 
 ## Critérios de aceite e testes
 
-- [ ] O "Árvore" da barra lateral oculta e mostra a árvore e fica em sincronia com o da barra superior
+- [x] O "Árvore" da barra lateral oculta e mostra a árvore e fica em sincronia com o da barra superior
       (`test_sidebar_tree_button_hides_and_shows_the_tree`, `test_top_bar_tree_toggle_unchecks_the_sidebar_button`).
-- [ ] Dos ajustes, um clique traz a árvore (`test_sidebar_tree_button_from_the_adjustments_shows_the_tree`); voltar dos ajustes e Ctrl+1
+- [x] Dos ajustes, um clique traz a árvore (`test_sidebar_tree_button_from_the_adjustments_shows_the_tree`); voltar dos ajustes e Ctrl+1
       como hoje (`test_panel_toggles`, `test_ctrl_1_brings_the_tree_back_from_the_adjustments`).
-- [ ] O painel não tem "Recentes" (`test_the_explorer_has_no_recents_section`); a paleta ainda lista recentes
+- [x] O painel não tem "Recentes" (`test_the_explorer_has_no_recents_section`); a paleta ainda lista recentes
       (`test_favorites_and_recents_come_first_on_an_empty_query`); chave órfã removida (`test_the_orphan_sections_key_is_removed`).
-- [ ] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py`, `scripts/i18n.py check` e a suíte
+- [x] `ruff check`, `ruff format --check`, `pyright`, `test_architecture.py`, `scripts/i18n.py check` e a suíte
       `-m "not realdata and not perf"` verdes.

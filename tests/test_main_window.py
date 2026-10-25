@@ -235,6 +235,36 @@ def test_panel_toggles(qtbot, main_window):
     assert window.activity.tree.isChecked()
 
 
+def test_sidebar_tree_button_hides_and_shows_the_tree(qtbot, main_window):
+    window = main_window
+    toggle = window.top_bar.toggles["tree"]
+    assert window.activity.tree.isChecked() and toggle.isChecked()
+    window.activity.tree.click()
+    assert window.left.isHidden()
+    assert not window.activity.tree.isChecked() and not toggle.isChecked()
+    window.activity.tree.click()
+    assert not window.left.isHidden() and window.left.currentIndex() == 0
+    assert window.activity.tree.isChecked() and toggle.isChecked()
+
+
+def test_sidebar_tree_button_from_the_adjustments_shows_the_tree(qtbot, main_window):
+    window = main_window
+    window.set_left_mode("params")
+    assert not window.activity.tree.isChecked()
+    window.activity.tree.click()
+    assert window.left.currentIndex() == 0 and not window.left.isHidden()
+    assert window.activity.tree.isChecked() and window.top_bar.toggles["tree"].isChecked()
+
+
+def test_top_bar_tree_toggle_unchecks_the_sidebar_button(qtbot, main_window):
+    window = main_window
+    window.top_bar.toggles["tree"].click()
+    assert window.left.isHidden()
+    assert not window.activity.tree.isChecked()
+    window.top_bar.toggles["tree"].click()
+    assert window.activity.tree.isChecked()
+
+
 def test_activity_bar_has_no_params_button(qtbot, main_window):
     assert not hasattr(main_window.activity, "params")
     assert not hasattr(ActivityBar, "params_requested")

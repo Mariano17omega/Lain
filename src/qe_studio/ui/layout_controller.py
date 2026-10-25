@@ -79,12 +79,23 @@ class LayoutController(QObject):
         self._applied_sizes: list[int] | None = None
         splitter.splitterMoved.connect(self._on_splitter_moved)
         top_bar.panel_toggled.connect(self.set_panel_visible)
-        activity.explorer_requested.connect(self.show_tree)
+        activity.explorer_requested.connect(self.toggle_tree)
         activity.grid_toggled.connect(self._on_grid_toggled)
 
     # -- panels ---------------------------------------------------------------------------------
     def show_tree(self) -> None:
         self.set_left_mode("tree")
+
+    def toggle_tree(self) -> None:
+        """The sidebar "Árvore": hides the tree when it is in view, else shows it (spec 62 R1)."""
+        if self._tree_shown():
+            self.set_panel_visible("tree", False)
+        else:
+            self.show_tree()
+
+    def _tree_shown(self) -> bool:
+        """Is the explorer tree (not the plot parameters) in view in the left panel?"""
+        return not self.panels["tree"].isHidden() and self.left.currentIndex() != PARAMS_PAGE
 
     def set_left_mode(self, mode: str) -> None:
         """``tree`` (explorer) or ``params`` (plot parameters) in the left panel, shown."""
@@ -106,6 +117,10 @@ class LayoutController(QObject):
             self.activity.grid.blockSignals(True)
             self.activity.grid.setChecked(visible)
             self.activity.grid.blockSignals(False)
+        if panel == "tree":  # the sidebar button is on only while the tree page is in view
+            self.activity.tree.blockSignals(True)
+            self.activity.tree.setChecked(visible and self.left.currentIndex() != PARAMS_PAGE)
+            self.activity.tree.blockSignals(False)
         if panel == "workspace":
             self.workspace_visibility_changed.emit(visible)
 

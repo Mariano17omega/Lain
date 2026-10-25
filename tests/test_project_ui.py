@@ -98,7 +98,7 @@ def test_the_breadcrumb_starts_at_the_project(qtbot, open_window, raiz):
     assert crumb.visible_names() == [raiz.name]
 
 
-def test_favorites_and_recents_show_only_the_project(qtbot, open_window, raiz):
+def test_favorites_show_only_the_project(qtbot, open_window, raiz):
     window = open_window()
     window.navigation.set_favorite(raiz / "ilita" / "Analise_1", True)
     window.navigation.set_favorite(raiz / "outro" / "Analise_1", True)
@@ -106,7 +106,6 @@ def test_favorites_and_recents_show_only_the_project(qtbot, open_window, raiz):
     pick(window, "ilita")
     assert window.explorer.favorites.labels() == ["Analise_1"]
     assert [e.path for e in window.explorer.favorites.entries] == [raiz / "ilita" / "Analise_1"]
-    assert all(e.path.is_relative_to(raiz / "ilita") for e in window.explorer.recents.entries)
     pick(window, ALL)  # the others were only out of sight
     assert window.explorer.favorites.labels() == ["ilita/Analise_1", "outro/Analise_1"]
 

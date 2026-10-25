@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 01:05-0400\n"
-"PO-Revision-Date: 2026-10-25 01:05-0400\n"
+"POT-Creation-Date: 2026-10-25 01:19-0400\n"
+"PO-Revision-Date: 2026-10-25 01:19-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -2169,10 +2169,6 @@ msgstr "Display"
 msgid "Explorador"
 msgstr "Explorer"
 
-#: ui/widgets/bars.py
-msgid "Explorador de pastas"
-msgstr "Folder explorer"
-
 #: ui/plot_export.py
 msgid "Exportando…"
 msgstr "Exporting…"
@@ -3136,6 +3132,10 @@ msgstr "Show or hide the input extract"
 #: ui/widgets/summary_widgets.py
 msgid "Mostrar ou ocultar os detalhes"
 msgstr "Show or hide the details"
+
+#: ui/widgets/bars.py
+msgid "Mostrar/ocultar a árvore de pastas"
+msgstr "Show/hide the folder tree"
 
 #: ui/widgets/bars.py
 msgid "Mostrar/ocultar arquivos"
@@ -4165,10 +4165,6 @@ msgstr "Reload config.yaml"
 #: ui/palette_controller.py
 msgid "Recente"
 msgstr "Recent"
-
-#: ui/widgets/explorer.py
-msgid "Recentes"
-msgstr "Recents"
 
 #: ui/widgets/explorer.py
 msgid "Recolher tudo"

@@ -5,7 +5,8 @@ favorite / recent folders (spec 16 R1, R2, R4).
 double click, ``..``, history), and tells ``visited``. Moving through the history goes through the
 tree like any other navigation (``ExplorerPanel.select_path``), so the grid and the breadcrumb
 follow; the history already holds the target by then, so ``visited`` finds nothing new to push.
-Favorites and recents live in a ``NavigationStore``; the explorer's two sections show them.
+Favorites and recents live in a ``NavigationStore``; the explorer's section shows the favorites
+(the recents are for the command palette).
 """
 
 from __future__ import annotations
@@ -54,6 +55,7 @@ class NavigationController(QObject):
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(SAVE_DELAY_MS)
         self._save_timer.timeout.connect(self.store.flush)
+        settings.remove("explorer/sections/recents")  # the panel lost that section (spec 62)
         for name, section in self._sections().items():
             section.set_open(settings.value(f"explorer/sections/{name}", True, type=bool))
             section.toggled.connect(self._on_section_toggled)
@@ -169,7 +171,7 @@ class NavigationController(QObject):
             )
 
     def _sections(self) -> dict[str, NavSection]:
-        return {"favorites": self.explorer.favorites, "recents": self.explorer.recents}
+        return {"favorites": self.explorer.favorites}
 
     def _on_section_toggled(self, opened: bool) -> None:
         for name, section in self._sections().items():
@@ -185,7 +187,6 @@ class NavigationController(QObject):
             ]
 
         self.explorer.favorites.set_entries(entries(self.store.favorites()))
-        self.explorer.recents.set_entries(entries(self.store.recents()))
 
     def _label(self, folder: Path) -> str:
         """The path below the top of the view; that folder itself by its name."""

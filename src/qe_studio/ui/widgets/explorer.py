@@ -210,13 +210,11 @@ class ExplorerPanel(QWidget):
         layout.addWidget(header)
         self.projects = ProjectCombo()  # spec 31: answered by the window's ProjectController
         layout.addWidget(self.projects)
-        # Favorite and recent folders (spec 16 R4): hidden while empty, filled by the window's
+        # Favorite folders (spec 16 R4): hidden while empty, filled by the window's
         # NavigationController, which also answers their clicks.
         self.favorites = NavSection(theme, _("Favoritos"), "star", "accent")
-        self.recents = NavSection(theme, _("Recentes"), "history", "text_muted")
-        for section in (self.favorites, self.recents):
-            layout.addWidget(section)
-            section.menu_requested.connect(self.item_menu_requested)
+        layout.addWidget(self.favorites)
+        self.favorites.menu_requested.connect(self.item_menu_requested)
         # Only the folders the model has loaded (the ones opened so far) can be filtered.
         self.filter_bar = FilterBar(
             _("Filtrar por nome (pastas já abertas)"),

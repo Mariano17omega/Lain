@@ -1,4 +1,4 @@
-"""The "FAVORITOS" and "RECENTES" sections above the explorer tree (spec 16 R4): a collapsible
+"""The "FAVORITOS" section above the explorer tree (spec 16 R4): a collapsible
 header and a short list of folders. A click goes to the folder, a right click opens the usual
 item menu. A folder that no longer exists is dimmed."""
 

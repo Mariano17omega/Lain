@@ -1,4 +1,4 @@
-"""Spec 16 R4: favorite and recent folders in the explorer, kept between sessions."""
+"""Spec 16 R4: favorite folders in the explorer, recent ones in the store; kept between sessions."""
 
 import json
 from pathlib import Path
@@ -8,6 +8,7 @@ from PyQt6.QtCore import QPoint, QSettings
 from PyQt6.QtWidgets import QMenu
 
 from grid_helpers import menu_texts
+from qe_studio.ui.widgets.nav_sections import NavSection
 
 JSON = "navigation.json"
 
@@ -124,14 +125,22 @@ def test_the_menu_of_several_folders(main_window, demo_project, menus):
 
 
 # -- recents -------------------------------------------------------------------------------------
-def test_recents_are_the_last_visited_folders_newest_first(main_window, demo_project):
-    window = main_window
-    section = window.explorer.recents
-    for name in ("01_relax", "02_scf", "03_bands", "01_relax"):
-        go(window, demo_project / name)
-    go(window, demo_project)  # the root is never listed
-    assert section.labels() == ["01_relax", "03_bands", "02_scf"]
-    assert section.header.text() == "RECENTES (3)"
+def test_the_explorer_has_no_recents_section(main_window):
+    explorer = main_window.explorer
+    assert not hasattr(explorer, "recents")
+    headers = [s.header.text() for s in explorer.findChildren(NavSection)]
+    assert not any(text.startswith("RECENTES") for text in headers)
+
+
+def test_the_orphan_sections_key_is_removed(window_factory, tmp_path):
+    path = str(tmp_path / "settings.ini")
+    seeded = QSettings(path, QSettings.Format.IniFormat)
+    seeded.setValue("explorer/sections/recents", False)
+    seeded.sync()
+    window = window_factory()
+    assert not window.settings.contains("explorer/sections/recents")
+    window.close()
+    assert not QSettings(path, QSettings.Format.IniFormat).contains("explorer/sections/recents")
 
 
 def test_recents_keep_the_last_ten(main_window, demo_project):
@@ -140,18 +149,6 @@ def test_recents_keep_the_last_ten(main_window, demo_project):
         (demo_project / f"r{n:02d}").mkdir()
         store.touch_recent(demo_project / f"r{n:02d}")
     assert len(store.recents()) == 10 and store.recents()[0] == demo_project / "r11"
-
-
-def test_recents_come_back_after_a_restart_and_drop_the_missing(window_factory, demo_project):
-    first = window_factory()
-    for name in ("01_relax", "02_scf", "03_bands"):
-        go(first, demo_project / name)
-    first.close()  # flushes what the pause had not yet written
-    (demo_project / "02_scf" / "scf.out").unlink()
-    (demo_project / "02_scf").rmdir()
-    second = window_factory()
-    labels = second.explorer.recents.labels()
-    assert "02_scf" not in labels and "01_relax" in labels  # gone from the list, and from the file
 
 
 def test_recents_are_written_after_a_pause(qtbot, main_window, demo_project, tmp_path):
@@ -171,7 +168,6 @@ def test_renaming_a_favorite_folder_moves_it(main_window, demo_project, menus, m
     monkeypatch.setattr("qe_studio.ui.rename_controller.ask_rename", lambda parent, path: "04_dos")
     window.rename_path(demo_project / "04_pdos")
     assert window.explorer.favorites.labels() == ["04_dos"]
-    assert window.explorer.recents.labels() == ["04_dos"]
     assert window.explorer.favorites.entries[0].exists
 
 

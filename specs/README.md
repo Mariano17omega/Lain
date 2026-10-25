@@ -15,7 +15,7 @@ medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir co
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
 padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`, as specs 52–60) fechou por último. Cada spec é
-autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 61 estão implementadas; as 62–66 são
+autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 62 estão implementadas; as 63–66 são
 rascunhos para revisão.
 
 ## Roadmap
@@ -92,7 +92,7 @@ rascunhos para revisão.
 | 59 | [spec_59-i18n-visualizacao-3d.md](Archived/spec_59-i18n-visualizacao-3d.md) | Inglês da janela 3D (68 pendentes): ids de `view3d.plot` intactos, texto pintado e medidas copiadas, `_` local renomeado | 52 | P | Sonnet 5.5 |
 | 60 | [spec_60-i18n-fechamento.md](Archived/spec_60-i18n-fechamento.md) | Remove o portão, catálogo completo, dados guardados iguais nos dois idiomas, entrada real, README "Idioma", cabeçalho do `.po`, arquiva a `spec_end` | 52–59 | M | Sonnet 5.5 |
 | 61 | [spec_61-config-do-checkout-e-pasta-de-dados.md](Archived/spec_61-config-do-checkout-e-pasta-de-dados.md) | `lain` em qualquer terminal lê o `config.yaml` do checkout (hoje só o menu, pelo `Path=` do lançador); `paths.data` guarda o `QSettings`, o `lain.lock` e o fallback das raízes, relativa ao `config.yaml`, com cópia única do estado antigo | 18, 48, 27-3, 60 | M | Opus 5.5 |
-| 62 | [spec_62-arvore-botao-que-oculta-e-sem-recentes.md](spec_62-arvore-botao-que-oculta-e-sem-recentes.md) | "Árvore" da barra lateral mostra e oculta a árvore (como o da barra superior); a seção "Recentes" sai do painel (os recentes ficam na paleta Ctrl+K) | 1, 16, 49 | P | Sonnet 5.5 |
+| 62 | [spec_62-arvore-botao-que-oculta-e-sem-recentes.md](Archived/spec_62-arvore-botao-que-oculta-e-sem-recentes.md) | "Árvore" da barra lateral mostra e oculta a árvore (como o da barra superior); a seção "Recentes" sai do painel (os recentes ficam na paleta Ctrl+K) | 1, 16, 49 | P | Sonnet 5.5 |
 | 63 | [spec_63-sincronizacao-por-checksum.md](spec_63-sincronizacao-por-checksum.md) | `sync.checksum: true` (padrão): o dry run do "Baixar" compara pelo conteúdo (`--checksum`) e o plano entende `>fc`; arquivo igual com outra data não pergunta, diferente com a mesma data pergunta | 17, 27-3, 58 | P | Sonnet 5.5 |
 | 64 | [spec_64-jobs-do-cluster-na-barra-superior.md](spec_64-jobs-do-cluster-na-barra-superior.md) | "Executando: <nome>" à esquerda do LED (troca a cada 5 s), a fila do `qstatus -a` num painel com cache da sessão (5 min), o LED alimentado pela consulta; rodapé do caminho sai de `main_window.py` (R0) e executor cancelável de comandos remotos (R1) | 33, 17, 27-3, 27-5, 7 | M/G | Opus 5.5 |
 | 65 | [spec_65-modo-cluster-navegar-nos-arquivos-remotos.md](spec_65-modo-cluster-navegar-nos-arquivos-remotos.md) | Botão "Cluster": árvore e grade listam o cluster (`rsync --list-only`, cache de 60 s), com fundo vermelho e indicador de espera; "Baixar" no menu (pasta ou arquivo, pelo pull com prévia) | 64, 62, 17, 27-3, 31, 15, 19 | G | Opus 5.5 |
@@ -153,8 +153,8 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–61, inclusive 27-1 … 27-9, e a `spec_end`) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (62–66) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–62, inclusive 27-1 … 27-9, e a `spec_end`) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (63–66) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**
