@@ -36,6 +36,15 @@ def test_the_whole_queue():
     assert queued.queue is None and not queued.running
 
 
+def test_the_short_date_drops_the_year_and_the_seconds():
+    jobs = parse_qstatus(QSTATUS_ALL)
+    assert jobs.running[0].short_date == "10/15 17:53"
+    assert jobs.waiting[1].short_date == "10/15 18:07"
+    assert jobs.running[0].date == "10/15/2026 17:53:02"  # the parsed text is untouched
+    padless = parse_qstatus("Running jobs:\n  7 4 x  me  1/5/2026 9:03:07 q\n")
+    assert padless.running[0].short_date == "1/5 9:03"
+
+
 def test_the_user_variant_takes_the_owner_from_the_title():
     jobs = parse_qstatus(QSTATUS_MINE)
     assert jobs.running == ()

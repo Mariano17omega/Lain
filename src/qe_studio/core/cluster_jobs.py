@@ -43,6 +43,12 @@ class Job:
     queue: str | None  # "running in"; None while waiting
     running: bool
 
+    @property
+    def short_date(self) -> str:
+        """``10/15 17:53``: ``date`` without the year and the seconds, for the tables."""
+        day, _sep, clock = self.date.partition(" ")
+        return f"{day.rsplit('/', 1)[0]} {clock.rsplit(':', 1)[0]}"
+
 
 @dataclass(frozen=True)
 class JobsSnapshot:

@@ -186,7 +186,7 @@ def test_the_popup_shows_both_sections_and_the_columns(qtbot, make):
     tree = popup.tree
     header = tree.headerItem()
     assert header is not None
-    assert [header.text(c) for c in range(4)] == ["Nome", "Dono", "Envio / início", "Fila"]
+    assert [header.text(c) for c in range(4)] == ["Nome", "Dono", "Envio / início", "Núcleos"]
     running, waiting = tree.topLevelItem(0), tree.topLevelItem(1)
     assert running is not None and waiting is not None
     assert (running.text(0), waiting.text(0)) == ("Em execução (4)", "Na fila (2)")
@@ -195,18 +195,33 @@ def test_the_popup_shows_both_sections_and_the_columns(qtbot, make):
     assert [first.text(c) for c in range(4)] == [
         "Nd2Fe14B-4f-129",
         "usuario_a",
-        "10/15/2026 17:53:02",
-        "physica.q",
+        "10/15 17:53",
+        "32",
     ]
-    assert first.toolTip(0) == "job-ID 23538 · 32 slots"
+    assert first.toolTip(0) == "job-ID 23538 · physica.q · 10/15/2026 17:53:02"
     queued = waiting.child(0)
-    assert queued is not None and queued.text(3) == "" and queued.text(2) == "10/15/2026 18:05:21"
+    assert queued is not None and queued.text(2) == "10/15 18:05" and queued.text(3) == "32"
+    assert queued.toolTip(0) == "job-ID 23542 · 10/15/2026 18:05:21"  # waiting: no queue yet
     mine = running.child(3)
     assert mine is not None and mine.text(1) == USER
     accent = window.theme.color("accent_text")
     assert mine.font(0).bold() and mine.foreground(0).color() == accent
     assert not first.font(0).bold() and first.foreground(0).color() != accent
     assert popup.updated.text().startswith("Atualizado às ")
+
+
+def test_the_two_sections_are_bars_of_their_own_colour(qtbot, make):
+    window, _ = make()
+    popup = open_popup(qtbot, window)
+    running, waiting = popup.tree.topLevelItem(0), popup.tree.topLevelItem(1)
+    assert running is not None and waiting is not None
+    color = window.theme.color
+    for item, bar in ((running, "job_running"), (waiting, "job_queued")):
+        assert item.background(0).color() == color(f"{bar}_bg")
+        assert item.foreground(0).color() == color(f"{bar}_fg")
+        assert item.font(0).bold() and item.isFirstColumnSpanned()
+    assert running.background(0).color() != waiting.background(0).color()
+    assert popup.tree.indentation() > 0  # the jobs sit inside their bar
 
 
 def test_the_popup_shows_the_cache_and_refresh_asks_again(qtbot, make):

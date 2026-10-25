@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 04:46-0400\n"
-"PO-Revision-Date: 2026-10-25 04:46-0400\n"
+"POT-Creation-Date: 2026-10-25 05:06-0400\n"
+"PO-Revision-Date: 2026-10-25 05:06-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -2376,10 +2376,6 @@ msgid "Figura"
 msgstr "Figure"
 
 #: ui/widgets/jobs_popup.py
-msgid "Fila"
-msgstr "Queue"
-
-#: ui/widgets/jobs_popup.py
 msgid "Fila do cluster"
 msgstr "Cluster queue"
 
@@ -3666,6 +3662,10 @@ msgstr "Hidden levels"
 #: core/qe/summary/build.py
 msgid "Nós"
 msgstr "Nodes"
+
+#: ui/widgets/jobs_popup.py
+msgid "Núcleos"
+msgstr "Cores"
 
 #: core/calc_create/types/script.py
 msgid "Núcleos (NP)"
@@ -5778,8 +5778,8 @@ msgstr "iteration {n}"
 
 #: ui/widgets/jobs_popup.py
 #, python-brace-format
-msgid "job-ID {job_id} · {slots} slots"
-msgstr "job-ID {job_id} · {slots} slots"
+msgid "job-ID {job_id}"
+msgstr "job-ID {job_id}"
 
 #: core/qe/summary/build.py
 msgid "k-pontos irredutíveis"

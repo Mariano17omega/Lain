@@ -2,7 +2,8 @@
 
 It shows what ``ui/jobs_controller.py`` gives it, one of four pages: querying (before the first
 answer), the failure and "Tentar de novo", an empty queue, or the jobs in two sections, "Em execução"
-and "Na fila", with the user's own in bold and the accent colour. A click outside or Esc closes it.
+and "Na fila", each under a coloured bar, with the user's own jobs in bold and the accent colour.
+A click outside or Esc closes it.
 """
 
 from __future__ import annotations
@@ -29,8 +30,11 @@ from ..theme.scale import scaled
 from .spinner import CircularProgress
 
 WIDTH = 600  # px at scale 1
+INDENT = 14  # px at scale 1: the jobs sit inside their bar
 MAX_ROWS = 14  # rows shown before the table scrolls
+CORES = 3  # the column of the "#" of the qstatus listing
 LOADING, FAILURE, EMPTY, TABLE = range(4)
+RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 
 
 def clock(epoch: float) -> str:
@@ -110,9 +114,12 @@ class JobsPopup(QFrame):
         tree = QTreeWidget()
         tree.setObjectName("jobsTable")
         tree.setColumnCount(4)
-        tree.setHeaderLabels([_("Nome"), _("Dono"), _("Envio / início"), _("Fila")])
+        tree.setHeaderLabels([_("Nome"), _("Dono"), _("Envio / início"), _("Núcleos")])
+        header_item = tree.headerItem()
+        assert header_item is not None
+        header_item.setTextAlignment(CORES, RIGHT)
         tree.setRootIsDecorated(False)
-        tree.setIndentation(0)
+        tree.setIndentation(scaled(INDENT))
         tree.setUniformRowHeights(True)
         tree.setSelectionMode(QTreeWidget.SelectionMode.NoSelection)
         tree.setEditTriggers(QTreeWidget.EditTrigger.NoEditTriggers)
@@ -148,11 +155,11 @@ class JobsPopup(QFrame):
         if not snapshot.running and not snapshot.waiting:
             self._set_page(EMPTY)
             return
-        for title, jobs in (
-            (_("Em execução ({n})"), snapshot.running),
-            (_("Na fila ({n})"), snapshot.waiting),
+        for title, jobs, bar in (
+            (_("Em execução ({n})"), snapshot.running, "job_running"),
+            (_("Na fila ({n})"), snapshot.waiting, "job_queued"),
         ):
-            self._section(title.format(n=len(jobs)), jobs, user)
+            self._section(title.format(n=len(jobs)), jobs, user, bar)
         self.tree.expandAll()
         self._set_page(TABLE)
 
@@ -167,20 +174,25 @@ class JobsPopup(QFrame):
                 _("Atualizado às {time}").format(time=clock(self._shown[0].fetched_at))
             )
 
-    def _section(self, title: str, jobs: tuple[Job, ...], user: str) -> None:
+    def _section(self, title: str, jobs: tuple[Job, ...], user: str, bar: str) -> None:
+        """A bar painted with the ``<bar>_bg`` and ``<bar>_fg`` tokens, and its jobs under it."""
         section = QTreeWidgetItem([title])
         section.setFlags(Qt.ItemFlag.ItemIsEnabled)
         font = section.font(0)
         font.setBold(True)
         section.setFont(0, font)
-        section.setForeground(0, self.theme.color("text_secondary"))
+        section.setBackground(0, self.theme.color(f"{bar}_bg"))
+        section.setForeground(0, self.theme.color(f"{bar}_fg"))
         self.tree.addTopLevelItem(section)
         section.setFirstColumnSpanned(True)
         accent = self.theme.color("accent_text")
         for job in jobs:
-            row = QTreeWidgetItem([job.name, job.owner or "", job.date, job.queue or ""])
+            row = QTreeWidgetItem([job.name, job.owner or "", job.short_date, str(job.slots)])
             row.setFlags(Qt.ItemFlag.ItemIsEnabled)
-            tip = _("job-ID {job_id} · {slots} slots").format(job_id=job.job_id, slots=job.slots)
+            row.setTextAlignment(CORES, RIGHT)
+            # What the columns leave out: the queue ("running in") and the date as written.
+            parts = [_("job-ID {job_id}").format(job_id=job.job_id), job.queue, job.date]
+            tip = " · ".join(part for part in parts if part)
             for column in range(4):
                 row.setToolTip(column, tip)
                 if job.owner == user:
@@ -213,6 +225,7 @@ class JobsPopup(QFrame):
 
     def _on_scale_changed(self, _scale: float) -> None:
         self.setFixedWidth(scaled(WIDTH))
+        self.tree.setIndentation(scaled(INDENT))
         self._fit()
 
     # -- showing -----------------------------------------------------------------------------

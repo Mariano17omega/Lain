@@ -13,9 +13,9 @@ e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 
 **sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
 medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
-padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`) e a spec 67 a **décima quarta** (25/10/2026: "Grade", "Lista" e "Ordenar" nos arquivos do cluster), em grupos de itens
+padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`) e a spec 67 a **décima quarta** (25/10/2026: "Grade", "Lista" e "Ordenar" nos arquivos do cluster) e a spec 68 a **décima quinta** (25/10/2026: o popup da fila do cluster com datas curtas, barras coloridas e a coluna "Núcleos"), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`, as specs 52–60) fechou por último. Cada spec é
-autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 67 estão implementadas.
+autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 68 estão implementadas.
 
 ## Roadmap
 
@@ -97,6 +97,7 @@ autossuficiente e pode virar um `/plan` de implementação separado. Todas as sp
 | 65 | [spec_65-modo-cluster-navegar-nos-arquivos-remotos.md](Archived/spec_65-modo-cluster-navegar-nos-arquivos-remotos.md) | Botão "Cluster": árvore e grade listam o cluster (`rsync --list-only`, cache de 60 s), com fundo vermelho e indicador de espera; "Baixar" no menu (pasta ou arquivo, pelo pull com prévia) | 64, 62, 17, 27-3, 31, 15, 19 | G | Opus 5.5 |
 | 66 | [spec_66-modo-cluster-plotar-por-tmp-remote.md](Archived/spec_66-modo-cluster-plotar-por-tmp-remote.md) | Plotar no modo cluster copia a pasta para `<espelho>/tmp_remote/` (sobrescrita sem perguntar, prévia só com arquivo > 100 MB), figuras e `.plot` em `tmp_remote/plots_remote/`; `tmp_remote` fora da detecção da pasta-mãe e do rsync | 65, 63, 17, 22, 32, 3, 48 | M | Opus 5.5 |
 | 67 | [spec_67-modo-cluster-grade-lista-e-ordenar.md](Archived/spec_67-modo-cluster-grade-lista-e-ordenar.md) | "Grade", "Lista" e "Ordenar" no cabeçalho dos arquivos do cluster, uma escolha só para o local e o cluster; cartões e linhas desenhados pelo mesmo `CardDelegate`; `sort_entries(by="name"/"size"/"date")`; substitui a decisão "a grade remota é uma lista" da 65 | 65, 5, 37 | P | Sonnet 5.5 |
+| 68 | [spec_68-popup-de-jobs-mais-limpo.md](Archived/spec_68-popup-de-jobs-mais-limpo.md) | Popup "Fila do cluster": datas sem ano nem segundos (`Job.short_date`), barras "Running"/"Queued" verde e âmbar (tokens `job_running_*`/`job_queued_*`), coluna "Fila" trocada por "Núcleos"/"Cores" | 64 | P | Sonnet 5.5 |
 | fim | [spec_end-internacionalizacao.md](Archived/spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementada pelas specs 52–60 (arquivada com a 60) | 52–60 | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -476,6 +477,8 @@ sem inglês compilado e sem teste.
 
 18. **Grade, lista e ordenar no cluster (67, decisão de 25/10/2026):** pequena e independente das abertas; depende só do modo cluster (65) e do
     desenho da grade local (5, 37). Não toca `ui/main_window.py`.
+19. **Popup dos jobs (68, decisão de 25/10/2026):** ajuste visual da tela da spec 64; independente das demais, só `ui/widgets/jobs_popup.py`,
+    `core/cluster_jobs.py` e os temas.
 
 ## Rastreabilidade: ideias da décima terceira rodada (25/10/2026) → specs
 
@@ -674,4 +677,19 @@ Decisões de 25/10/2026 (décima quarta rodada, spec 67):
 - **Estado compartilhado, decidido pelo usuário:** o modo e a ordem são um só para o local e o cluster; nenhuma chave nova no QSettings.
 - **Lista em linhas, decidido pelo usuário:** ícone, nome e `tamanho · data` à direita, como o local; a tabela Nome/Tamanho/Modificado deixa de existir.
 - **Assumidas para a revisão:** o cluster abre em grade; pastas por nome em "Tamanho"; `Enter` com várias linhas marcadas não faz nada no cluster.
+- **Modelo recomendado:** Sonnet 5.5.
+
+## Rastreabilidade: ideias da décima quinta rodada (25/10/2026) → specs
+
+O pedido veio na conversa (não em `Ideias.md`), sobre a tela da spec 64.
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | Datas do popup dos jobs sem o ano e sem os segundos | 68 (R1) |
+| 2 | Separar melhor os jobs em execução e os da fila: barras "Running" e "Queued" com cor nítida | 68 (R2) |
+| 3 | Trocar a coluna "Queue" pela de "slots", chamada "cores" | 68 (R3) |
+
+Decisões de 25/10/2026 (décima quinta rodada, spec 68):
+- **Assumidas para a revisão:** o msgid em português é "Núcleos" (o usuário vê "Cores" em inglês); verde para a execução e âmbar para a fila; a fila
+  (`physica.q`) e a data inteira ficam no tooltip da linha.
 - **Modelo recomendado:** Sonnet 5.5.

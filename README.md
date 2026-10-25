@@ -215,8 +215,10 @@ a pull.
 
 With the cluster configured, the top bar shows your jobs left of the LED: "Executando: <name>" for
 a job of yours that is running (with several, the name changes every `jobs_rotate_seconds`), or
-"Nenhum job em execução". A click opens the whole queue of the cluster, running and waiting, with
-the name, owner, start or submission time and queue of each job; yours are in bold. Lain reads it
+"Nenhum job em execução". A click opens the whole queue of the cluster, in a green "Running" bar
+and an amber "Queued" bar, with the name, owner, start or submission time (month/day and hour:minute,
+as the cluster writes them, without the year or the seconds) and the cores of each job; yours are in
+bold. The tooltip of a row keeps the job-ID, the queue and the full date. Lain reads it
 by running `cluster.jobs_command` on the cluster over ssh, with the login and options of the sync,
 when the window opens and then every `jobs_poll_seconds` while it is active. The last answer is kept
 in memory for the session ("Atualizar" asks again); nothing is written to disk. Each query is a real

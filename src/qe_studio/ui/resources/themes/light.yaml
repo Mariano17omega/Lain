@@ -87,3 +87,7 @@ diff_del_bg: "rgba(220, 38, 38, 0.14)"
 diff_change_bg: "rgba(217, 119, 6, 0.16)"
 remote_panel: "#fdecee"    # pale: a stronger red fails AA for text_muted (the panels use text_meta)
 remote_accent: "#dc2626"
+job_running_bg: "#d1fae5"   # cluster jobs popup (spec 68): the "Running" bar
+job_running_fg: "#065f46"
+job_queued_bg: "#fef3c7"    # the "Queued" bar
+job_queued_fg: "#92400e"

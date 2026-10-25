@@ -99,6 +99,15 @@ def test_badges_pass_aa_on_their_own_background(theme):
 
 
 @pytest.mark.parametrize("theme", THEMES)
+@pytest.mark.parametrize("bar", ("job_running", "job_queued"))
+def test_job_bars_pass_aa_on_the_popup(theme, bar):
+    """The "Running" and "Queued" bars of the cluster's queue popup (spec 68), over its popover."""
+    tokens = load_tokens(theme)
+    ground = composite(tokens[f"{bar}_bg"], tokens["popover"])
+    assert contrast_ratio(tokens[f"{bar}_fg"], ground) >= AA_TEXT
+
+
+@pytest.mark.parametrize("theme", THEMES)
 @pytest.mark.parametrize("token", ("text", "text_secondary", "text_meta"))
 def test_remote_panel_text_passes_aa(theme, token):
     """The cluster mode's red panels (spec 65 R4.2): every text they paint."""

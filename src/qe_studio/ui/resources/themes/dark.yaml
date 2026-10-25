@@ -88,3 +88,7 @@ diff_del_bg: "rgba(244, 63, 94, 0.18)"      # line only in A
 diff_change_bg: "rgba(245, 158, 11, 0.18)"  # line that differs
 remote_panel: "#2a1216"    # the cluster mode's tree and files (spec 65): text, text_secondary, text_meta
 remote_accent: "#f43f5e"   # the 2 px band on top of their headers: decorative, no text on it
+job_running_bg: "rgba(105, 246, 185, 0.30)"  # cluster jobs popup (spec 68): the "Running" bar
+job_running_fg: "#69f6b9"
+job_queued_bg: "rgba(245, 158, 11, 0.32)"   # the "Queued" bar
+job_queued_fg: "#fcd34d"
