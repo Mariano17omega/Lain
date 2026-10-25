@@ -195,13 +195,17 @@ ssh -p 22 -i ~/.ssh/id_ed25519 your_user@cluster.example.org   # drop -i for pas
 ### How sync decides
 
 "Sincronizar" pulls the selected folder (or the whole project) from `remote_root`. rsync lists the
-files that differ; each one is then compared with the local copy:
+files that differ, comparing their content (`sync.checksum`, on by default: a file that is the same
+on both sides is never listed, whatever its date); each one is then compared with the local copy:
 
 | Situation | Action |
 |---|---|
 | file only on the cluster | downloaded |
-| cluster copy newer | you choose: overwrite this / overwrite all in this folder / keep local / cancel |
+| cluster copy newer, or same date and size but other content | you choose: overwrite this / overwrite all in this folder / keep local / cancel |
 | local copy newer | kept, reported |
+
+`sync.checksum: false` goes back to date and size, which is faster on very large trees: the
+comparison reads every file on both sides. The upload never uses it.
 
 A folder whose differing files are all newer locally is reported as "local is newer" and nothing
 is transferred (PRD §5.2). Files that exist only locally, such as generated `plots/`, never block

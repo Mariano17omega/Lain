@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 63: pequena, independente; corrige dois casos medidos em que a comparação por data erra (pergunta "atualizar?" de um arquivo igual e deixa passar um arquivo diferente) |
-| **Status** | Rascunho para revisão |
+| **Status** | Implementada (25/10/2026). Desvio: com o checksum ligado, `transfer_command` (só o pull) passa `--ignore-times`; sem ele o rsync pula na transferência o arquivo de mesma data e tamanho que o plano marcou como diferente (`test_same_date_and_size_but_other_content_asks`). O envio não muda. A etapa "Comparando o conteúdo…" é a do `PLANNING` (o rsync lê os arquivos já no dry run, na etapa "Listando…") |
 | **Depende de** | spec 17 (prévia do plano e etapas do pull), spec 27-3 (`recheck_local`), spec 58 (textos do sync em `_()`) |
 | **Usada por** | spec 66 (a cópia de `tmp_remote` usa o mesmo dry run e herda a opção) |
 | **Esforço** | P |

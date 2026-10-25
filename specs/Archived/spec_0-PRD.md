@@ -91,6 +91,7 @@ The system dynamically scans the selected directory to determine the calculation
 - When "Synchronize" is clicked, the app compares folder timestamps between the cluster and local counterpart:
   - **Cluster is newer:** Downloads updated files.
   - **Local is newer:** Performs no transfer and displays an informational warning to the user.
+  - With `sync.checksum` (spec 63, default on), only files whose content differs enter the date comparison.
 
 ### 5.3. Exclusion Filters (Rsync Exclude)
 - Heavy, temporary, or non-essential files must be excluded from transfer:

@@ -439,3 +439,15 @@ def test_relative_data_is_relative_to_the_config_file(tmp_path, monkeypatch):
     # No file to anchor a relative folder to (a config built in code): none.
     assert parse_config({"paths": {"data": "dados"}}).paths.data is None
     assert parse_config({"paths": {"data": str(tmp_path)}}).paths.data == tmp_path
+
+
+# -- sync.checksum (spec 63 R1) ----------------------------------------------------------------------
+def test_checksum_is_on_by_default_and_documented(tmp_path):
+    assert AppConfig().sync.checksum is True
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "checksum:" in example.read_text(encoding="utf-8")
+        assert load_config(example, environ={}, cwd=tmp_path).config.sync.checksum is True
+    assert parse_config({"sync": {"checksum": False}}).sync.checksum is False

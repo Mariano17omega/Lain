@@ -27,8 +27,8 @@ def local_file(root, rel, mtime, content="local"):
     return path
 
 
-def record(rel, mtime, size=5):
-    return DryRunItem(">f.st......", size, mtime, rel)
+def record(rel, mtime, size=5, code=">f.st......"):
+    return DryRunItem(code, size, mtime, rel)
 
 
 def test_actions(tmp_path):
@@ -56,6 +56,24 @@ def test_actions(tmp_path):
     }
     assert plan.status is PlanStatus.PENDING
     assert [i.path for i in plan.conflicts] == ["older.out", "resized.out"]
+
+
+def test_same_dates_different_content_is_an_update(tmp_path):
+    local_file(tmp_path, "a.out", T0, "12345")
+    local_file(tmp_path, "b.out", T0, "12345")
+    local_file(tmp_path, "c.out", T0 + 100, "12345")
+    plan = build_plan(
+        [
+            record("a.out", T0, code=">fc........"),
+            record("b.out", T0, code=">f.st......"),  # no `c`: decided by date and size, as before
+            record("c.out", T0, code=">fc.t......"),  # local newer stays LOCAL_NEWER
+        ],
+        tmp_path,
+    )
+    assert {item.path: item.action for item in plan.items} == {
+        "a.out": Action.UPDATE,
+        "c.out": Action.LOCAL_NEWER,
+    }
 
 
 def test_folder_local_newer_rule(tmp_path):

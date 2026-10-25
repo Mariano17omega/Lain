@@ -114,7 +114,11 @@ def build_plan(
             continue
         if local.st_mtime > record.mtime + tolerance:
             action = Action.LOCAL_NEWER
-        elif record.mtime > local.st_mtime + tolerance or local.st_size != record.size:
+        elif (
+            record.mtime > local.st_mtime + tolerance
+            or local.st_size != record.size
+            or record.code[2:3] == "c"  # content differs (only listed with --checksum)
+        ):
             action = Action.UPDATE
         else:
             continue  # same file within tolerance

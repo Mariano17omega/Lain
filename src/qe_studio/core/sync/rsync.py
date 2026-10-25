@@ -155,13 +155,15 @@ def dry_run_command(
     version: tuple[int, ...] | None = None,
     extra: list[str] | None = None,
 ) -> list[str]:
-    """List files that differ (new, size or time) without transferring anything. The root's
-    settings folder is never listed, whatever ``sync.exclude`` says (spec 48 R5)."""
+    """List files that differ (new, size, time or, with ``sync.checksum``, content) without
+    transferring anything. The root's settings folder is never listed, whatever ``sync.exclude``
+    says (spec 48 R5)."""
     excludes = [f"--exclude={pattern}" for pattern in [PROJECT_DATA_EXCLUDE, *config.sync.exclude]]
     return [
         *shlex.split(config.sync.rsync_binary),
         "-n",
         "-rt",
+        *(["--checksum"] if config.sync.checksum else []),
         "-i",
         "--modify-window=1",
         f"--out-format={OUT_FORMAT}",
@@ -180,10 +182,14 @@ def transfer_command(
     version: tuple[int, ...] | None = None,
     extra: list[str] | None = None,
 ) -> list[str]:
-    """Pull exactly the files listed on stdin (NUL separated, relative to the remote dir)."""
+    """Pull exactly the files listed on stdin (NUL separated, relative to the remote dir). With
+    ``sync.checksum`` they are sent whatever their date and size say (``--ignore-times``): the
+    plan found the content different, and rsync's quick check would skip a same-date, same-size
+    file."""
     return [
         *shlex.split(config.sync.rsync_binary),
         "-t",
+        *(["--ignore-times"] if config.sync.checksum else []),
         "--info=progress2",
         "--files-from=-",
         "--from0",

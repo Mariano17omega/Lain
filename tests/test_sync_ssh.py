@@ -55,6 +55,20 @@ def test_key_auth_pull(qtbot, tmp_path, ssh_server):
     assert all(c.startswith("rsync --server") for c in server.commands())
 
 
+def test_pull_with_checksum_passes_the_allowlisted_rsync_server(qtbot, tmp_path, ssh_server):
+    """The default ``sync.checksum`` reaches ``rsync --server`` and the pull still ends DONE."""
+    server, remote = ssh_server
+    write(remote, "scf.out", "scf", T0)
+    report, local = pull(qtbot, tmp_path, ssh_server)
+
+    assert report.status is SyncStatus.DONE, report.error
+    assert (local / "scf.out").read_text() == "scf"
+    dry_run, transfer = server.commands()
+    assert "c" in dry_run.split()[3].split("e.")[0]  # -ntrc...: the --checksum flag
+    assert "I" in transfer.split()[3].split("e.")[0]  # -tI...: --ignore-times
+    assert all(c.startswith("rsync --server") for c in server.commands())
+
+
 def test_key_rejected_fails_without_a_password_prompt(qtbot, tmp_path, ssh_server):
     """BatchMode=yes: ssh never falls back to asking for a password (it would hang the sync)."""
     server, remote = ssh_server

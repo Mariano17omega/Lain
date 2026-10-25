@@ -28,12 +28,12 @@ from qe_studio.core.sync.rsync import (
 )
 
 
-def config(**cluster):
+def config(sync=None, **cluster):
     return parse_config(
         {
             "paths": {"local_root": "/data/sims", "remote_root": "/scratch/me/sims"},
             "cluster": {"host": "10.0.0.1", "user": "me", "port": 2222, **cluster},
-            "sync": {"exclude": ["tmp/", "*.wfc*"]},
+            "sync": {"exclude": ["tmp/", "*.wfc*"], **(sync or {})},
         }
     )
 
@@ -73,7 +73,7 @@ def test_dry_run_command():
     cfg = config()
     remote = Endpoint("/scratch/me/sims/run 1", "10.0.0.1", "me")
     argv = dry_run_command(cfg, remote, Path("/data/sims/run 1"), (3, 2, 7))
-    assert argv[:5] == ["rsync", "-n", "-rt", "-i", "--modify-window=1"]
+    assert argv[:6] == ["rsync", "-n", "-rt", "--checksum", "-i", "--modify-window=1"]
     assert "--out-format=%i|%l|%M|%n" in argv
     assert "--exclude=tmp/" in argv and "--exclude=*.wfc*" in argv
     assert "--no-h" in argv and "--timeout=60" in argv
@@ -81,6 +81,38 @@ def test_dry_run_command():
     assert argv[-2:] == ["me@10.0.0.1:/scratch/me/sims/run 1/", "/data/sims/run 1/"]
     assert "--protect-args" not in argv
     assert "--protect-args" in dry_run_command(cfg, remote, Path("/l"), (3, 1, 3))
+
+
+def test_pull_dry_run_compares_content_by_default():
+    argv = dry_run_command(config(), Endpoint("/scratch/me/sims", "10.0.0.1", "me"), Path("/d"))
+    assert argv[argv.index("-rt") + 1] == "--checksum"  # spec 63 R1
+
+
+def test_checksum_off_is_todays_command():
+    remote = Endpoint("/scratch/me/sims/run 1", "10.0.0.1", "me")
+    local = Path("/data/sims/run 1")
+    on = dry_run_command(config(), remote, local, (3, 2, 7))
+    off = dry_run_command(config({"checksum": False}), remote, local, (3, 2, 7))
+    assert "--checksum" not in off
+    assert off[:5] == ["rsync", "-n", "-rt", "-i", "--modify-window=1"]
+    assert [a for a in on if a != "--checksum"] == off
+
+
+def test_push_never_uses_checksum():
+    cfg = config({"checksum": True})
+    remote = Endpoint("/scratch/me/sims", "10.0.0.1", "me")
+    for build in (push_dry_run_command, push_transfer_command):
+        argv = build(cfg, remote, Path("/d"), (3, 2, 7))
+        assert not any("checksum" in a or a == "-c" for a in argv), build.__name__
+        assert "--ignore-times" not in argv, build.__name__
+
+
+def test_the_pull_transfer_sends_what_the_plan_listed_whatever_the_date():
+    remote = Endpoint("/scratch/me/sims", "10.0.0.1", "me")
+    on = transfer_command(config(), remote, Path("/d"), (3, 2, 7))
+    off = transfer_command(config({"checksum": False}), remote, Path("/d"), (3, 2, 7))
+    assert "--ignore-times" in on and "--ignore-times" not in off
+    assert [a for a in on if a != "--ignore-times"] == off
 
 
 def test_transfer_command_reads_list_from_stdin():

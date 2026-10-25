@@ -24,8 +24,9 @@ from sync_helpers import T0, run_sync, write
 pytestmark = pytest.mark.skipif(shutil.which("rsync") is None, reason="rsync not installed")
 
 
-def make_config():
-    return parse_config({})  # the remote is a local path in these tests: no cluster, no ssh
+def make_config(checksum: bool = True):
+    # the remote is a local path in these tests: no cluster, no ssh
+    return parse_config({"sync": {"checksum": checksum}})
 
 
 @pytest.fixture
@@ -397,3 +398,67 @@ def test_a_failing_recheck_ends_the_sync_as_failed(qtbot, dirs, monkeypatch):
     monkeypatch.setattr("qe_studio.core.sync.controller.recheck_local", broken)
     report, _ = run_sync(qtbot, SyncController(make_config()), local, Endpoint(str(remote)))
     assert report.status is SyncStatus.FAILED and "stat exploded" in report.error
+
+
+# -- sync.checksum (spec 63 R2) ----------------------------------------------------------------------
+def test_same_content_with_newer_date_is_up_to_date(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "same", T0 + 100)
+    write(local, "a.out", "same", T0)
+    plans = []
+    report, prompts = run_sync(
+        qtbot, SyncController(make_config()), local, Endpoint(str(remote)), plans=plans
+    )
+    assert report.status is SyncStatus.UP_TO_DATE
+    assert prompts == [] and plans == []
+
+
+def test_same_date_and_size_but_other_content_asks(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "AAAAA", T0)
+    write(local, "a.out", "BBBBB", T0)
+    report, prompts = run_sync(
+        qtbot,
+        SyncController(make_config()),
+        local,
+        Endpoint(str(remote)),
+        {"a.out": Decision.OVERWRITE},
+    )
+    assert report.status is SyncStatus.DONE
+    assert prompts == ["a.out"]
+    assert (local / "a.out").read_text() == "AAAAA"
+
+
+def test_local_copy_with_newer_date_only_is_not_local_newer(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "same", T0)
+    write(local, "a.out", "same", T0 + 100)
+    report, prompts = run_sync(qtbot, SyncController(make_config()), local, Endpoint(str(remote)))
+    assert report.status is SyncStatus.UP_TO_DATE
+    assert prompts == []
+
+
+def test_checksum_off_keeps_todays_decisions(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "newdate.out", "same", T0 + 100)
+    write(local, "newdate.out", "same", T0)
+    config = make_config(checksum=False)
+    report, prompts = run_sync(qtbot, SyncController(config), local, Endpoint(str(remote)))
+    assert prompts == ["newdate.out"]  # by date: asks about an identical file
+
+    write(remote, "newdate.out", "AAAAA", T0)
+    write(local, "newdate.out", "BBBBB", T0)
+    report, prompts = run_sync(qtbot, SyncController(config), local, Endpoint(str(remote)))
+    assert report.status is SyncStatus.UP_TO_DATE  # by date and size: the difference passes
+    assert prompts == []
+
+
+def test_the_pull_names_the_comparison_it_runs(qtbot, dirs):
+    remote, local = dirs
+    write(remote, "a.out", "x", T0)
+    for checksum in (True, False):
+        stages = []
+        controller = SyncController(make_config(checksum))
+        run_sync(qtbot, controller, local, Endpoint(str(remote)), on_stage=stages.append)
+        assert (controller.COMPARING_CONTENT in stages) is checksum
+        assert (controller.PLANNING in stages) is not checksum

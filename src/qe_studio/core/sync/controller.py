@@ -45,6 +45,7 @@ class SyncController(RsyncRun):
     conflict_needed = pyqtSignal(object)  # PlanItem
 
     CHECKING = _("Conferindo arquivos locais…")
+    COMPARING_CONTENT = _("Comparando o conteúdo dos arquivos…")
 
     _plan: SyncPlan
     _resolver: ConflictResolver | None
@@ -69,6 +70,9 @@ class SyncController(RsyncRun):
         self._plan = SyncPlan()
         self._resolver = None
         self._changed = []
+
+    def _planning_stage(self) -> str:
+        return self.COMPARING_CONTENT if self.config.sync.checksum else self.PLANNING
 
     def _dry_run_command(self) -> list[str]:
         return dry_run_command(

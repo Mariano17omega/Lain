@@ -168,6 +168,9 @@ class RsyncRun(QObject):
             error=_("erro inesperado ({name}: {exc})").format(name=type(exc).__name__, exc=exc),
         )
 
+    def _planning_stage(self) -> str:
+        return self.PLANNING
+
     def _check_version(self) -> None:
         argv = version_command(self.config.sync.rsync_binary)
         self._launch(argv, self._on_version, start_error=RSYNC_MISSING)
@@ -189,7 +192,7 @@ class RsyncRun(QObject):
         if code != 0:
             self._fail(code)
             return
-        self.stage_changed.emit(self.PLANNING)
+        self.stage_changed.emit(self._planning_stage())
         self._plan_task = run_task(
             self._build_plan,
             stdout,

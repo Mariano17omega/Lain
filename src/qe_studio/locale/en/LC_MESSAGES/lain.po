@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 01:19-0400\n"
-"PO-Revision-Date: 2026-10-25 01:19-0400\n"
+"POT-Creation-Date: 2026-10-25 01:34-0400\n"
+"PO-Revision-Date: 2026-10-25 01:34-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -1066,6 +1066,10 @@ msgstr "Comparing with the cluster…"
 #: core/sync/_process.py
 msgid "Comparando datas de modificação…"
 msgstr "Comparing modification dates…"
+
+#: core/sync/controller.py
+msgid "Comparando o conteúdo dos arquivos…"
+msgstr "Comparing file contents…"
 
 #: ui/widgets/diff_view.py
 msgid "Comparando…"

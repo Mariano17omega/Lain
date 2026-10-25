@@ -53,6 +53,9 @@ sync:
   # "Baixar". false = transfer directly (automation); updates still ask file by file.
   # Sending to the cluster ("Enviar ao cluster") always shows its plan, whatever this says.
   confirm_plan: true
+  # Compare files by content (rsync --checksum) to decide what to download; false: by date and
+  # size (faster on big trees). Cost: reads every file on both sides on each sync.
+  checksum: true
   # "Enviar ao cluster" only adds new files (one the cluster has is never changed). On top of
   # `exclude`, these never go up: figures and plot settings are local.
   push_exclude:

@@ -158,6 +158,9 @@ class SyncConfig(_Section):
     # Show the plan and wait for "Baixar" before transferring (spec 17 R2.5); false transfers
     # directly (automation, tests). Updates still ask file by file either way. A push always asks.
     confirm_plan: bool = True
+    # Compare files by content (rsync --checksum) to decide what to download; false: by date and
+    # size (faster on big trees). Only the pull uses it (spec 63).
+    checksum: bool = True
     # Never sent to the cluster, on top of ``exclude`` (spec 27 R5): figures and plot settings.
     push_exclude: list[str] = Field(default_factory=lambda: list(DEFAULT_PUSH_EXCLUDES))
 
