@@ -95,3 +95,11 @@ def test_failures_are_classified():
     other = classify_failure(result(1, "warning\nUnable to read script file\n"), "qsub", setting)
     assert other == ActionFailure("qsub terminou com código 1: Unable to read script file")
     assert classify_failure(result(2), "qsub", setting).message == "qsub terminou com código 2."
+    # The command's own "Permission denied" (spec 70: a folder the user cannot write) is no login
+    # refused: the password stays.
+    denied = classify_failure(
+        result(1, "touch: cannot touch 'a/x.EXIT': Permission denied"), "touch"
+    )
+    assert denied == ActionFailure(
+        "touch terminou com código 1: touch: cannot touch 'a/x.EXIT': Permission denied"
+    )

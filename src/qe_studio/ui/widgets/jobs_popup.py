@@ -3,12 +3,15 @@
 It shows what ``ui/jobs_controller.py`` gives it, one of four pages: querying (before the first
 answer), the failure and "Tentar de novo", an empty queue, or the jobs in two sections, "Em execução"
 and "Na fila", each under a coloured bar, with the user's own jobs in bold and the accent colour.
+A job of the user still waiting has a cancel button in the last column (spec 70 R5): the popup
+only says which job was asked for (``cancel_requested``); ``ui/job_cancel.py`` does the rest.
 A click outside or Esc closes it.
 """
 
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 
 from PyQt6.QtCore import QPoint, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -17,6 +20,7 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QLabel,
     QPushButton,
+    QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -29,10 +33,14 @@ from ..theme.manager import ThemeManager
 from ..theme.scale import scaled
 from .spinner import CircularProgress
 
-WIDTH = 600  # px at scale 1
+WIDTH = 630  # px at scale 1
 INDENT = 14  # px at scale 1: the jobs sit inside their bar
 MAX_ROWS = 14  # rows shown before the table scrolls
 CORES = 3  # the column of the "#" of the qstatus listing
+CANCEL = 4  # the column of the cancel buttons
+CANCEL_PX = 26  # px at scale 1: that column's width
+BUTTON_PX = 16  # px at scale 1: a cancel button; with the item's padding, as tall as a row
+ICON_PX = 12
 LOADING, FAILURE, EMPTY, TABLE = range(4)
 RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 
@@ -42,8 +50,25 @@ def clock(epoch: float) -> str:
     return time.strftime("%H:%M", time.localtime(epoch))
 
 
+class CancelButton(QToolButton):
+    """The cancel button of one row: it says which job it belongs to."""
+
+    requested = pyqtSignal(object)  # the Job
+
+    def __init__(self, job: Job, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.job = job
+        self.setObjectName("jobsCancel")
+        self.setAutoRaise(True)
+        self.clicked.connect(self._emit)
+
+    def _emit(self) -> None:
+        self.requested.emit(self.job)
+
+
 class JobsPopup(QFrame):
     refresh_requested = pyqtSignal()  # "Atualizar" or "Tentar de novo"
+    cancel_requested = pyqtSignal(object)  # the Job of a cancel button (spec 70 R5)
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
@@ -54,6 +79,9 @@ class JobsPopup(QFrame):
         # A click on the indicator while open only closes it (no replayed click to reopen it).
         self.setAttribute(Qt.WidgetAttribute.WA_NoMouseReplay, True)
         self._shown: tuple[JobsSnapshot, str] | None = None
+        # Why a waiting job of the user cannot be cancelled now ("" when it can); asked per row.
+        self.cancel_reason: Callable[[Job], str] | None = None
+        self.cancel_buttons: list[CancelButton] = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 10)
         layout.setSpacing(8)
@@ -113,8 +141,8 @@ class JobsPopup(QFrame):
     def _table(self) -> QTreeWidget:
         tree = QTreeWidget()
         tree.setObjectName("jobsTable")
-        tree.setColumnCount(4)
-        tree.setHeaderLabels([_("Nome"), _("Dono"), _("Envio / início"), _("Núcleos")])
+        tree.setColumnCount(5)
+        tree.setHeaderLabels([_("Nome"), _("Dono"), _("Envio / início"), _("Núcleos"), ""])
         header_item = tree.headerItem()
         assert header_item is not None
         header_item.setTextAlignment(CORES, RIGHT)
@@ -129,6 +157,9 @@ class JobsPopup(QFrame):
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for column in (1, 2, 3):
             header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(CANCEL, QHeaderView.ResizeMode.Fixed)
+        header.setMinimumSectionSize(scaled(CANCEL_PX))  # the style's would widen the column
+        header.resizeSection(CANCEL, scaled(CANCEL_PX))
         return tree
 
     # -- content -----------------------------------------------------------------------------
@@ -152,6 +183,7 @@ class JobsPopup(QFrame):
         self._shown = (snapshot, user)
         self.updated.setText(_("Atualizado às {time}").format(time=clock(snapshot.fetched_at)))
         self.tree.clear()
+        self.cancel_buttons = []
         if not snapshot.running and not snapshot.waiting:
             self._set_page(EMPTY)
             return
@@ -201,6 +233,22 @@ class JobsPopup(QFrame):
                     row.setFont(column, bold)
                     row.setForeground(column, accent)
             section.addChild(row)
+            if not job.running and job.owner == user:
+                self.tree.setItemWidget(row, CANCEL, self._cancel_button(job))
+
+    def _cancel_button(self, job: Job) -> CancelButton:
+        """The button of a job of the user that waits: disabled, with the reason, when it cannot
+        be cancelled now."""
+        button = CancelButton(job)
+        button.setIcon(self.theme.icon("close", "text_muted", size=ICON_PX))
+        button.setFixedSize(scaled(BUTTON_PX), scaled(BUTTON_PX))
+        reason = self.cancel_reason(job) if self.cancel_reason is not None else ""
+        tip = _("Cancelar o job {job_id} (qdel)").format(job_id=job.job_id)
+        button.setToolTip(reason or tip)
+        button.setEnabled(not reason)
+        button.requested.connect(self.cancel_requested)
+        self.cancel_buttons.append(button)
+        return button
 
     def _set_page(self, page: int) -> None:
         self._page = page
@@ -226,6 +274,12 @@ class JobsPopup(QFrame):
     def _on_scale_changed(self, _scale: float) -> None:
         self.setFixedWidth(scaled(WIDTH))
         self.tree.setIndentation(scaled(INDENT))
+        header = self.tree.header()
+        if header is not None:
+            header.setMinimumSectionSize(scaled(CANCEL_PX))
+            header.resizeSection(CANCEL, scaled(CANCEL_PX))
+        if self._shown is not None:
+            self.show_snapshot(*self._shown)  # the buttons take the new size
         self._fit()
 
     # -- showing -----------------------------------------------------------------------------

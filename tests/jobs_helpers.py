@@ -41,16 +41,18 @@ Waiting jobs for user: usuario
 EMPTY = "Running jobs:\n\nWaiting jobs:\n"
 
 
-def with_mine(*names: str, waiting: int = 0) -> str:
+def with_mine(*names: str, waiting: int = 0, queued: str | None = None) -> str:
     """``QSTATUS_ALL`` with running jobs of ``USER`` named ``names`` (after the others) and
-    ``waiting`` of theirs in the queue."""
+    ``waiting`` of theirs in the queue, ``Queued-<i>`` or all named ``queued``; IDs 24000… and
+    25000…"""
     running, queue = QSTATUS_ALL.split("\nWaiting jobs:\n")
     lines = [
         f"  {24000 + i} 16 {name:<25} {USER:<10} 10/24/2026 09:0{i}:00 physica.q"
         for i, name in enumerate(names)
     ]
     queued = [
-        f"  {25000 + i} 16 Queued-{i:<18} {USER:<10} 10/24/2026 10:00:0{i}" for i in range(waiting)
+        f"  {25000 + i} 16 {queued or f'Queued-{i}':<25} {USER:<10} 10/24/2026 10:00:0{i}"
+        for i in range(waiting)
     ]
     head = running.rstrip("\n") + "\n" + "".join(f"{line}\n" for line in lines)
     return head + "\nWaiting jobs:\n" + queue + "".join(f"{line}\n" for line in queued)

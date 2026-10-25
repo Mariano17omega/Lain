@@ -55,3 +55,12 @@
 #jobsTable::item {
     padding: 2px 4px;
 }
+#jobsCancel {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 0;
+}
+#jobsCancel:hover {
+    background: ${hover};
+}

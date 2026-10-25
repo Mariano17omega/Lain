@@ -19,6 +19,7 @@ from qe_studio.core.remote.submit import (
 )
 from qe_studio.core.sync.command import CommandResult
 
+from action_helpers import FakeAction
 from jobs_helpers import EMPTY, USER, FakeFetch, snapshot, with_mine
 from remote_helpers import FakeListing, entries
 
@@ -32,23 +33,11 @@ def config(**cluster):
     return parse_config({"paths": {"remote_root": ROOT}, "cluster": settings})
 
 
-class FakeRun:
-    """``run_action`` of the tests: the commands it was given, and ``result`` for each."""
-
-    def __init__(self, result=None):
-        self.result = CommandResult(0, ANSWER, "") if result is None else result
-        self.commands: list[str] = []
-
-    def __call__(self, _config, command, password=None):
-        self.commands.append(command)
-        return self.result
-
-
 @pytest.fixture
 def fakes(monkeypatch):
     """``(listing, fetch, run)``: ``BANDS`` holds the script, the queue has no job of the user."""
     listing = FakeListing({BANDS: entries(files=("bands.qsub", "bands.in"))})
-    fetch, run = FakeFetch(snapshot(EMPTY)), FakeRun()
+    fetch, run = FakeFetch(snapshot(EMPTY)), FakeAction(CommandResult(0, ANSWER, ""))
     monkeypatch.setattr(submit_module, "list_remote", listing)
     monkeypatch.setattr(submit_module, "fetch_jobs", fetch)
     monkeypatch.setattr(submit_module, "run_action", run)

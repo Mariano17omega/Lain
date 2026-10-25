@@ -62,6 +62,7 @@ ignore = ["E501"]
 [tool.ruff.lint.isort]
 known-first-party = ["qe_studio"]
 known-local-folder = [
+    "action_helpers",
     "calc_dialog_helpers",
     "calc_helpers",
     "cluster_guard",

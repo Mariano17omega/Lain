@@ -1,8 +1,20 @@
-"""Confirmations before a command that changes the cluster (spec 69 R4.4): what runs, where, exactly."""
+"""Confirmations before a command that changes the cluster (spec 69 R4.4, spec 70 R6): what runs,
+where, exactly."""
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from collections.abc import Sequence
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from ...core.remote.submit import SubmitPlan
 from ...i18n import _
@@ -50,6 +62,76 @@ class SubmitDialog(QDialog):
 def ask_submit(parent: QWidget, plan: SubmitPlan, account: str) -> bool:
     """True when the user confirmed the submission."""
     dialog = SubmitDialog(plan, account, parent)
+    accepted = dialog.exec() == QDialog.DialogCode.Accepted
+    dialog.deleteLater()
+    return accepted
+
+
+class CancelDialog(QDialog):
+    """ "Cancelar esta simulação?": a block of label and value per job, the method (to read, not to
+    choose), what it does and the exact command. "Voltar" is the default: Enter cancels nothing."""
+
+    def __init__(
+        self,
+        rows: Sequence[Sequence[tuple[str, str]]],
+        method: str,
+        note: str,
+        line: str,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent)
+        self.setWindowTitle(_("Cancelar simulação"))
+        self.setModal(True)
+        layout = QVBoxLayout(self)
+        layout.addWidget(set_variant(QLabel(_("Cancelar esta simulação?")), "dialogTitle"))
+        self.values: list[QLabel] = []
+        for block in rows:
+            form = QFormLayout()
+            for label, value in block:
+                shown = QLabel(value)
+                shown.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                self.values.append(shown)
+                form.addRow(set_variant(QLabel(label), "dialogText"), shown)
+            layout.addLayout(form)
+        row = QHBoxLayout()
+        row.addWidget(set_variant(QLabel(_("Método:")), "dialogText"))
+        self.method = QLabel(method)
+        font = self.method.font()
+        font.setBold(True)
+        self.method.setFont(font)
+        row.addWidget(self.method, 1)
+        layout.addLayout(row)
+        self.note = set_variant(QLabel(note), "dialogText")
+        self.note.setWordWrap(True)
+        layout.addWidget(self.note)
+        command = _("Comando que vai rodar no cluster:")
+        layout.addWidget(set_variant(QLabel(command), "dialogText"))
+        self.command = set_variant(QLabel(line), "mono")
+        self.command.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(self.command)
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        self.back_button = QPushButton(_("Voltar"))
+        self.cancel_button = set_variant(QPushButton(_("Cancelar simulação")), "danger")
+        self.back_button.clicked.connect(self.reject)
+        self.cancel_button.clicked.connect(self.accept)
+        self.cancel_button.setAutoDefault(False)  # focused, it would take Enter
+        self.back_button.setDefault(True)
+        buttons.addWidget(self.back_button)
+        buttons.addWidget(self.cancel_button)
+        layout.addLayout(buttons)
+        self.back_button.setFocus()
+
+
+def ask_cancel(
+    parent: QWidget,
+    rows: Sequence[Sequence[tuple[str, str]]],
+    method: str,
+    note: str,
+    line: str,
+) -> bool:
+    """True when the user confirmed the cancellation."""
+    dialog = CancelDialog(rows, method, note, line, parent)
     accepted = dialog.exec() == QDialog.DialogCode.Accepted
     dialog.deleteLater()
     return accepted

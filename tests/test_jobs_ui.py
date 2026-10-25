@@ -13,7 +13,8 @@ from qe_studio.core.cluster_jobs import JobsFailure
 from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.sync.monitor import ConnectionState
 from qe_studio.ui import shutdown
-from qe_studio.ui.widgets.jobs_popup import EMPTY, FAILURE, LOADING, TABLE
+from qe_studio.ui.theme.scale import scaled
+from qe_studio.ui.widgets.jobs_popup import CANCEL, EMPTY, FAILURE, LOADING, TABLE, WIDTH
 
 from jobs_helpers import EMPTY as EMPTY_LISTING
 from jobs_helpers import QSTATUS_ALL, USER, FakeFetch, cluster_window, snapshot, with_mine
@@ -251,6 +252,32 @@ def test_esc_closes_the_popup(qtbot, make):
     popup = open_popup(qtbot, window)
     qtbot.keyClick(popup, Qt.Key.Key_Escape)
     qtbot.waitUntil(lambda: not popup.isVisible(), timeout=2000)
+
+
+def test_only_the_users_waiting_jobs_have_a_cancel_button(qtbot, make):
+    """Spec 70 R5: none in "Em execução", none on the jobs of others."""
+    window, _ = make(FakeFetch(snapshot(with_mine("Bands-kao-b", waiting=2))))
+    popup = open_popup(qtbot, window)
+    tree = popup.tree
+    header = tree.headerItem()
+    assert header is not None and tree.columnCount() == 5 and header.text(CANCEL) == ""
+    running, waiting = tree.topLevelItem(0), tree.topLevelItem(1)
+    assert running is not None and waiting is not None
+    widgets = [
+        tree.itemWidget(section.child(i), CANCEL)
+        for section in (running, waiting)
+        for i in range(section.childCount())
+    ]
+    assert widgets == [None] * 6 + popup.cancel_buttons  # 4 running, 2 of usuario_a, then theirs
+    assert [button.job.job_id for button in popup.cancel_buttons] == ["25000", "25001"]
+    assert popup.cancel_buttons[0].toolTip() == "Cancelar o job 25000 (qdel)"
+    assert all(button.isEnabled() for button in popup.cancel_buttons)
+    assert popup.width() == scaled(WIDTH)
+
+
+def test_no_waiting_job_of_the_user_no_button(qtbot, make):
+    window, _ = make(FakeFetch(snapshot(with_mine("Bands-kao-b"))))
+    assert open_popup(qtbot, window).cancel_buttons == []
 
 
 def test_the_popup_before_the_first_answer(qtbot, make):

@@ -17,6 +17,7 @@ from qe_studio.ui.dialogs.cluster_action import SubmitDialog
 from qe_studio.ui.job_actions import NO_QUEUE, NO_SUBMIT, WAIT
 from qe_studio.ui.widgets.remote_model import RemotePath
 
+from action_helpers import FakeCommand, toasts
 from jobs_helpers import EMPTY, FakeFetch, snapshot, with_mine
 from remote_helpers import ACCOUNT, REMOTE, FakeListing, entries, menu_spy, remote_window, turn_on
 
@@ -24,18 +25,6 @@ BANDS = f"{REMOTE}/03_bands"
 SCRIPT = RemotePath(f"{BANDS}/bands.qsub", False)
 SUBMIT = "Submeter…"
 ANSWER = 'Your job 24123 ("Bands-kao-b") has been submitted\n'
-
-
-class FakeRun:
-    """``run_command`` of ``core/remote/actions.py``: every argv, and ``result``."""
-
-    def __init__(self):
-        self.result = CommandResult(0, ANSWER, "")
-        self.argvs: list[list[str]] = []
-
-    def __call__(self, argv, env, timeout_s):
-        self.argvs.append(argv)
-        return self.result
 
 
 class Asked:
@@ -56,7 +45,12 @@ def cluster(monkeypatch):
     """The fakes: ``folders`` (the listings the submission reads), ``jobs`` (its queue), ``queue``
     (the top bar's), ``run`` and ``asked``."""
     folders = FakeListing({BANDS: entries(files=("bands.qsub", "bands.in"))})
-    jobs, queue, run, asked = FakeFetch(snapshot(EMPTY)), FakeFetch(), FakeRun(), Asked()
+    jobs, queue, run, asked = (
+        FakeFetch(snapshot(EMPTY)),
+        FakeFetch(),
+        FakeCommand(CommandResult(0, ANSWER, "")),
+        Asked(),
+    )
     monkeypatch.setattr(submit_module, "list_remote", folders)
     monkeypatch.setattr(submit_module, "fetch_jobs", jobs)
     monkeypatch.setattr(actions, "run_command", run)
@@ -71,12 +65,6 @@ def window(qtbot, window_factory, demo_project, monkeypatch, cluster):
     window = remote_window(window_factory, demo_project, monkeypatch, browse)
     window.browse = browse
     return window
-
-
-def toasts(window) -> list[tuple[str, str]]:
-    toast = window.toast
-    shown = [toast.current, *toast._queue] if toast.current else list(toast._queue)
-    return [(notice.text, notice.level) for notice in shown]
 
 
 def submit_item(qtbot, window, monkeypatch, item=SCRIPT):

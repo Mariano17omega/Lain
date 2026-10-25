@@ -286,7 +286,7 @@ def test_a_menu_hook_adds_its_items_before_copy(qtbot, window, monkeypatch):
         shown.append(["-" if a.isSeparator() else a.text() for a in menu.actions()])
 
     monkeypatch.setattr(QMenu, "exec", exec_)
-    window.remote.menu_hooks.append(hook)
+    window.remote.menu_hooks[:] = [hook]  # only this one: the window's own add to folders (spec 70)
     folder = [RemotePath(f"{REMOTE}/02_scf", True)]
     window.remote.show_menu(folder, QPoint())
     window.remote.show_menu([RemotePath(f"{BANDS}/bands.out", False)], QPoint())

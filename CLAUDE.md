@@ -132,13 +132,16 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
   `SSH_ASKPASS` in the child env, never argv or logs.
 - rsync children run with `LC_ALL=C.UTF-8`, `TZ=UTC` and `--no-h` (its output is parsed).
 - A remote command other than rsync is built only from programs named in `config.yaml` (`cluster.jobs_command`,
-  `cluster.submit_command`) plus the fixed `cd` and `chmod a+x`, in `core/remote/actions.py` and
-  `core/sync/command.py`, with the same ssh options; a value read from the cluster (a file or folder name) enters only
-  as an argument, after `checked_name` and `shlex.quote`. A command that changes the cluster runs only after the user
-  confirms it.
+  `cluster.submit_command`, `cluster.delete_command`) plus the fixed `cd`, `chmod a+x` and `touch`, in
+  `core/remote/actions.py` and `core/sync/command.py`, with the same ssh options; a value read from the cluster (a
+  file or folder name, a `prefix`, a job-ID) enters only as an argument, after `checked_name` and `shlex.quote`. A
+  command that changes the cluster runs only after the user confirms it.
 - The cluster mode lists (`rsync --list-only`, `core/remote/listing.py`), downloads through the usual pull (or into
-  `tmp_remote/` to plot) and submits a `.qsub` after a confirmation (`chmod a+x`, then `qsub`, in its folder), never
-  while a job of the user runs in that folder (`core/remote/submit.py`).
+  `tmp_remote/` to plot), submits a `.qsub` after a confirmation (`chmod a+x`, then `qsub`, in its folder), never
+  while a job of the user runs in that folder (`core/remote/submit.py`), and cancels a job (`core/remote/job_cancel.py`).
+- Cancelling a job (spec 70) never guesses: a fresh `qstatus` right before acting decides. A running job is stopped
+  only by creating `<prefix>.EXIT` in its folder (matched by its `<name>.o<id>`); `qdel` runs only on a job still
+  waiting, by its ID, never on one that is running.
 
 ### Theming and UI
 

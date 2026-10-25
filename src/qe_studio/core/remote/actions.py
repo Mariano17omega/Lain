@@ -22,6 +22,7 @@ from ...i18n import _
 from ..config import AppConfig
 from ..sync.command import CommandResult, remote_command, run_command
 from ..sync.rsync import child_env, is_auth_failure, is_connection_failure, known_cause
+from .listing import SSH_FAILED, RemoteFailure
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +37,13 @@ class ActionFailure:
     auth: bool = False  # it refused the login
     missing: bool = False  # the command (or the folder) does not exist there
     local: bool = False  # ssh itself could not be run, or nothing was sent
+
+
+def failure_of(listing: RemoteFailure) -> ActionFailure:
+    """A listing (or a copy) of the cluster that failed, as the failure of the action it serves."""
+    return ActionFailure(
+        listing.message, listing.connection, listing.auth, listing.missing, listing.local
+    )
 
 
 def checked_name(name: str) -> str:
@@ -61,17 +69,24 @@ def checked_dir(config: AppConfig, remote_dir: str) -> str:
     return shlex.quote(root) + "".join("/" + shlex.quote(checked_name(part)) for part in parts)
 
 
-def classify_failure(result: CommandResult, command: str, setting: str) -> ActionFailure:
-    """Why a run of ``command`` (the program of ``setting`` in ``config.yaml``) did not succeed."""
+def classify_failure(
+    result: CommandResult, command: str, setting: str | None = None
+) -> ActionFailure:
+    """Why a run of ``command`` (the program of ``setting`` in ``config.yaml``; None for a fixed
+    word such as ``touch``) did not succeed."""
     if result.timed_out:
         message = _("O cluster não respondeu a {command} a tempo.").format(command=command)
         return ActionFailure(message, connection=True)
     stderr = result.stderr
     code = result.code if result.code is not None else -1
-    if is_auth_failure(stderr):
+    # ssh's own code: a command that fails on the cluster may also say "Permission denied".
+    if code == SSH_FAILED and is_auth_failure(stderr):
         return ActionFailure(known_cause(stderr) or "", auth=True)
     if code == 127 or "command not found" in stderr:
-        message = _("O comando {command} não foi encontrado no cluster ({setting}).")
+        if setting is None:
+            message = _("O comando {command} não foi encontrado no cluster.")
+        else:
+            message = _("O comando {command} não foi encontrado no cluster ({setting}).")
         return ActionFailure(message.format(command=command, setting=setting), missing=True)
     if is_connection_failure(code, stderr):
         fallback = _("Cluster inacessível (ssh terminou com código {code}).").format(code=code)

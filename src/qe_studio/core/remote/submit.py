@@ -21,7 +21,14 @@ from dataclasses import dataclass
 from ...i18n import _
 from ..cluster_jobs import JobsFailure, fetch_jobs, running_in
 from ..config import AppConfig
-from .actions import ActionFailure, checked_dir, checked_name, classify_failure, run_action
+from .actions import (
+    ActionFailure,
+    checked_dir,
+    checked_name,
+    classify_failure,
+    failure_of,
+    run_action,
+)
 from .listing import RemoteFailure, list_remote
 
 SETTING = "cluster.submit_command"
@@ -76,9 +83,7 @@ def folder_check(
     """The EXIT files of ``remote_dir``, listed again, when no job of the user runs in it."""
     listing = list_remote(config, remote_dir, password)
     if isinstance(listing, RemoteFailure):
-        return ActionFailure(
-            listing.message, listing.connection, listing.auth, listing.missing, listing.local
-        )
+        return failure_of(listing)
     jobs = fetch_jobs(config, password)
     if isinstance(jobs, JobsFailure):
         message = _(

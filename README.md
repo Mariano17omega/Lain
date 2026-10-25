@@ -218,7 +218,11 @@ a job of yours that is running (with several, the name changes every `jobs_rotat
 "Nenhum job em execução". A click opens the whole queue of the cluster, in a green "Running" bar
 and an amber "Queued" bar, with the name, owner, start or submission time (month/day and hour:minute,
 as the cluster writes them, without the year or the seconds) and the cores of each job; yours are in
-bold. The tooltip of a row keeps the job-ID, the queue and the full date. Lain reads it
+bold. The tooltip of a row keeps the job-ID, the queue and the full date. Your jobs still waiting
+have a cancel button (✕) at the end of the row (spec 70): the popup closes, a dialog shows the job
+and the exact command (`qdel <job-ID>`), and after "Cancelar simulação" Lain asks the queue again and
+runs `qdel` only if that ID is still waiting, with the same name and owner: a job that has started is
+never deleted (it would go on running out of the queue), and a notice says so. Lain reads it
 by running `cluster.jobs_command` on the cluster over ssh, with the login and options of the sync,
 when the window opens and then every `jobs_poll_seconds` while it is active. The last answer is kept
 in memory for the session ("Atualizar" asks again); nothing is written to disk. Each query is a real
@@ -229,6 +233,7 @@ cluster:
   jobs_command: qstatus -a     # empty turns the indicator off
   jobs_poll_seconds: 300       # at least 30
   jobs_rotate_seconds: 5
+  delete_command: qdel         # the cancel button of a waiting job; empty turns it off
 ```
 
 The listing read is the one of `qstatus -a` (SGE): "Running jobs:" and "Waiting jobs:" sections,
@@ -279,6 +284,18 @@ then the local panels come back exactly as they were. Nothing local is read or c
   `remote_root`) must use letters, digits, `.`, `_`, `+` and `-` only. The block relies on the job
   name in `qstatus` matching the `-N` of the script, and a job still in the queue leaves nothing in
   the folder, so it does not block.
+- Right-click a folder (or a `.qsub`: its folder) for **Cancelar simulação…** (spec 70), to stop
+  your job running there. Lain lists the folder and asks the queue again: one of your running jobs
+  must have its `<name>.o<job-ID>` in the folder (ID and name equal to the queue's), or a notice
+  says there is none and nothing happens. It then copies the folder's files of up to 1 MB (no
+  subfolder) into a temporary folder of the cache, reads the `prefix` of every pw.x input (by content;
+  `pwscf` when one sets none) and deletes the copy. The dialog shows the job, the folder, the method
+  and the exact command, `touch <folder>/<prefix>.EXIT` (one file per prefix); "Voltar" is the
+  default. After "Cancelar simulação" the queue is asked once more and the file is created only if
+  the job still runs. pw.x finds the file at its next check, stops cleanly ("Program stopped by user
+  request") and deletes it; **the next commands of the script still run** (another pw.x, bands.x,
+  projwfc.x…). It needs `cluster.jobs_command`; a job still waiting is cancelled from the queue
+  popup instead.
 
 ## Usage
 

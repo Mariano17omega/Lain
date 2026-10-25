@@ -8,6 +8,9 @@ and the queue asked when the item is clicked, and both again right before ``qsub
 confirmation: a job of the user running in the folder blocks the submission, with a toast and no
 dialog. The configuration is read when the user acts (``window.config``), so a reloaded
 ``config.yaml`` needs no wiring here.
+
+Cancelling a job (spec 70, ``ui/job_cancel.py``) shares the pool through ``password``, ``run``,
+``report`` and ``list_again``: one action on the cluster at a time, whichever it is.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Hashable
 from pathlib import PurePosixPath
+from typing import Any
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 from PyQt6.QtWidgets import QMenu, QWidget
@@ -74,6 +78,7 @@ class JobActionsController(QObject):
         self._config, self._dialog_parent = config, dialog_parent
         self._pending: tuple[AppConfig, str | None] | None = None  # the action's config, password
         self._plan: SubmitPlan | None = None  # the confirmed one, while it is submitted
+        self._then: Callable[[Any], None] | None = None  # who gets the answer of the running action
         self._pool = QThreadPool()  # no Qt parent (CLAUDE.md, Threading)
         self._pool.setMaxThreadCount(1)
         self._tasks = TaskGroup(self._pool)
@@ -103,8 +108,61 @@ class JobActionsController(QObject):
         within ``core/sync/command.py:POLL_SECONDS``. A ``qsub`` that reached the cluster may have
         submitted: the next session's queue shows it."""
         self._tasks.shutdown(0)
-        self._pending = self._plan = None
+        self._pending = self._plan = self._then = None
         self.busy.end(BUSY_KEY)
+
+    # -- what every cluster action shares --------------------------------------------------------
+    def password(self, config: AppConfig) -> tuple[bool, str | None]:
+        """(go on, the password typed in this session): the sync's dialog asks for it once when
+        ``auth: password`` finds none in the config or the environment; (False, None) when the user
+        cancelled it."""
+        cluster = config.cluster
+        if cluster.auth != "password" or cluster.resolve_password() is not None:
+            return True, None
+        password = self.sync.session_password(ask=True)
+        return password is not None, password
+
+    def run(self, label: str, fn: Callable, *args: Any, on_done: Callable[[Any], None]) -> None:
+        """``fn(*args)`` in the pool of the cluster actions, with ``label`` in the footer;
+        ``on_done(answer)`` on the GUI thread, an exception as an ``ActionFailure``. Never after
+        ``cancel()``. One action at a time: callers check ``busy_now`` first."""
+        self._then = on_done
+        self._tasks.submit(KEY, fn, *args, on_done=self._on_done, on_error=self._on_error)
+        self.busy.begin(BUSY_KEY, label)
+
+    def _on_done(self, _key: Hashable, result: object) -> None:
+        self.busy.end(BUSY_KEY)
+        then, self._then = self._then, None
+        if then is not None:
+            then(result)
+
+    def _on_error(self, key: Hashable, error: Exception) -> None:
+        log.error("cluster action failed", exc_info=error)
+        message = _("Falha na ação no cluster: {error}").format(error=error)
+        self._on_done(key, ActionFailure(message, local=True))
+
+    def report(self, failure: ActionFailure | None) -> None:
+        """What an answer tells the LED, as the jobs' and the listings' answers do (None: the
+        cluster answered); a refused login forgets the password."""
+        monitor = self.sync.monitor
+        if failure is None:
+            monitor.report(True)
+            return
+        if failure.connection:
+            monitor.report(False)
+        elif not (failure.auth or failure.local):
+            monitor.report(True)  # the cluster answered: it is the command that failed
+        if failure.auth:
+            self.sync.forget_password()
+
+    def list_again(self, remote_dir: str) -> None:
+        """A folder an action changed: listed again when the cluster mode shows it, else out of the
+        cache."""
+        remote = self.remote
+        if remote.active and remote.current == remote_dir:
+            remote.refresh()
+        elif remote.browser is not None:
+            remote.browser.invalidate(remote_dir)
 
     # -- the menu --------------------------------------------------------------------------------
     def add_to_menu(self, menu: QMenu, items: list[RemotePath]) -> None:
@@ -141,31 +199,15 @@ class JobActionsController(QObject):
         if self.submit_blocked(item):
             return
         config = self._config()
-        cluster = config.cluster
-        needs_password = cluster.auth == "password" and cluster.resolve_password() is None
-        password = None
-        if needs_password:
-            password = self.sync.session_password(ask=True)
-            if password is None:
-                return
+        go_on, password = self.password(config)
+        if not go_on:
+            return
         path = PurePosixPath(item.path)
         self._pending = (config, password)
-        self._tasks.submit(
-            KEY,
-            plan_submit,
-            config,
-            str(path.parent),
-            path.name,
-            password,
-            on_done=self._on_planned,
-            on_error=self._on_error,
-        )
-        self.busy.begin(BUSY_KEY, CHECKING)
+        args = (config, str(path.parent), path.name, password)
+        self.run(CHECKING, plan_submit, *args, on_done=self._on_planned)
 
-    def _on_planned(
-        self, _key: Hashable, result: SubmitPlan | SubmitBlocked | ActionFailure
-    ) -> None:
-        self.busy.end(BUSY_KEY)
+    def _on_planned(self, result: SubmitPlan | SubmitBlocked | ActionFailure) -> None:
         pending = self._pending
         if pending is None:
             return
@@ -181,48 +223,24 @@ class JobActionsController(QObject):
             self.done.emit(None)
             return
         self._plan = result
-        self._tasks.submit(
-            KEY,
-            submit,
-            config,
-            result,
-            password,
-            on_done=self._on_submitted,
-            on_error=self._on_error,
-        )
-        self.busy.begin(BUSY_KEY, SUBMITTING)
+        self.run(SUBMITTING, submit, config, result, password, on_done=self._on_submitted)
 
-    def _on_submitted(
-        self, _key: Hashable, result: Submitted | str | SubmitBlocked | ActionFailure
-    ) -> None:
-        self.busy.end(BUSY_KEY)
+    def _on_submitted(self, result: Submitted | str | SubmitBlocked | ActionFailure) -> None:
         plan, self._pending, self._plan = self._plan, None, None
         self._tell(result)
         if plan is not None and isinstance(result, Submitted | str):  # qsub ended with code 0
             self.jobs.refresh()  # the new job shows in the queue
-            self._list_again(plan.remote_dir)
+            self.list_again(plan.remote_dir)  # its .o file comes when the job starts
         self.done.emit(result)
 
-    def _on_error(self, key: Hashable, error: Exception) -> None:
-        log.error("cluster action failed", exc_info=error)
-        message = _("Falha na ação no cluster: {error}").format(error=error)
-        self._on_submitted(key, ActionFailure(message, local=True))
-
     def _tell(self, result: Submitted | str | SubmitBlocked | ActionFailure) -> None:
-        """The toast (and the footer, for a job), and what the answer tells the LED: as the jobs'
-        and the listings' answers, a refused login forgets the password."""
-        monitor = self.sync.monitor
+        """The toast (and the footer, for a job), and what the answer tells the LED."""
         if isinstance(result, ActionFailure):
             text = _("A submissão falhou: {message}").format(message=result.message)
             self.toast.show_message(text, "error")
-            if result.connection:
-                monitor.report(False)
-            elif not (result.auth or result.local):
-                monitor.report(True)  # the cluster answered: it is the command that failed
-            if result.auth:
-                self.sync.forget_password()
+            self.report(result)
             return
-        monitor.report(True)
+        self.report(None)
         if isinstance(result, Submitted):
             text = _("Job {job_id} ({name}) submetido.").format(
                 job_id=result.job_id, name=result.name
@@ -234,12 +252,3 @@ class JobActionsController(QObject):
         else:
             text = _("O qsub terminou sem erro, mas a resposta não foi reconhecida: {line}")
             self.toast.show_message(text.format(line=result), "warning")
-
-    def _list_again(self, remote_dir: str) -> None:
-        """The folder of the new job: listed again when the cluster mode shows it, else out of the
-        cache (its ``.o`` file comes when the job starts)."""
-        remote = self.remote
-        if remote.active and remote.current == remote_dir:
-            remote.refresh()
-        elif remote.browser is not None:
-            remote.browser.invalidate(remote_dir)

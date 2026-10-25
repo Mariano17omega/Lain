@@ -16,7 +16,7 @@ pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, 
 padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`) e a spec 67 a **décima quarta** (25/10/2026: "Grade", "Lista" e "Ordenar" nos arquivos do cluster) e a spec 68 a **décima quinta** (25/10/2026: o popup da fila do cluster com datas curtas, barras coloridas e a coluna "Núcleos") e as specs 69–70 a
 **décima sexta** (25/10/2026: submeter um `.qsub` e cancelar simulações no modo cluster, pelo `prefix.EXIT` ou pelo `qdel`), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`, as specs 52–60) fechou por último. Cada spec é
-autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 69 estão implementadas; a 70 é rascunho para revisão.
+autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 70 estão implementadas.
 
 ## Roadmap
 
@@ -100,7 +100,7 @@ autossuficiente e pode virar um `/plan` de implementação separado. Todas as sp
 | 67 | [spec_67-modo-cluster-grade-lista-e-ordenar.md](Archived/spec_67-modo-cluster-grade-lista-e-ordenar.md) | "Grade", "Lista" e "Ordenar" no cabeçalho dos arquivos do cluster, uma escolha só para o local e o cluster; cartões e linhas desenhados pelo mesmo `CardDelegate`; `sort_entries(by="name"/"size"/"date")`; substitui a decisão "a grade remota é uma lista" da 65 | 65, 5, 37 | P | Sonnet 5.5 |
 | 68 | [spec_68-popup-de-jobs-mais-limpo.md](Archived/spec_68-popup-de-jobs-mais-limpo.md) | Popup "Fila do cluster": datas sem ano nem segundos (`Job.short_date`), barras "Running"/"Queued" verde e âmbar (tokens `job_running_*`/`job_queued_*`), coluna "Fila" trocada por "Núcleos"/"Cores" | 64 | P | Sonnet 5.5 |
 | 69 | [spec_69-modo-cluster-submeter-simulacao.md](Archived/spec_69-modo-cluster-submeter-simulacao.md) | "Submeter…" no `.qsub` do modo cluster: bloqueado se um job do usuário roda na pasta (conferido no plano e logo antes do `qsub`), confirmação com os comandos exatos e o aviso de `*.EXIT`, `cd … && chmod a+x … && qsub …`, toast "Job {id} ({nome}) submetido."; nomes do cluster validados e citados (`core/remote/actions.py`), `cluster.submit_command`, gancho no menu remoto; guarda que impede qualquer teste de chegar ao cluster | 65, 64, 27-3, 7 | M | Opus 5.5 |
-| 70 | [spec_70-modo-cluster-cancelar-simulacao.md](spec_70-modo-cluster-cancelar-simulacao.md) | Cancelar: pela pasta, `<prefix>.EXIT` quando um `<nome>.o<id>` dela é um job em execução no `qstatus` (prefix lido dos inputs do pw.x, buscados até 1 MB); pelo popup, botão nos jobs do usuário na fila e `qdel` só se a fila nova ainda o tem esperando; sempre confirmado, com o método à vista | 69, 64, 68, 65, 11 | M/G | Opus 5.5 |
+| 70 | [spec_70-modo-cluster-cancelar-simulacao.md](Archived/spec_70-modo-cluster-cancelar-simulacao.md) | Cancelar: pela pasta, `<prefix>.EXIT` quando um `<nome>.o<id>` dela é um job em execução no `qstatus` (prefix lido dos inputs do pw.x, buscados até 1 MB); pelo popup, botão nos jobs do usuário na fila e `qdel` só se a fila nova ainda o tem esperando; sempre confirmado, com o método à vista | 69, 64, 68, 65, 11 | M/G | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](Archived/spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementada pelas specs 52–60 (arquivada com a 60) | 52–60 | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -157,8 +157,8 @@ Critério de ordem das specs 7–`end` (decisão de 30/09/2026: "base mínima pr
 
 Esforço: P = pequeno (horas), M = médio (~1 dia), G = grande (mais de 1 dia).
 
-Specs já implementadas (1–69, inclusive 27-1 … 27-9, e a `spec_end`) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
-raiz ficam as propostas ainda abertas (70) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
+Specs já implementadas (1–70, inclusive 27-1 … 27-9, e a `spec_end`) e o PRD (`spec_0`) ficam em [`Archived/`](Archived/); aqui na
+raiz ficam as propostas ainda abertas (nenhuma no momento) e os relatórios. Ao implementar uma spec, mova-a para `Archived/` e
 ajuste o link da tabela abaixo.
 
 Modelo (specs a partir da 28): o modelo Claude recomendado para implementar a spec. **Opus 5.5**

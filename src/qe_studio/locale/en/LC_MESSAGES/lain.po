@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 18:55-0400\n"
-"PO-Revision-Date: 2026-10-25 18:55-0400\n"
+"POT-Creation-Date: 2026-10-25 19:26-0400\n"
+"PO-Revision-Date: 2026-10-25 19:26-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -639,6 +639,10 @@ msgstr "Previous"
 msgid "Anterior (Shift+Enter, Shift+F3)"
 msgstr "Previous (Shift+Enter, Shift+F3)"
 
+#: ui/job_cancel.py
+msgid "Antes do qdel o Lain consulta a fila de novo: se o job já começou, nada é feito."
+msgstr "Before qdel, Lain asks the queue again: if the job has already started, nothing is done."
+
 #: ui/widgets/structure3d/window.py
 #, python-brace-format
 msgid "Ao longo de {axis} ({key})"
@@ -975,6 +979,14 @@ msgstr "Channels"
 msgid "Canal"
 msgstr "Channel"
 
+#: ui/job_cancel.py
+msgid "Cancelamento da fila desligado: cluster.delete_command está vazio no config.yaml."
+msgstr "Cancelling from the queue turned off: cluster.delete_command is empty in config.yaml."
+
+#: ui/job_cancel.py
+msgid "Cancelando o job na fila…"
+msgstr "Cancelling the waiting job…"
+
 #: core/sync/_process.py ui/dialogs/sync_dialog.py
 msgid "Cancelando…"
 msgstr "Cancelling…"
@@ -984,6 +996,27 @@ msgstr "Cancelling…"
 #: ui/dialogs/rename.py ui/dialogs/sync_dialog.py
 msgid "Cancelar"
 msgstr "Cancel"
+
+#: ui/dialogs/cluster_action.py
+msgid "Cancelar esta simulação?"
+msgstr "Cancel this simulation?"
+
+#: ui/widgets/jobs_popup.py
+#, python-brace-format
+msgid "Cancelar o job {job_id} (qdel)"
+msgstr "Cancel job {job_id} (qdel)"
+
+#: ui/job_cancel.py
+msgid "Cancelar precisa de cluster.jobs_command: é o qstatus que diz se a simulação está rodando."
+msgstr "Cancelling needs cluster.jobs_command: qstatus is what tells whether the simulation is running."
+
+#: ui/dialogs/cluster_action.py
+msgid "Cancelar simulação"
+msgstr "Cancel simulation"
+
+#: ui/job_cancel.py
+msgid "Cancelar simulação…"
+msgstr "Cancel simulation…"
 
 #: ui/dialogs/sync_dialog.py
 msgid "Cancelar sincronização"
@@ -1111,6 +1144,10 @@ msgstr "Columns"
 msgid "Comando inválido (confira as aspas)."
 msgstr "Invalid command (check the quotes)."
 
+#: ui/dialogs/cluster_action.py
+msgid "Comando que vai rodar no cluster:"
+msgstr "Command that will run on the cluster:"
+
 #: ui/dialogs/open_with.py
 msgid "Comando, ex.: gedit ou /opt/app/bin/app --flag"
 msgstr "Command, e.g.: gedit or /opt/app/bin/app --flag"
@@ -1190,6 +1227,10 @@ msgstr "Checking the folder on the cluster…"
 #: core/sync/controller.py core/sync/push.py
 msgid "Conferindo arquivos locais…"
 msgstr "Checking local files…"
+
+#: ui/job_cancel.py
+msgid "Conferindo o job no cluster…"
+msgstr "Checking the job on the cluster…"
 
 #: ui/help_controller.py
 msgid "Config"
@@ -1375,6 +1416,10 @@ msgstr "Color: {color}"
 #: core/calculations/bands/params.py
 msgid "Cores por"
 msgstr "Colors by"
+
+#: ui/job_cancel.py
+msgid "Criando o arquivo de parada…"
+msgstr "Creating the stop file…"
 
 #: ui/project_controller.py
 msgid "Criando projeto…"
@@ -1749,7 +1794,7 @@ msgstr ""
 "Two atoms are bonded when their distance is up to this fraction of the sum of the covalent radii "
 "(ASE table, the same as in the scripts)"
 
-#: ui/widgets/jobs_popup.py
+#: ui/job_cancel.py ui/widgets/jobs_popup.py
 msgid "Dono"
 msgstr "Owner"
 
@@ -1974,6 +2019,10 @@ msgstr "Upload folder to cluster…"
 #, python-brace-format
 msgid "Enviar {elide_start} ao cluster…"
 msgstr "Upload {elide_start} to cluster…"
+
+#: ui/job_cancel.py
+msgid "Envio"
+msgstr "Submitted"
 
 #: ui/widgets/jobs_popup.py
 msgid "Envio / início"
@@ -2715,6 +2764,15 @@ msgstr "A sync is in progress in {where}. Wait for it to finish or cancel it."
 msgid "Há uma sincronização em andamento. Espere terminar ou cancele."
 msgstr "A sync is in progress. Wait for it to finish or cancel it."
 
+#: ui/job_cancel.py
+msgid "ID"
+msgstr "ID"
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "ID de job não suportado: {job_id}."
+msgstr "Unsupported job ID: {job_id}."
+
 #: core/file_kinds.py core/filtering.py
 msgid "INCOMPLETO"
 msgstr "INCOMPLETE"
@@ -2803,7 +2861,7 @@ msgstr "Invert"
 msgid "Inverter a superfície"
 msgstr "Flip the surface"
 
-#: core/qe/summary/build.py
+#: core/qe/summary/build.py ui/job_cancel.py
 msgid "Início"
 msgstr "Start"
 
@@ -2879,6 +2937,15 @@ msgstr "Iteration min."
 #: core/calc_create/types/adsorption_fields.py
 msgid "Janela da superfície (Å)"
 msgstr "Surface window (Å)"
+
+#: ui/job_cancel.py
+msgid "Job"
+msgstr "Job"
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "Job {job_id} ({name}) cancelado com qdel."
+msgstr "Job {job_id} ({name}) cancelled with qdel."
 
 #: ui/job_actions.py
 #, python-brace-format
@@ -3330,6 +3397,10 @@ msgstr "Changed locally (not downloaded)"
 msgid "Método do gap"
 msgstr "Gap method"
 
+#: ui/dialogs/cluster_action.py
+msgid "Método:"
+msgstr "Method:"
+
 #: core/calc_create/types/script.py
 #, python-brace-format
 msgid "NP = {np} não é múltiplo de nk = {nk}: o pw.x para com erro (mp_start_pools)"
@@ -3408,6 +3479,10 @@ msgstr "No plot open."
 msgid "Nenhum gráfico aberto: os ajustes aparecem junto com o gráfico."
 msgstr "No plot open: the settings appear together with the plot."
 
+#: core/remote/job_cancel.py
+msgid "Nenhum input do pw.x (até 1 MB) nesta pasta: sem o prefix, não há como criar o arquivo de parada."
+msgstr "No pw.x input (up to 1 MB) in this folder: without the prefix, the stop file cannot be created."
+
 #: ui/jobs_controller.py
 msgid "Nenhum job em execução"
 msgstr "No job running"
@@ -3415,6 +3490,14 @@ msgstr "No job running"
 #: ui/widgets/jobs_popup.py
 msgid "Nenhum job no cluster."
 msgstr "No jobs on the cluster."
+
+#: core/remote/job_cancel.py
+msgid ""
+"Nenhum job seu em execução nesta pasta: nenhum arquivo <nome>.o<id> corresponde a um job em "
+"execução no qstatus. Um job na fila se cancela pela fila do cluster, na barra superior."
+msgstr ""
+"No job of yours is running in this folder: no <name>.o<id> file matches a running job in qstatus."
+" A waiting job is cancelled from the cluster queue, on the top bar."
 
 #: core/calculations/scf.py
 msgid "Nenhum painel selecionado"
@@ -3582,6 +3665,11 @@ msgstr "Could not update {name} in {folder}: {reason}"
 msgid "Não foi possível comparar: {error}"
 msgstr "Could not compare: {error}"
 
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "Não foi possível conferir o estado do job no cluster: {message}. Nada foi feito."
+msgstr "Could not check the state of the job on the cluster: {message}. Nothing was done."
+
 #: core/remote/submit.py
 #, python-brace-format
 msgid "Não foi possível conferir se já roda um job nesta pasta: {message}. Nada foi submetido."
@@ -3607,7 +3695,7 @@ msgstr "Could not create {path}: {error}"
 msgid "Não foi possível editar {what}: {exc}"
 msgstr "Could not edit {what}: {exc}"
 
-#: core/remote/listing.py
+#: core/remote/inputs.py core/remote/listing.py
 #, python-brace-format
 msgid "Não foi possível executar o rsync ({error})."
 msgstr "Could not run rsync ({error})."
@@ -3726,7 +3814,7 @@ msgstr "Hidden levels"
 msgid "Nós"
 msgstr "Nodes"
 
-#: ui/widgets/jobs_popup.py
+#: ui/job_cancel.py ui/widgets/jobs_popup.py
 msgid "Núcleos"
 msgstr "Cores"
 
@@ -3808,6 +3896,11 @@ msgstr "The file is passed as the last argument; no shell is used."
 msgid "O caminho salta deste ponto para o próximo (peso 1)"
 msgstr "The path jumps from this point to the next one (weight 1)"
 
+#: ui/job_cancel.py
+#, python-brace-format
+msgid "O cancelamento falhou: {message}"
+msgstr "The cancellation failed: {message}"
+
 #: core/remote/listing.py
 msgid "O cluster não respondeu a tempo."
 msgstr "The cluster did not answer in time."
@@ -3826,6 +3919,11 @@ msgstr "The command {command} was not found on the cluster (cluster.jobs_command
 #, python-brace-format
 msgid "O comando {command} não foi encontrado no cluster ({setting})."
 msgstr "The command {command} was not found on the cluster ({setting})."
+
+#: core/remote/actions.py
+#, python-brace-format
+msgid "O comando {command} não foi encontrado no cluster."
+msgstr "The command {command} was not found on the cluster."
 
 #: core/calc_create/types/slab_fields.py
 msgid "O eixo da célula do SCF que é esticado para abrir o vácuo; os outros dois formam o plano"
@@ -3851,6 +3949,30 @@ msgstr "The job logged error messages (non-empty file)"
 msgid "O job registrou mensagens de erro."
 msgstr "The job logged error messages."
 
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid ""
+"O job {job_id} começou a rodar: o qdel não é usado em jobs em execução. Cancele pela pasta dele, "
+"no modo cluster (Cancelar simulação…)."
+msgstr ""
+"Job {job_id} has started running: qdel is not used on running jobs. Cancel it from its folder, in"
+" the cluster mode (Cancel simulation…)."
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "O job {job_id} da fila não é mais {name}: nada foi feito."
+msgstr "Waiting job {job_id} is no longer {name}: nothing was done."
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "O job {job_id} não está mais em execução: nada foi criado."
+msgstr "Job {job_id} is no longer running: nothing was created."
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "O job {job_id} não está mais na fila: nada foi feito."
+msgstr "Job {job_id} is no longer waiting in the queue: nothing was done."
+
 #: core/projects.py
 msgid "O nome não pode começar com ponto"
 msgstr "The name cannot start with a dot"
@@ -3866,6 +3988,16 @@ msgstr "The name cannot contain “/”."
 #: ui/dialogs/new_project.py
 msgid "O nome será o nome da pasta, criada na pasta raiz."
 msgstr "The name will be the name of the folder, created in the root folder."
+
+#: ui/job_cancel.py
+msgid ""
+"O pw.x procura esse arquivo na pasta durante a execução, para de forma limpa (\"Program stopped "
+"by user request\") e o apaga. Os comandos seguintes do script (outro pw.x, bands.x, projwfc.x…) "
+"ainda rodam."
+msgstr ""
+"pw.x looks for this file in the folder while it runs, stops cleanly (\"Program stopped by user "
+"request\") and deletes it. The next commands of the script (another pw.x, bands.x, projwfc.x…) "
+"still run."
 
 #: ui/job_actions.py
 #, python-brace-format
@@ -4072,7 +4204,7 @@ msgstr "BFGS steps"
 msgid "Passos máximos (nstep)"
 msgstr "Maximum steps (nstep)"
 
-#: ui/palette_controller.py
+#: ui/job_cancel.py ui/palette_controller.py
 msgid "Pasta"
 msgstr "Folder"
 
@@ -4155,6 +4287,11 @@ msgstr "Folders"
 #: ui/widgets/remote_panels.py
 msgid "Pastas do cluster"
 msgstr "Cluster folders"
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "Pedido de parada criado: {files}. O pw.x para na próxima verificação."
+msgstr "Stop request created: {files}. pw.x stops at its next check."
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Pela lista: os átomos marcados na tabela. Por coordenadas: o átomo mais próximo de cada x y z"
@@ -5418,7 +5555,7 @@ msgstr "Fixed neighbors"
 msgid "Vizinhos ligados"
 msgstr "Bonded neighbors"
 
-#: ui/actions.py ui/dialogs/calc_create/dialog.py
+#: ui/actions.py ui/dialogs/calc_create/dialog.py ui/dialogs/cluster_action.py
 msgid "Voltar"
 msgstr "Back"
 
@@ -5543,6 +5680,11 @@ msgstr "absolute"
 #, python-brace-format
 msgid "agrupamento desconhecido: {grouping}"
 msgstr "unknown grouping: {grouping}"
+
+#: ui/job_cancel.py
+#, python-brace-format
+msgid "arquivo de parada do pw.x ({files})"
+msgstr "pw.x stop file ({files})"
 
 #: core/config.py
 #, python-brace-format
@@ -6071,6 +6213,10 @@ msgstr ""
 msgid "não foi possível ler o arquivo: {exc}"
 msgstr "could not read the file: {exc}"
 
+#: ui/job_cancel.py
+msgid "não informada pelo qstatus"
+msgstr "not given by qstatus"
+
 #: core/about.py
 msgid "não instalado"
 msgstr "not installed"
@@ -6222,6 +6368,11 @@ msgstr "pp.x difference"
 msgid "precisão {accuracy_ry:.1e} Ry"
 msgstr "accuracy {accuracy_ry:.1e} Ry"
 
+#: core/remote/inputs.py
+#, python-brace-format
+msgid "prefix não suportado para o arquivo de parada: {prefix}."
+msgstr "Unsupported prefix for the stop file: {prefix}."
+
 #: core/sync/request.py
 #, python-brace-format
 msgid "projeto {project}"
@@ -6252,6 +6403,11 @@ msgstr ""
 #: core/calc_create/types/script.py
 msgid "pw.x -nk: número de pools (grupos de k-points); NP deve ser múltiplo de nk"
 msgstr "pw.x -nk: number of pools (groups of k-points); NP must be a multiple of nk"
+
+#: ui/job_cancel.py
+#, python-brace-format
+msgid "qdel {job_id} (o job sai da fila antes de começar)"
+msgstr "qdel {job_id} (the job leaves the queue before it starts)"
 
 #: ui/widgets/kpath_editor.py
 msgid "quebra"

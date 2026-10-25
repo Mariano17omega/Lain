@@ -139,13 +139,15 @@ class ClusterConfig(_Section):
     jobs_rotate_seconds: int = Field(default=5, ge=1, le=3600)  # between the user's running jobs
     # "Submeter…" on a .qsub of the cluster mode (spec 69): run in its folder; empty turns it off.
     submit_command: str = "qsub"
+    # The queue popup's cancel button, for a waiting job only (spec 70); empty turns it off.
+    delete_command: str = "qdel"
 
     @field_validator("key_path")
     @classmethod
     def _expand(cls, value: Path | None) -> Path | None:
         return None if value is None else Path(os.path.expandvars(str(value))).expanduser()
 
-    @field_validator("jobs_command", "submit_command")
+    @field_validator("jobs_command", "submit_command", "delete_command")
     @classmethod
     def _strip_command(cls, value: str) -> str:
         return value.strip()

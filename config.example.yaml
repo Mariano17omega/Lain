@@ -44,6 +44,11 @@ cluster:
   # with jobs_command, which it needs). Empty turns it off. As with jobs_command, a qsub that is not
   # in the PATH of a non-interactive ssh needs its full path (`which qsub`).
   submit_command: qsub
+  # The cancel button of a job still WAITING in the queue popup. Runs with the job's ID, only once
+  # you confirm it, and only if a fresh jobs_command still lists it as waiting: a running job is
+  # never deleted, it is stopped by creating <prefix>.EXIT in its folder ("Cancelar simulação…" in
+  # the cluster mode). Empty turns the button off.
+  delete_command: qdel
 
 sync:
   # rsync --exclude patterns (rsync semantics: trailing "/" = directories only).
