@@ -27,7 +27,7 @@ from matplotlib.colors import is_color_like
 from ...i18n import _
 from ..appdirs import atomic_write_text
 from ..calculations.params import ParamField
-from .names import PLOTS_DIR
+from .names import plots_folder
 
 log = logging.getLogger(__name__)
 
@@ -67,8 +67,9 @@ class WriteOrder:
 
 
 def plot_file_path(folder: Path, kind: str) -> Path:
-    """``<folder>/plots/<kind>.plot``: the write creates ``plots/`` when it is missing."""
-    return Path(folder) / PLOTS_DIR / f"{kind}{SUFFIX}"
+    """``<folder>/plots/<kind>.plot`` (``plots_remote/`` in a scratch copy, spec 66): the write
+    creates the folder when it is missing."""
+    return plots_folder(folder) / f"{kind}{SUFFIX}"
 
 
 def read_plot_file(folder: Path, kind: str) -> tuple[dict[str, Any] | None, list[str]]:

@@ -23,6 +23,7 @@ from ...i18n import _
 from ..appdirs import cache_dir
 from ..config import AppConfig, ClusterConfig
 from ..project_data import PROJECT_DATA_EXCLUDE
+from ..scratch import SCRATCH_EXCLUDE
 from .askpass import SECRET_ENV
 
 OUT_FORMAT = "%i|%l|%M|%n"
@@ -156,9 +157,10 @@ def dry_run_command(
     extra: list[str] | None = None,
 ) -> list[str]:
     """List files that differ (new, size, time or, with ``sync.checksum``, content) without
-    transferring anything. The root's settings folder is never listed, whatever ``sync.exclude``
-    says (spec 48 R5)."""
-    excludes = [f"--exclude={pattern}" for pattern in [PROJECT_DATA_EXCLUDE, *config.sync.exclude]]
+    transferring anything. The root's settings folder (spec 48 R5) and the scratch copies of remote
+    plots (spec 66 R2.2) are never listed, whatever ``sync.exclude`` says."""
+    fixed = [PROJECT_DATA_EXCLUDE, SCRATCH_EXCLUDE]
+    excludes = [f"--exclude={pattern}" for pattern in [*fixed, *config.sync.exclude]]
     return [
         *shlex.split(config.sync.rsync_binary),
         "-n",
@@ -209,7 +211,8 @@ def push_dry_run_command(
 ) -> list[str]:
     """List the local files missing or different on the cluster (spec 27 R1.1). No
     ``--ignore-existing``: files the cluster already has are listed too, so the preview says so."""
-    patterns = [PROJECT_DATA_EXCLUDE, *config.sync.exclude, *config.sync.push_exclude]
+    fixed = [PROJECT_DATA_EXCLUDE, SCRATCH_EXCLUDE]  # never sent: see ``dry_run_command``
+    patterns = [*fixed, *config.sync.exclude, *config.sync.push_exclude]
     return [
         *shlex.split(config.sync.rsync_binary),
         "-n",

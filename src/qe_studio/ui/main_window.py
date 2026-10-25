@@ -368,9 +368,13 @@ class MainWindow(QMainWindow):
         return self.plot_workflow.current_plot()
 
     def plot_button(self) -> None:
+        if self.remote.plot(generate=False):  # the cluster mode plots a copy (spec 66)
+            return
         self.plot_workflow.button.click(self.current_folder(), self.files.selected_paths())
 
     def generate_plot(self) -> None:
+        if self.remote.plot(generate=True):
+            return
         self.plot_workflow.generator.click(self.current_folder(), self.files.selected_paths())
 
     def generate_plot_for(self, folder: Path, auto_export: bool = True) -> None:

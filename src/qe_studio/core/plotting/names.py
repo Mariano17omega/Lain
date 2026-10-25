@@ -8,12 +8,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..scratch import SCRATCH_PLOTS_DIR, is_scratch
+
 SEPARATOR = "-"
 # The exports folder of a simulation. Here, not in export.py: no matplotlib for who only needs the name.
 PLOTS_DIR = "plots"
 # Room left in the file system's 255 bytes for ``_NN``, the longest extension and the ``.….tmp`` of
 # the atomic write.
 MAX_STEM_BYTES = 180
+
+
+def plots_folder(folder: Path) -> Path:
+    """Where the figures, CSVs and ``.plot`` files of ``folder`` go: ``folder/plots``, or
+    ``folder/plots_remote`` when ``folder`` is the scratch copy of a remote plot (spec 66 R1.2)."""
+    return Path(folder) / (SCRATCH_PLOTS_DIR if is_scratch(folder) else PLOTS_DIR)
 
 
 def export_prefix(folder: Path, root: Path) -> str:

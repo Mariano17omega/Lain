@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 03:45-0400\n"
-"PO-Revision-Date: 2026-10-25 03:45-0400\n"
+"POT-Creation-Date: 2026-10-25 04:16-0400\n"
+"PO-Revision-Date: 2026-10-25 04:16-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -551,6 +551,10 @@ msgstr "Waiting for confirmation…"
 msgid "Aguardando sua decisão…"
 msgstr "Waiting for your decision…"
 
+#: ui/sync_coordinator.py
+msgid "Aguarde a sincronização em andamento."
+msgstr "Wait for the sync in progress to finish."
+
 #: ui/help_controller.py
 #, python-brace-format
 msgid "Ainda não há arquivo de log: {path}"
@@ -823,6 +827,11 @@ msgstr "B"
 #: core/sync/report.py
 msgid "Baixados"
 msgstr "Downloaded"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Baixando para plotar: {label}"
+msgstr "Downloading to plot: {label}"
 
 #: core/sync/request.py ui/remote_controller.py
 msgid "Baixar"
@@ -1996,6 +2005,14 @@ msgid "Escolha o tipo de cálculo"
 msgstr "Choose the calculation type"
 
 #: core/sync/request.py
+msgid "Escolha uma pasta de cálculo para plotar; a raiz não é copiada."
+msgstr "Choose a calculation folder to plot; the root folder is not copied."
+
+#: core/sync/request.py
+msgid "Escolha uma pasta de cálculo para plotar; o projeto inteiro não é copiado."
+msgstr "Choose a calculation folder to plot; the whole project is not copied."
+
+#: core/sync/request.py
 msgid "Escolha uma pasta de cálculo; a pasta raiz inteira não é enviada."
 msgstr "Choose a calculation folder; the whole root folder is not uploaded."
 
@@ -2662,7 +2679,6 @@ msgid "Há uma sincronização em andamento em {where}. Espere terminar ou cance
 msgstr "A sync is in progress in {where}. Wait for it to finish or cancel it."
 
 #: core/sync/request.py
-#, python-brace-format
 msgid "Há uma sincronização em andamento. Espere terminar ou cancele."
 msgstr "A sync is in progress. Wait for it to finish or cancel it."
 
@@ -3730,7 +3746,6 @@ msgid "O caminho salta deste ponto para o próximo (peso 1)"
 msgstr "The path jumps from this point to the next one (weight 1)"
 
 #: core/remote/listing.py
-#, python-brace-format
 msgid "O cluster não respondeu a tempo."
 msgstr "The cluster did not answer in time."
 
@@ -4080,7 +4095,7 @@ msgstr "Plot"
 msgid "Plot indisponível: {}"
 msgstr "Plot unavailable: {}"
 
-#: core/calculations/base.py ui/dialogs/mapping.py ui/widgets/context_menu.py
+#: core/calculations/base.py ui/dialogs/mapping.py ui/remote_controller.py ui/widgets/context_menu.py
 msgid "Plotar"
 msgstr "Plot"
 
@@ -4707,6 +4722,10 @@ msgstr ""
 #: ui/remote_controller.py
 msgid "Selecione um item para baixar."
 msgstr "Select one item to download."
+
+#: ui/remote_controller.py
+msgid "Selecione uma ou duas pastas para plotar."
+msgstr "Select one or two folders to plot."
 
 #: core/file_kinds.py
 msgid "Sem JOB DONE: job rodando ou interrompido"
@@ -6189,6 +6208,10 @@ msgstr "no type"
 msgid "sem vácuo (bulk)"
 msgstr "no vacuum (bulk)"
 
+#: core/sync/preview.py
+msgid "será substituído"
+msgstr "will be replaced"
+
 #: core/calc_create/edits.py
 #, python-brace-format
 msgid "smearing = '{DEFAULT_SMEARING}' acrescentado"
@@ -6322,6 +6345,11 @@ msgstr "{count} ({n_slab} of the surface + {molecule_atoms} of the molecule: {co
 #, python-brace-format
 msgid "{count} a atualizar ({human_size})"
 msgstr "{count} to update ({human_size})"
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} a substituir ({human_size})"
+msgstr "{count} to replace ({human_size})"
 
 #: core/sync/preview.py
 #, python-brace-format

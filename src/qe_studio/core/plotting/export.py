@@ -1,5 +1,5 @@
 """Saving figures, and the CSV of their data, into the simulation's ``plots/`` folder (PRD §4.4,
-spec 32)."""
+spec 32; ``plots_remote/`` in the scratch copy of a remote plot, spec 66)."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from matplotlib.figure import Figure
 from ...i18n import _
 from ..calculations.base import CalculationModule, D, P
 from .mpl_lock import MPL_LOCK
-from .names import PLOTS_DIR, export_prefix, join_stem
+from .names import export_prefix, join_stem, plots_folder
 from .style import PlotStyle, register_fonts
 from .table import BOM, PlotTable, to_csv
 
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 def plots_dir(folder: Path) -> Path:
-    return Path(folder) / PLOTS_DIR
+    return plots_folder(folder)
 
 
 def target_paths(folder: Path, stem: str, formats: list[str]) -> list[Path]:

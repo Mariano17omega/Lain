@@ -1,9 +1,11 @@
+import os
 import shutil
 from pathlib import Path
 
 import pytest
 
 from qe_studio.core.calculations import Method
+from qe_studio.core.calculations.listing import FolderListing
 from qe_studio.core.detection import detect_folder
 from qe_studio.core.sniff import SniffCache
 
@@ -158,9 +160,49 @@ def test_multiple_pdos_sets_warn(al_pdos_orbitals):
     assert any("conjuntos de PDOS" in w for w in result.warnings)
 
 
-@pytest.mark.parametrize("name", ["tmp", "x.save", "plots"])
+@pytest.mark.parametrize("name", ["tmp", "x.save", "plots", "tmp_remote", "plots_remote"])
 def test_ignored_subfolders_are_not_scanned(tmp_path, name):
     sub = tmp_path / name
     sub.mkdir()
     shutil.copy(FIXTURES / "al_pdos_flat/pdos.dat.pdos_tot", sub)
     assert detect(tmp_path) == []
+
+
+def pdos_qsub_layout(dest: Path, name: str) -> Path:
+    """``al_pdos_flat`` as ``pdos.qsub`` leaves it (``mv *pdos_atm#* orbitals/``): outputs and
+    ``pdos_tot`` on top, the files per atom in ``orbitals/``; at ``dest/name``."""
+    folder = copy_fixture("al_pdos_flat", dest).rename(dest / name)
+    (folder / "orbitals").mkdir()
+    for path in folder.glob("*pdos_atm*"):
+        path.rename(folder / "orbitals" / path.name)
+    return folder
+
+
+def test_tmp_remote_pdos_does_not_join_the_parent(tmp_path):
+    """Spec 66 R2.1: a newer ``pdos_tot`` in the scratch copy used to win over the folder's own,
+    silently mixing the cluster's total DOS with the local projections."""
+    pdos = pdos_qsub_layout(tmp_path, "PDOS")
+    copy = pdos_qsub_layout(pdos, "tmp_remote")
+    newer = (pdos / "pdos.dat.pdos_tot").stat().st_mtime + 3600
+    os.utime(copy / "pdos.dat.pdos_tot", (newer, newer))
+    listing = FolderListing.scan(pdos)
+    assert not any("tmp_remote" in listing.relative(path) for path in listing.files)
+    (result,) = detect(pdos)
+    assert result.kind == "pdos"
+    assert result.files["pdos_tot"] == [pdos / "pdos.dat.pdos_tot"]
+    assert all(path.parent == pdos / "orbitals" for path in result.files["pdos_atm"])
+
+
+def test_tmp_remote_copy_is_detected_on_its_own(tmp_path):
+    pdos = tmp_path / "PDOS"
+    pdos.mkdir()
+    copy = pdos_qsub_layout(pdos, "tmp_remote")
+    assert detect(pdos) == []  # a mirror that only holds the copy is no PDOS itself
+    (result,) = detect(copy)
+    assert result.kind == "pdos"
+    assert result.files["pdos_tot"] == [copy / "pdos.dat.pdos_tot"]
+    assert sorted(names(result, "pdos_atm")) == [
+        "pdos.dat.pdos_atm#1(Al)_wfc#1(s)",
+        "pdos.dat.pdos_atm#1(Al)_wfc#2(p)",
+    ]
+    assert all(path.parent == copy / "orbitals" for path in result.files["pdos_atm"])

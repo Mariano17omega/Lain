@@ -9,9 +9,13 @@ from functools import cached_property
 from pathlib import Path
 
 from ..qe import projwfc
+from ..scratch import SCRATCH_DIR, SCRATCH_PLOTS_DIR
 
-# Folders never scanned below the simulation folder itself.
-IGNORED_SUBDIRS = re.compile(r"^(tmp|plots|out|.*\.save|\..*)$", re.I)
+# Folders never scanned below the simulation folder itself. The scratch copy of a remote plot is a
+# simulation of its own, never part of its parent's (spec 66 R2.1).
+IGNORED_SUBDIRS = re.compile(
+    rf"^(tmp|plots|out|{SCRATCH_DIR}|{SCRATCH_PLOTS_DIR}|.*\.save|\..*)$", re.I
+)
 
 
 @dataclass(frozen=True)

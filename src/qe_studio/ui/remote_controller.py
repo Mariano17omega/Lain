@@ -10,6 +10,8 @@ the background when older than ``STALE_SECONDS``; F5 and "Atualizar" list the fo
 Nothing local is read or changed: the local panels stay under the cluster's ones (pages of the left
 panel and of the file panel) and come back as they were. "Baixar" is the pull of always
 (``SyncCoordinator.start``): of the local mirror of a folder, or of a file's folder narrowed to it.
+"Plotar", and the sidebar's "Plot", "Gerar" and Ctrl+G while the mode is on, plot a copy of the
+folder in its mirror's ``tmp_remote/`` (spec 66, ``RemotePlot``).
 
 With ``auth: password`` and no password known, only what the user does asks for it (turning the mode
 on, "Tentar de novo", "Atualizar", F5); a refused login forgets it and nothing retries on its own.
@@ -35,6 +37,7 @@ from ..i18n import _, ngettext
 from .busy import BusyTracker
 from .footer_path import FooterPath
 from .layout_controller import LayoutController
+from .remote_plot import RemotePlot
 from .sync_coordinator import SyncCoordinator
 from .widgets.bars import REMOTE_TIP, ActivityButton, TopBar
 from .widgets.file_grid import FilePanel
@@ -48,6 +51,7 @@ log = logging.getLogger(__name__)
 BUSY_KEY = "remote:list"
 LISTING = _("Listando no cluster…")
 ONE_ITEM = _("Selecione um item para baixar.")
+PICK = _("Selecione uma ou duas pastas para plotar.")  # spec 66 R4.2
 CONFIG_CHANGED = _("Modo cluster desligado: a configuração mudou.")
 NO_PASSWORD = _("Senha do cluster não informada: clique em Tentar de novo.")
 
@@ -74,10 +78,12 @@ class RemoteController(QObject):
         toast: Toast,
         config: AppConfig,
         view_root: Callable[[], Path],
+        plotter: RemotePlot,
         parent: QObject | None = None,
     ):
         super().__init__(parent)
         self.tree_panel, self.file_panel, self.button = tree_panel, file_panel, button
+        self.plotter = plotter
         self.layout, self.files, self.top_bar, self.footer = layout, files, top_bar, footer
         self.sync, self.busy, self.toast, self.config = sync, busy, toast, config
         self._view_root = view_root
@@ -121,6 +127,7 @@ class RemoteController(QObject):
             window.toast,
             window.config,
             view_root=lambda: window.project.view_root,
+            plotter=RemotePlot(window.sync, window.plot_workflow, window),
             parent=window,
         )
         window.activity.remote_toggled.connect(controller.set_active)
@@ -389,6 +396,15 @@ class RemoteController(QObject):
         add_action(
             menu, _("Baixar"), lambda: self.download(first), enabled=not reason, tooltip=reason
         )
+        if all(item.is_dir for item in items):  # spec 66 R4.1: never of a file
+            reason = self.plot_blocked(items) or (SYNC_RUNNING if self.sync.running else "")
+            add_action(
+                menu,
+                _("Plotar"),
+                lambda: self.plot_items(items),
+                enabled=not reason,
+                tooltip=reason,
+            )
         add_action(menu, _("Copiar caminho"), lambda: self.copy_paths(items))
         menu.exec(pos)
         menu.deleteLater()
@@ -412,6 +428,33 @@ class RemoteController(QObject):
             return
         path = PurePosixPath(item.path)
         self.sync.start(browser.mirror_of(str(path.parent)), only=path.name)
+
+    # -- plotting (spec 66) ----------------------------------------------------------------------
+    def plot(self, generate: bool) -> bool:
+        """The sidebar's "Plot" (``generate`` False), "Gerar" and Ctrl+G: with the mode on, of the
+        list's selection, or of the folder shown when nothing is selected. False when the mode is
+        off (the window plots the local selection)."""
+        if not self.active or self.browser is None:
+            return False
+        items = self.file_panel.selected_paths() or [RemotePath(self.current, True)]
+        self.plot_items(items, generate)
+        return True
+
+    @staticmethod
+    def plot_blocked(items: list[RemotePath]) -> str:
+        """Why ``items`` cannot be plotted; "" when they can (one or two folders)."""
+        ok = 1 <= len(items) <= 2 and all(item.is_dir for item in items)
+        return "" if ok else PICK
+
+    def plot_items(self, items: list[RemotePath], generate: bool = False) -> None:
+        """Copy ``items`` into their mirrors' ``tmp_remote/`` and plot the copies."""
+        browser = self.browser
+        if browser is None:
+            return
+        if reason := self.plot_blocked(items):
+            self.message.emit(reason, "warning", 5000)
+            return
+        self.plotter.plot([browser.mirror_of(item.path) for item in items], generate)
 
     def copy_paths(self, items: list[RemotePath]) -> None:
         """The cluster paths, one per line."""

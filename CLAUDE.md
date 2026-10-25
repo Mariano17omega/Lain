@@ -58,11 +58,13 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 - **Where state lives:** UI state in QSettings (`<paths.data>/settings.ini` when the config sets `paths.data`, which
   also holds `core/appdirs.py:data_dir()`; fixed at startup by `set_data_dir`); per-root data (folder mappings, grids, PDOS atom selections,
   favorites/recents) in `<local_root>/.lain/` (only `core/project_data.py` names that folder); plot settings
-  (`<kind>.plot`, `view3d.plot`) and exports in `<simulation>/plots/`. Nothing else is written into simulation
-  folders.
+  (`<kind>.plot`, `view3d.plot`) and exports in `<simulation>/plots/`; the cluster's copy of a remote plot in
+  `<mirror>/tmp_remote/`, with its exports and `.plot` in `tmp_remote/plots_remote/` (`core/scratch.py`, spec 66).
+  Nothing else is written into simulation folders.
 - **Numbers:** a decimal **point** everywhere text is shown or written (`decimal()` in `surface/report.py`, `QLocale.c()` in spin boxes), as QE reads it, in both languages; a comma typed by the user is read as a point. The one exception is the CSV export (`core/plotting/table.py`: `;` and a decimal comma, for Excel/Origin in pt-BR); `tests/test_decimal_point.py` guards both.
 - **Data integrity:** never overwrite a user file without asking (`core/unique_names.py`, `_2` suffixes; the export
-  asks first). Data files are written whole with `core/appdirs.py:atomic_write_text`.
+  asks first), **except** inside `tmp_remote/`, the scratch copy of a remote plot (spec 66), which a new copy
+  overwrites. Data files are written whole with `core/appdirs.py:atomic_write_text`.
 
 ## Architecture
 
@@ -122,7 +124,9 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 
 ### Sync safety (PRD §5)
 
-- Pull and push always go through a dry run and a preview of the plan.
+- Pull and push always go through a dry run and a preview of the plan. The copy of a remote plot into `tmp_remote/`
+  (spec 66) has the dry run but shows the preview only for a file over 100 MB; `tmp_remote/` itself is never synced
+  (a fixed exclusion, like `.lain/`).
 - Push only adds files the cluster does not have: it never overwrites or deletes anything remote.
 - Unknown host keys are always refused (`-o StrictHostKeyChecking=yes` is forced). Passwords reach ssh only via
   `SSH_ASKPASS` in the child env, never argv or logs.
@@ -130,7 +134,7 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 - A remote command other than rsync comes only from `config.yaml` (`cluster.jobs_command`) and runs through
   `core/sync/command.py` with the same ssh options; nothing read from the cluster goes into a command.
 - The cluster mode only lists (`rsync --list-only`, `core/remote/listing.py`) and downloads through the usual
-  pull, with its preview.
+  pull, with its preview, or into `tmp_remote/` to plot.
 
 ### Theming and UI
 

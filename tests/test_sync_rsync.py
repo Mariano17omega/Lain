@@ -8,6 +8,7 @@ import pytest
 
 from qe_studio.core.config import parse_config
 from qe_studio.core.project_data import PROJECT_DATA_EXCLUDE
+from qe_studio.core.scratch import SCRATCH_EXCLUDE
 from qe_studio.core.sync import askpass
 from qe_studio.core.sync.rsync import (
     Endpoint,
@@ -289,6 +290,7 @@ def test_push_dry_run_goes_from_the_local_folder_and_lists_existing_files_too():
     excludes = [a for a in argv if a.startswith("--exclude=")]
     assert excludes == [
         "--exclude=.lain/",  # the root's settings folder, always first (spec 48 R5)
+        "--exclude=tmp_remote/",  # the scratch copies of remote plots (spec 66 R2.2)
         "--exclude=tmp/",
         "--exclude=*.wfc*",
         "--exclude=plots/",
@@ -311,9 +313,21 @@ def test_the_settings_folder_is_excluded_even_with_empty_lists():
     for command in (dry_run_command, push_dry_run_command):
         argv = command(cfg, remote, Path("/data/sims"), (3, 2, 7))
         assert [a for a in argv if a.startswith("--exclude")] == [
-            f"--exclude={PROJECT_DATA_EXCLUDE}"
+            f"--exclude={PROJECT_DATA_EXCLUDE}",
+            f"--exclude={SCRATCH_EXCLUDE}",
         ]
     assert PROJECT_DATA_EXCLUDE == ".lain/"
+
+
+def test_tmp_remote_is_never_synced():
+    """Spec 66 R2.2: the scratch copy of a remote plot never goes up (an upload of its folder) nor
+    comes down (a ``tmp_remote`` on the cluster), whatever the lists say."""
+    remote = Endpoint("/scratch/me/sims/run 1", "10.0.0.1", "me")
+    for command in (dry_run_command, push_dry_run_command):
+        argv = command(config(), remote, Path("/data/sims/run 1"), (3, 2, 7))
+        assert "--exclude=tmp_remote/" in argv
+        assert argv.index("--exclude=tmp_remote/") < argv.index("--exclude=tmp/")
+    assert SCRATCH_EXCLUDE == "tmp_remote/"
 
 
 def test_push_transfer_only_adds_files():

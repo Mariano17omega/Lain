@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..plotting.names import PLOTS_DIR, export_prefix, join_stem
+from ..plotting.names import export_prefix, join_stem, plots_folder
 from ..unique_names import write_new_bytes
 
 __all__ = ["SUFFIX", "print_stem", "save_png"]
@@ -31,10 +31,11 @@ def print_stem(source_path: str | Path, root: str | Path | None) -> str:
 
 
 def save_png(folder: str | Path, stem: str, data: bytes) -> Path:
-    """Write ``data`` as ``<folder>/plots/<stem>.png`` (or the first free ``<stem>_N.png``, from 2).
+    """Write ``data`` as ``<folder>/plots/<stem>.png`` (or the first free ``<stem>_N.png``, from 2;
+    ``plots_remote/`` in a scratch copy, spec 66).
 
     ``plots/`` is made if missing, but never ``folder`` itself: a simulation folder that is gone is a
     ``FileNotFoundError``, not a new empty tree under the old name."""
-    plots = Path(folder) / PLOTS_DIR
+    plots = plots_folder(Path(folder))
     plots.mkdir(exist_ok=True)
     return write_new_bytes(plots / f"{stem}.png", data, first=2)

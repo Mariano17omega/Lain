@@ -1,11 +1,11 @@
 """Whether a simulation folder was plotted before: what the sidebar "Plot" shows without asking.
 
-Two things in its ``plots/`` say so: a ``<kind>.plot`` (the settings of a plot the user edited) and
-figures (what "Gerar Plot" and Ctrl+E write: a file in an export format). The 3D window's
-``view3d.plot`` and its prints (``…-3d.png``), a grid's exports (``grid_*``, in the project root) and
-whatever else is there (the ``.….tmp`` of an export that crashed, a CSV, a note, a folder) are not
-plots of the folder, nor is a ``.plot`` that older versions left in the folder itself (not read any
-more). Asked for one kind (the bands + DOS figure of two selected folders, kept in the bands folder),
+Two things in its ``plots/`` (``plots_remote/`` in a scratch copy, spec 66) say so: a ``<kind>.plot``
+(the settings of a plot the user edited) and figures (what "Gerar Plot" and Ctrl+E write: a file in
+an export format). The 3D window's ``view3d.plot`` and its prints (``…-3d.png``), a grid's exports
+(``grid_*``, in the project root) and whatever else is there (the ``.….tmp`` of an export that
+crashed, a CSV, a note, a folder) are not plots of the folder, nor is a ``.plot`` that older versions
+left in the folder itself (not read any more). Asked for one kind (the bands + DOS figure of two selected folders, kept in the bands folder),
 only that kind's ``<kind>.plot`` and figures count. Reads the folder, so it runs in a worker.
 """
 
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import get_args
 
 from ..config import ExportFormat
-from .names import PLOTS_DIR
+from .names import plots_folder
 from .plot_file import SUFFIX
 
 NOT_A_PLOT = {"view3d" + SUFFIX}
@@ -33,7 +33,7 @@ def was_plotted(folder: Path, kind: str | None = None) -> bool:
     try:
         return any(
             _is_settings(e, kind) or (_is_figure(e) and (named is None or named.search(e.stem)))
-            for e in (Path(folder) / PLOTS_DIR).iterdir()
+            for e in plots_folder(folder).iterdir()
         )
     except OSError:
         return False

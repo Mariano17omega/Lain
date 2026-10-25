@@ -250,9 +250,19 @@ then the local panels come back exactly as they were. Nothing local is read or c
   a folder seen before shows at once, and is listed again in the background after 60 s. F5 and
   "Atualizar" list the folder shown again.
 - The list shows name, size and date only: badges and file states need the files' content.
-- Right-click an item for **Baixar** (one item at a time) or **Copiar caminho**. "Baixar" is the
-  usual pull, with its preview and its questions before anything local is overwritten: of a folder
-  into its local counterpart (created if missing), or of a single file of it.
+- Right-click an item for **Baixar** (one item at a time), **Plotar** (folders) or **Copiar
+  caminho**. "Baixar" is the usual pull, with its preview and its questions before anything local is
+  overwritten: of a folder into its local counterpart (created if missing), or of a single file of it.
+- **Plotar**, and the sidebar's "Plot", "Gerar" and Ctrl+G while the mode is on, plot the selected
+  folder (or the one shown, when nothing is selected) from a copy: the whole folder, less what
+  `sync.exclude` leaves out, goes into `tmp_remote/` inside its local counterpart, and the figures
+  and the `.plot` of the plot into `tmp_remote/plots_remote/` (named `<path>-tmp_remote-<plot>`). A
+  bands folder and a PDOS folder selected together make the bands + DOS figure. Nothing else of the
+  local folder is touched: each new plot overwrites the copy **without asking**, only inside
+  `tmp_remote/`, and nothing in it is deleted. The preview shows only when a file is over 100 MB.
+  The copies stay until you delete them; they show in the local tree, are never synced either way,
+  and never mix into the detection of the folder that holds them. A project or the root is never
+  copied.
 - With `auth: password`, the password is asked when the mode is turned on, and kept for the
   session; a refused login is not retried until you ask ("Tentar de novo", "Atualizar", F5).
 

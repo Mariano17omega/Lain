@@ -1,5 +1,5 @@
-"""Whether a pull (PRD §5) or a push (spec 27) can start, and from where: checked before any
-dialog or process. The scope's wording (spec 17 R1) is here too: the Rsync button, the menu and the
+"""Whether a pull (PRD §5), a push (spec 27) or the copy of a remote plot (spec 66) can start, and
+from where: checked before any dialog or process. The scope's wording (spec 17 R1) is here too: the Rsync button, the menu and the
 dialog say it."""
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from pathlib import Path
 
 from ...i18n import _
 from ..config import AppConfig
+from ..scratch import SCRATCH_DIR, scratch_of
 from .rsync import Endpoint, remote_dir_for, remote_dir_of
 
 NOT_CONFIGURED = _(
@@ -19,6 +20,8 @@ SYNC_OFF = _("Sincronização desligada: configure cluster.host, cluster.user e 
 PUSH_ROOT = _("Escolha uma pasta de cálculo; a pasta raiz inteira não é enviada.")
 PUSH_PROJECT = _("Escolha uma pasta de cálculo; o projeto inteiro não é enviado.")  # spec 31 R5.2
 SYNC_RUNNING = _("Há uma sincronização em andamento. Espere terminar ou cancele.")
+PLOT_ROOT = _("Escolha uma pasta de cálculo para plotar; a raiz não é copiada.")  # spec 66 R3.1
+PLOT_PROJECT = _("Escolha uma pasta de cálculo para plotar; o projeto inteiro não é copiado.")
 MENU_PATH_MAX = 40  # longer relative paths keep their end in the menu text
 
 
@@ -84,6 +87,24 @@ def prepare_push(
     return PushRequest(request.folder, request.endpoint, request.needs_password)
 
 
+def prepare_scratch(
+    config: AppConfig, mirror: Path, *, resolved_root: Path | None = None
+) -> SyncRequest | SyncRefusal:
+    """The copy of ``mirror``'s cluster side into ``mirror/tmp_remote``, to plot it (spec 66 R3.1):
+    the request's folder is the copy, its endpoint the mirror's. Like a push, never of the root
+    nor of a project (it would copy every calculation). ``mirror`` need not exist yet."""
+    root = _root(config, resolved_root)
+    request = prepare_sync(config, mirror, resolved_root=root)
+    if isinstance(request, SyncRefusal):
+        return request
+    resolved = Path(mirror).resolve()
+    if resolved == root:
+        return SyncRefusal("warning", PLOT_ROOT)
+    if resolved.parent == root:
+        return SyncRefusal("warning", PLOT_PROJECT)
+    return SyncRequest(scratch_of(request.folder), request.endpoint, request.needs_password)
+
+
 def push_availability(config: AppConfig, folder: Path, *, resolved_root: Path | None = None) -> str:
     """ "" when ``folder`` can be pushed, else why not (the tooltip of the disabled menu item)."""
     request = prepare_push(config, folder, resolved_root=resolved_root)
@@ -102,6 +123,7 @@ class SyncScope:
     direction: Direction = Direction.PULL
     project: str = ""  # the project's name when this is what "Sincronizar projeto" covers (spec 31)
     file: str = ""  # the one file of the folder a "Baixar" of the cluster mode pulls (spec 65 R5.2)
+    scratch: bool = False  # the copy of the folder into its ``tmp_remote/``, to plot it (spec 66)
 
     @property
     def push(self) -> bool:
@@ -134,6 +156,8 @@ class SyncScope:
 
     @property
     def title(self) -> str:
+        if self.scratch:
+            return _("Baixando para plotar: {label}").format(label=self.label)
         if self.push:
             return _("Enviar para o cluster: {label}").format(label=self.label)
         return _("Baixar do cluster: {label}").format(label=self.label)
@@ -173,6 +197,8 @@ class SyncScope:
 
     @property
     def local_text(self) -> str:
+        if self.scratch:
+            return f"{self.relative}/{SCRATCH_DIR}" if self.relative else SCRATCH_DIR
         if self.file:
             return f"{self.relative}/{self.file}" if self.relative else self.file
         return self.relative or "."

@@ -1,9 +1,11 @@
-"""Shared pieces of the cluster mode tests (spec 65): a fake ``list_remote`` and a window with a
-cluster."""
+"""Shared pieces of the cluster mode tests (spec 65): a fake ``list_remote``, a window with a
+cluster, and a local folder that the copies of a remote plot (spec 66) come from."""
 
 from __future__ import annotations
 
 import threading
+from dataclasses import replace
+from pathlib import Path, PurePosixPath
 
 from PyQt6.QtWidgets import QMenu
 
@@ -11,7 +13,9 @@ from qe_studio.core import cancel
 from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.remote.listing import NOT_FOUND, RemoteEntry, RemoteFailure
 from qe_studio.core.sync import monitor
-from qe_studio.ui import remote_controller
+from qe_studio.core.sync.request import SyncRefusal, prepare_scratch
+from qe_studio.core.sync.rsync import Endpoint
+from qe_studio.ui import remote_controller, sync_coordinator
 
 REMOTE = "/scratch/usuario"
 ACCOUNT = "usuario@hpc.example"
@@ -95,3 +99,18 @@ def menu_spy(monkeypatch, choose: str | None = None) -> list[list[tuple[str, boo
 
     monkeypatch.setattr(QMenu, "exec", exec_)
     return menus
+
+
+def serve_locally(monkeypatch, cluster: Path, remote_root: str = REMOTE) -> None:
+    """The copies of a remote plot (spec 66) come from ``cluster``, a local folder that stands for
+    ``remote_root``: ``prepare_scratch`` as always, then a host-less endpoint under ``cluster``
+    (the real rsync, no ssh). Patched where the coordinator imports it."""
+
+    def prepare(config, mirror, *, resolved_root=None):
+        request = prepare_scratch(config, mirror, resolved_root=resolved_root)
+        if isinstance(request, SyncRefusal):
+            return request
+        relative = PurePosixPath(request.endpoint.path).relative_to(remote_root)
+        return replace(request, endpoint=Endpoint(str(cluster.joinpath(*relative.parts))))
+
+    monkeypatch.setattr(sync_coordinator, "prepare_scratch", prepare)

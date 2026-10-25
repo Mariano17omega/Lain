@@ -115,4 +115,4 @@ def test_orphans_are_matched_literally(tmp_path):
         (plots / name).write_text("x")
     _remove_orphans(tmp_path, "a[1]-bands")
     assert [p.name for p in plots.iterdir()] == [".a1-bands.png.tmp"]  # [1] is not a class
-    assert export_module.PLOTS_DIR == "plots"
+    assert export_module.plots_dir(tmp_path) == plots

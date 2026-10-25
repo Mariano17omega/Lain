@@ -156,6 +156,21 @@ def test_excluded_files_never_go_up(qtbot, dirs):
     assert sorted(snapshot(remote)) == ["scf.in"]
 
 
+def test_the_scratch_copy_of_a_remote_plot_never_goes_up(qtbot, dirs):
+    """Spec 66 R2.2: ``tmp_remote/`` is not even in the preview, with empty exclusion lists."""
+    local, remote = dirs
+    write(local, "scf.in", "input")
+    write(local, "tmp_remote/scf.out", "copied from the cluster")
+    write(local, "tmp_remote/plots_remote/scf-bands.png", "figure")
+    plans = []
+    config = make_config(exclude=[], push_exclude=[])
+    report = push(qtbot, local, remote, config=config, plans=plans)
+    assert report.status is SyncStatus.DONE, report.error
+    (plan,) = plans
+    assert [item.path for item in plan.items] == ["scf.in"]
+    assert sorted(snapshot(remote)) == ["scf.in"]
+
+
 def test_confirm_plan_off_still_shows_the_preview(qtbot, dirs):
     local, remote = dirs
     write(local, "scf.in", "input")

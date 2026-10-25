@@ -6,6 +6,9 @@ plan's local stats and the recheck in a worker) and never opens dialogs: it emit
 waits for ``confirm_plan()`` (spec 17 R2), then ``conflict_needed`` and waits for ``resolve()``, so
 the UI (or a test) decides how to ask. The recheck (spec 27-3 R3) drops the files that changed
 locally while the user was deciding.
+With ``scratch`` (the copy of a remote plot into ``tmp_remote/``, spec 66 R3.2) every listed file is
+transferred, whatever its action, with no question and no recheck: the preview opens only when a
+file is large. The local folder is the copy, never a folder of the user.
 The process handling it shares with the push is ``_process.RsyncRun``.
 """
 
@@ -15,9 +18,10 @@ import os
 import re
 from pathlib import Path
 
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from ...i18n import _
+from ..config import AppConfig
 from ..tasks import run_task
 from ._process import RsyncRun
 from .planner import (
@@ -51,6 +55,17 @@ class SyncController(RsyncRun):
     _resolver: ConflictResolver | None
     _changed: list[str]  # left out of the transfer: edited locally since the preview
 
+    def __init__(
+        self,
+        config: AppConfig,
+        parent: QObject | None = None,
+        extra_args: list[str] | None = None,
+        password: str | None = None,
+        scratch: bool = False,
+    ):
+        super().__init__(config, parent, extra_args, password)
+        self.scratch = scratch
+
     @property
     def plan(self) -> SyncPlan:
         return self._plan
@@ -82,6 +97,9 @@ class SyncController(RsyncRun):
     _build_plan = staticmethod(_pull_plan)
 
     def _use_plan(self, plan: SyncPlan) -> None:
+        if self.scratch:
+            self._use_scratch_plan(plan)
+            return
         self._plan = plan
         if self._plan.status is PlanStatus.UP_TO_DATE:
             self._finish(SyncStatus.UP_TO_DATE)
@@ -92,8 +110,22 @@ class SyncController(RsyncRun):
         else:
             self._begin_conflicts()
 
+    def _use_scratch_plan(self, plan: SyncPlan) -> None:
+        """Spec 66 R3.2: a newer copy, an edited one, all go back to the cluster's version; only a
+        file above ``LARGE_FILE_BYTES`` shows the preview (``sync.confirm_plan`` does not count)."""
+        self._plan = SyncPlan(plan.items, overwrite=True)
+        if not plan.items:
+            self._finish(SyncStatus.UP_TO_DATE)
+        elif self._plan.large:
+            self._ask_plan(self._plan)
+        else:
+            self._start_transfer([item.path for item in plan.items])
+
     def _accepted(self) -> None:
-        self._begin_conflicts()
+        if self.scratch:
+            self._start_transfer([item.path for item in self._plan.items])
+        else:
+            self._begin_conflicts()
 
     def _begin_conflicts(self) -> None:
         self._resolver = ConflictResolver(self._plan.conflicts)
@@ -167,14 +199,15 @@ class SyncController(RsyncRun):
         self, status: SyncStatus, error: str | None, connection_failed: bool, auth_failed: bool
     ) -> SyncReport:
         resolver = self._resolver
+        local_newer = [] if self.scratch else self._plan.local_newer  # a copy transfers them
         return SyncReport(
             status,
             self._local_dir,
             self._remote,
             transferred=list(self._transfer) if status is SyncStatus.DONE else [],
             skipped=[item.path for item in resolver.skipped] if resolver else [],
-            local_newer=[item.path for item in self._plan.local_newer],
-            local_newer_folders=self._plan.local_newer_folders,
+            local_newer=[item.path for item in local_newer],
+            local_newer_folders=[] if self.scratch else self._plan.local_newer_folders,
             changed_locally=tuple(self._changed),
             error=error,
             connection_failed=connection_failed,

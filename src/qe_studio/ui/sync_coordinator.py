@@ -7,7 +7,8 @@ the reachability monitor.
 (``SyncController``, ``PushController``); this only asks, shows and reports. One run at a time,
 either way. ``on_synced`` refreshes what changed when ``synced`` is emitted (a push changes nothing
 local, so it never emits it); a run that went well ends with a toast (``notice``), not a message
-box.
+box. ``start_scratch`` copies a cluster folder into its mirror's ``tmp_remote/`` to plot it (spec 66):
+the same window, and a callback when the copy is ready.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from ..core.sync.request import (
     SyncRequest,
     SyncScope,
     prepare_push,
+    prepare_scratch,
     prepare_sync,
     push_availability,
     sync_scope,
@@ -45,6 +47,7 @@ from .widgets.context_menu import ItemActions
 
 TITLE = _("Sincronização")
 PUSH_TITLE = _("Envio ao cluster")
+WAIT_RUNNING = _("Aguarde a sincronização em andamento.")
 
 
 class SyncCoordinator(QObject):
@@ -75,6 +78,7 @@ class SyncCoordinator(QObject):
         self.scope: SyncScope | None = None  # of the run in progress
         self.conflict_dialog: ConflictDialog | None = None
         self._session_password: str | None = None  # typed once per run, never saved
+        self._on_ready: Callable[[Path], None] | None = None  # of the copy in progress (spec 66)
         self._scope_folder: Path = config.paths.local_root
         self._project: Path | None = None  # the selected project's folder (spec 31); None: all
         self._folder_action: QAction | None = None
@@ -285,6 +289,25 @@ class SyncCoordinator(QObject):
         controller.conflict_needed.connect(self._ask_conflict)
         controller.start(folder, endpoint)
 
+    def start_scratch(self, mirror: Path, on_ready: Callable[[Path], None]) -> None:
+        """Copy the cluster side of ``mirror`` into ``mirror/tmp_remote`` to plot it (spec 66 R3.3):
+        overwritten without a question, the preview only for a large file. ``on_ready(copy)`` when
+        it ends done or up to date; a failure or a cancel plots nothing."""
+        if self.running:
+            self.message.emit(WAIT_RUNNING, "warning", 5000)
+            return
+        request = self._checked(
+            prepare_scratch(self.config, mirror, resolved_root=self._root), TITLE
+        )
+        if request is None:
+            return
+        folder, endpoint, password = request
+        controller = SyncController(self.config, self, password=password, scratch=True)
+        scope = sync_scope(self.config, mirror, endpoint, resolved_root=self._root)
+        self._on_ready = on_ready
+        self._open(controller, replace(scope, scratch=True))
+        controller.start(folder, endpoint)
+
     def run_push(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
         controller = PushController(self.config, self, password=password)
         scope = sync_scope(self.config, folder, endpoint, Direction.PUSH, resolved_root=self._root)
@@ -316,6 +339,7 @@ class SyncCoordinator(QObject):
         # The dialog deletes itself on close; the controller goes on the next loop turn.
         controller, dialog, scope = self.controller, self.dialog, self.scope
         self.controller, self.dialog, self.scope = None, None, None
+        ready, self._on_ready = self._on_ready, None
         if controller is not None:
             controller.deleteLater()
         self.monitor.set_syncing(False)
@@ -344,3 +368,5 @@ class SyncCoordinator(QObject):
                 level = "warning"  # files were left out: the toast says so
             self.notice.emit(headline, level, report.details)
         self.finished.emit(report)
+        if ready is not None and report.status in (SyncStatus.DONE, SyncStatus.UP_TO_DATE):
+            ready(report.local_dir)  # the copy, refreshed above (``synced``)

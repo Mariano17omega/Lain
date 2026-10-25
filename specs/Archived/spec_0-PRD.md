@@ -102,7 +102,8 @@ The system dynamically scans the selected directory to determine the calculation
   - The complete exclusion list must be customizable in `config.yaml`.
 
 ### 5.4. Conflict Resolution
-- Whenever synchronization identifies that an existing local file would be overwritten, a prompt must ask the user:
+- Whenever synchronization identifies that an existing local file would be overwritten, a prompt must ask the user
+  (every file outside `tmp_remote/`: the scratch copy of a remote plot is overwritten without asking, spec 66):
   - Overwrite this file only.
   - Overwrite all conflicting files in this folder.
   - Skip / keep local file.

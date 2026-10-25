@@ -24,6 +24,7 @@ ACTION_NOTES = {
     Action.UPDATE: _("pedirá confirmação"),
     Action.LOCAL_NEWER: _("não será alterado"),
 }
+REPLACED = _("será substituído")  # an existing file of the scratch copy of a remote plot (spec 66)
 PUSH_ORDER = (PushAction.NEW, PushAction.EXISTS)
 PUSH_TITLES = {
     PushAction.NEW: _("Serão enviados"),
@@ -83,7 +84,8 @@ def push_groups(plan: PushPlan) -> list[PlanGroup]:
 
 def plan_summary(plan: SyncPlan) -> str:
     """ "12 arquivos novos (35.2 MB) · 3 a atualizar (1.1 MB) · 2 mais recentes no computador
-    (não serão alterados)"; parts without items are left out."""
+    (não serão alterados)"; parts without items are left out. A plan that overwrites (spec 66)
+    says "3 a substituir (1.1 MB)" for every file that exists."""
     parts = []
     if new := plan.new:
         parts.append(
@@ -91,6 +93,14 @@ def plan_summary(plan: SyncPlan) -> str:
                 "{count} arquivo novo ({size})", "{count} arquivos novos ({size})", len(new)
             ).format(count=len(new), size=human_size(total_size(new)))
         )
+    if plan.overwrite:
+        if replaced := plan.conflicts + plan.local_newer:
+            parts.append(
+                _("{count} a substituir ({human_size})").format(
+                    count=len(replaced), human_size=human_size(total_size(replaced))
+                )
+            )
+        return " · ".join(parts) or _("Nada a transferir.")
     if updates := plan.conflicts:
         parts.append(
             _("{count} a atualizar ({human_size})").format(
@@ -190,7 +200,7 @@ def describe_plan(plan: SyncPlan | PushPlan) -> Preview:
     for action in ACTION_ORDER:
         mine = [group for group in groups if group.action is action]
         if mine:
-            note = ACTION_NOTES[action]
+            note = REPLACED if plan.overwrite and action is not Action.NEW else ACTION_NOTES[action]
             title = f"{ACTION_TITLES[action]} ({sum(len(g.items) for g in mine)})"
             rows = tuple(_group(g, note, _remote_mtime) for g in mine)
             sections.append(PreviewSection(title, sum(g.size for g in mine), note, rows))

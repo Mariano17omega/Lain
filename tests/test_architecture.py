@@ -95,6 +95,7 @@ QT_FREE = [
     "qe_studio.core.fontscale",
     "qe_studio.core.compounds",
     "qe_studio.core.project_data",
+    "qe_studio.core.scratch",
     "qe_studio.core.qe.structure",
     "qe_studio.core.plotting.grid",
     "qe_studio.core.plotting.cell_layout",

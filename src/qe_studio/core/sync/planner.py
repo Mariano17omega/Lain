@@ -58,6 +58,8 @@ class PlanStatus(StrEnum):
 @dataclass
 class SyncPlan:
     items: list[PlanItem] = field(default_factory=list)
+    # Every item is transferred, whatever its action: the scratch copy of a remote plot (spec 66).
+    overwrite: bool = False
 
     def _with(self, action: Action) -> list[PlanItem]:
         return [item for item in self.items if item.action is action]
