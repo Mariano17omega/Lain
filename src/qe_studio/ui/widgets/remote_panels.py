@@ -14,7 +14,6 @@ from PyQt6.QtCore import QEvent, QItemSelectionModel, QModelIndex, QObject, QPoi
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QAbstractItemView,
-    QHeaderView,
     QLabel,
     QPushButton,
     QStackedWidget,
@@ -23,15 +22,21 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ...core.remote.listing import RemoteEntry
+from ...core.remote.listing import RemoteEntry, sort_entries
 from ...i18n import _
 from ..theme.manager import ThemeManager
 from .common import IconButton, PanelHeader, selection_of, viewport_of
 from .elided_label import ElidedLabel
+from .file_card import apply_view_mode, name_lines, name_metrics, name_width
+from .fs_model import SORT_DATE, SORT_NAME, SORT_SIZE
+from .grid_view import GridView
+from .remote_card import RemoteCardDelegate
 from .remote_model import RemoteFileModel, RemotePath, RemoteTreeModel
 from .spinner import CircularProgress
+from .view_controls import ViewControls
 
 SPINNER_PX = 32
+SORT_KEYS = {SORT_NAME: "name", SORT_SIZE: "size", SORT_DATE: "date"}  # ``sort_entries``' ``by``
 
 
 def _styled(widget: QWidget, name: str) -> None:
@@ -133,8 +138,9 @@ class RemoteTreePanel(QWidget):
 
 
 class RemoteFilePanel(QWidget):
-    """The entries of one folder of the cluster as a list: name, size, date. A spinner over it while
-    the folder has no answer yet; the reason and "Tentar de novo" when the listing failed."""
+    """The entries of one folder of the cluster as cards or rows (name, size, date), the way the local
+    files are shown (``ViewControls``). A spinner over them while the folder has no answer yet; the
+    reason and "Tentar de novo" when the listing failed."""
 
     folder_activated = pyqtSignal(str)  # Enter or a double click on a folder (or "..")
     up_requested = pyqtSignal()  # Backspace, Alt+↑
@@ -149,6 +155,7 @@ class RemoteFilePanel(QWidget):
         layout.setSpacing(0)
         self.header = PanelHeader(theme, _("Arquivos do cluster"), "cloud_done")
         self.header.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.controls = ViewControls(theme, self.header, token="text_meta")
         layout.addWidget(self.header)
         self.path = ElidedLabel()
         self.path.setObjectName("remotePath")
@@ -157,25 +164,18 @@ class RemoteFilePanel(QWidget):
         self.pages = QStackedWidget()
         layout.addWidget(self.pages, 1)
 
+        self.theme = theme
+        self.name_lines = 1  # lines of the longest name listed: the cards are this tall (spec 37)
         self.model = RemoteFileModel(theme, self)
-        self.view = QTreeView()
+        self.view = GridView()
         self.view.setObjectName("remoteFileList")
         self.view.setAccessibleName(_("Arquivos do cluster"))
         self.view.setModel(self.model)
-        self.view.setRootIsDecorated(False)
-        self.view.setItemsExpandable(False)
-        self.view.setUniformRowHeights(True)
-        self.view.setAllColumnsShowFocus(True)
-        self.view.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.view.setItemDelegate(RemoteCardDelegate(self, self.model))
+        self.view.setMouseTracking(True)
+        self.view.setUniformItemSizes(True)
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        header = self.view.header()
-        assert header is not None
-        header.setStretchLastSection(False)
-        header.setSectionsClickable(False)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for column in (1, 2):
-            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
+        self._apply_mode()
         self.pages.addWidget(self.view)
 
         self.failure = QWidget()
@@ -199,6 +199,9 @@ class RemoteFilePanel(QWidget):
         self.view.activated.connect(self._on_activated)
         self.view.customContextMenuRequested.connect(self._on_context_menu)
         self.retry_button.clicked.connect(self.retry_requested)
+        self.controls.mode_changed.connect(self._on_mode_changed)
+        self.controls.sort_changed.connect(self._on_sort_changed)
+        theme.scale_changed.connect(self._on_scale_changed)
         for keys in ("Backspace", "Alt+Up"):
             shortcut = QShortcut(QKeySequence(keys), self.view)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -207,6 +210,27 @@ class RemoteFilePanel(QWidget):
 
     def _on_theme_changed(self, _name: str) -> None:
         viewport_of(self.view).update()
+
+    # -- cards or rows, and their order ----------------------------------------------------------
+    @property
+    def grid_mode(self) -> bool:
+        return self.controls.grid_mode
+
+    @property
+    def sort_column(self) -> int:
+        return self.controls.sort_column
+
+    def _apply_mode(self) -> None:
+        apply_view_mode(self.view, self.grid_mode, self.name_lines)
+
+    def _on_mode_changed(self, _grid: bool) -> None:
+        self._apply_mode()
+
+    def _on_scale_changed(self, _scale: float) -> None:
+        self._apply_mode()  # cards and rows are taller or shorter now
+
+    def _on_sort_changed(self, _column: int) -> None:
+        self._fill(self.model.entries)
 
     # -- what the controller says ----------------------------------------------------------------
     def set_folder(self, remote_dir: str, up: str | None) -> None:
@@ -229,10 +253,21 @@ class RemoteFilePanel(QWidget):
 
     def show_entries(self, entries: list[RemoteEntry]) -> None:
         """The entries of the folder shown; the items selected before stay selected."""
+        self._fill(entries)
+        self.header.count.setText(f"({len(entries)})")
+        self.pages.setCurrentWidget(self.view)
+        self.set_loading(False)
+
+    def _fill(self, entries: list[RemoteEntry]) -> None:
+        """``entries`` in the order chosen, as tall as their longest name needs; the selection and
+        the current item (by name) stay."""
         model = self.model
         selected = [PurePosixPath(path.path).name for path in self.selected_paths()]
         current = model.path_of(self.view.currentIndex())
-        model.set_rows(model.folder, entries, model.up)
+        ordered = sort_entries(entries, SORT_KEYS[self.sort_column])
+        model.set_rows(model.folder, ordered, model.up)
+        self.name_lines = name_lines((e.name for e in ordered), name_width(), name_metrics())
+        self._apply_mode()
         selection = selection_of(self.view)
         flags = QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows
         for name in selected:
@@ -245,9 +280,6 @@ class RemoteFilePanel(QWidget):
                 selection.setCurrentIndex(
                     model.index(row, 0), QItemSelectionModel.SelectionFlag.NoUpdate
                 )
-        self.header.count.setText(f"({len(entries)})")
-        self.pages.setCurrentWidget(self.view)
-        self.set_loading(False)
 
     def show_failure(self, message: str) -> None:
         self.message.setText(message)

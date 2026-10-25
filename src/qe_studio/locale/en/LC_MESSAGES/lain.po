@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 04:16-0400\n"
-"PO-Revision-Date: 2026-10-25 04:16-0400\n"
+"POT-Creation-Date: 2026-10-25 04:46-0400\n"
+"PO-Revision-Date: 2026-10-25 04:46-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -1518,7 +1518,7 @@ msgstr "↓ band data (.gnu)"
 msgid "Dados de bandas ↓ (filband)"
 msgstr "↓ band data (filband)"
 
-#: ui/widgets/file_grid.py
+#: ui/widgets/view_controls.py
 msgid "Data"
 msgstr "Date"
 
@@ -2542,7 +2542,7 @@ msgstr "Rotate the structure 45° about {axis}, in the opposite direction"
 msgid "Girar a vista"
 msgstr "Rotate the view"
 
-#: ui/widgets/bars.py ui/widgets/file_grid.py
+#: ui/widgets/bars.py ui/widgets/view_controls.py
 msgid "Grade"
 msgstr "Grid"
 
@@ -3032,7 +3032,7 @@ msgstr "Rows and columns range from 1 to {MAX_SIZE}."
 msgid "Link não aberto: {target}"
 msgstr "Link not opened: {target}"
 
-#: ui/widgets/file_grid.py
+#: ui/widgets/view_controls.py
 msgid "Lista"
 msgstr "List"
 
@@ -3409,8 +3409,8 @@ msgstr "No saved grid"
 msgid "Nenhuma iteração SCF completa em {name}."
 msgstr "No complete SCF iteration in {name}."
 
-#: ui/dialogs/grid_dialog.py ui/widgets/file_grid.py ui/widgets/jobs_popup.py
-#: ui/widgets/remote_model.py
+#: ui/dialogs/grid_dialog.py ui/widgets/jobs_popup.py ui/widgets/remote_model.py
+#: ui/widgets/view_controls.py
 msgid "Nome"
 msgstr "Name"
 
@@ -3885,7 +3885,7 @@ msgstr "Invalid option for {name}: {option}"
 msgid "Orbital"
 msgstr "Orbital"
 
-#: ui/widgets/file_grid.py
+#: ui/widgets/view_controls.py
 msgid "Ordenar"
 msgstr "Sort"
 
@@ -5027,7 +5027,7 @@ msgid "Só ↓"
 msgstr "↓ only"
 
 #: core/calculations/params.py ui/dialogs/calc_create/preview.py ui/dialogs/sync_pages.py
-#: ui/widgets/file_grid.py ui/widgets/remote_model.py
+#: ui/widgets/remote_model.py ui/widgets/view_controls.py
 msgid "Tamanho"
 msgstr "Size"
 
@@ -6075,11 +6075,11 @@ msgstr "step {step} · V = {volume_ang3:.2f} Å³"
 msgid "passo {step} · {name} = {delta:.1e} Ry"
 msgstr "step {step} · {name} = {delta:.1e} Ry"
 
-#: ui/widgets/file_card.py
+#: ui/widgets/file_card.py ui/widgets/remote_card.py
 msgid "pasta"
 msgstr "folder"
 
-#: ui/widgets/file_card.py
+#: ui/widgets/file_card.py ui/widgets/remote_card.py
 msgid "pasta acima"
 msgstr "folder above"
 

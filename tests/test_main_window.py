@@ -401,6 +401,8 @@ def test_layout_and_navigation_survive_a_restart(qtbot, main_window, demo_projec
     assert new.workspace.isHidden() and new.files.isHidden() and not new.left.isHidden()
     assert not new.files.grid_mode and new.files.sort_column == SORT_DATE
     assert new.files._sort_actions[SORT_DATE].isChecked()
+    cluster = new.remote.file_panel  # the cluster's files start as the local ones (spec 67)
+    assert not cluster.grid_mode and cluster.sort_column == SORT_DATE
     assert new.files.folder == demo_project / "04_pdos"
     assert new.current_folder() == demo_project / "04_pdos"
     assert (

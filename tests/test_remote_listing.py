@@ -17,6 +17,7 @@ from qe_studio.core.remote.listing import (
     classify,
     list_remote,
     parse_listing,
+    sort_entries,
 )
 from qe_studio.core.sync.command import CommandResult
 from qe_studio.core.sync.rsync import list_command
@@ -77,6 +78,24 @@ def test_dots_hidden_folders_and_other_lines_are_left_out():
     names = {entry.name for entry in parse_listing(text, HIDDEN)}
     assert not names & {".", ".hidden", ".git", "tmp", "al.save"}
     assert "tmp" in {entry.name for entry in parse_listing(LISTING, [])}  # only by the config
+
+
+def test_entries_sort_by_size_and_date_with_folders_first():
+    entries = [
+        RemoteEntry("b.out", False, 10, 300.0),
+        RemoteEntry("a.out", False, 10, 100.0),
+        RemoteEntry("run10", True, 4096, 100.0),
+        RemoteEntry("big.dat", False, 999, 200.0),
+        RemoteEntry("run2", True, 4096, 400.0),
+    ]
+
+    def names(by):
+        return [entry.name for entry in sort_entries(entries, by)]
+
+    assert names("name") == ["run2", "run10", "a.out", "b.out", "big.dat"]
+    assert names("size") == ["run2", "run10", "big.dat", "a.out", "b.out"]  # ties by name
+    assert names("date") == ["run2", "run10", "b.out", "big.dat", "a.out"]  # the newest first
+    assert names("size") == [e.name for e in sort_entries(reversed(entries), "size")]
 
 
 def test_a_link_without_its_target_is_still_a_link():

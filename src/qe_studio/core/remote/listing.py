@@ -68,9 +68,20 @@ class RemoteFailure:
     local: bool = False  # rsync could not be run here
 
 
-def sort_entries(entries: Iterable[RemoteEntry]) -> list[RemoteEntry]:
-    """Folders first, then the names in natural order (``run2`` before ``run10``)."""
-    return sorted(entries, key=lambda entry: (not entry.is_dir, natural_key(entry.name)))
+def sort_entries(entries: Iterable[RemoteEntry], by: str = "name") -> list[RemoteEntry]:
+    """Folders first, then ``by``: ``"name"`` in natural order (``run2`` before ``run10``);
+    ``"size"`` the largest file first (folders stay by name); ``"date"`` the newest first. Equal
+    keys go by name, so the order is the same whatever order ``entries`` came in."""
+
+    def key(entry: RemoteEntry) -> tuple:
+        name = natural_key(entry.name)
+        if by == "date":
+            return (not entry.is_dir, -entry.mtime, name)
+        if by == "size" and not entry.is_dir:
+            return (True, -entry.size, name)
+        return (not entry.is_dir, 0, name)
+
+    return sorted(entries, key=key)
 
 
 def parse_listing(stdout: str, hidden_dirs: list[str]) -> list[RemoteEntry]:

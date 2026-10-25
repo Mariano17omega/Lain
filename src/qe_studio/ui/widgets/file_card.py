@@ -9,11 +9,17 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple, Protocol
 
 from PyQt6.QtCore import QModelIndex, QPoint, QRect, QRectF, QSize, Qt
 from PyQt6.QtGui import QFont, QFontMetrics, QPainter, QPen
-from PyQt6.QtWidgets import QStyle, QStyledItemDelegate, QStyleOptionViewItem, QToolTip
+from PyQt6.QtWidgets import (
+    QListView,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
+    QToolTip,
+)
 
 from ...core.file_kinds import human_size, status_label
 from ...i18n import _, ngettext
@@ -130,8 +136,53 @@ def row_height() -> int:
     return max(scaled(ROW), QFontMetrics(name_font_for(True)).height() + 10)
 
 
-class FileCardDelegate(QStyledItemDelegate):
-    def __init__(self, panel: FilePanel):
+def apply_view_mode(view: QListView, grid: bool, lines: int) -> None:
+    """Cards (icon mode, as tall as ``lines`` lines of name) or rows (list mode) in ``view``."""
+    if grid:
+        view.setViewMode(QListView.ViewMode.IconMode)
+        view.setGridSize(card_size(lines))
+        view.setWrapping(True)
+        view.setResizeMode(QListView.ResizeMode.Adjust)
+        view.setMovement(QListView.Movement.Static)
+        view.setSpacing(0)
+    else:
+        view.setViewMode(QListView.ViewMode.ListMode)
+        view.setGridSize(QSize())
+        view.setWrapping(False)
+        view.setSpacing(0)
+    view.doItemsLayout()  # pyright: ignore[reportAttributeAccessIssue]  (public Qt slot, not in the stubs)
+
+
+class CardItem(NamedTuple):
+    """What a card or a row shows: the name, the icon (name and color token) and the line under
+    the name (at the end of a row), in the color token ``meta_token``."""
+
+    title: str
+    icon: str
+    token: str
+    meta: str
+    meta_token: str
+    is_dir: bool
+
+
+class CardPanel(Protocol):
+    """What the delegate asks of the panel whose view it paints."""
+
+    @property
+    def theme(self) -> ThemeManager: ...
+
+    @property
+    def grid_mode(self) -> bool: ...
+
+    @property
+    def name_lines(self) -> int: ...
+
+
+class CardDelegate(QStyledItemDelegate):
+    """Paints the cards and rows of the local files and of the cluster's; a subclass says what an
+    index shows (``describe``)."""
+
+    def __init__(self, panel: CardPanel):
         super().__init__()
         self.panel = panel
 
@@ -139,15 +190,15 @@ class FileCardDelegate(QStyledItemDelegate):
     def theme(self) -> ThemeManager:
         return self.panel.theme
 
+    def describe(self, index: QModelIndex) -> CardItem:
+        raise NotImplementedError
+
     def sizeHint(self, option, index) -> QSize:
         if self.panel.grid_mode:
             return card_size(self.panel.name_lines) - QSize(CARD_MARGIN, CARD_MARGIN)
         return QSize(option.rect.width(), row_height())
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
-        proxy = self.panel.proxy
-        path = proxy.path(index)
-        is_dir = proxy.is_dir(index)
         selected = bool(option.state & QStyle.StateFlag.State_Selected)
         hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
         focused = bool(option.state & QStyle.StateFlag.State_HasFocus)  # current item, view focused
@@ -169,14 +220,7 @@ class FileCardDelegate(QStyledItemDelegate):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 3, 3)
 
-        if proxy.is_up(index):  # the "folder above" shortcut (spec 5 R2)
-            title = ".."
-            icon_name, token = "drive_folder_upload", "icon_folder"
-            meta, meta_token = _("pasta acima"), "text_meta"
-        else:
-            title = path.name
-            icon_name, token = file_visual(path, is_dir)
-            meta, meta_token = self._meta_for(index, path, is_dir)
+        title, icon_name, token, meta, meta_token, is_dir = self.describe(index)
         name_color = theme.color("accent_text" if selected or is_dir else "text")
         name_font = name_font_for(selected)
         if self.panel.grid_mode:
@@ -241,9 +285,27 @@ class FileCardDelegate(QStyledItemDelegate):
         """Where a row's name goes: after the icon, before the size / state at the right."""
         return rect.toRect().adjusted(28, 0, -meta_width - 8, 0)
 
+
+class FileCardDelegate(CardDelegate):
+    def __init__(self, panel: FilePanel):
+        super().__init__(panel)
+        self.files = panel
+
+    def describe(self, index: QModelIndex) -> CardItem:
+        proxy = self.files.proxy
+        is_dir = proxy.is_dir(index)
+        if proxy.is_up(index):  # the "folder above" shortcut (spec 5 R2)
+            return CardItem(
+                "..", "drive_folder_upload", "icon_folder", _("pasta acima"), "text_meta", is_dir
+            )
+        path = proxy.path(index)
+        icon_name, token = file_visual(path, is_dir)
+        meta, meta_token = self._meta_for(index, path, is_dir)
+        return CardItem(path.name, icon_name, token, meta, meta_token, is_dir)
+
     def _meta_for(self, index: QModelIndex, path: Path, is_dir: bool) -> tuple[str, str]:
         """The line under a card's name (or at the end of a row) and its color token."""
-        proxy = self.panel.proxy
+        proxy = self.files.proxy
         if proxy.is_pending(index):  # a badge filter waits for this folder's detection
             return _("detectando…"), "text_meta"
         return self._meta(path, is_dir, proxy.fs.size(proxy.mapToSource(index)))
@@ -251,11 +313,11 @@ class FileCardDelegate(QStyledItemDelegate):
     def _meta(self, path: Path, is_dir: bool, size: int) -> tuple[str, str]:
         """Folders: entry count. Files: state only on cards, size (and state) in list mode."""
         if is_dir:
-            count = self.panel.item_count(path)
+            count = self.files.item_count(path)
             if count is None:
                 return _("pasta"), "text_meta"
             return ngettext("{n} item", "{n} itens", count).format(n=count), "text_meta"
-        label = status_label(path, size, self.panel.service.file_sniff(path))
+        label = status_label(path, size, self.files.service.file_sniff(path))
         if label is None:
             return ("", "text_meta") if self.panel.grid_mode else (human_size(size), "text_meta")
         text, token = label[0], level_token(label[1])
@@ -272,7 +334,7 @@ class FileCardDelegate(QStyledItemDelegate):
         return True
 
     def _tooltip_at(self, pos: QPoint, rect: QRect, index: QModelIndex) -> str:
-        proxy, service = self.panel.proxy, self.panel.service
+        proxy, service = self.files.proxy, self.files.service
         if proxy.is_up(index):
             return ""
         path = proxy.path(index)

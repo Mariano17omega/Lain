@@ -105,6 +105,7 @@ class RemoteController(QObject):
         file_panel.up_requested.connect(self.go_up)
         file_panel.retry_requested.connect(self.refresh)
         file_panel.menu_requested.connect(self.show_menu)
+        self._share_view()
         self._update_button()
 
     @classmethod
@@ -136,6 +137,17 @@ class RemoteController(QObject):
         window.workspace.reveal_requested.connect(controller.leave)
         controller.message.connect(window.status.set_message)
         return controller
+
+    def _share_view(self) -> None:
+        """ "Grade", "Lista" and "Ordenar" are one choice for the local files and the cluster's: a
+        change in either panel is made in the other (the signals fire only on a change, so they
+        end there). The cluster's start as the local ones are."""
+        mine, theirs = self.files.controls, self.file_panel.controls
+        for source, target in ((mine, theirs), (theirs, mine)):
+            source.mode_changed.connect(target.set_grid_mode)
+            source.sort_changed.connect(target.set_sort)
+        theirs.set_grid_mode(mine.grid_mode)
+        theirs.set_sort(mine.sort_column)
 
     @property
     def enabled(self) -> bool:

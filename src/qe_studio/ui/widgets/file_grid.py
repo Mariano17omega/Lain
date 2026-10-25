@@ -9,20 +9,13 @@ from PyQt6.QtCore import (
     QItemSelectionModel,
     QModelIndex,
     QPoint,
-    QSize,
     Qt,
     QThreadPool,
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QActionGroup, QKeySequence, QShortcut
-from PyQt6.QtWidgets import (
-    QListView,
-    QMenu,
-    QStackedWidget,
-    QVBoxLayout,
-    QWidget,
-)
+from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
 
 from ...core.filtering import BADGES, NO_BADGE, NO_STATE, STATES, VISUALS
 from ...core.paths import count_entries
@@ -30,11 +23,19 @@ from ...core.tasks import TaskGroup
 from ...i18n import _
 from ..services import DetectionService
 from ..theme.manager import ThemeManager
-from .common import IconButton, PanelHeader, selection_of, viewport_of
-from .file_card import FileCardDelegate, card_size, name_lines, name_metrics, name_width
+from .common import PanelHeader, selection_of, viewport_of
+from .file_card import (
+    FileCardDelegate,
+    apply_view_mode,
+    card_size,
+    name_lines,
+    name_metrics,
+    name_width,
+)
 from .filter_bar import FilterBar
-from .fs_model import SORT_DATE, SORT_NAME, SORT_SIZE, FileFilterProxy, make_fs_model
+from .fs_model import SORT_NAME, FileFilterProxy, make_fs_model
 from .grid_view import GridView
+from .view_controls import ViewControls
 
 NAME_LINES_DELAY_MS = 30  # rows arrive in bursts: measure the names once per burst
 
@@ -58,7 +59,6 @@ class FilePanel(QWidget):
         super().__init__(parent)
         self.theme, self.service = theme, service
         self.setObjectName("filePanel")
-        self.grid_mode = True
         self.name_lines = 1  # lines of the longest name listed: the cards are this tall (spec 37)
         self._wanted_lines = 1  # what the names listed so far need; ``name_lines`` follows it
         self._remeasure = False  # a row left or the filter changed: the longest may be gone
@@ -80,14 +80,11 @@ class FilePanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.header = PanelHeader(theme, _("Arquivos"), "grid_view")
-        self.grid_button = self.header.add_button(IconButton(theme, "grid_view", _("Grade")))
-        self.list_button = self.header.add_button(IconButton(theme, "view_list", _("Lista")))
-        for button in (self.grid_button, self.list_button):
-            button.setCheckable(True)
-        self.grid_button.setChecked(True)
-        self.sort_button = self.header.add_button(IconButton(theme, "sort", _("Ordenar")))
-        self.sort_button.setPopupMode(IconButton.ToolButtonPopupMode.InstantPopup)
-        self.sort_button.setMenu(self._sort_menu())
+        self.controls = ViewControls(theme, self.header)
+        self.grid_button = self.controls.grid_button
+        self.list_button = self.controls.list_button
+        self.sort_button = self.controls.sort_button
+        self._sort_actions = self.controls.sort_actions
         layout.addWidget(self.header)
         self.filter_bar = FilterBar(
             _("Filtrar por nome (* e ?)"),
@@ -114,8 +111,8 @@ class FilePanel(QWidget):
         layout.addWidget(self.view, 1)
         self._apply_mode()
 
-        self.grid_button.clicked.connect(lambda: self.set_grid_mode(True))
-        self.list_button.clicked.connect(lambda: self.set_grid_mode(False))
+        self.controls.mode_changed.connect(self._on_mode_changed)
+        self.controls.sort_changed.connect(self._apply_sort)
         self.view.activated.connect(self._on_activated)
         self.view.customContextMenuRequested.connect(self._on_context_menu)
         for keys in ("Backspace", "Alt+Up"):
@@ -209,10 +206,14 @@ class FilePanel(QWidget):
         viewport_of(self.view).update()  # status labels from the new sniffs
         self.proxy.refilter_later()  # a badge or a state may now match
 
+    @property
+    def grid_mode(self) -> bool:
+        return self.controls.grid_mode
+
     def set_grid_mode(self, grid: bool) -> None:
-        self.grid_mode = grid
-        self.grid_button.setChecked(grid)
-        self.list_button.setChecked(not grid)
+        self.controls.set_grid_mode(grid)
+
+    def _on_mode_changed(self, _grid: bool) -> None:
         self._apply_mode()
 
     def select_file(self, path: Path) -> None:
@@ -302,47 +303,19 @@ class FilePanel(QWidget):
             self.view.doItemsLayout()  # pyright: ignore[reportAttributeAccessIssue]
 
     def _apply_mode(self) -> None:
-        view = self.view
         if self.grid_mode:
             self._wanted_lines = self.name_lines = self._measure_name_lines()
-            view.setViewMode(QListView.ViewMode.IconMode)
-            view.setGridSize(card_size(self.name_lines))
-            view.setWrapping(True)
-            view.setResizeMode(QListView.ResizeMode.Adjust)
-            view.setMovement(QListView.Movement.Static)
-            view.setSpacing(0)
-        else:
-            view.setViewMode(QListView.ViewMode.ListMode)
-            view.setGridSize(QSize())
-            view.setWrapping(False)
-            view.setSpacing(0)
-        view.doItemsLayout()  # pyright: ignore[reportAttributeAccessIssue]  (public Qt slot, not in the stubs)
-
-    def _sort_menu(self) -> QMenu:
-        menu = QMenu(self)
-        group = QActionGroup(menu)
-        self._sort_actions = {}
-        for label, column in (
-            (_("Nome"), SORT_NAME),
-            (_("Tamanho"), SORT_SIZE),
-            (_("Data"), SORT_DATE),
-        ):
-            action = menu.addAction(label)
-            assert action is not None
-            action.setCheckable(True)
-            action.setChecked(column == SORT_NAME)
-            group.addAction(action)
-            action.triggered.connect(lambda _c=False, col=column: self.set_sort(col))
-            self._sort_actions[column] = action
-        return menu
+        apply_view_mode(self.view, self.grid_mode, self.name_lines)
 
     @property
     def sort_column(self) -> int:
-        return self.proxy.sort_column
+        return self.controls.sort_column
 
     def set_sort(self, column: int) -> None:
         """Sort by name (A→Z), size or date (largest/newest first)."""
-        self._sort_actions[column].setChecked(True)
+        self.controls.set_sort(column)
+
+    def _apply_sort(self, column: int) -> None:
         self.proxy.sort_column = column
         self.proxy.invalidate()
         order = Qt.SortOrder.AscendingOrder if column == SORT_NAME else Qt.SortOrder.DescendingOrder

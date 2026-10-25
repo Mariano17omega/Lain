@@ -13,9 +13,9 @@ e o "Criar cálculo": "Continuar" mudo e edição no modo Avançado) e as specs 
 **sétima** (13/10/2026: a "Visualização 3D" da estrutura, portada da prova de conceito de `Documentation/Exemplo-visualizador_3d/`, e as
 medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir com XCrysDen" no menu de contexto dos inputs e saídas do
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
-padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`), em grupos de itens
+padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`) e a spec 67 a **décima quarta** (25/10/2026: "Grade", "Lista" e "Ordenar" nos arquivos do cluster), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`, as specs 52–60) fechou por último. Cada spec é
-autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 66 estão implementadas.
+autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 67 estão implementadas.
 
 ## Roadmap
 
@@ -96,6 +96,7 @@ autossuficiente e pode virar um `/plan` de implementação separado. Todas as sp
 | 64 | [spec_64-jobs-do-cluster-na-barra-superior.md](Archived/spec_64-jobs-do-cluster-na-barra-superior.md) | "Executando: <nome>" à esquerda do LED (troca a cada 5 s), a fila do `qstatus -a` num painel com cache da sessão (5 min), o LED alimentado pela consulta; rodapé do caminho sai de `main_window.py` (R0) e executor cancelável de comandos remotos (R1) | 33, 17, 27-3, 27-5, 7 | M/G | Opus 5.5 |
 | 65 | [spec_65-modo-cluster-navegar-nos-arquivos-remotos.md](Archived/spec_65-modo-cluster-navegar-nos-arquivos-remotos.md) | Botão "Cluster": árvore e grade listam o cluster (`rsync --list-only`, cache de 60 s), com fundo vermelho e indicador de espera; "Baixar" no menu (pasta ou arquivo, pelo pull com prévia) | 64, 62, 17, 27-3, 31, 15, 19 | G | Opus 5.5 |
 | 66 | [spec_66-modo-cluster-plotar-por-tmp-remote.md](Archived/spec_66-modo-cluster-plotar-por-tmp-remote.md) | Plotar no modo cluster copia a pasta para `<espelho>/tmp_remote/` (sobrescrita sem perguntar, prévia só com arquivo > 100 MB), figuras e `.plot` em `tmp_remote/plots_remote/`; `tmp_remote` fora da detecção da pasta-mãe e do rsync | 65, 63, 17, 22, 32, 3, 48 | M | Opus 5.5 |
+| 67 | [spec_67-modo-cluster-grade-lista-e-ordenar.md](Archived/spec_67-modo-cluster-grade-lista-e-ordenar.md) | "Grade", "Lista" e "Ordenar" no cabeçalho dos arquivos do cluster, uma escolha só para o local e o cluster; cartões e linhas desenhados pelo mesmo `CardDelegate`; `sort_entries(by="name"/"size"/"date")`; substitui a decisão "a grade remota é uma lista" da 65 | 65, 5, 37 | P | Sonnet 5.5 |
 | fim | [spec_end-internacionalizacao.md](Archived/spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementada pelas specs 52–60 (arquivada com a 60) | 52–60 | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -473,6 +474,9 @@ sem inglês compilado e sem teste.
 | 3 | Solucionar os problemas das tentativas interrompidas | spec 52: R0 (erro não reproduzido; commitar a árvore), R1 (`.mo` parcial: hoje nada foi compilado e `en` mostra português), R2 (sem `test_i18n.py`), R3 (`screenshot.py` sem idioma; o fixture em processo da `spec_end` R4.2 é impossível) e R4 (`ERROR_BADGE = "ERRO"` sem `_()`, `_` local em `palette_controller.py:221`, seis `_(variável)` sem teste) |
 | 3a | …defeitos achados ao verificar | 55 R2 (CSV da PDOS mudaria de cabeçalho com o idioma), 56 R2 e 57 R2 (`geracao.md` e `.qsub` gravados em disco), 59 R4 (`_` local nos arquivos 3D) |
 
+18. **Grade, lista e ordenar no cluster (67, decisão de 25/10/2026):** pequena e independente das abertas; depende só do modo cluster (65) e do
+    desenho da grade local (5, 37). Não toca `ui/main_window.py`.
+
 ## Rastreabilidade: ideias da décima terceira rodada (25/10/2026) → specs
 
 As ideias vieram em `Ideias.md` (25/10/2026); cada spec cita o trecho de origem. Na conversa o usuário escolheu o checksum (comparar pelo
@@ -655,3 +659,19 @@ Decisões de 25/10/2026 (décima terceira rodada, specs 61–66):
   português com o inglês pedido no catálogo, consulta só com a janela ativa (64); botão "Cluster" na barra lateral, grade remota em lista,
   "Rsync" sem mudança no modo cluster (65); nomes das figuras com `tmp_remote` no prefixo, raiz e projeto recusados (66).
 - **Modelo recomendado:** Opus 5.5 para 61, 64, 65 e 66; Sonnet 5.5 para 62 e 63.
+
+## Rastreabilidade: ideias da décima quarta rodada (25/10/2026) → specs
+
+O pedido veio na conversa (não em `Ideias.md`), depois de a spec 65 ter fixado "a grade remota é uma lista".
+
+| # | Ideia (resumida) | Spec |
+|---|---|---|
+| 1 | No modo cluster, os botões "Grade", "Lista" e "Ordenar" como no local, para mudar como os arquivos aparecem | 67 (R1, R4) |
+| 1a | A Lista do cluster igual à do local (linhas) e a Grade com cartões | 67 (R2) |
+| 1b | Ordenar por nome, tamanho e data também no cluster | 67 (R3) |
+
+Decisões de 25/10/2026 (décima quarta rodada, spec 67):
+- **Estado compartilhado, decidido pelo usuário:** o modo e a ordem são um só para o local e o cluster; nenhuma chave nova no QSettings.
+- **Lista em linhas, decidido pelo usuário:** ícone, nome e `tamanho · data` à direita, como o local; a tabela Nome/Tamanho/Modificado deixa de existir.
+- **Assumidas para a revisão:** o cluster abre em grade; pastas por nome em "Tamanho"; `Enter` com várias linhas marcadas não faz nada no cluster.
+- **Modelo recomendado:** Sonnet 5.5.
