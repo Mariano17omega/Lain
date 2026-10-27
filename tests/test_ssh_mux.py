@@ -25,6 +25,7 @@ import pytest
 
 from qe_studio.core.cluster_jobs import JobsSnapshot, fetch_jobs
 from qe_studio.core.config import parse_config
+from qe_studio.core.remote.actions import classify_failure
 from qe_studio.core.remote.listing import list_remote
 from qe_studio.core.sync import mux
 from qe_studio.core.sync.command import remote_command, run_command
@@ -49,15 +50,27 @@ def runtime_dir() -> Path:
     return Path(os.environ["XDG_RUNTIME_DIR"])  # the test's own (conftest)
 
 
-def runtime_for(monkeypatch, length: int) -> Path:
+def runtime_for(monkeypatch, length: int, letter: str = "a") -> Path:
     """Point ``XDG_RUNTIME_DIR`` at a folder that makes ``control_dir()`` ``length`` characters."""
     pad = length - len(str(runtime_dir())) - len(mux.FOLDER) - 2
-    folder = runtime_dir() / ("a" * pad)
+    folder = runtime_dir() / (letter * pad)
     folder.mkdir()
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(folder))
     expected = folder / mux.FOLDER
     assert len(str(expected)) == length
     return expected
+
+
+def dead_socket(folder: Path, name: str) -> Path:
+    """A socket file nobody listens on: a master killed with SIGKILL."""
+    dead = socket.socket(socket.AF_UNIX)
+    dead.bind(str(folder / name))
+    dead.close()
+    return folder / name
+
+
+def own(name: str) -> str:
+    return f"{os.getpid()}-{name}"
 
 
 def wait_for(condition, timeout: float = 10.0) -> None:
@@ -77,7 +90,7 @@ def test_the_options_of_the_shared_connection():
         "-o",
         "ControlMaster=auto",
         "-o",
-        f"ControlPath={folder}/%C",
+        f"ControlPath={folder}/{os.getpid()}-%C",
         "-o",
         "ControlPersist=120",
     ]
@@ -94,10 +107,18 @@ def test_no_options_on_windows(monkeypatch):
 
 
 def test_no_options_when_the_folder_path_is_too_long(monkeypatch):
-    folder = runtime_for(monkeypatch, mux.MAX_DIR_CHARS + 1)
+    folder = runtime_for(monkeypatch, mux.MAX_DIR_BYTES + 1)
     assert mux.control_dir() is None
     assert mux.options(cluster().cluster) == []
     assert not folder.exists()  # nothing is made where a socket would not fit
+
+
+def test_the_length_is_counted_in_bytes(monkeypatch):
+    """The kernel's limit is in bytes: a folder that fits in characters but not in UTF-8 is off."""
+    folder = runtime_for(monkeypatch, mux.MAX_DIR_BYTES, letter="ã")
+    assert len(os.fsencode(folder)) > mux.MAX_DIR_BYTES
+    assert mux.control_dir() is None
+    assert not folder.exists()
 
 
 def test_no_options_when_the_folder_is_a_link(tmp_path):
@@ -141,12 +162,50 @@ def test_without_a_runtime_folder_the_temp_folder_holds_one_per_user(monkeypatch
     assert mux.control_dir() == temp / f"qe-studio-mux-{os.getuid()}"
 
 
+def test_a_temp_folder_too_long_falls_back_to_tmp(monkeypatch, tmp_path):
+    """macOS has no ``XDG_RUNTIME_DIR`` and its temp folder (``/var/folders/…/T``) is too long."""
+    short = runtime_dir()  # short and the test's own: stands for /tmp
+    monkeypatch.delenv("XDG_RUNTIME_DIR")
+    long_temp = tmp_path / ("t" * mux.MAX_DIR_BYTES)
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(long_temp))
+    monkeypatch.setattr(mux, "FALLBACK_TMP", str(short))
+    assert mux.control_dir() == short / f"qe-studio-mux-{os.getuid()}"
+    assert not long_temp.exists()
+
+
 def test_a_folder_removed_while_lain_runs_is_made_again():
     folder = mux.control_dir()
     assert folder is not None
     folder.rmdir()  # a tmp cleaner: ssh could not bind its socket there
     assert mux.control_dir() == folder
     assert folder.is_dir()
+
+
+def test_a_folder_replaced_by_a_link_while_lain_runs_is_refused(tmp_path):
+    """Every call checks again: a link put in place of a folder already used is never used."""
+    folder = mux.control_dir()
+    assert folder is not None
+    folder.rmdir()
+    target = tmp_path / "elsewhere"
+    target.mkdir(mode=0o700)
+    folder.symlink_to(target)
+    assert mux.control_dir() is None
+    assert mux.options(cluster().cluster) == []
+
+
+def test_a_failure_is_not_remembered(monkeypatch):
+    """A folder that could not be made once is tried again on the next ssh."""
+    real_mkdir, calls = os.mkdir, []
+
+    def mkdir_once_failing(path, mode=0o777):
+        calls.append(path)
+        if len(calls) == 1:
+            raise PermissionError(path)
+        real_mkdir(path, mode)
+
+    monkeypatch.setattr(os, "mkdir", mkdir_once_failing)
+    assert mux.control_dir() is None
+    assert mux.control_dir() == runtime_dir() / mux.FOLDER
 
 
 def test_close_all_without_sockets_runs_nothing(monkeypatch):
@@ -156,18 +215,59 @@ def test_close_all_without_sockets_runs_nothing(monkeypatch):
     monkeypatch.setattr(subprocess, "run", never)
     folder = mux.control_dir()
     assert folder is not None
-    (folder / "not-a-socket").write_text("")
+    (folder / own("not-a-socket")).write_text("")
     assert mux.close_all("ssh", 1.0) is True
     monkeypatch.setattr(sys, "platform", "win32")  # no folder at all
     assert mux.close_all("ssh", 1.0) is True
 
 
+def test_close_all_never_makes_the_folder(monkeypatch):
+    """With ``multiplex: false`` no folder was ever made: closing Lain does not make one."""
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: pytest.fail("no master to stop"))
+    assert mux.close_all("ssh", 1.0) is True
+    assert not (runtime_dir() / mux.FOLDER).exists()
+
+
+def stops_recorded(monkeypatch, timeout_on: str | None = None) -> list[str]:
+    """``subprocess.run`` replaced: the names of the sockets ``close_all`` stops, in order; the
+    one named ``timeout_on`` does not answer."""
+    stopped = []
+
+    def run(argv, timeout, **kwargs):
+        name = Path(argv[argv.index("-S") + 1]).name
+        stopped.append(name)
+        if name == timeout_on:
+            raise subprocess.TimeoutExpired(argv, timeout)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    return stopped
+
+
+def test_close_all_leaves_the_masters_of_another_lain(monkeypatch):
+    folder = mux.control_dir()
+    assert folder is not None
+    other = f"{os.getpid() + 1}-b"
+    for name in (own("a"), other):
+        dead_socket(folder, name)
+    stopped = stops_recorded(monkeypatch)
+    assert mux.close_all("ssh", 1.0) is True
+    assert stopped == [own("a")]
+
+
+def test_close_all_goes_on_after_a_master_that_does_not_answer(monkeypatch):
+    folder = mux.control_dir()
+    assert folder is not None
+    for name in ("a", "b"):
+        dead_socket(folder, own(name))
+    stopped = stops_recorded(monkeypatch, timeout_on=own("a"))
+    assert mux.close_all("ssh", 1.0) is False
+    assert stopped == [own("a"), own("b")]
+
+
 def test_close_all_without_an_ssh_to_run_does_not_raise(caplog):
     folder = mux.control_dir()
     assert folder is not None
-    dead = socket.socket(socket.AF_UNIX)
-    dead.bind(str(folder / "dead"))
-    dead.close()
+    dead_socket(folder, own("dead"))
     assert mux.close_all("/no/such/ssh", 1.0) is True
     assert "cannot stop" in caplog.text
 
@@ -176,10 +276,8 @@ def test_close_all_without_an_ssh_to_run_does_not_raise(caplog):
 def test_close_all_skips_a_dead_socket():
     folder = mux.control_dir()
     assert folder is not None
-    dead = socket.socket(socket.AF_UNIX)
-    dead.bind(str(folder / "dead"))
-    dead.close()  # the socket file stays, nobody listens: a master killed with SIGKILL
-    assert mux.sockets(folder) == [folder / "dead"]
+    path = dead_socket(folder, own("dead"))  # the file stays, nobody listens
+    assert mux.sockets(folder) == [path]
     assert mux.close_all(NO_CONFIG_SSH, 5.0) is True
 
 
@@ -301,6 +399,28 @@ def test_a_dead_socket_is_replaced_by_the_next_command(server):
     assert check(master_socket()).returncode == 0  # a new master in its place
 
 
+def test_a_master_lost_during_a_command_is_a_connection_failure(server):
+    """Review of 27/10/2026: the master dies (a dead network) while a command runs through it. Its
+    own words go to ``/dev/null`` and the client says nothing (255, empty stderr), as ssh says
+    nothing Lain knows when the network drops without a master: the same message either way."""
+    config = shared(server)
+    assert run(config, "true").code == 0
+    match = re.search(r"pid=(\d+)", check(master_socket()).stderr)
+    assert match is not None
+    held = []
+    holder = threading.Thread(target=lambda: held.append(run(config, "sleep 5")))
+    holder.start()
+    wait_for(lambda: "sleep 5" in server.commands())
+    os.kill(int(match.group(1)), signal.SIGKILL)
+    holder.join(15)
+    (result,) = held
+    assert (result.code, result.stderr) == (255, ""), result.stderr
+    failure = classify_failure(result, "sleep")
+    assert failure.connection and not failure.auth
+    assert failure.message == "Cluster inacessível (ssh terminou com código 255)."
+    assert run(config, "true").code == 0  # the next command logs in again
+
+
 def test_a_refused_session_logs_in_by_itself_and_runs_once(server):
     """R4.5: the cluster's MaxSessions refuses a session of the master: ssh logs in by itself and
     the command runs once."""
@@ -347,8 +467,8 @@ def test_close_all_stops_the_master(server):
 
 
 def test_the_longest_folder_still_holds_a_master(server, monkeypatch):
-    """R4.8: a folder of ``MAX_DIR_CHARS`` characters fits the socket path."""
-    folder = runtime_for(monkeypatch, mux.MAX_DIR_CHARS)
+    """R4.8: a folder of ``MAX_DIR_BYTES`` fits the socket path, the pid of the name included."""
+    folder = runtime_for(monkeypatch, mux.MAX_DIR_BYTES)
     config = shared(server)
     assert mux.control_dir() == folder
     for _ in range(2):
@@ -359,7 +479,7 @@ def test_the_longest_folder_still_holds_a_master(server, monkeypatch):
 
 def test_one_character_more_and_every_ssh_logs_in(server, monkeypatch):
     """R4.8: one character over and there is no master; the commands still work."""
-    runtime_for(monkeypatch, mux.MAX_DIR_CHARS + 1)
+    runtime_for(monkeypatch, mux.MAX_DIR_BYTES + 1)
     config = shared(server)
     assert mux.options(config.cluster) == []
     for _ in range(2):

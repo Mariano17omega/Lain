@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Prioridade** | 72: depois das correções da 71; não bloqueia nada, mas corta a espera de toda ação no cluster (submeter, cancelar, fila, listagem, sync) |
-| **Status** | Implementada (27/10/2026). Desvios: o encerramento usa `ssh -O stop` em vez de `-O exit` (decisão do usuário na implementação: o mestre apaga o socket antes de responder e sai quando não resta sessão, e a transferência de outra janela do Lain termina; as do próprio Lain já morreram nos passos "cancelar" e "sync"); `control_dir()` confere com um `isdir` se a pasta ainda existe e a refaz (verificado contra o servidor de teste: sem a pasta, o ssh faz o login e sai com 255, `unix_listener: cannot bind`, sem rodar o comando; todo ssh falharia depois de um limpador do `/tmp`); `mux.sockets(folder)` lista os sockets para o `close_all` e os testes; o `close_all` sem um ssh que rode (`OSError`) registra e devolve `True`; os mestres dos testes fecham em `LocalSSHServer.close()` (cobre todos os servidores, não só os dois fixtures), com `ssh -F /dev/null`; o servidor ganhou `open_connections()`; R4.4 e R4.5 passaram sem mudar o Lain: o ssh troca o socket morto e, na sessão recusada ("Session open refused by peer"), entra por uma conexão própria e roda o comando uma vez; `core/config.py` 490, `core/sync/rsync.py` 442, `ui/shutdown.py` 143, `core/sync/mux.py` 146 |
+| **Status** | Implementada (27/10/2026), corrigida na revisão do mesmo dia ("Correções da revisão", abaixo). Desvios: o encerramento usa `ssh -O stop` em vez de `-O exit` (decisão do usuário na implementação: o mestre apaga o socket antes de responder e sai quando não resta sessão, e a transferência de outra janela do Lain termina; as do próprio Lain já morreram nos passos "cancelar" e "sync"); `control_dir()` confere com um `isdir` se a pasta ainda existe e a refaz (verificado contra o servidor de teste: sem a pasta, o ssh faz o login e sai com 255, `unix_listener: cannot bind`, sem rodar o comando; todo ssh falharia depois de um limpador do `/tmp`); `mux.sockets(folder)` lista os sockets para o `close_all` e os testes; o `close_all` sem um ssh que rode (`OSError`) registra e devolve `True`; os mestres dos testes fecham em `LocalSSHServer.close()` (cobre todos os servidores, não só os dois fixtures), com `ssh -F /dev/null`; o servidor ganhou `open_connections()`; R4.4 e R4.5 passaram sem mudar o Lain: o ssh troca o socket morto e, na sessão recusada ("Session open refused by peer"), entra por uma conexão própria e roda o comando uma vez; `core/config.py` 490, `core/sync/rsync.py` 442, `ui/shutdown.py` 143, `core/sync/mux.py` 146 |
 | **Depende de** | spec 27-3 (`ssh_command`, `StrictHostKeyChecking=yes` forçado), spec 69 (`remote_command`, `run_command`, a guarda `tests/cluster_guard.py`), spec 64 (`fetch_jobs`), spec 65 (`list_remote`), spec 70 (`fetch_stop_sources`, `copy_small_files`), spec 71 (as ações que conferem duas vezes), spec 27-5 (`ui/shutdown.py`), spec 7 (`tests/ssh_server.py`) |
 | **Usada por** | nenhuma |
 | **Esforço** | M (R1–R3: P cada; R4: M, pelos testes) |
@@ -59,21 +59,24 @@ em "Decisões assumidas".
 ### R1: `core/sync/mux.py` (novo), a multiplexação num módulo Qt-free
 
 1. Módulo novo `src/qe_studio/core/sync/mux.py` (entra em `QT_FREE`, `tests/test_architecture.py:67`). Constantes: `PERSIST_SECONDS = 120`
-   (o que o usuário testou) e `MAX_DIR_CHARS = 42` (o `ControlPath` é `<pasta>/%C`; `%C` expande para 40 caracteres, o ssh acrescenta um
-   sufixo temporário de cerca de 17, e o caminho de um socket Unix aceita 104 no BSD/macOS: `42 + 1 + 40 + 17 = 100`).
-2. `control_dir() -> Path | None`: a pasta dos sockets. `$XDG_RUNTIME_DIR/qe-studio-mux` quando a variável existe e é absoluta; senão
-   `<tempfile.gettempdir()>/qe-studio-mux-<uid>`. Cria com modo `0o700`, e **só devolve** uma pasta que seja diretório real (não
-   link), do próprio usuário (`st_uid == os.getuid()`) e sem permissão para grupo e outros (se for do usuário e tiver permissão a mais,
-   `chmod 0o700`). Devolve `None` quando algo disso falha, quando o caminho passa de `MAX_DIR_CHARS`, e em `sys.platform == "win32"`
-   (o OpenSSH do Windows não multiplexa: **não verificado**, a opção fica desligada ali). `functools.lru_cache` pela base: só a primeira
-   chamada toca o disco (como `askpass_program`, que a `child_env` já chama antes de cada ssh); uma chamada na thread da GUI paga isso uma vez.
+   (o que o usuário testou) e `MAX_DIR_BYTES = 34` (o `ControlPath` é `<pasta>/<pid>-%C`; o pid tem até 7 dígitos, `pid_max` 4194304;
+   `%C` expande para 40 caracteres, o ssh acrescenta um sufixo temporário de 17, e o caminho de um socket Unix aceita 104 **bytes** no
+   BSD/macOS: `34 + 1 + 8 + 40 + 17 = 100`). Antes da revisão de 27/10/2026: `MAX_DIR_CHARS = 42`, `<pasta>/%C`, contado em caracteres.
+2. `control_dir(create=True) -> Path | None`: a pasta dos sockets. `$XDG_RUNTIME_DIR/qe-studio-mux` quando a variável existe e é
+   absoluta; senão `<tempfile.gettempdir()>/qe-studio-mux-<uid>` e, se esse caminho for longo demais (o `/var/folders/…/T` do macOS),
+   `/tmp/qe-studio-mux-<uid>` (`FALLBACK_TMP`). Cria com modo `0o700` (`create=False`: não cria), e **só devolve** uma pasta que seja
+   diretório real (não link), do próprio usuário (`st_uid == os.getuid()`) e sem permissão para grupo e outros (se for do usuário e tiver
+   permissão a mais, `chmod 0o700`). Devolve `None` quando algo disso falha, quando o caminho passa de `MAX_DIR_BYTES`, e em
+   `sys.platform == "win32"` (o OpenSSH do Windows não multiplexa: **não verificado**, a opção fica desligada ali). Confere **a cada
+   chamada** (um `mkdir` e um `lstat`): a implementação guardava a primeira resposta num `lru_cache`, e a revisão de 27/10/2026 o tirou.
 3. `options(cluster: ClusterConfig) -> list[str]`: `[]` se `cluster.multiplex` for falso ou `control_dir()` for `None`; senão
-   `["-o", "ControlMaster=auto", "-o", f"ControlPath={dir}/%C", "-o", "ControlPersist=120"]`. Uma lista, sempre os mesmos tokens, para o
-   teste conferir por igualdade.
-4. `close_all(ssh_binary: str, timeout_s: float) -> bool`: para cada socket (`stat.S_ISSOCK`) em `control_dir()`, roda
-   `ssh -O stop -S <socket> localhost` (o rascunho dizia `-O exit`; o `-S` leva direto ao socket; o destino só preenche o argumento), com `ssh_binary`,
-   `stdin=DEVNULL`, tempo limite repartido entre eles; ignora falha de socket já morto. Devolve se terminou no tempo. Sem `control_dir()`
-   ou sem sockets: `True` sem rodar nada. Nunca levanta.
+   `["-o", "ControlMaster=auto", "-o", f"ControlPath={dir}/{os.getpid()}-%C", "-o", "ControlPersist=120"]`. Uma lista, sempre os mesmos
+   tokens, para o teste conferir por igualdade. Cada processo do Lain tem os seus mestres (revisão de 27/10/2026).
+4. `close_all(ssh_binary: str, timeout_s: float) -> bool`: para cada socket (`stat.S_ISSOCK`) **deste processo** (o nome começa com
+   `<pid>-`) em `control_dir(create=False)`, roda `ssh -O stop -S <socket> localhost` (o rascunho dizia `-O exit`; o `-S` leva direto ao
+   socket; o destino só preenche o argumento), com `ssh_binary`, `stdin=DEVNULL`, tempo limite repartido entre eles; ignora falha de
+   socket já morto, e um mestre que não responde na sua parte do tempo não impede os seguintes. Devolve `False` se algum não terminou no
+   tempo. Sem pasta (nunca a cria) ou sem sockets: `True` sem rodar nada. Nunca levanta.
 5. Log (nível `debug`, em inglês) do que `options` decidiu uma vez por processo; **nenhum texto novo para o usuário**: sem `_()`, sem
    `.po`.
 6. **Testes** (`tests/test_ssh_mux.py`, novo, sem rede): `options` com tudo ligado dá os seis tokens; `[]` com `multiplex=False`, com
@@ -136,8 +139,8 @@ continua valendo, e o destino do `close_all` é `localhost`).
    hoje (a mensagem de chave mudada) e **nenhum socket** fica em `control_dir()`; com `known_hosts="empty"`, idem.
 7. **Fechar.** `mux.close_all` depois de um comando: o `ssh -O check` para o mesmo socket falha, a pasta não tem mais sockets, e o
    comando seguinte faz um segundo login. O `close_all` com um socket morto na pasta não levanta e devolve `True`.
-8. **Caminho no limite.** Com `XDG_RUNTIME_DIR` apontando para uma pasta de exatamente `MAX_DIR_CHARS` caracteres no `/tmp`, o mestre
-   abre (prova a conta do tamanho); com um a mais, `options` dá `[]` e o comando funciona sem mestre.
+8. **Caminho no limite.** Com `XDG_RUNTIME_DIR` apontando para uma pasta de exatamente `MAX_DIR_BYTES` bytes no `/tmp`, o mestre
+   abre (prova a conta do tamanho, com o `<pid>-` do nome); com um a mais, `options` dá `[]` e o comando funciona sem mestre.
 9. **Limpeza.** O fixture `ssh_server` (e o de `test_cluster_jobs_ssh.py`) chama `mux.close_all` no fim, antes de `server.close()`:
    nenhum `ssh` mestre sobrevive a um teste; `tests/conftest.py:_isolated_user_dirs` passa a incluir `XDG_RUNTIME_DIR`, apontado para
    uma pasta **curta** (`tempfile.mkdtemp(prefix="lm")` em `/tmp`, apagada no fim; o `tmp_path_factory` dá caminhos longos demais) para
@@ -175,11 +178,46 @@ continua valendo, e o destino do `close_all` é `localhost`).
    é lido na partida (não há janela de ajustes), então uma mudança de chave reinicia o app, que fecha os mestres.
    **Corrigido na implementação:** existe "Recarregar config.yaml". Depois dele, um mestre do mesmo host, porta e usuário segue
    servindo até 120 s com o login antigo (uma nova `key_path` ou `auth` vale depois disso; outro host, usuário ou porta abre um
-   mestre novo na hora). Inofensivo: nada foi feito para isso.
+   mestre novo na hora). Inofensivo: nada foi feito para isso. **Revisão de 27/10/2026:** um mestre por destino **e por processo**
+   do Lain (`<pid>-%C`, decisão do usuário): dois Lain abertos fazem um login cada, e fechar um não mexe nos mestres do outro.
 6. **Sem repetição na sessão recusada**, a menos que o teste R4.5 mostre que o ssh não refaz sozinho (inferido do resultado do usuário).
 7. **Windows desligado.** Conservador: não consegui verificar o suporte do OpenSSH do Windows. **Nota da implementação:** no macOS
    sem `XDG_RUNTIME_DIR`, o `gettempdir()` (`/var/folders/…/T`) passa de `MAX_DIR_CHARS`, e a multiplexação também fica desligada.
+   **Revisão de 27/10/2026:** nesse caso a pasta vai para `/tmp/qe-studio-mux-<uid>`, e o macOS multiplexa (não verificado num Mac).
 8. **O padrão dos testes é sem mestre** (R4.10): preserva a leitura dos testes existentes; os novos ligam a opção.
+9. **A senha no ambiente do mestre é um risco aceito** (decisão do usuário na revisão de 27/10/2026). Com `auth: password`, o mestre
+   nasce do ambiente do primeiro ssh, com o segredo do askpass, e o guarda enquanto vive: até 120 s depois do último comando, menos
+   quando o Lain fecha (o passo "ssh"), e também depois de um Lain morto à força. Só o próprio usuário e o root leem esse ambiente
+   (`/proc/<pid>/environ`), como já liam o do ssh de um rsync longo, que guarda a senha pela transferência inteira. A alternativa (o
+   askpass pedir a senha a um socket servido pelo Lain) ficou de fora: muda a regra do `CLAUDE.md` e pede um módulo novo.
+
+## Correções da revisão (27/10/2026)
+
+`/code-review medium` do commit da spec (10 achados, todos conferidos no código); o usuário pediu "fix all" e escolheu as decisões 5
+(revisão) e 9. Cada linha: o achado, o que mudou, o teste que o prova (`tests/test_ssh_mux.py`, salvo indicação).
+
+1. **Uma pasta trocada depois da primeira conferência seguia em uso** (o cache só olhava `isdir`, que segue links e ignora o dono):
+   `control_dir()` confere tudo a cada chamada (R1.2). `test_a_folder_replaced_by_a_link_while_lain_runs_is_refused`.
+2. **O limite contava caracteres; o kernel conta bytes**: `MAX_DIR_BYTES` contra `os.fsencode`. `test_the_length_is_counted_in_bytes`.
+3. **O passo "ssh" com `multiplex: false` criava a pasta e parava mestres de outro Lain**: `close_all` usa `control_dir(create=False)`
+   e só os sockets do processo (R1.4). O passo segue chamando-o sem olhar o `multiplex`: um mestre aberto antes de um "Recarregar
+   config.yaml" que desligou a opção também fecha. `test_close_all_never_makes_the_folder`.
+4. **Fechar um Lain derrubava os mestres de outro**: `ControlPath={pasta}/<pid>-%C` (decisão 5), `MAX_DIR_BYTES = 34` para caber o pid
+   (R1.1). `test_close_all_leaves_the_masters_of_another_lain`; R4.8 prova a conta com o ssh real.
+5. **O macOS nunca multiplexava**: o `/tmp` quando o `gettempdir()` é longo (R1.2, decisão 7). `test_a_temp_folder_too_long_falls_back_to_tmp`.
+6. **Uma falha passageira ficava no cache até o Lain reiniciar**: sem cache. `test_a_failure_is_not_remembered`.
+7. **Um mestre que não respondia ao `-O stop` deixava os seguintes vivos**: o laço segue e devolve `False` no fim (R1.4).
+   `test_close_all_goes_on_after_a_master_that_does_not_answer`.
+8. **A senha fica no ambiente do mestre**: documentado (decisão 9, `README.md`, `CLAUDE.md`, docstring de `mux.py`), sem código.
+9. **As mensagens de queda da conexão se perderiam no `/dev/null` do mestre**: verificado contra o servidor de teste (OpenSSH 10.0p2).
+   Um mestre morto com `SIGKILL` no meio de um comando deixa o cliente com 255 e o stderr **vazio**; sem mestre, a queda também não
+   dizia nada que o Lain reconhecesse ("Timeout, server … not responding" não é uma agulha). A classificação continua "conexão" e a
+   mensagem é a mesma nos dois casos (`Cluster inacessível (ssh terminou com código 255).`; no rsync, o `connection unexpectedly
+   closed` dele). **Nenhuma agulha nova:** `read from master failed` só aparece quando uma sessão pedida ao mestre falha, e aí o ssh
+   entra sozinho e roda o comando; como agulha, marcaria de conexão um comando que entrou e falhou por outra razão.
+   `test_a_master_lost_during_a_command_is_a_connection_failure`. O servidor de teste passou a devolver `128 + sinal` para um comando
+   morto por sinal (o paramiko não aceita um código negativo).
+10. **Simplificar o cache**: removido, junto com 1 e 6.
 
 ## Notas de implementação
 

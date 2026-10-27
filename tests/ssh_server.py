@@ -462,7 +462,7 @@ class LocalSSHServer:
         code = proc.wait()
         errors.join(5)
         feeder.join(0.1)  # blocked in recv until the client closes; the channel close frees it
-        return code
+        return code if code >= 0 else 128 - code  # killed by a signal: the shell's 128 + N
 
     @staticmethod
     def _feed_stdin(channel: paramiko.Channel, proc: subprocess.Popen) -> None:

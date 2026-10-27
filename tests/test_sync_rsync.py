@@ -62,7 +62,7 @@ def test_the_shared_connection_comes_after_the_strict_host_key_check():
         "-o",
         "ControlMaster=auto",
         "-o",
-        f"ControlPath={folder}/%C",
+        f"ControlPath={folder}/{os.getpid()}-%C",
         "-o",
         "ControlPersist=120",
     ]

@@ -201,11 +201,16 @@ command has used it for 120 s. Then it closes, and the next command logs in agai
 cancelling, which used to take five logins, now takes one. With `auth: password` the password is
 sent once per connection. The host key is checked exactly as before, when the master logs in.
 
-- The sockets live in `$XDG_RUNTIME_DIR/qe-studio-mux` (or `/tmp/qe-studio-mux-<uid>` without that
-  variable). The folder is yours alone (`0700`), and Lain never uses one that is a link or belongs
-  to someone else. Closing Lain stops the masters (`ssh -O stop`); a master left by a crash ends by
-  itself after 120 s. Without a safe, short-enough folder (and on Windows), every ssh logs in by
-  itself, as before.
+- The sockets live in `$XDG_RUNTIME_DIR/qe-studio-mux`. Without that variable they go in
+  `qe-studio-mux-<uid>` in the temp folder, or in `/tmp` when the temp folder's path is too long
+  for a socket (macOS). The folder is yours alone (`0700`), and Lain never uses one that is a link
+  or belongs to someone else, checked before every ssh. Without a safe, short-enough folder (and on
+  Windows), every ssh logs in by itself, as before.
+- Each Lain you open has its own masters. Closing it stops them (`ssh -O stop`) and never another
+  Lain's. A master left by a crash ends by itself after 120 s.
+- With `auth: password`, a master keeps the password in its environment while it lives (up to
+  120 s after the last command). Only your user and root can read it, as with the ssh of a long
+  sync.
 - The cluster limits how many commands one connection runs at the same time (its `MaxSessions`,
   often 10). A command over that limit logs in by itself and still runs once.
 - `cluster.multiplex: false` turns this off: every ssh logs in by itself. Use it for a cluster

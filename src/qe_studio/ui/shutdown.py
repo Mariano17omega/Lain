@@ -101,6 +101,7 @@ def steps_for(window: MainWindow) -> list[Step]:
         window.job_actions.cancel()  # a submission's ssh as well (spec 69 R4.6)
 
     def close_ssh(ms: int) -> bool:
+        # Even with multiplex off: only this process's masters (one opened before a reload).
         return mux.close_all(window.config.sync.ssh_binary, ms / 1000)
 
     def save_state(_ms: int) -> None:
