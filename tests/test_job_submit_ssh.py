@@ -1,7 +1,9 @@
-"""Submitting over a real ssh connection to the local paramiko server (spec 69 R5), never the cluster.
+"""Submitting over a real ssh connection to the local paramiko server (spec 69 R5, spec 71 R3), never
+the cluster.
 
 The server's ``qstatus`` prints an empty queue, ``chmod`` is the real one and ``qsub`` a Python
-script that records the folder it ran in and the script it got, then answers as SGE does. The real
+script that records the folder it ran in and the script it got, then answers as SGE does. The job
+name comes from the script, copied by rsync, and the job goes to the log of submitted jobs. The real
 ``ssh`` and ``rsync`` run with Lain's options, by key and by password (``SSH_ASKPASS``); the password
 never reaches an argv or the log.
 """
@@ -16,6 +18,7 @@ import pytest
 from qe_studio.core.config import parse_config
 from qe_studio.core.remote import actions
 from qe_studio.core.remote.submit import SubmitPlan, Submitted, plan_submit, submit
+from qe_studio.core.remote.submit_log import read_log
 from qe_studio.core.sync.askpass import SECRET_ENV
 
 from jobs_helpers import EMPTY
@@ -72,7 +75,7 @@ def spy(monkeypatch):
 def submitted(config, folder, password=None):
     plan = plan_submit(config, str(folder), "bands.qsub", password)
     assert isinstance(plan, SubmitPlan), plan
-    assert plan.exit_files == ()
+    assert plan.exit_files == () and plan.job_name == "teste" and plan.same_name == ()
     return plan, submit(config, plan, password)
 
 
@@ -85,6 +88,9 @@ def test_a_submission_by_key_runs_in_the_script_folder(server, spy):
     assert plan.line in srv.commands()
     ((argv, _env),) = spy
     assert argv[-1] == plan.line and "StrictHostKeyChecking=yes" in argv
+    (logged,) = read_log()
+    assert (logged.job_id, logged.name, logged.script) == ("1", "teste", "bands.qsub")
+    assert logged.remote_dir == str(folder) and logged.account == "lain-test@lain-test-host"
 
 
 def test_a_submission_by_password_never_shows_it(server, spy, caplog, monkeypatch):

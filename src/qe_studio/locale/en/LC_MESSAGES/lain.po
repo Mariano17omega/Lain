@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Lain: QE Studio 0.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-10-25 19:26-0400\n"
-"PO-Revision-Date: 2026-10-25 19:26-0400\n"
+"POT-Creation-Date: 2026-10-26 23:24-0400\n"
+"PO-Revision-Date: 2026-10-26 23:24-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -2942,6 +2942,15 @@ msgstr "Surface window (Å)"
 msgid "Job"
 msgstr "Job"
 
+#: ui/dialogs/cluster_action.py
+msgid "Job com o mesmo nome"
+msgstr "Job with the same name"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Job {job_id}"
+msgstr "Job {job_id}"
+
 #: core/remote/job_cancel.py
 #, python-brace-format
 msgid "Job {job_id} ({name}) cancelado com qdel."
@@ -2951,6 +2960,11 @@ msgstr "Job {job_id} ({name}) cancelled with qdel."
 #, python-brace-format
 msgid "Job {job_id} ({name}) submetido."
 msgstr "Job {job_id} ({name}) submitted."
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Job: {name}"
+msgstr "Job: {name}"
 
 #: ui/widgets/jobs_indicator.py
 msgid "Jobs do cluster"
@@ -2963,6 +2977,11 @@ msgstr "Jobs unavailable"
 #: ui/jobs_controller.py
 msgid "Jobs: informe a senha"
 msgstr "Jobs: enter the password"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Já existe um job seu chamado {name} no cluster"
+msgstr "A job of yours called {name} is already on the cluster"
 
 #: core/projects.py
 msgid "Já existe um projeto com esse nome"
@@ -3480,8 +3499,12 @@ msgid "Nenhum gráfico aberto: os ajustes aparecem junto com o gráfico."
 msgstr "No plot open: the settings appear together with the plot."
 
 #: core/remote/job_cancel.py
-msgid "Nenhum input do pw.x (até 1 MB) nesta pasta: sem o prefix, não há como criar o arquivo de parada."
-msgstr "No pw.x input (up to 1 MB) in this folder: without the prefix, the stop file cannot be created."
+msgid ""
+"Nenhum input de scf, relax ou vc-relax do pw.x (até 1 MB) nesta pasta: o arquivo de parada usa o "
+"prefix de um deles."
+msgstr ""
+"No scf, relax or vc-relax input of pw.x (up to 1 MB) in this folder: the stop file uses the "
+"prefix of one of them."
 
 #: ui/jobs_controller.py
 msgid "Nenhum job em execução"
@@ -3949,6 +3972,24 @@ msgstr "The job logged error messages (non-empty file)"
 msgid "O job registrou mensagens de erro."
 msgstr "The job logged error messages."
 
+#: core/remote/submit.py
+#, python-brace-format
+msgid ""
+"O job {job_id} ({name}), que o Lain submeteu desta pasta, ainda está em execução. Espere ele "
+"terminar ou cancele-o antes de submeter outro script."
+msgstr ""
+"Job {job_id} ({name}), which Lain submitted from this folder, is still running. Wait for it to "
+"finish or cancel it before submitting another script."
+
+#: core/remote/submit.py
+#, python-brace-format
+msgid ""
+"O job {job_id} ({name}), que o Lain submeteu desta pasta, ainda está na fila. Espere ele terminar"
+" ou cancele-o pela fila antes de submeter outro script."
+msgstr ""
+"Job {job_id} ({name}), which Lain submitted from this folder, is still in the queue. Wait for it "
+"to finish or cancel it from the queue before submitting another script."
+
 #: core/remote/job_cancel.py
 #, python-brace-format
 msgid ""
@@ -3989,20 +4030,20 @@ msgstr "The name cannot contain “/”."
 msgid "O nome será o nome da pasta, criada na pasta raiz."
 msgstr "The name will be the name of the folder, created in the root folder."
 
-#: ui/job_cancel.py
-msgid ""
-"O pw.x procura esse arquivo na pasta durante a execução, para de forma limpa (\"Program stopped "
-"by user request\") e o apaga. Os comandos seguintes do script (outro pw.x, bands.x, projwfc.x…) "
-"ainda rodam."
-msgstr ""
-"pw.x looks for this file in the folder while it runs, stops cleanly (\"Program stopped by user "
-"request\") and deletes it. The next commands of the script (another pw.x, bands.x, projwfc.x…) "
-"still run."
-
 #: ui/job_actions.py
 #, python-brace-format
 msgid "O qsub terminou sem erro, mas a resposta não foi reconhecida: {line}"
 msgstr "qsub ended without an error, but its answer was not recognized: {line}"
+
+#: ui/job_actions.py
+#, python-brace-format
+msgid "O registro de jobs submetidos não pôde ser gravado ({error})."
+msgstr "The log of submitted jobs could not be written ({error})."
+
+#: core/remote/inputs.py
+#, python-brace-format
+msgid "O script {script} não foi encontrado na pasta, ou passa de 1 MB."
+msgstr "The script {script} was not found in the folder, or is over 1 MB."
 
 #: core/calc_create/surface/geometry.py
 #, python-brace-format
@@ -5159,8 +5200,16 @@ msgid "Submeter"
 msgstr "Submit"
 
 #: ui/dialogs/cluster_action.py
+msgid "Submeter mesmo assim"
+msgstr "Submit anyway"
+
+#: ui/dialogs/cluster_action.py
 msgid "Submeter no cluster"
 msgstr "Submit to the cluster"
+
+#: ui/dialogs/cluster_action.py
+msgid "Submeter outro job com o mesmo nome?"
+msgstr "Submit another job with the same name?"
 
 #: ui/job_actions.py
 msgid "Submeter precisa de cluster.jobs_command: é o qstatus que diz se já roda um job nesta pasta."
@@ -5438,6 +5487,31 @@ msgstr "Cell titles"
 msgid "Um H cuja ligação cruza o corte vai para junto do átomo a que está ligado"
 msgstr "An H whose bond crosses the cut is moved next to the atom it is bonded to"
 
+#: ui/job_cancel.py
+msgid ""
+"Um arquivo por prefix dos inputs de scf, relax e vc-relax da pasta. O pw.x procura o seu durante "
+"a execução, para de forma limpa (\"Program stopped by user request\") e o apaga. Um pw.x seguinte"
+" do script com o mesmo prefix (nscf, bands) ainda roda, a partir do cálculo interrompido; com "
+"outro prefix desta lista, para logo na primeira verificação. Os demais programas (bands.x, "
+"projwfc.x…) ainda rodam. Se nenhum pw.x estiver rodando agora, o arquivo fica na pasta e a "
+"próxima submissão avisa."
+msgstr ""
+"One file per prefix of the folder's scf, relax and vc-relax inputs. pw.x looks for its own while "
+"it runs, stops cleanly (\"Program stopped by user request\") and deletes it. A later pw.x of the "
+"script with the same prefix (nscf, bands) still runs, from the interrupted calculation; one with "
+"another prefix of this list stops at its first check. The other programs (bands.x, projwfc.x…) "
+"still run. If no pw.x is running now, the file stays in the folder and the next submission warns "
+"about it."
+
+#: core/remote/submit.py
+#, python-brace-format
+msgid ""
+"Um job seu chamado {name} apareceu no cluster depois da confirmação (job {job_id}): nada foi "
+"submetido."
+msgstr ""
+"A job of yours called {name} showed up on the cluster after the confirmation (job {job_id}): "
+"nothing was submitted."
+
 #: ui/widgets/bars.py
 msgid "Unir gráficos abertos numa grade N×M (uma só figura)"
 msgstr "Combine open plots in an N×M grid (a single figure)"
@@ -5683,8 +5757,8 @@ msgstr "unknown grouping: {grouping}"
 
 #: ui/job_cancel.py
 #, python-brace-format
-msgid "arquivo de parada do pw.x ({files})"
-msgstr "pw.x stop file ({files})"
+msgid "arquivo de parada do pw.x: {files}"
+msgstr "pw.x stop file: {files}"
 
 #: core/config.py
 #, python-brace-format
@@ -5895,6 +5969,11 @@ msgstr "axis {axis} stacked ({HKL}), {flip}"
 msgid "em andamento"
 msgstr "in progress"
 
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "em execução desde {date}"
+msgstr "running since {date}"
+
 #: core/calculations/bands/data.py core/calculations/pdos/data.py
 msgid "energia de Fermi não encontrada: energias absolutas"
 msgstr "Fermi energy not found: absolute energies"
@@ -6102,6 +6181,11 @@ msgstr "molecule–surface"
 #: core/calc_create/types/adsorption_fields.py
 msgid "monodentado"
 msgstr "monodentate"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "na fila desde {date}"
+msgstr "queued since {date}"
 
 #: core/calc_create/fragments.py core/qe/lattice.py
 #, python-brace-format

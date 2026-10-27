@@ -88,7 +88,9 @@ The system dynamically scans the selected directory to determine the calculation
   plan preview is always shown before sending, whatever `sync.confirm_plan` says.
 - Cluster mode (spec 65) lists remote folders (`rsync --list-only` over the same ssh), downloads only through the
   pull above, with its preview, and submits a `.qsub` (spec 69) after a confirmation, never while a job of the user
-  runs in that folder, and cancels a job (spec 70): `<prefix>.EXIT` when it runs, `qdel` while it waits.
+  runs in that folder or one Lain submitted from it is still in the queue, asking first when a job of the user has
+  the same name (spec 71), and cancels a job (spec 70): `<prefix>.EXIT` when it runs, one per prefix of the folder's
+  SCF, relax and vc-relax inputs (spec 71), `qdel` while it waits.
 
 ### 5.2. Timestamp Comparison & Sync Rules
 - When "Synchronize" is clicked, the app compares folder timestamps between the cluster and local counterpart:

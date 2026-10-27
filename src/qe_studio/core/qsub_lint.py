@@ -272,3 +272,20 @@ def lint_script(text: str) -> list[LintIssue]:
     except Exception:  # a checker must not take the viewer down: the text is shown anyway
         log.exception("cannot check the script")
         return []
+
+
+def job_name(text: str, script: str) -> str:
+    """The name SGE gives the job of the script ``text``: the value of the last ``-N`` of its ``#$``
+    lines, quotes stripped, else the script's file name ``script``, as ``qsub`` does (spec 71 R3)."""
+    name = ""
+    for line in text.splitlines():
+        if not line.startswith("#$"):
+            continue
+        tokens = [match.group() for match in _TOKEN.finditer(line[2:])]
+        for k, token in enumerate(tokens):
+            if token.startswith("#"):
+                break
+            value = tokens[k + 1] if k + 1 < len(tokens) else ""
+            if token == "-N" and not value.startswith("#") and not _OPTION.match(value):
+                name = value.strip("\"'") or name
+    return name or script.rsplit("/", 1)[-1]

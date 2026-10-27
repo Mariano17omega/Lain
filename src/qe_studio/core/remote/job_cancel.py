@@ -5,9 +5,10 @@ right before acting (never the cache of the queue popup).
 
 - A **running** job is matched to a folder by its scheduler output ``<name>.o<id>`` (the only link
   the cluster gives, ``running_in``) and stopped by creating ``<prefix>.EXIT`` there, one per
-  ``prefix`` of the folder's pw.x inputs: pw.x stops cleanly at its next check and deletes the file.
-  The steps of the script after that pw.x still run. ``qdel`` is never used on it: the process would
-  go on running out of the queue.
+  ``prefix`` of the folder's SCF, relax and vc-relax inputs of pw.x (the cluster administrator's
+  rule, spec 71 R2): pw.x stops cleanly at its next check and deletes the file. A later pw.x of the
+  script with the same ``prefix`` still runs; one with another of these prefixes stops at its first
+  check. ``qdel`` is never used on it: the process would go on running out of the queue.
 - A **waiting** job is cancelled with ``cluster.delete_command`` (``qdel``) and its ID, only while the
   ID is still in "Waiting jobs", with the same name and owner, and not in "Running jobs". A job that
   waits has no ``.o`` and no folder in the listing: the ID is what tells apart jobs of the same
@@ -32,9 +33,10 @@ from .actions import (
     checked_name,
     classify_failure,
     failure_of,
+    failure_of_jobs,
     run_action,
 )
-from .inputs import fetch_prefixes
+from .inputs import StopSource, fetch_stop_sources
 from .listing import RemoteFailure, list_remote
 
 SETTING = "cluster.delete_command"
@@ -46,8 +48,12 @@ _ID = re.compile(r"^\d+$")
 class StopPlan:
     remote_dir: str
     jobs: tuple[Job, ...]  # the user's jobs running in the folder
-    prefixes: tuple[str, ...]
+    sources: tuple[StopSource, ...]  # a prefix of the folder's SCF/relax/vc-relax inputs, each
     line: str  # the exact text that goes to ssh
+
+    @property
+    def prefixes(self) -> tuple[str, ...]:
+        return tuple(source.prefix for source in self.sources)
 
     @property
     def files(self) -> tuple[str, ...]:
@@ -76,13 +82,7 @@ def _queue(config: AppConfig, password: str | None) -> JobsSnapshot | ActionFail
         message = _(
             "Não foi possível conferir o estado do job no cluster: {message}. Nada foi feito."
         )
-        return ActionFailure(
-            message.format(message=jobs.message.rstrip(".")),
-            jobs.connection,
-            jobs.auth,
-            jobs.missing,
-            jobs.local,
-        )
+        return failure_of_jobs(jobs, message)
     return jobs
 
 
@@ -120,17 +120,18 @@ def plan_stop(
                 "barra superior."
             )
         )
-    prefixes = fetch_prefixes(config, remote_dir, password)
-    if isinstance(prefixes, ActionFailure):
-        return prefixes
-    if not prefixes:
+    sources = fetch_stop_sources(config, remote_dir, password)
+    if isinstance(sources, ActionFailure):
+        return sources
+    if not sources:
         return NotRunning(
             _(
-                "Nenhum input do pw.x (até 1 MB) nesta pasta: sem o prefix, não há como criar o "
-                "arquivo de parada."
+                "Nenhum input de scf, relax ou vc-relax do pw.x (até 1 MB) nesta pasta: o arquivo "
+                "de parada usa o prefix de um deles."
             )
         )
-    return StopPlan(remote_dir, jobs, prefixes, exit_line(config, remote_dir, prefixes))
+    prefixes = tuple(source.prefix for source in sources)
+    return StopPlan(remote_dir, jobs, sources, exit_line(config, remote_dir, prefixes))
 
 
 def stop(

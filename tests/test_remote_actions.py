@@ -15,7 +15,7 @@ from qe_studio.core.remote.actions import (
     checked_name,
     classify_failure,
 )
-from qe_studio.core.remote.submit import submit_line
+from qe_studio.core.remote.submit import SubmitPlan, submit_steps
 from qe_studio.core.sync.command import CommandResult
 
 ROOT = "/home/u/runs"
@@ -68,7 +68,8 @@ def test_no_remote_root_refuses_every_folder():
 )
 def test_the_submission_line_never_breaks(folders, script, root):
     folder = "/".join([root, *folders])
-    line = submit_line(config(root), folder, script)
+    steps = submit_steps(config(root), folder, script)
+    line = SubmitPlan(folder, script, steps, ()).line
     assert shlex.split(line) == [
         *("cd", folder, "&&", "chmod", "a+x", script, "&&", "qsub", script),
     ]

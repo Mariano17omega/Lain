@@ -41,6 +41,7 @@ EXTRA_SECONDS = 30  # on top of ``cluster.connect_timeout``: what the listing it
 VERSION_SECONDS = 10
 SSH_FAILED = 255  # rsync's code when the remote shell failed (a refused login among others)
 PARTIAL = 23  # rsync's code when the source could not be read
+VANISHED = 24  # rsync's code when some files vanished while they were copied
 RSYNC_MISSING = _("rsync não encontrado (sync.rsync_binary).")
 NOT_FOUND = _("Pasta não encontrada no cluster.")
 NO_ACCESS = _("Sem permissão para ler esta pasta no cluster.")

@@ -59,7 +59,8 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
   also holds `core/appdirs.py:data_dir()`; fixed at startup by `set_data_dir`); per-root data (folder mappings, grids, PDOS atom selections,
   favorites/recents) in `<local_root>/.lain/` (only `core/project_data.py` names that folder); plot settings
   (`<kind>.plot`, `view3d.plot`) and exports in `<simulation>/plots/`; the cluster's copy of a remote plot in
-  `<mirror>/tmp_remote/`, with its exports and `.plot` in `tmp_remote/plots_remote/` (`core/scratch.py`, spec 66).
+  `<mirror>/tmp_remote/`, with its exports and `.plot` in `tmp_remote/plots_remote/` (`core/scratch.py`, spec 66);
+  the jobs Lain submitted in `<data_dir>/submitted_jobs.log` (`core/remote/submit_log.py`, spec 71).
   Nothing else is written into simulation folders.
 - **Numbers:** a decimal **point** everywhere text is shown or written (`decimal()` in `surface/report.py`, `QLocale.c()` in spin boxes), as QE reads it, in both languages; a comma typed by the user is read as a point. The one exception is the CSV export (`core/plotting/table.py`: `;` and a decimal comma, for Excel/Origin in pt-BR); `tests/test_decimal_point.py` guards both.
 - **Data integrity:** never overwrite a user file without asking (`core/unique_names.py`, `_2` suffixes; the export
@@ -138,9 +139,12 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
   command that changes the cluster runs only after the user confirms it.
 - The cluster mode lists (`rsync --list-only`, `core/remote/listing.py`), downloads through the usual pull (or into
   `tmp_remote/` to plot), submits a `.qsub` after a confirmation (`chmod a+x`, then `qsub`, in its folder), never
-  while a job of the user runs in that folder (`core/remote/submit.py`), and cancels a job (`core/remote/job_cancel.py`).
+  while a job of the user runs in that folder or one Lain submitted from it (its log) is still in the queue, and asks
+  first when a job of the user has the script's `#$ -N` (`core/remote/submit.py`), and cancels a job
+  (`core/remote/job_cancel.py`).
 - Cancelling a job (spec 70) never guesses: a fresh `qstatus` right before acting decides. A running job is stopped
-  only by creating `<prefix>.EXIT` in its folder (matched by its `<name>.o<id>`); `qdel` runs only on a job still
+  only by creating `<prefix>.EXIT` in its folder (matched by its `<name>.o<id>`), one per prefix of the folder's
+  SCF, relax and vc-relax inputs, the cluster administrator's rule (spec 71); `qdel` runs only on a job still
   waiting, by its ID, never on one that is running.
 
 ### Theming and UI

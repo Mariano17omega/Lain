@@ -119,6 +119,15 @@ def test_a_refused_login():
     assert found.message == HINTS["Permission denied"]
 
 
+def test_a_permission_denied_of_the_command_is_not_a_refused_login():
+    found = failure(1, "qstatus: /var/sge/acct: Permission denied\n")  # spec 71 R4: only ssh's 255
+    assert not (found.auth or found.connection or found.missing)
+    assert (
+        found.message
+        == "qstatus -a terminou com código 1: qstatus: /var/sge/acct: Permission denied"
+    )
+
+
 def test_no_connection():
     found = failure(255, "ssh: connect to host cluster port 22: Connection refused\n")
     assert found.connection and not (found.auth or found.missing)

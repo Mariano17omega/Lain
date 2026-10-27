@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from ...i18n import _
+from ..cluster_jobs import JobsFailure
 from ..config import AppConfig
 from ..sync.command import CommandResult, remote_command, run_command
 from ..sync.rsync import child_env, is_auth_failure, is_connection_failure, known_cause
@@ -44,6 +45,13 @@ def failure_of(listing: RemoteFailure) -> ActionFailure:
     return ActionFailure(
         listing.message, listing.connection, listing.auth, listing.missing, listing.local
     )
+
+
+def failure_of_jobs(jobs: JobsFailure, message: str) -> ActionFailure:
+    """A queue that could not be read (``cluster.jobs_command``) as the failure of the action that
+    needed it, which nothing ran: ``message`` gets the queue's own as ``{message}`` (spec 71 R4)."""
+    text = message.format(message=jobs.message.rstrip("."))
+    return ActionFailure(text, jobs.connection, jobs.auth, jobs.missing, jobs.local)
 
 
 def checked_name(name: str) -> str:

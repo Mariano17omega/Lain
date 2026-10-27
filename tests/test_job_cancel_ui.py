@@ -1,7 +1,7 @@
-""" "Cancelar simulação…" in the cluster mode and the cancel buttons of the queue popup (spec 70 R4–R6):
-the item, the reasons it is disabled, the dialog and the answers. ``list_remote``, ``fetch_jobs``,
-``fetch_prefixes`` and the ssh run are fakes and ``ask_cancel`` is patched where ``ui/job_cancel.py``
-imports it: no network. The real dialog runs through ``drive_modal``."""
+""" "Cancelar simulação…" in the cluster mode and the cancel buttons of the queue popup (spec 70 R4–R6,
+spec 71 R2, R5–R6): the item, the reasons it is disabled, the dialog and the answers. ``list_remote``,
+``fetch_jobs``, ``fetch_stop_sources`` and the ssh run are fakes and ``ask_cancel`` is patched where
+``ui/job_cancel.py`` imports it: no network. The real dialog runs through ``drive_modal``."""
 
 from types import SimpleNamespace
 
@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QMenu
 
 from qe_studio.core.remote import actions
 from qe_studio.core.remote import job_cancel as job_cancel_core
+from qe_studio.core.remote.inputs import StopSource
 from qe_studio.core.remote.job_cancel import Done, NotRunning, Refused
 from qe_studio.core.sync.command import CommandResult, remote_command
 from qe_studio.ui import job_cancel, jobs_controller
@@ -51,11 +52,11 @@ def cluster(monkeypatch):
     (the top bar's), ``run`` and ``asked``."""
     folders = FakeListing({BANDS: entries(files=("bands.qsub", "al.scf.in", "Bands-kao-b.o24000"))})
     jobs, queue = FakeFetch(snapshot(RUNNING)), FakeFetch(snapshot(RUNNING))
-    prefixes = SimpleNamespace(result=("al",))
+    prefixes = SimpleNamespace(result=(StopSource("al", ("al.scf.in",)),))
     run, asked = FakeCommand(), Asked()
     monkeypatch.setattr(job_cancel_core, "list_remote", folders)
     monkeypatch.setattr(job_cancel_core, "fetch_jobs", jobs)
-    monkeypatch.setattr(job_cancel_core, "fetch_prefixes", lambda *_args: prefixes.result)
+    monkeypatch.setattr(job_cancel_core, "fetch_stop_sources", lambda *_args: prefixes.result)
     monkeypatch.setattr(actions, "run_command", run)
     monkeypatch.setattr(job_cancel, "ask_cancel", asked)
     monkeypatch.setattr(jobs_controller, "fetch_jobs", queue)
@@ -149,7 +150,10 @@ def test_no_running_job_is_a_toast_and_no_dialog(qtbot, window, monkeypatch, clu
 
 
 def test_the_dialog_gets_the_job_the_folder_and_the_line(qtbot, window, monkeypatch, cluster):
-    cluster.prefixes.result = ("al", "al_bands")
+    cluster.prefixes.result = (
+        StopSource("al", ("al.scf.in", "relax.in")),
+        StopSource("al_conv", ("ecut40.in",)),
+    )
     cluster.asked.answer = False
     assert cancel_item(qtbot, window, monkeypatch, SCRIPT) is None  # declined: nothing runs
     (shown,) = cluster.asked.shown
@@ -163,9 +167,11 @@ def test_the_dialog_gets_the_job_the_folder_and_the_line(qtbot, window, monkeypa
             ("Pasta", f"{ACCOUNT}:{BANDS}"),
         ]
     ]
-    assert shown.method == "arquivo de parada do pw.x (al.EXIT, al_bands.EXIT)"
+    assert shown.method == (
+        "arquivo de parada do pw.x: al.EXIT (al.scf.in, relax.in), al_conv.EXIT (ecut40.in)"
+    )
     assert shown.note == NOTE_EXIT
-    assert shown.line == f"touch {BANDS}/al.EXIT {BANDS}/al_bands.EXIT"
+    assert shown.line == f"touch {BANDS}/al.EXIT {BANDS}/al_conv.EXIT"
     assert cluster.run.argvs == []
 
 
@@ -258,6 +264,41 @@ def test_a_job_that_started_is_never_deleted(qtbot, window, cluster):
     assert isinstance(result, Refused) and result.message.startswith("O job 25000 começou a rodar")
     assert (result.message, "warning") in toasts(window)
     assert cluster.run.argvs == []  # no qdel
+
+
+def test_a_click_during_an_action_says_so_and_asks_nothing(qtbot, window, monkeypatch, cluster):
+    cluster.asked.answer = False  # the folder's own dialog, at the end
+    popup = open_popup(qtbot, window)
+    assert all(button.isEnabled() for button in popup.cancel_buttons)  # drawn before the action
+    cluster.folders.hold()
+    try:
+        menu_spy(monkeypatch, choose=CANCEL)
+        window.remote.show_menu([FOLDER], QPoint())
+        qtbot.waitUntil(lambda: cluster.folders.calls != [])
+        popup.cancel_buttons[0].click()
+        assert (WAIT, "warning") in toasts(window)  # never silent (spec 71 R6)
+        assert not popup.isVisible() and cluster.asked.shown == []
+    finally:
+        with qtbot.waitSignal(window.job_cancel.done, timeout=5000):
+            cluster.folders.release()
+    assert [shown.line for shown in cluster.asked.shown] == [TOUCH]  # no qdel was asked
+    assert cluster.run.argvs == []
+
+
+def test_the_buttons_are_enabled_again_when_the_popup_reopens(qtbot, window, cluster):
+    cluster.asked.answer = False
+    click_cancel(qtbot, window, 0)
+    popup = open_popup(qtbot, window)
+    assert popup.cancel_buttons and all(button.isEnabled() for button in popup.cancel_buttons)
+
+
+def test_nothing_runs_once_the_window_is_closing(qtbot, window, monkeypatch, cluster):
+    cluster.asked.before = window.job_actions.cancel  # the shutdown step, dialog still open
+    menu_spy(monkeypatch, choose=CANCEL)
+    window.remote.show_menu([FOLDER], QPoint())
+    qtbot.waitUntil(lambda: cluster.asked.shown != [], timeout=5000)
+    qtbot.wait(200)
+    assert not window.job_actions.busy_now and cluster.run.argvs == []  # spec 71 R5
 
 
 def test_the_reason_disables_the_buttons(qtbot, window_factory, demo_project, monkeypatch, cluster):

@@ -1,21 +1,27 @@
-""" "Submeter…" in the cluster mode (spec 69 R4): the menu item, the reasons it is disabled, the block
-by a running job, the confirmation and the answers. ``list_remote``, ``fetch_jobs`` and the ssh run
-are fakes and ``ask_submit`` is patched where ``ui/job_actions.py`` imports it: no network."""
+""" "Submeter…" in the cluster mode (spec 69 R4, spec 71 R3–R5): the menu item, the reasons it is
+disabled, the block by a running job, the question about a job of the same name, the confirmation and
+the answers. ``list_remote``, ``fetch_jobs``, ``fetch_job_name`` and the ssh run are fakes and
+``ask_submit`` and ``ask_same_name`` are patched where ``ui/job_actions.py`` imports them: no
+network. The real dialogs run through ``drive_modal``."""
 
 from types import SimpleNamespace
 
 import pytest
-from PyQt6.QtCore import QPoint
+from PyQt6.QtCore import QPoint, Qt
+from PyQt6.QtTest import QTest
 
+from qe_studio.core.cluster_jobs import JobsFailure
 from qe_studio.core.remote import actions
 from qe_studio.core.remote import submit as submit_module
 from qe_studio.core.remote.actions import ActionFailure
 from qe_studio.core.remote.submit import SubmitBlocked, SubmitPlan, Submitted
 from qe_studio.core.sync.command import CommandResult, remote_command
+from qe_studio.core.sync.monitor import ConnectionState
 from qe_studio.ui import job_actions, jobs_controller
-from qe_studio.ui.dialogs.cluster_action import SubmitDialog
+from qe_studio.ui.dialogs.cluster_action import SameNameDialog, SubmitDialog, ask_same_name
 from qe_studio.ui.job_actions import NO_QUEUE, NO_SUBMIT, WAIT
 from qe_studio.ui.widgets.remote_model import RemotePath
+from test_atoms_dialog import drive_modal
 
 from action_helpers import FakeCommand, toasts
 from jobs_helpers import EMPTY, FakeFetch, snapshot, with_mine
@@ -25,6 +31,7 @@ BANDS = f"{REMOTE}/03_bands"
 SCRIPT = RemotePath(f"{BANDS}/bands.qsub", False)
 SUBMIT = "Submeter…"
 ANSWER = 'Your job 24123 ("Bands-kao-b") has been submitted\n'
+NAME = "Bands-kao-b"  # the script's #$ -N
 
 
 class Asked:
@@ -40,10 +47,21 @@ class Asked:
         return self.answer
 
 
+class AskedName:
+    """``ask_same_name``: the names and jobs it was shown; answers ``answer``."""
+
+    def __init__(self, answer=True):
+        self.answer, self.shown = answer, []
+
+    def __call__(self, _parent, name, jobs):
+        self.shown.append((name, tuple(job.job_id for job in jobs)))
+        return self.answer
+
+
 @pytest.fixture
 def cluster(monkeypatch):
     """The fakes: ``folders`` (the listings the submission reads), ``jobs`` (its queue), ``queue``
-    (the top bar's), ``run`` and ``asked``."""
+    (the top bar's), ``run``, ``asked`` and ``asked_name``; the script's job name is ``NAME``."""
     folders = FakeListing({BANDS: entries(files=("bands.qsub", "bands.in"))})
     jobs, queue, run, asked = (
         FakeFetch(snapshot(EMPTY)),
@@ -53,10 +71,15 @@ def cluster(monkeypatch):
     )
     monkeypatch.setattr(submit_module, "list_remote", folders)
     monkeypatch.setattr(submit_module, "fetch_jobs", jobs)
+    monkeypatch.setattr(submit_module, "fetch_job_name", lambda *_args: NAME)
     monkeypatch.setattr(actions, "run_command", run)
     monkeypatch.setattr(job_actions, "ask_submit", asked)
+    asked_name = AskedName()
+    monkeypatch.setattr(job_actions, "ask_same_name", asked_name)
     monkeypatch.setattr(jobs_controller, "fetch_jobs", queue)
-    return SimpleNamespace(folders=folders, jobs=jobs, queue=queue, run=run, asked=asked)
+    return SimpleNamespace(
+        folders=folders, jobs=jobs, queue=queue, run=run, asked=asked, asked_name=asked_name
+    )
 
 
 @pytest.fixture
@@ -233,6 +256,61 @@ def test_cancelling_the_password_does_nothing(window_factory, demo_project, monk
     assert cluster.folders.calls == [] and not window.job_actions.busy_now
 
 
+# -- a job of the same name, the log, the close (spec 71 R3–R5) ------------------------------------
+def test_a_job_of_the_same_name_asks_first(qtbot, window, monkeypatch, cluster):
+    cluster.jobs.result = snapshot(with_mine(waiting=1, queued=NAME))  # 25000 waits elsewhere
+    cluster.asked_name.answer = False
+    assert submit_item(qtbot, window, monkeypatch) is None
+    assert cluster.asked_name.shown == [(NAME, ("25000",))]
+    assert cluster.asked.plans == [] and cluster.run.argvs == []  # no submit dialog, no qsub
+
+    cluster.asked_name.answer = True
+    assert submit_item(qtbot, window, monkeypatch) == Submitted("24123", NAME)
+    ((plan, _account),) = cluster.asked.plans  # then the usual confirmation
+    assert plan.job_name == NAME and [job.job_id for job in plan.same_name] == ["25000"]
+
+
+def test_without_a_job_of_the_same_name_nothing_more_is_asked(qtbot, window, monkeypatch, cluster):
+    assert submit_item(qtbot, window, monkeypatch) == Submitted("24123", NAME)
+    assert cluster.asked_name.shown == [] and len(cluster.asked.plans) == 1
+
+
+def test_a_queue_that_does_not_answer_is_an_error_and_the_led_goes_offline(
+    qtbot, window, monkeypatch, cluster
+):
+    cluster.jobs.result = JobsFailure(
+        "O cluster não respondeu a qstatus -a a tempo.", connection=True
+    )
+    result = submit_item(qtbot, window, monkeypatch)
+    assert isinstance(result, ActionFailure) and result.connection
+    assert (f"A submissão falhou: {result.message}", "error") in toasts(window)
+    assert window.monitor.state is ConnectionState.OFFLINE
+    assert cluster.asked.plans == [] and cluster.run.argvs == []
+
+
+def test_a_log_that_cannot_be_written_is_a_warning(qtbot, window, monkeypatch, cluster):
+    def broken(*_args, **_kwargs):
+        raise OSError("disco cheio")
+
+    monkeypatch.setattr(submit_module, "record", broken)
+    result = submit_item(qtbot, window, monkeypatch)
+    assert result == Submitted("24123", NAME, log_error="disco cheio")
+    text = (
+        "Job 24123 (Bands-kao-b) submetido. O registro de jobs submetidos não pôde ser gravado "
+        "(disco cheio)."
+    )
+    assert (text, "warning") in toasts(window)
+
+
+def test_nothing_runs_once_the_window_is_closing(qtbot, window, monkeypatch, cluster):
+    cluster.asked.before = window.job_actions.cancel  # the shutdown step, dialog still open
+    menu_spy(monkeypatch, choose=SUBMIT)
+    window.remote.show_menu([SCRIPT], QPoint())
+    qtbot.waitUntil(lambda: cluster.asked.plans != [], timeout=5000)
+    qtbot.wait(200)
+    assert not window.job_actions.busy_now and cluster.run.argvs == []  # no qsub (spec 71 R5)
+
+
 # -- the dialog (R4.4) -----------------------------------------------------------------------------
 def plan(*exit_files: str) -> SubmitPlan:
     steps = (f"cd {BANDS}", "chmod a+x bands.qsub", "qsub bands.qsub")
@@ -247,6 +325,37 @@ def test_the_dialog_shows_the_folder_and_the_exact_commands(qtbot):
     assert dialog.commands.text() == f"cd {BANDS}\nchmod a+x bands.qsub\nqsub bands.qsub"
     assert dialog.windowTitle() == "Submeter no cluster"
     assert dialog.warnings == [] and dialog.submit_button.isDefault()
+
+
+def test_the_dialog_shows_the_job_name(qtbot):
+    named = SubmitPlan(BANDS, "bands.qsub", plan().steps, (), NAME)
+    dialog = SubmitDialog(named, ACCOUNT)
+    qtbot.addWidget(dialog)
+    texts = [label.text() for label in dialog.findChildren(type(dialog.commands))]
+    assert f"Job: {NAME}" in texts
+    unnamed = SubmitDialog(plan(), ACCOUNT)
+    qtbot.addWidget(unnamed)
+    assert not any(
+        t.startswith("Job:")
+        for t in (x.text() for x in unnamed.findChildren(type(unnamed.commands)))
+    )
+
+
+def test_the_same_name_dialog_lists_the_jobs_and_enter_declines(qtbot):
+    jobs = snapshot(with_mine(NAME, waiting=1, queued=NAME))
+    mine = (jobs.running[-1], jobs.waiting[-1])
+    dialog = SameNameDialog(NAME, mine)
+    qtbot.addWidget(dialog)
+    assert dialog.windowTitle() == "Job com o mesmo nome"
+    assert [row.text() for row in dialog.rows] == [
+        "em execução desde 10/24/2026 09:00:00",
+        "na fila desde 10/24/2026 10:00:00",
+    ]
+    assert dialog.back_button.isDefault() and not dialog.go_button.autoDefault()
+    drive_modal(lambda shown: QTest.keyClick(shown, Qt.Key.Key_Return))
+    assert ask_same_name(None, NAME, mine) is False  # type: ignore[arg-type]
+    drive_modal(lambda shown: shown.go_button.click())
+    assert ask_same_name(None, NAME, mine) is True  # type: ignore[arg-type]
 
 
 def test_a_forgotten_exit_file_is_a_warning_and_enter_cancels(qtbot):

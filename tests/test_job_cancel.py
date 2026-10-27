@@ -1,6 +1,7 @@
-"""Cancelling a job (spec 70 R2): the stop file for a running job of the folder, ``qdel`` for a job
-still waiting, and a fresh queue before either. ``list_remote``, ``fetch_jobs``, ``fetch_prefixes``
-and ``run_action`` are fakes: no network."""
+"""Cancelling a job (spec 70 R2, spec 71 R2): the stop file for a running job of the folder, one per
+prefix of its SCF, relax and vc-relax inputs, ``qdel`` for a job still waiting, and a fresh queue
+before either. ``list_remote``, ``fetch_jobs``, ``fetch_stop_sources`` and ``run_action`` are fakes:
+no network."""
 
 import pytest
 from hypothesis import given
@@ -10,6 +11,7 @@ from qe_studio.core.cluster_jobs import Job, JobsFailure, JobsSnapshot
 from qe_studio.core.config import parse_config
 from qe_studio.core.remote import job_cancel
 from qe_studio.core.remote.actions import ActionFailure
+from qe_studio.core.remote.inputs import StopSource
 from qe_studio.core.remote.job_cancel import (
     Done,
     NotRunning,
@@ -38,8 +40,11 @@ def config(**cluster):
     return parse_config({"paths": {"remote_root": ROOT}, "cluster": settings})
 
 
-class FakePrefixes:
-    def __init__(self, result=("al",)):
+AL = (StopSource("al", ("al.scf.in",)),)
+
+
+class FakeSources:
+    def __init__(self, result=AL):
         self.result, self.calls = result, []
 
     def __call__(self, _config, remote_dir, password=None):
@@ -52,10 +57,10 @@ def fakes(monkeypatch):
     """``(listing, fetch, prefixes, run)``: ``BANDS`` holds the ``.o`` of job 24000, which runs."""
     listing = FakeListing({BANDS: entries("tmp", files=("al.scf.in", "Bands-kao-b.o24000"))})
     fetch = FakeFetch(snapshot(with_mine("Bands-kao-b", waiting=2)))
-    prefixes, run = FakePrefixes(), FakeAction()
+    prefixes, run = FakeSources(), FakeAction()
     monkeypatch.setattr(job_cancel, "list_remote", listing)
     monkeypatch.setattr(job_cancel, "fetch_jobs", fetch)
-    monkeypatch.setattr(job_cancel, "fetch_prefixes", prefixes)
+    monkeypatch.setattr(job_cancel, "fetch_stop_sources", prefixes)
     monkeypatch.setattr(job_cancel, "run_action", run)
     return listing, fetch, prefixes, run
 
@@ -72,8 +77,8 @@ def waiting_job(index=0):
 def test_a_running_job_of_the_folder_gets_its_stop_file(fakes):
     listing, fetch, prefixes, run = fakes
     plan = plan_stop(config(), BANDS, "pw")
-    assert plan == StopPlan(BANDS, (running_job(),), ("al",), TOUCH)
-    assert plan.files == ("al.EXIT",)
+    assert plan == StopPlan(BANDS, (running_job(),), AL, TOUCH)
+    assert plan.prefixes == ("al",) and plan.files == ("al.EXIT",)
     assert listing.calls == [BANDS] and fetch.calls == ["pw"] and prefixes.calls == [BANDS]
     assert run.commands == []  # planning changes nothing
 
@@ -111,12 +116,25 @@ def test_no_running_job_of_the_user_in_the_folder(fakes, files):
     assert prefixes.calls == [] and run.commands == []
 
 
-def test_without_a_pw_input_there_is_no_stop_file(fakes):
+def test_without_an_scf_or_relax_input_there_is_no_stop_file(fakes):
     _listing, _fetch, prefixes, run = fakes
-    prefixes.result = ()
+    prefixes.result = ()  # e.g. only nscf or bands inputs (spec 71 R2)
     result = plan_stop(config(), BANDS)
-    assert isinstance(result, NotRunning) and "Nenhum input do pw.x" in result.message
+    assert isinstance(result, NotRunning)
+    assert result.message.startswith("Nenhum input de scf, relax ou vc-relax do pw.x")
     assert run.commands == []
+
+
+def test_one_stop_file_per_prefix_of_the_sources(fakes):
+    _listing, _fetch, prefixes, run = fakes
+    prefixes.result = (
+        StopSource("e30", ("ecut30.in",)),
+        StopSource("e40", ("ecut40.in",)),
+    )
+    plan = plan_stop(config(), BANDS)
+    assert isinstance(plan, StopPlan)
+    assert plan.line == f"touch {BANDS}/e30.EXIT {BANDS}/e40.EXIT"
+    assert plan.files == ("e30.EXIT", "e40.EXIT")
 
 
 def test_failures_before_the_plan(fakes):

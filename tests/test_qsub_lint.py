@@ -6,7 +6,7 @@ import pytest
 
 from fragment_helpers import SMALL
 from qe_studio.core.calc_create.types import REGISTRY
-from qe_studio.core.qsub_lint import SGE_OPTIONS, lint_script
+from qe_studio.core.qsub_lint import SGE_OPTIONS, job_name, lint_script
 
 from calc_helpers import AL_PATH, JOBS, al, from_text
 from surface_helpers import MOLECULE, SUPERCELL_001, read
@@ -223,3 +223,25 @@ def test_issues_are_sorted_and_fit_their_line():
     for issue in issues:
         assert 1 <= issue.line <= len(lines)
         assert 0 <= issue.col_start <= issue.col_end <= len(lines[issue.line - 1])
+
+
+# -- the job name (spec 71 R3) ---------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("script", "name"),
+    [
+        ('#!/bin/bash\n#$ -N "BD010o1"\n#$ -cwd\n', "BD010o1"),
+        ("#!/bin/bash\n#$ -N scf-al -pe physica 64\n", "scf-al"),
+        ("#!/bin/bash\n#$ -N 'first'\n#$ -N second\n", "second"),  # the last one counts
+        ("#!/bin/bash\n#$ -cwd # -N comment\n", "run.qsub"),
+        ("#!/bin/bash\n#$ -N\n#$ -N -cwd\n", "run.qsub"),  # no value: SGE's default
+        ("#!/bin/bash\n# $ -N spaced\necho -N x\n", "run.qsub"),  # not directives
+        ("", "run.qsub"),
+    ],
+)
+def test_the_job_name_is_the_last_n_or_the_script_name(script, name):
+    assert job_name(script, "run.qsub") == name
+
+
+def test_the_reference_scripts_name_their_jobs():
+    path = REFERENCE / "bands.qsub"
+    assert job_name(path.read_text(), path.name) == "BD010o1"

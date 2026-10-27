@@ -5,8 +5,9 @@ The item is added through ``RemoteController.menu_hooks``: the cluster mode know
 What talks to the cluster (``core/remote/submit.py``) runs in a pool of one thread of its own, one
 action at a time (a second click waits: the item is disabled with the reason). The folder is listed
 and the queue asked when the item is clicked, and both again right before ``qsub``, after the
-confirmation: a job of the user running in the folder blocks the submission, with a toast and no
-dialog. The configuration is read when the user acts (``window.config``), so a reloaded
+confirmation: a job of the user running in the folder, or one Lain submitted from it still in the
+queue, blocks the submission, with a toast and no dialog. A job of the user with the script's name
+asks first (spec 71 R3). The configuration is read when the user acts (``window.config``), so a reloaded
 ``config.yaml`` needs no wiring here.
 
 Cancelling a job (spec 70, ``ui/job_cancel.py``) shares the pool through ``password``, ``run``,
@@ -36,7 +37,7 @@ from ..core.remote.submit import (
 from ..core.tasks import TaskGroup
 from ..i18n import _
 from .busy import BusyTracker
-from .dialogs.cluster_action import ask_submit
+from .dialogs.cluster_action import ask_same_name, ask_submit
 from .jobs_controller import JobsController
 from .remote_controller import RemoteController
 from .sync_coordinator import SyncCoordinator
@@ -79,6 +80,7 @@ class JobActionsController(QObject):
         self._pending: tuple[AppConfig, str | None] | None = None  # the action's config, password
         self._plan: SubmitPlan | None = None  # the confirmed one, while it is submitted
         self._then: Callable[[Any], None] | None = None  # who gets the answer of the running action
+        self._closed = False  # the window is closing: nothing new reaches the cluster (spec 71 R5)
         self._pool = QThreadPool()  # no Qt parent (CLAUDE.md, Threading)
         self._pool.setMaxThreadCount(1)
         self._tasks = TaskGroup(self._pool)
@@ -106,7 +108,9 @@ class JobActionsController(QObject):
     def cancel(self) -> None:
         """Window close (the "cancelar" step): a running check or ``qsub`` has its ssh killed
         within ``core/sync/command.py:POLL_SECONDS``. A ``qsub`` that reached the cluster may have
-        submitted: the next session's queue shows it."""
+        submitted: the next session's queue shows it. No action starts afterwards, not even one a
+        dialog still open confirms."""
+        self._closed = True
         self._tasks.shutdown(0)
         self._pending = self._plan = self._then = None
         self.busy.end(BUSY_KEY)
@@ -125,7 +129,10 @@ class JobActionsController(QObject):
     def run(self, label: str, fn: Callable, *args: Any, on_done: Callable[[Any], None]) -> None:
         """``fn(*args)`` in the pool of the cluster actions, with ``label`` in the footer;
         ``on_done(answer)`` on the GUI thread, an exception as an ``ActionFailure``. Never after
-        ``cancel()``. One action at a time: callers check ``busy_now`` first."""
+        ``cancel()``, which also refuses new actions. One action at a time: callers check
+        ``busy_now`` first."""
+        if self._closed:
+            return
         self._then = on_done
         self._tasks.submit(KEY, fn, *args, on_done=self._on_done, on_error=self._on_error)
         self.busy.begin(BUSY_KEY, label)
@@ -218,7 +225,12 @@ class JobActionsController(QObject):
             return
         config, password = pending
         account = f"{config.cluster.user}@{config.cluster.host}"
-        if not ask_submit(self._dialog_parent, result, account):
+        parent = self._dialog_parent
+        if result.same_name and not ask_same_name(parent, result.job_name, result.same_name):
+            self._pending = None
+            self.done.emit(None)
+            return
+        if not ask_submit(parent, result, account):
             self._pending = None
             self.done.emit(None)
             return
@@ -245,8 +257,12 @@ class JobActionsController(QObject):
             text = _("Job {job_id} ({name}) submetido.").format(
                 job_id=result.job_id, name=result.name
             )
-            self.toast.show_message(text, "info")
             self.message.emit(text, "info", 10000)
+            if result.log_error:
+                more = _("O registro de jobs submetidos não pôde ser gravado ({error}).")
+                self.toast.show_message(f"{text} {more.format(error=result.log_error)}", "warning")
+            else:
+                self.toast.show_message(text, "info")
         elif isinstance(result, SubmitBlocked):
             self.toast.show_message(result.message, "warning")
         else:

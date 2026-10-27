@@ -278,11 +278,16 @@ def list_command(
 
 
 def small_files_command(
-    config: AppConfig, remote_dir: str, dest: Path, version: tuple[int, ...] | None = None
+    config: AppConfig,
+    remote_dir: str,
+    dest: Path,
+    version: tuple[int, ...] | None = None,
+    only: str | None = None,
 ) -> list[str]:
     """Copy the files at the top of one folder of the cluster, up to 1 MB each, into ``dest``; no
-    subfolder (spec 70 R1: the inputs a cancellation reads the ``prefix`` from). ``version`` as in
-    ``list_command``."""
+    subfolder (spec 70 R1: the inputs a cancellation reads the ``prefix`` from). ``only``: just that
+    file, a name without wildcards (spec 71 R3: the script a submission reads the job name from).
+    ``version`` as in ``list_command``."""
     cluster = config.cluster
     remote = Endpoint(remote_dir, cluster.host, cluster.user)
     return [
@@ -290,6 +295,7 @@ def small_files_command(
         "-r",
         "--max-size=1M",
         "--exclude=*/",
+        *([f"--include={only}", "--exclude=*"] if only is not None else []),
         *_common(config, remote, version),
         remote.spec(),
         str(dest).rstrip("/\\") + "/",

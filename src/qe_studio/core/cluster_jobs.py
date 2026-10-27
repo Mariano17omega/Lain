@@ -21,6 +21,7 @@ from dataclasses import dataclass
 
 from ..i18n import _
 from .config import AppConfig
+from .remote.listing import SSH_FAILED
 from .sync.command import CommandResult, remote_command, run_command
 from .sync.rsync import child_env, is_auth_failure, is_connection_failure, known_cause
 
@@ -144,7 +145,8 @@ def classify(result: CommandResult, command: str) -> JobsSnapshot | JobsFailure:
             return JobsFailure(str(exc))
     stderr = result.stderr
     code = result.code if result.code is not None else -1
-    if is_auth_failure(stderr):
+    # ssh's own code: the command may also say "Permission denied" (spec 71 R4).
+    if code == SSH_FAILED and is_auth_failure(stderr):
         return JobsFailure(known_cause(stderr) or "", auth=True)
     if code == 127 or "command not found" in stderr:
         message = _("O comando {command} não foi encontrado no cluster (cluster.jobs_command).")

@@ -1,8 +1,10 @@
 """ "Cancelar simulação…" in the cluster mode and the cancel buttons of the queue popup (spec 70 R4–R5).
 
 The method is never chosen, it follows where the user clicked: a folder (or a ``.qsub``, its folder)
-stops the user's job running there with ``<prefix>.EXIT``; a button of the popup deletes a job still
-waiting with ``qdel``. ``core/remote/job_cancel.py`` checks a fresh queue before the dialog and
+stops the user's job running there with ``<prefix>.EXIT``, one per prefix of its SCF, relax and
+vc-relax inputs (spec 71 R2); a button of the popup deletes a job still waiting with ``qdel``. That
+button is disabled only when ``cluster.delete_command`` is empty: an action in progress is checked
+when it is clicked, with a toast (spec 71 R6). ``core/remote/job_cancel.py`` checks a fresh queue before the dialog and
 again right before acting; the dialog shows the job, the method and the exact command, "Voltar" by
 default. The pool, the password, the LED and the listing again are ``ui/job_actions.py``'s: one
 action on the cluster at a time, submitting included.
@@ -47,9 +49,12 @@ NO_QUEUE = _(
 )
 NO_DELETE = _("Cancelamento da fila desligado: cluster.delete_command está vazio no config.yaml.")
 NOTE_EXIT = _(
-    'O pw.x procura esse arquivo na pasta durante a execução, para de forma limpa ("Program stopped '
-    'by user request") e o apaga. Os comandos seguintes do script (outro pw.x, bands.x, projwfc.x…) '
-    "ainda rodam."
+    "Um arquivo por prefix dos inputs de scf, relax e vc-relax da pasta. O pw.x procura o seu "
+    'durante a execução, para de forma limpa ("Program stopped by user request") e o apaga. Um '
+    "pw.x seguinte do script com o mesmo prefix (nscf, bands) ainda roda, a partir do cálculo "
+    "interrompido; com outro prefix desta lista, para logo na primeira verificação. Os demais "
+    "programas (bands.x, projwfc.x…) ainda rodam. Se nenhum pw.x estiver rodando agora, o arquivo "
+    "fica na pasta e a próxima submissão avisa."
 )
 NOTE_QDEL = _("Antes do qdel o Lain consulta a fila de novo: se o job já começou, nada é feito.")
 
@@ -158,7 +163,10 @@ class JobCancelController(QObject):
             ]
             for job in result.jobs
         ]
-        method = _("arquivo de parada do pw.x ({files})").format(files=", ".join(result.files))
+        files = ", ".join(
+            f"{source.prefix}.EXIT ({', '.join(source.inputs)})" for source in result.sources
+        )
+        method = _("arquivo de parada do pw.x: {files}").format(files=files)
         if not ask_cancel(self._dialog_parent, rows, method, NOTE_EXIT, result.line):
             self.done.emit(None)
             return
@@ -167,15 +175,17 @@ class JobCancelController(QObject):
 
     # -- a waiting job: the button of the queue popup --------------------------------------------
     def waiting_blocked(self, _job: Job) -> str:
-        """Why a waiting job cannot be cancelled now; "" when it can (the popup asks per row)."""
-        if not self._config().cluster.delete_command:
-            return NO_DELETE
-        return WAIT if self.actions.busy_now else ""
+        """Why the button of a waiting job is disabled; "" when it is not (the popup asks per row).
+        An action in progress is not a reason here: it may end while the popup is open."""
+        return "" if self._config().cluster.delete_command else NO_DELETE
 
     def cancel_waiting(self, job: Job) -> None:
-        """The popup closes first; then the dialog, and ``qdel`` once confirmed and checked."""
+        """The popup closes first; then the dialog, and ``qdel`` once confirmed and checked. What
+        keeps it from running now is a toast, never silence."""
         self.jobs.popup.hide()
-        if self.waiting_blocked(job):
+        reason = self.waiting_blocked(job) or (WAIT if self.actions.busy_now else "")
+        if reason:
+            self.toast.show_message(reason, "warning")
             return
         config = self._config()
         try:

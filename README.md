@@ -282,20 +282,31 @@ then the local panels come back exactly as they were. Nothing local is read or c
   again. The program is `cluster.submit_command` (`qsub`; empty turns the item off); a `qsub` that is
   not in the `PATH` of a non-interactive ssh needs its full path. Script and folder names (below
   `remote_root`) must use letters, digits, `.`, `_`, `+` and `-` only. The block relies on the job
-  name in `qstatus` matching the `-N` of the script, and a job still in the queue leaves nothing in
-  the folder, so it does not block.
+  name in `qstatus` matching the `-N` of the script. A job still in the queue leaves nothing in the
+  folder, so Lain keeps its own log of the jobs it submitted, `submitted_jobs.log` in the data
+  folder (`paths.data`, or `~/.local/share/qe-studio/`; one tab-separated line per job: date in UTC,
+  `user@host`, job ID, job name, folder, script): while a job it submitted from that folder is
+  still in the queue or running, nothing is submitted (spec 71). Lain also copies the script (up to
+  1 MB) to read its job name (`#$ -N`, or the file name): if one of your jobs with that name is
+  already running or waiting anywhere, a dialog lists them and asks whether to submit another job
+  with the same name ("Voltar" is the default).
 - Right-click a folder (or a `.qsub`: its folder) for **Cancelar simulação…** (spec 70), to stop
   your job running there. Lain lists the folder and asks the queue again: one of your running jobs
   must have its `<name>.o<job-ID>` in the folder (ID and name equal to the queue's), or a notice
   says there is none and nothing happens. It then copies the folder's files of up to 1 MB (no
-  subfolder) into a temporary folder of the cache, reads the `prefix` of every pw.x input (by content;
-  `pwscf` when one sets none) and deletes the copy. The dialog shows the job, the folder, the method
-  and the exact command, `touch <folder>/<prefix>.EXIT` (one file per prefix); "Voltar" is the
-  default. After "Cancelar simulação" the queue is asked once more and the file is created only if
-  the job still runs. pw.x finds the file at its next check, stops cleanly ("Program stopped by user
-  request") and deletes it; **the next commands of the script still run** (another pw.x, bands.x,
-  projwfc.x…). It needs `cluster.jobs_command`; a job still waiting is cancelled from the queue
-  popup instead.
+  subfolder) into a temporary folder of the cache, reads the `prefix` of every **SCF, relax and
+  vc-relax** input of pw.x (by content; `calculation` defaults to `scf` and `prefix` to `pwscf`, as in
+  pw.x; nscf and bands inputs never name the file, the cluster administrator's rule, spec 71) and
+  deletes the copy. A folder without one of those inputs gets nothing. The dialog shows the job, the
+  folder, the method (each file with the inputs it comes from) and the exact command, `touch
+  <folder>/<prefix>.EXIT` (one file per prefix); "Voltar" is the default. After "Cancelar
+  simulação" the queue is asked once more and the file is created only if the job still runs. pw.x
+  finds its file at its next check, stops cleanly ("Program stopped by user request") and deletes
+  it. **The next commands of the script still run**: a pw.x with the same prefix (nscf, bands) from
+  the interrupted calculation, bands.x, projwfc.x…; a pw.x with another prefix of the list stops at
+  its first check. If no pw.x was running, the file stays and the next "Submeter…" warns about it.
+  It needs `cluster.jobs_command`; a job still waiting is cancelled from the queue popup instead (the
+  button says so in a notice when another cluster action is still running).
 
 ## Usage
 

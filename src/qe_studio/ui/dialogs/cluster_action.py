@@ -1,5 +1,5 @@
-"""Confirmations before a command that changes the cluster (spec 69 R4.4, spec 70 R6): what runs,
-where, exactly."""
+"""Confirmations before a command that changes the cluster (spec 69 R4.4, spec 70 R6, spec 71 R3):
+what runs, where, exactly, and a job of the same name already on the cluster."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...core.cluster_jobs import Job
 from ...core.remote.submit import SubmitPlan
 from ...i18n import _
 from ..widgets.common import set_variant
@@ -34,6 +35,9 @@ class SubmitDialog(QDialog):
         layout.addWidget(set_variant(QLabel(title), "dialogTitle"))
         folder = _("Pasta: {account}:{folder}").format(account=account, folder=plan.remote_dir)
         layout.addWidget(set_variant(QLabel(folder), "dialogText"))
+        if plan.job_name:
+            job = _("Job: {name}").format(name=plan.job_name)
+            layout.addWidget(set_variant(QLabel(job), "dialogText"))
         layout.addWidget(set_variant(QLabel(_("Comandos que vão rodar no cluster:")), "dialogText"))
         self.commands = set_variant(QLabel("\n".join(plan.steps)), "mono")
         layout.addWidget(self.commands)
@@ -62,6 +66,53 @@ class SubmitDialog(QDialog):
 def ask_submit(parent: QWidget, plan: SubmitPlan, account: str) -> bool:
     """True when the user confirmed the submission."""
     dialog = SubmitDialog(plan, account, parent)
+    accepted = dialog.exec() == QDialog.DialogCode.Accepted
+    dialog.deleteLater()
+    return accepted
+
+
+class SameNameDialog(QDialog):
+    """A job of the user with the script's name is already running or waiting: one row per job and
+    "Submeter outro job com o mesmo nome?". "Voltar" is the default: Enter submits nothing."""
+
+    def __init__(self, name: str, jobs: Sequence[Job], parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setWindowTitle(_("Job com o mesmo nome"))
+        self.setModal(True)
+        layout = QVBoxLayout(self)
+        title = _("Já existe um job seu chamado {name} no cluster").format(name=name)
+        layout.addWidget(set_variant(QLabel(title), "dialogTitle"))
+        form = QFormLayout()
+        self.rows: list[QLabel] = []
+        for job in jobs:
+            if job.running:
+                state = _("em execução desde {date}").format(date=job.date)
+            else:
+                state = _("na fila desde {date}").format(date=job.date)
+            shown = QLabel(state)
+            self.rows.append(shown)
+            label = _("Job {job_id}").format(job_id=job.job_id)
+            form.addRow(set_variant(QLabel(label), "dialogText"), shown)
+        layout.addLayout(form)
+        question = QLabel(_("Submeter outro job com o mesmo nome?"))
+        layout.addWidget(set_variant(question, "dialogText"))
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        self.back_button = QPushButton(_("Voltar"))
+        self.go_button = QPushButton(_("Submeter mesmo assim"))
+        self.back_button.clicked.connect(self.reject)
+        self.go_button.clicked.connect(self.accept)
+        self.go_button.setAutoDefault(False)  # focused, it would take Enter
+        self.back_button.setDefault(True)
+        buttons.addWidget(self.back_button)
+        buttons.addWidget(self.go_button)
+        layout.addLayout(buttons)
+        self.back_button.setFocus()
+
+
+def ask_same_name(parent: QWidget, name: str, jobs: Sequence[Job]) -> bool:
+    """True when the user wants another job called ``name`` all the same."""
+    dialog = SameNameDialog(name, jobs, parent)
     accepted = dialog.exec() == QDialog.DialogCode.Accepted
     dialog.deleteLater()
     return accepted
