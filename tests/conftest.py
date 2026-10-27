@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -64,10 +65,16 @@ def _default_data_dir():
 
 @pytest.fixture(autouse=True)
 def _isolated_user_dirs(tmp_path_factory, monkeypatch):
-    """Keep app data/config/cache writes out of the real home directory."""
+    """Keep app data/config/cache writes out of the real home directory, and the ssh sockets out
+    of the real ``/run/user``: a short runtime folder in ``/tmp`` (``tmp_path`` is too long for a
+    socket path, spec 72 R4.9)."""
     base = tmp_path_factory.mktemp("userdirs")
     for var in ("XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"):
         monkeypatch.setenv(var, str(base / var.lower()))
+    runtime = tempfile.mkdtemp(prefix="lm", dir="/tmp" if os.path.isdir("/tmp") else None)
+    monkeypatch.setenv("XDG_RUNTIME_DIR", runtime)
+    yield
+    shutil.rmtree(runtime, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)

@@ -32,6 +32,7 @@ import socket
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -119,6 +120,7 @@ class _Interface(paramiko.ServerInterface):
     def __init__(self, server: LocalSSHServer):
         self.server = server
         self.session = _Session()
+        self.open_channels: set[int] = set()  # sessions of this connection (``max_sessions``)
 
     def get_allowed_auths(self, username: str) -> str:
         return "publickey,password"
@@ -144,14 +146,24 @@ class _Interface(paramiko.ServerInterface):
         return paramiko.AUTH_SUCCESSFUL if accepted else paramiko.AUTH_FAILED
 
     def check_channel_request(self, kind: str, chanid: int) -> int:
-        if kind == "session":
-            return paramiko.OPEN_SUCCEEDED
-        return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+        if kind != "session":
+            return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+        with self.server._lock:
+            limit = self.server.max_sessions
+            if limit is not None and len(self.open_channels) >= limit:
+                return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED  # sshd's MaxSessions
+            self.open_channels.add(chanid)
+        return paramiko.OPEN_SUCCEEDED
+
+    def release(self, chanid: int) -> None:
+        """The session ``chanid`` is over: it no longer counts for ``max_sessions``."""
+        with self.server._lock:
+            self.open_channels.discard(chanid)
 
     def check_channel_exec_request(self, channel: paramiko.Channel, command: bytes) -> bool:
         # Runs on the transport thread: only hand the work to a thread of its own.
         text = command.decode("utf-8", "surrogateescape")
-        self.server._spawn(self.server._serve_exec, channel, text, self.session)
+        self.server._spawn(self.server._serve_exec, channel, text, self.session, self.release)
         return True
 
 
@@ -167,7 +179,8 @@ def _split_and(argv: list[str]) -> list[list[str]]:
 
 
 class LocalSSHServer:
-    """Threaded paramiko server. ``drop_after_bytes``, ``reject_auth`` and ``stall_banner`` are
+    """Threaded paramiko server. ``drop_after_bytes``, ``reject_auth``, ``stall_banner`` and
+    ``max_sessions`` (the open sessions one connection may have, as sshd's ``MaxSessions``) are
     failure modes a test switches on before connecting."""
 
     def __init__(
@@ -186,6 +199,7 @@ class LocalSSHServer:
         self.reject_auth = False
         self.stall_banner = False
         self.drop_after_bytes: int | None = None
+        self.max_sessions: int | None = None
         self.log: list[ExecRecord] = []
         self.attempts: list[AuthAttempt] = []
         self._lock = threading.Lock()
@@ -237,15 +251,18 @@ class LocalSSHServer:
         known_hosts: KnownHosts = "server",
         strict: Strict = "yes",
         auth: Literal["key", "password"] = "key",
+        multiplex: bool = False,
         **cluster,
     ) -> dict:
-        """Config dict (``parse_config`` input) pointing Lain at this server."""
+        """Config dict (``parse_config`` input) pointing Lain at this server. ``multiplex`` is off
+        unless a test asks (spec 72 R4.10): the tests that count logins see one per command."""
         settings = {
             "host": HOST_ALIAS,
             "port": self.port,
             "user": USER,
             "auth": auth,
             "connect_timeout": 5,
+            "multiplex": multiplex,
         }
         if auth == "key":
             settings["key_path"] = str(self.keys.client_key_path)
@@ -266,8 +283,18 @@ class LocalSSHServer:
             threads = [*self._threads, *self._transports]
         return [t.name for t in threads if t.is_alive()]
 
+    def open_connections(self) -> int:
+        """Connections still up (an ssh master keeps one between its commands)."""
+        with self._lock:
+            return sum(t.is_active() for t in self._transports)
+
     # -- lifecycle -----------------------------------------------------------------------------
     def close(self, timeout: float = 5.0) -> None:
+        # The test's ssh masters first (spec 72 R4.9): none outlives it. ``-F /dev/null``: the
+        # user's ~/.ssh is never read. Imported here: conftest imports this module before Qt is set.
+        from qe_studio.core.sync import mux
+
+        mux.close_all(f"ssh -F {os.devnull}", timeout)
         self._closing.set()
         with contextlib.suppress(OSError):
             self._listener.close()
@@ -342,7 +369,13 @@ class LocalSSHServer:
         finally:
             transport.close()
 
-    def _serve_exec(self, channel: paramiko.Channel, command: str, session: _Session) -> None:
+    def _serve_exec(
+        self,
+        channel: paramiko.Channel,
+        command: str,
+        session: _Session,
+        release: Callable[[int], None],
+    ) -> None:
         try:
             argv = shlex.split(command)
         except ValueError:
@@ -367,20 +400,22 @@ class LocalSSHServer:
             if not allowed:
                 channel.send_stderr(f"lain-test: command not allowed: {command}\n".encode())
                 record.status = 127
-                channel.send_exit_status(127)
-                return
-            if mkdir is not None:
-                mkdir.mkdir(parents=True, exist_ok=True)
-            for part in parts:
-                assert part is not None
-                record.status = self._run(channel, part, cwd)
-                if record.status != 0:
-                    break
+            else:
+                if mkdir is not None:
+                    mkdir.mkdir(parents=True, exist_ok=True)
+                for part in parts:
+                    assert part is not None
+                    record.status = self._run(channel, part, cwd)
+                    if record.status != 0:
+                        break
+            # Before the exit status: a client that saw the command end may open the next session.
+            release(channel.get_id())
             if record.status is not None:
                 channel.send_exit_status(record.status)
         except (OSError, EOFError, paramiko.SSHException):
             pass  # client went away mid-command
         finally:
+            release(channel.get_id())
             channel.close()
 
     def _allowed(self, argv: list[str]) -> list[str] | None:

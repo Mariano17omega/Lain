@@ -9,7 +9,7 @@ import pytest
 from qe_studio.core.config import parse_config
 from qe_studio.core.project_data import PROJECT_DATA_EXCLUDE
 from qe_studio.core.scratch import SCRATCH_EXCLUDE
-from qe_studio.core.sync import askpass
+from qe_studio.core.sync import askpass, mux
 from qe_studio.core.sync.rsync import (
     Endpoint,
     askpass_program,
@@ -51,6 +51,47 @@ def test_ssh_command_password_auth():
     argv = ssh_command(config(auth="password").cluster, "ssh")
     assert "BatchMode=yes" not in argv
     assert "NumberOfPasswordPrompts=1" in argv
+
+
+def test_the_shared_connection_comes_after_the_strict_host_key_check():
+    """The master is born with every option of Lain, the host key check included (spec 72 R2)."""
+    argv = ssh_command(config(key_path="/k/id").cluster, "ssh")
+    folder = mux.control_dir()
+    assert folder is not None
+    assert argv[-6:] == [
+        "-o",
+        "ControlMaster=auto",
+        "-o",
+        f"ControlPath={folder}/%C",
+        "-o",
+        "ControlPersist=120",
+    ]
+    assert argv.index("StrictHostKeyChecking=yes") < argv.index("ControlMaster=auto")
+
+
+@pytest.mark.parametrize(
+    ("cluster", "auth"),
+    [
+        ({"key_path": "/k/id"}, ["-o", "BatchMode=yes", "-i", "/k/id", "-o", "IdentitiesOnly=yes"]),
+        ({"auth": "password"}, ["-o", "NumberOfPasswordPrompts=1"]),
+    ],
+)
+def test_without_multiplex_the_ssh_is_the_one_before_spec_72(cluster, auth):
+    argv = ssh_command(config(multiplex=False, **cluster).cluster, "ssh")
+    assert argv == [
+        "ssh",
+        "-p",
+        "2222",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "-o",
+        "ServerAliveInterval=15",
+        "-o",
+        "ServerAliveCountMax=3",
+        *auth,
+    ]
 
 
 def has_option(argv, option):

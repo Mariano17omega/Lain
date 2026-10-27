@@ -184,6 +184,20 @@ def test_stall_banner_accepts_tcp_and_stays_silent(server):
             sock.recv(1)
 
 
+def test_max_sessions_refuses_a_session_over_the_limit(server, ssh_keys):
+    """sshd's ``MaxSessions`` (spec 72 R4.5): only the open sessions of a connection count."""
+    server.max_sessions = 1
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        assert run(client, "true")[0] == 0
+        assert run(client, "echo again")[:2] == (0, b"again\n")  # the first one ended
+        transport = client.get_transport()
+        assert transport is not None
+        transport.open_session()  # held open
+        with pytest.raises(paramiko.ChannelException):
+            transport.open_session()
+    assert server.commands() == ["true", "echo again"]
+
+
 def test_close_stops_everything(ssh_keys, tmp_path):
     (tmp_path / "root").mkdir()
     (tmp_path / "work").mkdir()

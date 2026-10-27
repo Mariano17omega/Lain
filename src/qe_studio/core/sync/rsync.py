@@ -24,6 +24,7 @@ from ..appdirs import cache_dir
 from ..config import AppConfig, ClusterConfig
 from ..project_data import PROJECT_DATA_EXCLUDE
 from ..scratch import SCRATCH_EXCLUDE
+from . import mux
 from .askpass import SECRET_ENV
 
 OUT_FORMAT = "%i|%l|%M|%n"
@@ -75,7 +76,8 @@ def remote_dir_of(folder: Path, root: Path, remote_root: str) -> str:
 def ssh_command(cluster: ClusterConfig, ssh_binary: str) -> list[str]:
     """``ssh`` with the options Lain needs. ``StrictHostKeyChecking=yes`` is ours, not the user's
     ssh config: a ``-o`` on the command line wins over ``~/.ssh/config``, so an unknown or changed
-    host key is always refused, whatever the config says for that host (spec 27-3 R1)."""
+    host key is always refused, whatever the config says for that host (spec 27-3 R1). The shared
+    connection (``mux.options``, spec 72) comes last, and its master is born with them all."""
     argv = [
         *shlex.split(ssh_binary),
         "-p",
@@ -95,7 +97,7 @@ def ssh_command(cluster: ClusterConfig, ssh_binary: str) -> list[str]:
             argv += ["-i", str(cluster.key_path), "-o", "IdentitiesOnly=yes"]
     else:
         argv += ["-o", "NumberOfPasswordPrompts=1"]
-    return argv
+    return argv + mux.options(cluster)
 
 
 def askpass_program() -> str:

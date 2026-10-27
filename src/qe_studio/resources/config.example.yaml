@@ -49,6 +49,11 @@ cluster:
   # never deleted, it is stopped by creating <prefix>.EXIT in its folder ("Cancelar simulação…" in
   # the cluster mode). Empty turns the button off.
   delete_command: qdel
+  # One ssh connection shared by the actions in a row (listing, queue, submit, cancel, sync): one
+  # login instead of one per command. It stays open 120 s after the last command, and closes when
+  # Lain closes. The cluster's host key is checked as always. false: every ssh logs in by itself
+  # (a cluster that forbids sharing a connection, or to debug a login).
+  multiplex: true
 
 sync:
   # rsync --exclude patterns (rsync semantics: trailing "/" = directories only).

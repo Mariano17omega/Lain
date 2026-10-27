@@ -77,6 +77,7 @@ QT_FREE = [
     "qe_studio.core.sync.report",
     "qe_studio.core.sync.push_plan",
     "qe_studio.core.sync.command",
+    "qe_studio.core.sync.mux",
     "qe_studio.core.cluster_jobs",
     "qe_studio.core.remote",
     "qe_studio.core.remote.listing",

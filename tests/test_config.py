@@ -510,3 +510,17 @@ def test_the_delete_command_has_a_default_and_is_stripped(tmp_path):
         assert "delete_command:" in example.read_text(encoding="utf-8")
         cluster = load_config(example, environ={}, cwd=tmp_path).config.cluster
         assert cluster.delete_command == "qdel"
+
+
+# -- one ssh connection for many actions (spec 72 R2, R4.10) ---------------------------------------
+def test_the_shared_ssh_connection_is_on_by_default(tmp_path):
+    """Production shares the connection; only the tests' ``config_data`` turns it off."""
+    assert AppConfig().cluster.multiplex is True
+    assert parse_config({}).cluster.multiplex is True
+    assert parse_config({"cluster": {"multiplex": False}}).cluster.multiplex is False
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "multiplex:" in example.read_text(encoding="utf-8")
+        assert load_config(example, environ={}, cwd=tmp_path).config.cluster.multiplex is True

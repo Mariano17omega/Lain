@@ -18,6 +18,7 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, NamedTuple
 
+from ..core.sync import mux
 from .plot_export import EXPORT_WAIT_MS
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ log = logging.getLogger(__name__)
 
 TOTAL_MS = 8000  # all the steps together, exports aside
 SYNC_MS = 2000  # a running pull or push, then it is killed
+SSH_MS = 1000  # stopping the shared ssh connections: local sockets only
 DETECTION_MS = 2000
 GRID_MS = 1000
 
@@ -83,8 +85,8 @@ class ShutdownSequence:
 
 
 def steps_for(window: MainWindow) -> list[Step]:
-    """The steps of closing ``window``, in order (cancel, sync, exports, ``.plot``, 3D views, state,
-    workers)."""
+    """The steps of closing ``window``, in order (cancel, sync, ssh, exports, ``.plot``, 3D views,
+    state, workers)."""
 
     def cancel(_ms: int) -> None:
         window.plot_workflow.cancel_loads()
@@ -98,6 +100,9 @@ def steps_for(window: MainWindow) -> list[Step]:
         window.remote.cancel()  # the listings' ssh too (spec 65 R6)
         window.job_actions.cancel()  # a submission's ssh as well (spec 69 R4.6)
 
+    def close_ssh(ms: int) -> bool:
+        return mux.close_all(window.config.sync.ssh_binary, ms / 1000)
+
     def save_state(_ms: int) -> None:
         window.navigation.shutdown()
         window.settings.setValue("explorer/last_folder", str(window.current_folder()))
@@ -107,6 +112,8 @@ def steps_for(window: MainWindow) -> list[Step]:
     return [
         Step("cancelar", cancel),
         Step("sync", window.sync.shutdown, cap_ms=SYNC_MS),
+        # the masters of the shared ssh connection (spec 72): no rsync uses them any more
+        Step("ssh", close_ssh, cap_ms=SSH_MS),
         Step("exportações", window.plot_workflow.shutdown, cap_ms=EXPORT_WAIT_MS, own_budget=True),
         Step(".plot", window.plot_settings.close),
         # the views of the 3D windows ``close_dialogs`` closed, queued for writing (spec 47 R3)

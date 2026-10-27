@@ -15,9 +15,10 @@ medidas de distância e ângulo) e a spec 45 a **oitava** (13/10/2026: "Abrir co
 pw.x) e as specs 46–47 a **nona** (14/10/2026: ajustes da janela 3D, a barra, os eixos, os rótulos, "Rotação", "Apagar", "Print" e "Restaurar
 padrões", e a vista lembrada em `view3d.plot`) e a spec 48 a **décima** (14/10/2026: as configurações do projeto em `<local_root>/.lain/`) e as specs 49–51 a **décima primeira** (17/10/2026: botões da barra lateral e caminho fixo, botão de arquivos e etiqueta ERRO na árvore, e a numeração das pastas do "Criar cálculo") e as specs 52–60 a **décima segunda** (18/10/2026: a internacionalização, a `spec_end`, dividida em uma base, sete áreas e um fechamento, depois de duas tentativas interrompidas de implementá-la de uma vez) e as specs 61–66 a **décima terceira** (25/10/2026: o `config.yaml` do checkout em qualquer terminal e a pasta de dados portátil, o botão "Árvore" e o fim dos "Recentes" no painel, o checksum do sync, os jobs do cluster na barra superior e o modo cluster, que navega nos arquivos remotos e plota por `tmp_remote`) e a spec 67 a **décima quarta** (25/10/2026: "Grade", "Lista" e "Ordenar" nos arquivos do cluster) e a spec 68 a **décima quinta** (25/10/2026: o popup da fila do cluster com datas curtas, barras coloridas e a coluna "Núcleos") e as specs 69–70 a
 **décima sexta** (25/10/2026: submeter um `.qsub` e cancelar simulações no modo cluster, pelo `prefix.EXIT` ou pelo `qdel`) e a spec 71 as
-correções da revisão dessas duas (26/10/2026, `Documentation/Relatorios/report-25-10-26-specs-69-70.md`), em grupos de itens
+correções da revisão dessas duas (26/10/2026, `Documentation/Relatorios/report-25-10-26-specs-69-70.md`) e a spec 72 a opção (b) do achado C8
+(26/10/2026: uma conexão ssh para várias ações), em grupos de itens
 relacionados e em ordem de prioridade. A internacionalização (`spec_end`, as specs 52–60) fechou por último. Cada spec é
-autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 71 estão implementadas.
+autossuficiente e pode virar um `/plan` de implementação separado. Todas as specs até a 72 estão implementadas.
 
 ## Roadmap
 
@@ -103,6 +104,7 @@ autossuficiente e pode virar um `/plan` de implementação separado. Todas as sp
 | 69 | [spec_69-modo-cluster-submeter-simulacao.md](Archived/spec_69-modo-cluster-submeter-simulacao.md) | "Submeter…" no `.qsub` do modo cluster: bloqueado se um job do usuário roda na pasta (conferido no plano e logo antes do `qsub`), confirmação com os comandos exatos e o aviso de `*.EXIT`, `cd … && chmod a+x … && qsub …`, toast "Job {id} ({nome}) submetido."; nomes do cluster validados e citados (`core/remote/actions.py`), `cluster.submit_command`, gancho no menu remoto; guarda que impede qualquer teste de chegar ao cluster | 65, 64, 27-3, 7 | M | Opus 5.5 |
 | 70 | [spec_70-modo-cluster-cancelar-simulacao.md](Archived/spec_70-modo-cluster-cancelar-simulacao.md) | Cancelar: pela pasta, `<prefix>.EXIT` quando um `<nome>.o<id>` dela é um job em execução no `qstatus` (prefix lido dos inputs do pw.x, buscados até 1 MB); pelo popup, botão nos jobs do usuário na fila e `qdel` só se a fila nova ainda o tem esperando; sempre confirmado, com o método à vista | 69, 64, 68, 65, 11 | M/G | Opus 5.5 |
 | 71 | [spec_71-correcoes-submeter-e-cancelar.md](Archived/spec_71-correcoes-submeter-e-cancelar.md) | Correções da revisão das 69–70: rsync 23/24 não abortam o cancelamento; `prefix.EXIT` só dos inputs de scf, relax e vc-relax (regra do administrador); registro `submitted_jobs.log` dos jobs submetidos (um da pasta ainda na fila bloqueia); diálogo para um job do usuário de mesmo nome; falha do `qstatus` com indicadores; nada roda depois do fechamento; o popup decide no clique | 69, 70, 64, 38, 61 | M | Opus 5.5 |
+| 72 | [spec_72-multiplexar-ssh.md](Archived/spec_72-multiplexar-ssh.md) | Uma conexão ssh para várias ações: `ControlMaster=auto` + `ControlPersist=120` + `ControlPath` curto em `control_dir()`, em `ssh_command` (rsync e comandos remotos), `cluster.multiplex` para desligar, `ssh -O stop` no encerramento; provado contra o servidor de teste (1 login, sem esperar o mestre, socket morto, sessão recusada, chave trocada) | 27-3, 64, 65, 69, 70, 71, 27-5, 7 | M | Opus 5.5 |
 | fim | [spec_end-internacionalizacao.md](Archived/spec_end-internacionalizacao.md) | **Desenho** do idioma (gettext, português como fonte, `ui.language`); implementada pelas specs 52–60 (arquivada com a 60) | 52–60 | G | — |
 
 Critério de ordem: primeiro as correções e ajustes que afetam o uso diário e são pré-requisito de
@@ -488,6 +490,9 @@ sem inglês compilado e sem teste.
     tudo: nenhum teste chega ao cluster, que é ambiente de produção. Depois a 69 abre a base de todo comando que muda o
     cluster (nomes validados e citados, `run_action`, o gancho do menu remoto, o `cd … &&` do servidor dos testes) e reescreve a regra do
     `CLAUDE.md`; a 70 usa tudo isso e é a mais delicada (um `qdel` num job em execução deixa o processo rodando fora da fila).
+21. **Multiplexar o ssh (72, decisão de 26/10/2026):** depois das correções da 71. Muda `ssh_command`, que o rsync e todo comando remoto
+    usam; por isso a prova (R4) é contra o servidor de teste e nenhuma verificação chega ao cluster. A medida do usuário no cluster dele
+    (0,25 s contra 1,65 s por comando) fundamenta a spec.
 
 ## Rastreabilidade: ideias da décima terceira rodada (25/10/2026) → specs
 
@@ -748,6 +753,18 @@ Decisões de 25/10/2026 (décima sexta rodada, specs 69–70):
   pw.x; nome do `.o` igual exatamente ao do `qstatus`; notificação por toast.
 - **Modelo recomendado:** Opus 5.5 para 69 e 70.
 
+Decisões de 26/10/2026 (décima sétima rodada, spec 72):
+- **Pedido do usuário:** a opção (b) do C8, que ele tirou da spec 71 para tratar depois. Ele mediu o cluster com o script de
+  `Documentation/testar_multiplexacao_ssh.sh`: aceita multiplexar, e o `MaxSessions` fica perto de 10.
+- **Assumidas para a revisão:** vale para tudo que passa por `ssh_command` (rsync inclusive); `ControlPersist` de 120 s, constante;
+  `cluster.multiplex` (padrão ligado) para desligar; as opções do Lain vencem o `~/.ssh/config`; um mestre por destino; sem repetição
+  na sessão recusada (o ssh refaz sozinho, **inferido**, e o teste R4.5 prova); desligado no Windows; os testes existentes seguem sem
+  mestre (`config_data(multiplex=False)`).
+- **Na implementação (27/10/2026):** o usuário escolheu `ssh -O stop` em vez de `-O exit` no encerramento (outra janela do Lain
+  termina a sua transferência). Os testes confirmaram que o ssh refaz sozinho a sessão recusada e troca o socket morto, sem
+  repetição no Lain.
+- **Modelo recomendado:** Opus 5.5 para a 72.
+
 ## Rastreabilidade: `report-25-10-26-specs-69-70.md` → spec 71
 
 | Achado | Resumo | Spec |
@@ -759,4 +776,4 @@ Decisões de 25/10/2026 (décima sexta rodada, specs 69–70):
 | C5 | Confirmação aceita depois do fechamento | spec 71, R5 |
 | C6 | Botões de cancelar do popup | spec 71, R6 |
 | C7 | `submit_line` duplica `SubmitPlan.line` | spec 71, R7 |
-| C8 | Cinco logins ssh por ação | fora de escopo (o usuário trata depois) |
+| C8 | Cinco logins ssh por ação | spec 72 (a opção (b): multiplexar o ssh; a (a), em paralelo, fica fora) |

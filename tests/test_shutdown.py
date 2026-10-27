@@ -10,6 +10,7 @@ from PyQt6 import sip
 from PyQt6.QtCore import QPoint, QThreadPool
 
 from qe_studio.core.remote import submit as submit_module
+from qe_studio.core.sync import mux
 from qe_studio.core.tasks import run_task
 from qe_studio.ui import app, shutdown
 from qe_studio.ui.dialogs.calc_create import dialog as dialog_module
@@ -161,6 +162,36 @@ def test_the_state_is_saved_when_a_step_overruns(qtbot, main_window, demo_projec
     )
     window.close()
     assert window.shutdown_report.late == ["lento"]
+    assert window.settings.value("explorer/last_folder") == str(demo_project / "03_bands")
+
+
+# -- the shared ssh connections (spec 72 R3) -------------------------------------------------------
+def test_the_ssh_masters_are_stopped_right_after_the_sync(qtbot, main_window, monkeypatch):
+    window, calls = main_window, []
+    names = [step.name for step in shutdown.steps_for(window)]
+    assert names[names.index("sync") + 1] == "ssh"
+
+    def close_all(ssh_binary, timeout_s):
+        calls.append((ssh_binary, timeout_s))
+        return True
+
+    monkeypatch.setattr(mux, "close_all", close_all)
+    window.close()
+    ((ssh_binary, timeout_s),) = calls
+    assert ssh_binary == window.config.sync.ssh_binary
+    assert 0 < timeout_s <= shutdown.SSH_MS / 1000
+    assert "ssh" in window.shutdown_report.ok
+
+
+def test_masters_that_do_not_stop_in_time_are_logged_and_closing_goes_on(
+    qtbot, main_window, demo_project, monkeypatch
+):
+    window = main_window
+    window.explorer.select_path(demo_project / "03_bands")
+    monkeypatch.setattr(mux, "close_all", lambda ssh_binary, timeout_s: False)
+    window.close()
+    assert window.shutdown_report.late == ["ssh"]
+    assert "estado" in window.shutdown_report.ok
     assert window.settings.value("explorer/last_folder") == str(demo_project / "03_bands")
 
 

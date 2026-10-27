@@ -131,6 +131,9 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 - Push only adds files the cluster does not have: it never overwrites or deletes anything remote.
 - Unknown host keys are always refused (`-o StrictHostKeyChecking=yes` is forced). Passwords reach ssh only via
   `SSH_ASKPASS` in the child env, never argv or logs.
+- ssh options are built only in `core/sync/rsync.py:ssh_command`. With `cluster.multiplex` they end with a shared
+  master (`ControlMaster=auto`, `ControlPersist=120`, `ControlPath` in `core/sync/mux.py:control_dir()`: short,
+  `0700`, the user's own). The shutdown stops the masters with `ssh -O stop` (spec 72).
 - rsync children run with `LC_ALL=C.UTF-8`, `TZ=UTC` and `--no-h` (its output is parsed).
 - A remote command other than rsync is built only from programs named in `config.yaml` (`cluster.jobs_command`,
   `cluster.submit_command`, `cluster.delete_command`) plus the fixed `cd`, `chmod a+x` and `touch`, in

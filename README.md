@@ -192,6 +192,26 @@ Test outside Lain with the same values; if this fails too, the problem is the cr
 ssh -p 22 -i ~/.ssh/id_ed25519 your_user@cluster.example.org   # drop -i for password login
 ```
 
+#### One connection for many actions
+
+Lain's ssh commands to the cluster share one connection: the job queue, the cluster-mode listings,
+"Submeter…", "Cancelar simulação…" and the sync's rsync. The first command logs in and becomes an
+OpenSSH master (`ControlMaster`); the next ones run through it without logging in again, until no
+command has used it for 120 s. Then it closes, and the next command logs in again. Submitting or
+cancelling, which used to take five logins, now takes one. With `auth: password` the password is
+sent once per connection. The host key is checked exactly as before, when the master logs in.
+
+- The sockets live in `$XDG_RUNTIME_DIR/qe-studio-mux` (or `/tmp/qe-studio-mux-<uid>` without that
+  variable). The folder is yours alone (`0700`), and Lain never uses one that is a link or belongs
+  to someone else. Closing Lain stops the masters (`ssh -O stop`); a master left by a crash ends by
+  itself after 120 s. Without a safe, short-enough folder (and on Windows), every ssh logs in by
+  itself, as before.
+- The cluster limits how many commands one connection runs at the same time (its `MaxSessions`,
+  often 10). A command over that limit logs in by itself and still runs once.
+- `cluster.multiplex: false` turns this off: every ssh logs in by itself. Use it for a cluster
+  that forbids sharing a connection, or to debug a login. Lain's options win over a
+  `ControlMaster`/`ControlPath` in your `~/.ssh/config`.
+
 ### How sync decides
 
 "Sincronizar" pulls the selected folder (or the whole project) from `remote_root`. rsync lists the
@@ -225,8 +245,9 @@ runs `qdel` only if that ID is still waiting, with the same name and owner: a jo
 never deleted (it would go on running out of the queue), and a notice says so. Lain reads it
 by running `cluster.jobs_command` on the cluster over ssh, with the login and options of the sync,
 when the window opens and then every `jobs_poll_seconds` while it is active. The last answer is kept
-in memory for the session ("Atualizar" asks again); nothing is written to disk. Each query is a real
-login, so it also turns the LED green or red.
+in memory for the session ("Atualizar" asks again); nothing is written to disk. Each query reaches
+the cluster over ssh (its own login, or the shared connection of a recent action), so it also turns
+the LED green or red.
 
 ```yaml
 cluster:

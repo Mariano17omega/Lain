@@ -141,6 +141,8 @@ class ClusterConfig(_Section):
     submit_command: str = "qsub"
     # The queue popup's cancel button, for a waiting job only (spec 70); empty turns it off.
     delete_command: str = "qdel"
+    # One ssh connection shared by the actions on the cluster (spec 72); false: every ssh logs in.
+    multiplex: bool = True
 
     @field_validator("key_path")
     @classmethod
