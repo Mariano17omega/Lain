@@ -1,0 +1,431 @@
+"""Architecture rules of CLAUDE.md, checked (spec 15 R6): file size, layers, Qt in ``core`` and file
+reading in ``ui``. The checks read the source (AST), so they catch the common case, not every one."""
+
+import ast
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+import qe_studio
+
+PACKAGE = Path(qe_studio.__file__).parent
+LIMIT = 500
+# Files allowed past LIMIT, each with its reason. Starts (and should stay) empty.
+SIZE_EXCEPTIONS: dict[str, str] = {}
+# Files with a limit of their own, below LIMIT, so the room made in them is not spent again by
+# accident (spec 27-5 R4): the composition root.
+PER_FILE_LIMIT: dict[str, int] = {"ui/main_window.py": 450}
+# The modules at the top of each layer (spec 78.5 R6.1): the services every area uses, the start and
+# the composition, and the generic building blocks of the widgets. A new module goes to an area
+# (CLAUDE.md, "Where a module goes"); one at the top is a decision written here.
+TOP_LEVEL: dict[str, set[str]] = {
+    "core": {
+        "__init__.py",
+        "appdirs.py",
+        "cancel.py",
+        "config.py",
+        "config_template.py",
+        "detection.py",
+        "sniff.py",
+        "tasks.py",
+    },
+    "ui": {"__init__.py", "actions.py", "app.py", "main_window.py", "shutdown.py"},
+    "ui/widgets": {
+        "__init__.py",
+        "common.py",
+        "elided_label.py",
+        "empty_state.py",
+        "flow_layout.py",
+        "no_wheel.py",
+        "painting.py",
+        "spinner.py",
+        "toast.py",
+    },
+}
+# The only core modules with Qt: QProcess/signals of the sync (the rsync run both directions share,
+# the pull's conflicts), the reachability monitor and the background-task helper.
+QT_IN_CORE = {
+    "core/sync/_process.py",
+    "core/sync/controller.py",
+    "core/sync/monitor.py",
+    "core/tasks.py",
+}
+# ui modules that read files: the app's own resources (QSS, theme tokens, SVG icons).
+UI_READERS = {"ui/theme/manager.py"}
+READ_CALLS = {"read_text", "read_bytes", "loadtxt"}
+# Calls that touch the disk (spec 27-8 R3.2): a ``Path`` that is slow (a network mount) blocks the GUI
+# thread. ``ui/`` makes the calls below and no more: a new one belongs in ``core/`` or in a worker
+# (``run_task``), not in this list. The counts only shrink; the test also fails when one is *lower*
+# than listed, so the list is lowered with the code. The names are the AST's: ``proxy.is_dir(index)``
+# of the file models counts too, though it asks a model, not the disk.
+FS_CALLS = {
+    "resolve",
+    "exists",
+    "is_dir",
+    "is_file",
+    "stat",
+    "iterdir",
+    "glob",
+    "rglob",
+    "samefile",
+}
+FS_ALLOWED: dict[str, int] = {
+    "ui/cluster/sync_coordinator.py": 2,
+    "ui/dialogs/calc_create/setup_page.py": 1,
+    "ui/dialogs/mapping.py": 1,
+    "ui/dialogs/rename.py": 1,
+    "ui/files/navigation_controller.py": 5,
+    "ui/files/rename_controller.py": 2,
+    "ui/main_window.py": 1,
+    "ui/plot/grids_controller.py": 1,
+    "ui/shell/app_identity.py": 1,
+    "ui/shell/first_run.py": 3,
+    "ui/shell/help_controller.py": 1,
+    "ui/tools/calc_create_controller.py": 2,
+    "ui/widgets/files/context_menu.py": 4,
+    "ui/widgets/files/explorer.py": 5,
+    "ui/widgets/files/file_card.py": 2,
+    "ui/widgets/files/file_grid.py": 2,
+    "ui/widgets/files/fs_model.py": 1,
+}
+# Moved out of ui/ by spec 15 R5: they must load without Qt (and be tested without it).
+QT_FREE = [
+    "qe_studio.core.analysis.expression",
+    "qe_studio.core.analysis.adsorption_energy",
+    "qe_studio.core.calc_create.fingerprint",
+    "qe_studio.core.calc_create.structures",
+    "qe_studio.core.structure3d.cif",
+    "qe_studio.core.viewer.text_preview",
+    "qe_studio.core.viewer.qsub_lint",
+    "qe_studio.core.viewer.markdown_links",
+    "qe_studio.core.files.file_kinds",
+    "qe_studio.core.files.job_log",
+    "qe_studio.core.files.run_errors",
+    "qe_studio.core.plotting.session",
+    "qe_studio.core.plotting.gap_label",
+    "qe_studio.core.plotting.styles",
+    "qe_studio.core.sync.request",
+    "qe_studio.core.sync.preview",
+    "qe_studio.core.sync.report",
+    "qe_studio.core.sync.push_plan",
+    "qe_studio.core.sync.command",
+    "qe_studio.core.sync.mux",
+    "qe_studio.core.sync.remote_path",
+    "qe_studio.core.remote.cluster_jobs",
+    "qe_studio.core.remote",
+    "qe_studio.core.remote.listing",
+    "qe_studio.core.remote.browser",
+    "qe_studio.core.remote.download",
+    "qe_studio.core.remote.actions",
+    "qe_studio.core.remote.submit",
+    "qe_studio.core.remote.submit_log",
+    "qe_studio.core.remote.inputs",
+    "qe_studio.core.remote.job_cancel",
+    "qe_studio.core.remote.trash",
+    "qe_studio.core.remote.trash_dir",
+    "qe_studio.core.files.paths",
+    "qe_studio.core.files.navigation",
+    "qe_studio.core.files.filtering",
+    "qe_studio.core.project.nav_store",
+    "qe_studio.core.search.fuzzy",
+    "qe_studio.core.search.folder_index",
+    "qe_studio.core.project.projects",
+    "qe_studio.core.config_template",
+    "qe_studio.core.app.about",
+    "qe_studio.core.qe.qe_docs",
+    "qe_studio.core.app.colors",
+    "qe_studio.core.app.fontscale",
+    "qe_studio.core.app.logs",
+    "qe_studio.core.project.compounds",
+    "qe_studio.core.project.project_data",
+    "qe_studio.core.remote.scratch",
+    "qe_studio.core.qe.structure",
+    "qe_studio.core.plotting.grid",
+    "qe_studio.core.plotting.cell_layout",
+    "qe_studio.core.plotting.grid_session",
+    "qe_studio.core.plotting.offscreen",
+    "qe_studio.core.plotting.names",
+    "qe_studio.core.plotting.table",
+    "qe_studio.core.calculations.listing",
+    "qe_studio.core.calculations.bands.table",
+    "qe_studio.core.calculations.pdos.table",
+    "qe_studio.core.calculations.bands_dos.table",
+    "qe_studio.core.project.grid_store",
+    "qe_studio.core.calculations.grid",
+    "qe_studio.core.qe.input_edit",
+    "qe_studio.core.qe.final_structure",
+    "qe_studio.core.qe.scf_from_relax",
+    "qe_studio.core.qe.summary.mesh",
+    "qe_studio.core.files.unique_names",
+    "qe_studio.core.files.xcrysden",
+    "qe_studio.core.qe.lattice",
+    "qe_studio.core.calc_create",
+    "qe_studio.core.calc_create.render",
+    "qe_studio.core.calc_create.kpath",
+    "qe_studio.core.calc_create.scf_info",
+    "qe_studio.core.calc_create.edits",
+    "qe_studio.core.calc_create.unit",
+    "qe_studio.core.calc_create.writer",
+    "qe_studio.core.calc_create.naming",
+    "qe_studio.core.calc_create.numbering",
+    "qe_studio.core.calc_create.preview",
+    "qe_studio.core.calc_create.types",
+    "qe_studio.core.calc_create.types.base",
+    "qe_studio.core.calc_create.types.script",
+    "qe_studio.core.calc_create.types.fields",
+    "qe_studio.core.calc_create.types.files",
+    "qe_studio.core.calc_create.types.scf",
+    "qe_studio.core.calc_create.types.relax",
+    "qe_studio.core.calc_create.types.vc_relax",
+    "qe_studio.core.calc_create.types.bandas",
+    "qe_studio.core.calc_create.types.pdos",
+    "qe_studio.core.calc_create.types.charge",
+    "qe_studio.core.calc_create.types.charge_diff",
+    "qe_studio.core.calc_create.fragments",
+    "qe_studio.core.calc_create.species_keys",
+    "qe_studio.core.calc_create.overrides",
+    "qe_studio.core.calc_create.types.slab",
+    "qe_studio.core.calc_create.types.slab_fields",
+    "qe_studio.core.calc_create.types.supercell",
+    "qe_studio.core.calc_create.types.surface_fields",
+    "qe_studio.core.calc_create.types.adsorption",
+    "qe_studio.core.calc_create.types.adsorption_fields",
+    "qe_studio.core.calc_create.surface",
+    "qe_studio.core.calc_create.surface.model",
+    "qe_studio.core.calc_create.surface.elements",
+    "qe_studio.core.calc_create.surface.geometry",
+    "qe_studio.core.calc_create.surface.molecule",
+    "qe_studio.core.calc_create.surface.slab",
+    "qe_studio.core.calc_create.surface.supercell",
+    "qe_studio.core.calc_create.surface.fixing",
+    "qe_studio.core.calc_create.surface.kmesh",
+    "qe_studio.core.calc_create.surface.write",
+    "qe_studio.core.calc_create.surface.report",
+    "qe_studio.core.calc_create.surface.candidates",
+    "qe_studio.core.calc_create.surface.adsorb",
+    "qe_studio.core.calc_create.surface.merge",
+    "qe_studio.core.qe.cell_card",
+    "qe_studio.core.cancel",
+    "qe_studio.core.calculations.sizing",
+    "qe_studio.core.calculations.load_cache",
+    "qe_studio.core.structure3d",
+    "qe_studio.core.structure3d.model",
+    "qe_studio.core.structure3d.source",
+    "qe_studio.core.structure3d.elements",
+    "qe_studio.core.structure3d.bonds",
+    "qe_studio.core.structure3d.replicate",
+    "qe_studio.core.structure3d.geometry",
+    "qe_studio.core.structure3d.camera",
+    "qe_studio.core.structure3d.pick",
+    "qe_studio.core.structure3d.options",
+    "qe_studio.core.structure3d.measure",
+    "qe_studio.core.structure3d.measurements",
+    "qe_studio.core.structure3d.image_file",
+    "qe_studio.core.structure3d.view_state",
+    "qe_studio.core.structure3d.view_file",
+]
+
+
+def sources(layer: str = "") -> list[Path]:
+    return sorted((PACKAGE / layer).rglob("*.py"))
+
+
+def name_of(path: Path) -> str:
+    return path.relative_to(PACKAGE).as_posix()
+
+
+def imported_modules(path: Path) -> set[str]:
+    """Absolute names of the modules ``path`` imports (relative imports resolved)."""
+    module = "qe_studio." + name_of(path).removesuffix(".py").replace("/", ".")
+    package = module if path.name == "__init__.py" else module.rsplit(".", 1)[0]
+    names = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                base = package.rsplit(".", node.level - 1)[0] if node.level > 1 else package
+                names.add(f"{base}.{node.module}" if node.module else base)
+            elif node.module:
+                names.add(node.module)
+    return names
+
+
+def test_no_file_is_over_the_size_limit():
+    long = {
+        name_of(path): lines
+        for path in sources()
+        if (lines := len(path.read_text(encoding="utf-8").splitlines()))
+        > PER_FILE_LIMIT.get(name_of(path), LIMIT)
+        and name_of(path) not in SIZE_EXCEPTIONS
+    }
+    assert not long, f"split these by responsibility (> {LIMIT} lines, or their own limit): {long}"
+
+
+def test_core_never_imports_the_ui():
+    offenders = {
+        name_of(path): sorted(m for m in imported_modules(path) if m.startswith("qe_studio.ui"))
+        for path in sources("core")
+    }
+    assert {k: v for k, v in offenders.items() if v} == {}
+
+
+def test_qt_in_core_only_where_allowed():
+    with_qt = {
+        name_of(path)
+        for path in sources("core")
+        if any(m.split(".")[0] == "PyQt6" for m in imported_modules(path))
+    }
+    assert with_qt == QT_IN_CORE
+
+
+def test_the_ui_does_not_read_files():
+    offenders = {}
+    for path in sources("ui"):
+        if name_of(path) in UI_READERS:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if isinstance(func, ast.Name) and func.id == "open":
+                offenders.setdefault(name_of(path), []).append(f"open() line {node.lineno}")
+            elif isinstance(func, ast.Attribute) and func.attr in READ_CALLS:
+                offenders.setdefault(name_of(path), []).append(f"{func.attr} line {node.lineno}")
+    assert offenders == {}, "reading files is core's job (CLAUDE.md, ui/ holds interface logic)"
+
+
+def fs_calls(source: str) -> int:
+    """How many calls of ``FS_CALLS`` (``x.exists()``, ``x.resolve()``…) ``source`` makes."""
+    return sum(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in FS_CALLS
+        for node in ast.walk(ast.parse(source))
+    )
+
+
+def fs_problems(counts: dict[str, int], allowed: dict[str, int] = FS_ALLOWED) -> list[str]:
+    """What is wrong between the calls found per file and the ones ``allowed``."""
+    problems = []
+    for name in sorted(counts.keys() | allowed.keys()):
+        found, listed = counts.get(name, 0), allowed.get(name, 0)
+        if found > listed:
+            problems.append(
+                f"{name}: {found} filesystem calls, {listed} allowed: "
+                "do it in core/ or a worker, do not raise FS_ALLOWED"
+            )
+        elif found < listed:
+            problems.append(
+                f"{name}: {found} filesystem calls, FS_ALLOWED lists {listed}: lower it"
+            )
+    return problems
+
+
+def ui_fs_counts() -> dict[str, int]:
+    counts = {
+        name_of(path): fs_calls(path.read_text(encoding="utf-8"))
+        for path in sources("ui")
+        if name_of(path) not in UI_READERS
+    }
+    return {name: found for name, found in counts.items() if found}
+
+
+def test_the_ui_makes_no_new_filesystem_calls():
+    assert fs_problems(ui_fs_counts()) == []
+
+
+def test_the_filesystem_check_flags_a_new_call_and_a_stale_list():
+    assert fs_calls("def f(p):\n    return p.exists() and p.parent.resolve()\n") == 2
+    assert fs_calls("def f(p):\n    return open(p), exists(p), p.name\n") == 0
+    now = ui_fs_counts()
+    assert fs_problems(now) == []
+    assert "ui/new_widget.py: 1" in fs_problems({**now, "ui/new_widget.py": 1})[0]
+    more = {**now, "ui/main_window.py": FS_ALLOWED["ui/main_window.py"] + 1}
+    assert "do not raise FS_ALLOWED" in fs_problems(more)[0]
+    fewer = {name: found for name, found in now.items() if name != "ui/shell/first_run.py"}
+    assert "lower it" in fs_problems(fewer)[0]
+
+
+def test_pymatgen_is_not_mentioned():
+    """Spec 27-2: the band path is typed, not suggested; no source, template or dependency names
+    pymatgen."""
+    text_files = [
+        path
+        for path in PACKAGE.rglob("*")
+        if path.is_file() and path.suffix in {".py", ".j2", ".yaml", ".qss", ".md"}
+    ]
+    text_files.append(PACKAGE.parents[1] / "pyproject.toml")
+    named = [str(path) for path in text_files if "pymatgen" in path.read_text("utf-8").lower()]
+    assert named == []
+
+
+def strings_in_code(path: Path) -> list[str]:
+    """The string constants of ``path``, docstrings left out (they may say where things live)."""
+    tree = ast.parse(path.read_text("utf-8"))
+    docstrings = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+    }
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and id(node) not in docstrings
+    ]
+
+
+def test_the_settings_folder_is_named_in_one_module():
+    """Spec 48 R1.1: ``core/project/project_data.py`` is the one source of the root's settings
+    folder name; every other module imports ``PROJECT_DATA_DIR`` / ``PROJECT_DATA_EXCLUDE``."""
+    naming = [
+        name_of(path) for path in sources() if any(".lain" in s for s in strings_in_code(path))
+    ]
+    assert naming == ["core/project/project_data.py"]
+
+
+def test_the_import_checker_resolves_relative_imports():
+    tasks = imported_modules(PACKAGE / "core" / "sync" / "_process.py")
+    assert {"qe_studio.core.config", "qe_studio.core.tasks", "PyQt6.QtCore"} <= tasks
+    window = imported_modules(PACKAGE / "ui" / "main_window.py")
+    assert (
+        "qe_studio.core.project.folder_memory" in window
+        and "qe_studio.ui.plot.plot_workflow" in window
+    )
+
+
+@pytest.mark.parametrize("module", QT_FREE)
+def test_the_modules_moved_to_core_load_without_qt(module):
+    code = f"import sys, {module}; sys.exit('PyQt6' in sys.modules)"
+    assert subprocess.run([sys.executable, "-c", code], timeout=60).returncode == 0
+
+
+def test_only_the_listed_modules_live_at_the_top():
+    found = {layer: {path.name for path in (PACKAGE / layer).glob("*.py")} for layer in TOP_LEVEL}
+    assert found == TOP_LEVEL, "a new module goes to an area (CLAUDE.md, Where a module goes)"
+
+
+def docstring_of(init: Path) -> str:
+    if not init.is_file():
+        return ""
+    return ast.get_docstring(ast.parse(init.read_text(encoding="utf-8"))) or ""
+
+
+def test_every_package_says_what_it_holds():
+    """Spec 78.5 R6.2: every folder of ``core`` and ``ui`` with modules has an ``__init__.py`` whose
+    docstring says what lives there (``ui/resources`` holds the app's files, not code)."""
+    folders = {path.parent for layer in ("core", "ui") for path in sources(layer)}
+    silent = sorted(
+        name_of(folder)
+        for folder in folders
+        if not folder.is_relative_to(PACKAGE / "ui" / "resources")
+        and not docstring_of(folder / "__init__.py").strip()
+    )
+    assert silent == []

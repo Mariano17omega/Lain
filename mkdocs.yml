@@ -1,0 +1,127 @@
+site_name: "Lain: QE Studio"
+site_url: https://mariano17omega.github.io/Lain/
+repo_url: https://github.com/Mariano17omega/Lain
+repo_name: Mariano17omega/Lain
+docs_dir: docs
+strict: true
+validation:
+  nav: {omitted_files: warn}
+  links: {not_found: warn, anchors: warn, absolute_links: warn, unrecognized_links: warn}
+
+nav:
+  - index.md
+  - Getting started:
+      - installation.md
+      - quickstart.md
+      - config.md
+      - folders.md
+      - workflow.md
+  - Features:
+      - features/index.md
+      - features/explorer.md
+      - features/detection.md
+      - features/viewer.md
+      - features/context-menu.md
+      - features/palette.md
+      - features/projects.md
+      - features/view3d.md
+      - features/adsorption-energy.md
+      - features/sync.md
+      - features/appearance.md
+      - features/log.md
+  - Plots:
+      - plots/index.md
+      - plots/bands.md
+      - plots/pdos.md
+      - plots/bands-dos.md
+      - plots/relax.md
+      - plots/scf.md
+      - plots/grids.md
+  - Create calculation:
+      - create-calc/index.md
+      - create-calc/scf.md
+      - create-calc/relax.md
+      - create-calc/vc-relax.md
+      - create-calc/bands.md
+      - create-calc/pdos.md
+      - create-calc/charge.md
+      - create-calc/charge-diff.md
+      - create-calc/slab.md
+      - create-calc/supercell.md
+      - create-calc/adsorption.md
+      - create-calc/adsorption-energy.md
+  - Cluster:
+      - ssh.md
+      - remote-mode.md
+  - Architecture:
+      - architecture/index.md
+      - architecture/layers.md
+      - architecture/detection.md
+      - architecture/calc-modules.md
+      - architecture/create-calc.md
+      - architecture/threading.md
+      - architecture/sync-cluster.md
+      - architecture/state.md
+      - architecture/ui-composition.md
+  - Development:
+      - code-map.md
+      - development.md
+  - Help:
+      - troubleshooting.md
+      - glossary.md
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: {icon: material/weather-sunny, name: Light mode}
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - tables
+  - attr_list
+  - md_in_html
+  - toc: {permalink: true}
+  - pymdownx.details
+  - pymdownx.tabbed: {alternate_style: true}
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: folder
+      fallback_to_default: false
+      languages:
+        - locale: pt
+          name: Português
+          build: true
+          default: true
+          site_name: "Lain: QE Studio"
+          nav_translations:
+            Getting started: Começando
+            Features: Funcionalidades
+            Plots: Gráficos
+            Create calculation: Criar cálculo
+            Cluster: Cluster
+            Architecture: Arquitetura
+            Development: Desenvolvimento
+            Help: Ajuda
+        - locale: en
+          name: English
+          build: true
+          site_name: "Lain: QE Studio"

@@ -1,0 +1,473 @@
+"""Calculation modules: what files a calculation type needs and how to plot it.
+
+Each module declares file *roles*. Detection fills roles in three passes (PRD §3):
+PRD naming globs verified by content → content only → neighbours (for the SCF output, which
+sometimes lives in a sibling ``*scf*`` folder). New calculation types are added by writing a
+module and registering it in :mod:`qe_studio.core.calculations`.
+"""
+
+from __future__ import annotations
+
+import fnmatch
+import os
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
+from enum import StrEnum
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Protocol, TypeVar
+
+from ...i18n import N_, _
+from ..project.compounds import AtomChoices, CompoundStore
+from ..sniff import FileKind, FileSniff
+from .listing import IGNORED_SUBDIRS, FolderListing, is_pdos_name
+from .load_cache import CACHE
+from .params import CommonParams, ParamField, RenderInfo, SectionDef
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure, FigureBase
+
+    from ..config import AppConfig
+    from ..plotting.session import PlotSession
+    from ..plotting.style import PlotStyle
+    from ..plotting.table import PlotTable
+    from ..project.folder_memory import FolderMemory
+    from ..project.grid_store import GridStore
+
+D = TypeVar("D")  # dataset a module loads (``None`` for detection-only modules)
+P = TypeVar("P", bound=CommonParams)  # the module's plot parameters
+AxesLimits = list[tuple[tuple[float, float], tuple[float, float]]]  # (xlim, ylim) per figure axes
+
+SniffFn = Callable[[Path], FileSniff]
+
+# Sibling folders ``infer_from_neighbours`` takes the SCF output from.
+NEIGHBOUR_PATTERN = "*scf*"
+
+
+def is_neighbour_scf(name: str, pattern: str = NEIGHBOUR_PATTERN) -> bool:
+    """Whether its siblings' detection reads a folder called ``name`` (shared by the two functions below)."""
+    return fnmatch.fnmatch(name.lower(), pattern)
+
+
+def neighbour_scf_folders(folder: Path, pattern: str = NEIGHBOUR_PATTERN) -> list[Path]:
+    """The sibling folders of ``folder`` (never itself) its detection takes an SCF output from."""
+    try:
+        return sorted(
+            p
+            for p in folder.parent.iterdir()
+            if p.is_dir() and p != folder and is_neighbour_scf(p.name, pattern)
+        )
+    except OSError:
+        return []
+
+
+def reads_from(key: Path, folder: Path) -> bool:
+    """Whether the detection of folder ``key`` may read files of ``folder`` (``folder`` has changed):
+    ``key`` lies inside it, or ``folder`` is a sibling SCF folder of ``key``. Pure: no disk, unlike
+    ``neighbour_scf_folders``, which it mirrors. See ``feeds_parent`` for the third reader."""
+    if key.is_relative_to(folder):
+        return True
+    return key != folder and key.parent == folder.parent and is_neighbour_scf(folder.name)
+
+
+def feeds_parent(folder: Path) -> bool:
+    """Whether the detection of ``folder.parent`` reads files of ``folder``: ``FolderListing.scan``
+    takes the PDOS files of the immediate subfolders that are not ignored (``<calc>/orbitals``).
+    Reads ``folder`` (one ``scandir``); one that cannot be read (gone, renamed: its files left
+    the parent) counts as feeding it."""
+    if IGNORED_SUBDIRS.match(folder.name):
+        return False
+    try:
+        return any(is_pdos_name(e.name) for e in os.scandir(folder) if e.is_file())
+    except OSError:
+        return True
+
+
+@dataclass(frozen=True)
+class Stores:
+    """The user stores a module may read and write (``CalculationModule.stored_params`` /
+    ``save_stored``). They live in the root's settings folder (spec 48), never in the (synced)
+    simulation folder: ``set_root`` before using them."""
+
+    compounds: CompoundStore
+    grids: GridStore | None = None  # the saved grids and their settings (spec 23)
+
+    def set_root(self, root: Path) -> None:
+        """The project root in force: the stores read and write its files (a no-op when unchanged)."""
+        self.compounds.set_root(root)
+        if self.grids is not None:
+            self.grids.set_root(root)
+
+    def pop_warnings(self) -> list[str]:
+        """Messages about stores that were corrupt, once each."""
+        grids = self.grids.pop_warning() if self.grids is not None else None
+        return [w for w in (self.compounds.pop_warning(), grids) if w]
+
+
+class Dataset(Protocol):
+    """What the UI reads from any loaded dataset."""
+
+    folder: Path
+    warnings: list[str]
+
+
+class LoadError(Exception):
+    """A detected calculation cannot be loaded for plotting (message shown to the user)."""
+
+
+class Method(StrEnum):
+    """How a file was assigned to its role. The value is the data (Portuguese, never shown); the UI
+    shows ``label``."""
+
+    NAME = N_("nome")
+    CONTENT = N_("conteúdo")
+    INFERRED = N_("inferido")
+    MANUAL = N_("manual")
+
+    @property
+    def label(self) -> str:
+        return _(self.value)
+
+
+@dataclass(frozen=True)
+class FileRole:
+    id: str
+    label: str
+    accepts: Callable[[FileSniff], bool]
+    globs: tuple[str, ...] = ()
+    required: bool = False
+    multiple: bool = False
+    anchor: bool = False
+
+
+def output_of(kind: FileKind, *calculations: str) -> Callable[[FileSniff], bool]:
+    def accepts(s: FileSniff) -> bool:
+        return s.kind is kind and (not calculations or s.calculation in calculations)
+
+    return accepts
+
+
+@dataclass
+class DetectionResult:
+    module: CalculationModule[Any, Any]
+    folder: Path
+    files: dict[str, list[Path]] = field(default_factory=dict)
+    methods: dict[str, Method] = field(default_factory=dict)
+    missing: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    # Results of other folders plotted together in one figure (bands + DOS, spec 22), in order.
+    parts: tuple[DetectionResult, ...] = ()
+    # A figure that belongs to no folder names itself (a grid, spec 23): the name keys its tab.
+    plot_name: str = ""
+
+    @property
+    def kind(self) -> str:
+        return self.module.kind
+
+    @property
+    def badge(self) -> str:
+        return self.module.badge
+
+    @property
+    def badge_token(self) -> str | None:
+        return self.module.badge_token
+
+    @property
+    def complete(self) -> bool:
+        return not self.missing
+
+    @property
+    def plottable(self) -> bool:
+        return self.module.plottable and self.complete
+
+    @property
+    def plot_target(self) -> Path:
+        """What a plot of this result shows (see ``CalculationModule.plot_target``)."""
+        return self.module.plot_target(self.folder, self.files)
+
+    @property
+    def targets(self) -> tuple[Path, ...]:
+        """Every folder (or file) the plot shows: its parts' (theirs too), or its own target."""
+        return tuple(t for part in self.parts for t in part.targets) or (self.plot_target,)
+
+    @property
+    def plot_id(self) -> str:
+        """What keys the plot's tab: its name, its target, or the targets of its parts joined by
+        ``|``."""
+        if self.plot_name:
+            return self.plot_name
+        if self.parts:
+            return "|".join(str(part.plot_target) for part in self.parts)
+        return str(self.plot_target)
+
+    @property
+    def method(self) -> Method:
+        """Least certain method used for any role (manual > inferred > content > name).
+
+        Roles without PRD naming globs can only be found by content and do not count.
+        """
+        used = {
+            method
+            for role_id, method in self.methods.items()
+            if method is not Method.CONTENT or self.module.role(role_id).globs
+        }
+        for method in (Method.MANUAL, Method.INFERRED, Method.CONTENT):
+            if method in used:
+                return method
+        return Method.NAME
+
+    def file(self, role: str) -> Path | None:
+        paths = self.files.get(role)
+        return paths[0] if paths else None
+
+    def role_label(self, role_id: str) -> str:
+        return self.module.role(role_id).label
+
+
+class CalculationModule(Generic[D, P]):
+    kind: ClassVar[str]
+    badge: ClassVar[str]
+    display_name: ClassVar[str]
+    # One short sentence for the badge tooltip (spec 18 R3); the UI never keeps its own table.
+    description: ClassVar[str] = ""
+    roles: ClassVar[tuple[FileRole, ...]]
+    plottable: ClassVar[bool] = False
+    fallback: ClassVar[bool] = False  # informational badge, only when no primary kind matched
+    # Theme token family ``badge_<token>_{bg,fg,border}``; None = the generic ``other`` colors.
+    badge_token: ClassVar[str | None] = None
+    # Parameters the plot toolbar's Reset restores from the defaults (axis limits).
+    view_fields: ClassVar[tuple[str, ...]] = ()
+    # Own sections of the tuning panel as (section, id of the one to insert before); see
+    # ``ordered_sections``.
+    sections: ClassVar[tuple[tuple[SectionDef, str | None], ...]] = ()
+    # Role whose single file can be plotted on its own (right-click "Plotar"); see ``module_for_file``.
+    single_file_role: ClassVar[str | None] = None
+    # Label and tooltip of the top bar button that plots the open output (spec 35 R4).
+    plot_file_label: ClassVar[str] = _("Plotar")
+    plot_file_tip: ClassVar[str] = _("Plotar o arquivo aberto")
+    # Offered in the manual mapping dialog. False for figures built from other results (spec 22).
+    selectable: ClassVar[bool] = True
+    # Parameters kept in ``<folder>/plots/<kind>.plot``. False: edits go to ``save_stored`` (grid).
+    plot_file: ClassVar[bool] = True
+    # Can be a cell of a grid (spec 23); a grid cannot.
+    grid_cell: ClassVar[bool] = True
+    # Preview drawn off the GUI thread (``core/plotting/offscreen.py``): a figure too slow to draw there.
+    render_in_worker: ClassVar[bool] = False
+    # ``table`` gives the plotted data: an export also writes a CSV of it (spec 32 R4).
+    has_table: ClassVar[bool] = False
+
+    def role(self, role_id: str) -> FileRole:
+        return next(r for r in self.roles if r.id == role_id)
+
+    def badge_tooltip(self) -> str:
+        """The name and the sentence the badge tooltip shows (two lines)."""
+        return f"{self.display_name}\n{self.description}" if self.description else self.display_name
+
+    # -- detection -----------------------------------------------------------------------
+    def match(
+        self,
+        listing: FolderListing,
+        sniffs: dict[Path, FileSniff],
+        sniff: SniffFn,
+        forced: dict[str, list[Path]] | None = None,
+    ) -> DetectionResult | None:
+        """Fill roles from ``listing``; None when no anchor role is present.
+
+        ``sniffs`` holds the sniff of every file of ``listing``, computed once for all modules
+        (``detection.detect_folder``); ``sniff`` answers for other files (neighbour folders,
+        mapped files). ``forced`` holds user-mapped files (manual mapping), which take precedence.
+        """
+        if not forced and not any(r.anchor for r in self.roles):
+            return None  # never detected on its own: skip the scan
+        result = DetectionResult(self, listing.folder)
+        for role_id, paths in (forced or {}).items():
+            existing = [p for p in paths if p.is_file()]
+            if existing and any(r.id == role_id for r in self.roles):
+                result.files[role_id] = existing
+                result.methods[role_id] = Method.MANUAL
+        for role in self.roles:
+            if role.id in result.files:
+                continue
+            named = [
+                p
+                for p in listing.files
+                if role.accepts(sniffs[p]) and _glob_match(listing.relative(p), role.globs)
+            ]
+            candidates, method = (named, Method.NAME)
+            if not named:
+                candidates = [p for p in listing.files if role.accepts(sniffs[p])]
+                method = Method.CONTENT
+            if candidates:
+                chosen = self.select(role, candidates, sniffs, result)
+                if chosen:
+                    result.files[role.id] = chosen
+                    result.methods[role.id] = method
+        if not forced and not any(r.anchor and r.id in result.files for r in self.roles):
+            return None
+        self.finalize(result, listing, sniffs, sniff)
+        result.missing = [r.id for r in self.roles if r.required and r.id not in result.files] + [
+            m for m in result.missing if m not in result.files
+        ]
+        result.missing = list(dict.fromkeys(result.missing))
+        for paths in result.files.values():
+            for path in paths:
+                s = sniffs.get(path) or sniff(path)
+                result.warnings.extend(f"{path.name}: {w}" for w in s.warnings)
+        result.warnings = list(dict.fromkeys(result.warnings))
+        return result
+
+    def select(
+        self,
+        role: FileRole,
+        candidates: list[Path],
+        sniffs: dict[Path, FileSniff],
+        result: DetectionResult,
+    ) -> list[Path]:
+        """Pick the file(s) for ``role``; default = most complete, newest, shortest name."""
+        if role.multiple:
+            return sorted(candidates)
+        return [max(candidates, key=lambda p: _rank(p, sniffs[p]))]
+
+    def finalize(
+        self,
+        result: DetectionResult,
+        listing: FolderListing,
+        sniffs: dict[Path, FileSniff],
+        sniff: SniffFn,
+    ) -> None:
+        """Hook for cross-role logic (inferred files, extra requirements, warnings)."""
+
+    def infer_from_neighbours(
+        self,
+        result: DetectionResult,
+        role_id: str,
+        sniff: SniffFn,
+        pattern: str = NEIGHBOUR_PATTERN,
+    ) -> None:
+        """Look for ``role_id`` in the parent folder and sibling folders matching ``pattern``."""
+        if role_id in result.files:
+            return
+        role = self.role(role_id)
+        places = [result.folder.parent, *neighbour_scf_folders(result.folder, pattern)]
+        candidates = []
+        for place in places:
+            try:
+                candidates += [p for p in place.iterdir() if p.is_file() and role.accepts(sniff(p))]
+            except OSError:
+                continue
+        if candidates:
+            result.files[role_id] = [max(candidates, key=lambda p: _rank(p, sniff(p)))]
+            result.methods[role_id] = Method.INFERRED
+
+    # -- plotting (implemented by plottable modules) ------------------------------------------
+    def default_params(self, config: AppConfig, dataset: D) -> P:
+        raise NotImplementedError
+
+    def param_schema(self, dataset: D) -> list[ParamField]:
+        raise NotImplementedError
+
+    def param_changed(self, dataset: D, params: P, name: str, old: Any) -> None:
+        """Hook to adjust dependent parameters after the user edits ``name``."""
+
+    def plot_target(self, folder: Path, files: dict[str, list[Path]]) -> Path:
+        """What one plot shows, and so what keys its tab: the folder, or one file for modules
+        that plot a single output (several of them can then be open from the same folder)."""
+        return folder
+
+    def plot_title(self, target: Path, dataset: D) -> str:
+        """The title of the plot's tab."""
+        return f"{self.display_name} · {target.name}"
+
+    def export_stem(self, params: P) -> str:
+        """File name (without extension) of the exported figure in ``plots/``."""
+        return self.kind
+
+    def table(self, dataset: D, params: P) -> PlotTable | None:
+        """What the figure plots, as columns (the CSV an export writes next to it; spec 32 R4):
+        the values as drawn, whole (the view's limits do not cut them). None: no data to give;
+        a module that returns one also sets ``has_table``, which the export plan reads without
+        computing it."""
+        return None
+
+    def load(self, result: DetectionResult, sniff: SniffFn) -> D:
+        """Read the dataset of ``result``. ``sniff`` is the caller's cache (the detection
+        service's in the app), which already holds the sniffs of the detected files."""
+        raise NotImplementedError
+
+    def render(self, figure: FigureBase, dataset: D, params: P, style: PlotStyle) -> RenderInfo:
+        raise NotImplementedError
+
+    # -- view hooks: keep the UI free of per-module knowledge ----------------------------------
+    def apply_limits(self, params: P, axes_limits: AxesLimits) -> None:
+        """Store the toolbar pan/zoom in ``params`` so edits and exports keep it.
+
+        ``axes_limits`` holds ``(xlim, ylim)`` of every axes of the figure, in ``figure.axes``
+        order. Default: the view is not stored.
+        """
+
+    def legacy_params(self, params: P, folder: Path, memory: FolderMemory) -> None:
+        """Apply older ``FolderMemory`` data when there is no ``<kind>.plot`` yet."""
+
+    def format_coordinates(self, x: float, y: float, axes_index: int, dataset: D, params: P) -> str:
+        """Cursor readout over axes number ``axes_index``."""
+        return f"x = {x:.4g} · y = {y:.4g}"
+
+    def axes_routes(self, figure: Figure, dataset: D) -> list[tuple[PlotSession, int]] | None:
+        """For a figure made of other plots (a grid): the session and the index there of every axes
+        of ``figure`` (readout, pan/zoom and Reset go to them). None: the axes are this plot's own."""
+        return None
+
+    def series_colors(self, dataset: D, params: P, style: PlotStyle) -> dict[str, str]:
+        """Color of every series, for modules with a ``"series"`` parameter field."""
+        return {}
+
+    def default_labels(self, dataset: D) -> list[str]:
+        """Labels shown as the placeholder of a ``"labels"`` parameter field."""
+        return []
+
+    def atoms_of(self, dataset: D) -> AtomChoices | None:
+        """The atoms a plot can be restricted to (spec 21) or None for a module without atoms. An
+        empty ``sites`` means they could not be read: the picker is offered but disabled."""
+        return None
+
+    def stored_params(self, dataset: D, stores: Stores) -> dict[str, Any]:
+        """Parameter values kept in ``stores`` instead of ``<kind>.plot`` (fields declared with
+        ``metadata={"store": ...}``); applied over the defaults, before the ``.plot``."""
+        return {}
+
+    def save_stored(self, dataset: D, params: P, name: str, stores: Stores) -> None:
+        """The user edited ``name``, a parameter kept in ``stores``: save it there."""
+
+    def load_cached(self, result: DetectionResult, sniff: SniffFn) -> D:
+        """``load`` memoized on the files' (mtime, size), within a memory budget and loaded once
+        per key (``load_cache``); safe to call from worker threads."""
+        key = (
+            self.kind,
+            tuple(
+                sorted(
+                    (role, tuple(_stamp(p) for p in paths)) for role, paths in result.files.items()
+                )
+            ),
+        )
+        files = [p for paths in result.files.values() for p in paths]
+        return CACHE.get_or_load(key, files, lambda: self.load(result, sniff))
+
+
+def _stamp(path: Path) -> tuple[str, int, int]:
+    try:
+        stat = path.stat()
+    except OSError:
+        return (str(path), 0, 0)
+    return (str(path), stat.st_mtime_ns, stat.st_size)
+
+
+def _glob_match(relative: str, globs: Sequence[str]) -> bool:
+    lowered = relative.lower()
+    return any(fnmatch.fnmatch(lowered, g.lower()) for g in globs)
+
+
+def _rank(path: Path, s: FileSniff) -> tuple[bool, float, int]:
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    return (s.job_done is not False, mtime, -len(path.name))

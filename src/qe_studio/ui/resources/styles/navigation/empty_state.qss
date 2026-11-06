@@ -1,0 +1,13 @@
+/* Empty state over the tree and the grid: first run, or a project folder that is gone. */
+#emptyState {
+    background: ${workspace};
+}
+#emptyState QLabel[variant="emptyTitle"] {
+    font-size: 20px;
+    font-weight: 600;
+    color: ${text};
+}
+#emptyState QLabel[variant="emptyText"] {
+    font-size: 13px;
+    color: ${text_secondary};
+}

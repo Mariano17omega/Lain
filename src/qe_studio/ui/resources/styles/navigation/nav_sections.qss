@@ -1,0 +1,36 @@
+/* FAVORITOS / RECENTES above the explorer tree (spec 16 R4). */
+#navSection {
+    background: ${panel};
+    border-bottom: 1px solid ${border};
+}
+QToolButton[variant="sectionHeader"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    font-weight: 600;
+    color: ${text_secondary};
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 3px 7px;
+    text-align: left;
+}
+QToolButton[variant="sectionHeader"]:hover {
+    background: ${hover};
+}
+QListWidget#navList {
+    background: ${panel};
+    border: none;
+    outline: none;
+    font-size: 12px;
+    color: ${text};
+}
+QListWidget#navList::item {
+    padding: 0 5px;
+    border: 1px solid transparent;
+}
+QListWidget#navList::item:hover {
+    background: ${hover};
+}
+QListWidget#navList::item:selected {
+    background: ${accent_soft};
+    color: ${accent_text};
+}

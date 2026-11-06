@@ -1,0 +1,7 @@
+ &bands
+    prefix  = 'ni'
+    filband = 'bands_up.dat'
+    spin_component = 1
+    lsym=.true.
+    outdir='./tmp'
+/

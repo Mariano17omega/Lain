@@ -1,0 +1,215 @@
+"""The test SSH server itself: authentication, command allowlist, failure modes, shutdown.
+
+Driven with a paramiko client, so these run without the ``ssh`` and ``rsync`` binaries.
+"""
+
+import shlex
+import socket
+from contextlib import closing
+
+import paramiko
+import pytest
+
+from ssh_server import PASSWORD, USER, LocalSSHServer
+
+
+@pytest.fixture
+def server(ssh_keys, tmp_path):
+    root = tmp_path / "cluster"
+    root.mkdir()
+    workdir = tmp_path / "ssh"
+    workdir.mkdir()
+    server = LocalSSHServer(root, ssh_keys, workdir)
+    yield server
+    server.close()
+    assert not server.alive_threads()
+
+
+def connect(server, **auth) -> paramiko.SSHClient:
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(
+        server.host,
+        server.port,
+        username=auth.pop("username", USER),
+        allow_agent=False,
+        look_for_keys=False,
+        timeout=5,
+        **auth,
+    )
+    return client
+
+
+def run(client: paramiko.SSHClient, command: str) -> tuple[int, bytes, bytes]:
+    _stdin, stdout, stderr = client.exec_command(command)
+    out, err = stdout.read(), stderr.read()
+    return stdout.channel.recv_exit_status(), out, err
+
+
+def test_public_key_auth_and_probe_command(server, ssh_keys):
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        assert client.get_transport().get_remote_server_key() == ssh_keys.host_key
+        assert run(client, "echo hello 'two words'") == (0, b"hello two words\n", b"")
+        assert run(client, "true")[0] == 0
+    assert [(r.user, r.method, r.command, r.status) for r in server.log] == [
+        (USER, "publickey", "echo hello 'two words'", 0),
+        (USER, "publickey", "true", 0),
+    ]
+
+
+def test_password_auth(server):
+    with closing(connect(server, password=PASSWORD)) as client:
+        assert run(client, "echo ok")[0] == 0
+    assert server.log[0].method == "password"
+    assert server.attempts[-1].accepted
+
+
+def test_wrong_password_and_wrong_user_are_rejected(server):
+    with pytest.raises(paramiko.AuthenticationException):
+        connect(server, password="nope")
+    with pytest.raises(paramiko.AuthenticationException):
+        connect(server, username="someone-else", password=PASSWORD)
+    assert [a.accepted for a in server.attempts] == [False, False]
+    assert server.log == []
+
+
+def test_unknown_client_key_is_rejected(server, ssh_keys):
+    with pytest.raises(paramiko.AuthenticationException):
+        connect(server, pkey=ssh_keys.other_host_key)
+
+
+def test_reject_auth_fails_every_method(server, ssh_keys):
+    server.reject_auth = True
+    with pytest.raises(paramiko.AuthenticationException):
+        connect(server, password=PASSWORD)
+    with pytest.raises(paramiko.AuthenticationException):
+        connect(server, pkey=ssh_keys.client_key)
+
+
+def test_command_outside_the_allowlist_is_refused_not_run(server, ssh_keys):
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        status, out, err = run(client, "touch should-not-exist")
+        assert (status, out) == (127, b"")
+        assert b"not allowed" in err
+        assert run(client, "sh -c 'touch should-not-exist'")[0] == 127
+        assert run(client, "echo fine; touch should-not-exist")[1:] == (
+            b"fine; touch should-not-exist\n",
+            b"",
+        )  # no shell: the ';' is just an argument of echo
+    assert not (server.root / "should-not-exist").exists()
+    assert server.commands() == ["echo fine; touch should-not-exist"]
+    assert len(server.commands(allowed_only=False)) == 3
+    assert [r.allowed for r in server.log] == [False, False, True]
+
+
+def test_rsync_server_commands_run_in_the_served_folder(server, ssh_keys, monkeypatch):
+    # Not a real transfer: ``rsync --server`` with no valid options exits with an error,
+    # which proves it was started (and not refused with 127).
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        status, _out, _err = run(client, "rsync --server --no-such-option .")
+    assert status not in (0, 127)
+    assert server.log[0].allowed
+
+
+def test_a_push_makes_its_folder_inside_the_served_one_then_runs_rsync(server, ssh_keys):
+    """spec 27: ``--rsync-path="mkdir -p <dir> && rsync"`` is the one compound command."""
+    target = server.root / "proj" / "bandas Al_1"
+    command = f"mkdir -p {shlex.quote(str(target))} && rsync --server --version"
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        assert run(client, command)[0] == 0  # rsync ran (a refusal is 127)
+        assert run(client, "mkdir -p proj/relative && rsync --server --version")[0] == 0
+    assert target.is_dir() and (server.root / "proj" / "relative").is_dir()
+    assert server.commands() == [command, "mkdir -p proj/relative && rsync --server --version"]
+
+
+def test_a_push_folder_outside_the_served_one_is_refused(server, ssh_keys, tmp_path):
+    outside = tmp_path / "outside"
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        for command in (
+            f"mkdir -p {outside} && rsync --server --version",
+            "mkdir -p ../escape && rsync --server --version",
+            "mkdir -p inside && touch should-not-exist",  # only rsync may follow the mkdir
+            "rm -rf x && rsync --server --version",
+            "mkdir -p a b && rsync --server --version",
+        ):
+            status, _out, err = run(client, command)
+            assert status == 127 and b"not allowed" in err, command
+    assert not outside.exists() and not (tmp_path / "escape").exists()
+    assert not (server.root / "inside").exists() and not (server.root / "a").exists()
+    assert server.commands() == [] and len(server.commands(allowed_only=False)) == 5
+
+
+def test_cd_then_commands_run_in_that_folder_until_one_fails(ssh_keys, tmp_path):
+    """spec 69 R5: ``cd <dir> && A && B``, every part allowed, run in ``<dir>``."""
+    root, workdir = tmp_path / "cluster", tmp_path / "ssh"
+    (root / "Bands").mkdir(parents=True)
+    workdir.mkdir()
+    commands = {"pwd": ["pwd"], "false": ["false"]}
+    with LocalSSHServer(root, ssh_keys, workdir, commands=commands) as server:
+        with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+            status, out, _err = run(client, f"cd {root / 'Bands'} && pwd && echo done")
+            assert (status, out.decode()) == (0, f"{(root / 'Bands').resolve()}\ndone\n")
+            assert run(client, "cd Bands && false && echo never")[:2] == (1, b"")
+        assert server.commands()[-1] == "cd Bands && false && echo never"
+
+
+def test_a_cd_outside_the_folder_or_a_part_not_allowed_runs_nothing(server, ssh_keys, tmp_path):
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        for command in (
+            f"cd {tmp_path} && echo escaped",
+            "cd ../ && echo escaped",
+            "cd . && echo before && touch should-not-exist",  # one part refused: nothing runs
+            "cd . && && echo empty",
+        ):
+            status, out, err = run(client, command)
+            assert (status, out) == (127, b"") and b"not allowed" in err, command
+    assert not (server.root / "should-not-exist").exists()
+    assert server.commands() == [] and len(server.commands(allowed_only=False)) == 4
+
+
+def test_drop_after_bytes_cuts_the_channel_without_exit_status(server, ssh_keys):
+    server.drop_after_bytes = 100
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        _stdin, stdout, _stderr = client.exec_command("echo " + "x" * 5000)
+        assert len(stdout.read()) == 100
+        assert stdout.channel.recv_exit_status() == -1  # connection ended with no status
+    assert server.log[0].status is None
+
+
+def test_stall_banner_accepts_tcp_and_stays_silent(server):
+    server.stall_banner = True
+    with socket.create_connection((server.host, server.port), timeout=2) as sock:
+        sock.settimeout(0.5)
+        with pytest.raises(TimeoutError):
+            sock.recv(1)
+
+
+def test_max_sessions_refuses_a_session_over_the_limit(server, ssh_keys):
+    """sshd's ``MaxSessions`` (spec 72 R4.5): only the open sessions of a connection count."""
+    server.max_sessions = 1
+    with closing(connect(server, pkey=ssh_keys.client_key)) as client:
+        assert run(client, "true")[0] == 0
+        assert run(client, "echo again")[:2] == (0, b"again\n")  # the first one ended
+        transport = client.get_transport()
+        assert transport is not None
+        transport.open_session()  # held open
+        with pytest.raises(paramiko.ChannelException):
+            transport.open_session()
+    assert server.commands() == ["true", "echo again"]
+
+
+def test_close_stops_everything(ssh_keys, tmp_path):
+    (tmp_path / "root").mkdir()
+    (tmp_path / "work").mkdir()
+    server = LocalSSHServer(tmp_path / "root", ssh_keys, tmp_path / "work")
+    server.stall_banner = True
+    stalled = socket.create_connection((server.host, server.port), timeout=2)
+    server.stall_banner = False
+    client = connect(server, pkey=ssh_keys.client_key)
+    assert run(client, "true")[0] == 0
+    server.close()
+    stalled.close()
+    client.close()
+    assert server.alive_threads() == []
+    with pytest.raises(OSError):
+        socket.create_connection((server.host, server.port), timeout=1)

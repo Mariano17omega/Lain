@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Lain
+GenericName=QE Studio
+Comment=Browse, sync and plot Quantum ESPRESSO simulations
+Exec=lain
+Icon=lain
+Terminal=false
+Categories=Science;Physics;Education;
+Keywords=Quantum ESPRESSO;DFT;band structure;PDOS;
+StartupWMClass=lain
+StartupNotify=true

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Lain: QE Studio</title>
+  <!-- A band gap: valence band (hill), conduction band (valley) and the Fermi level between them.
+       Colours are the plot defaults of the app (plot.band_colors, plot.fermi_color). -->
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="#0b0e14" stroke="#252a31" stroke-width="6"/>
+  <path d="M 44 36 C 88 36, 100 84, 128 84 C 156 84, 168 36, 212 36" fill="none" stroke="#00d2ff" stroke-width="18" stroke-linecap="round"/>
+  <path d="M 44 220 C 88 220, 100 144, 128 144 C 156 144, 172 220, 212 220" fill="none" stroke="#2563eb" stroke-width="18" stroke-linecap="round"/>
+  <path d="M 52 114 H 204" fill="none" stroke="#f43f5e" stroke-width="10" stroke-linecap="round" stroke-dasharray="1 22"/>
+</svg>

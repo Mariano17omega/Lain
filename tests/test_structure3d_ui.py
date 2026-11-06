@@ -1,0 +1,240 @@
+"""Spec 43 R4: "Visualização 3D" in the context menu of pw.x inputs, a new window per click with its
+own settings, and the windows closed with the main one."""
+
+import shutil
+
+import pytest
+from PyQt6 import sip
+from PyQt6.QtCore import QPoint
+from PyQt6.QtWidgets import QMenu
+
+from qe_studio.core.structure3d.options import DisplayOptions
+from structure3d_helpers import SI_SCF, SLAB_2X1, Windows, read_structure
+
+from conftest import FIXTURES
+
+ITEM = "Visualização 3D"
+XCRYSDEN = "Abrir com XCrysDen"  # spec 45: next to it, disabled without paths.xcrysden_path
+MENU = ["Abrir local de origem", "Abrir com", "Copiar", "Renomear"]
+
+
+@pytest.fixture
+def si_folder(demo_project):
+    folder = demo_project / "05_si"
+    shutil.copytree(FIXTURES / "si_bands", folder)
+    return folder
+
+
+def texts(menu) -> list[str]:
+    return [a.text() for a in menu.actions() if not a.isSeparator()]
+
+
+def menu_of(window, monkeypatch, *paths) -> QMenu:
+    shown = []
+    monkeypatch.setattr(QMenu, "exec", lambda menu, pos: shown.append(menu))
+    window._show_item_menu(list(paths), QPoint())
+    return shown[-1]
+
+
+def open_from_menu(qtbot, window, monkeypatch, path):
+    def trigger(menu, pos):
+        next(a for a in menu.actions() if a.text() == ITEM).trigger()
+
+    monkeypatch.setattr(QMenu, "exec", trigger)
+    with qtbot.waitSignal(window.structure3d.opened, timeout=10_000) as blocker:
+        window._show_item_menu([path], QPoint())
+    return blocker.args[0]
+
+
+@pytest.fixture
+def closing(main_window):
+    """Closes every 3D window the test leaves open (the main window's teardown does too)."""
+    yield main_window
+    main_window.structure3d.close_dialog()
+
+
+def test_the_item_is_only_in_pw_inputs(main_window, si_folder, monkeypatch):
+    window = main_window
+    window.service.detect_now(si_folder)  # the sniffs the menu reads
+    scf = menu_of(window, monkeypatch, si_folder / "si.scf.in")
+    assert texts(scf) == [ITEM, "Gerar CIF", XCRYSDEN, *MENU]  # spec 74: only an SCF input
+    assert scf.actions()[3].isSeparator()
+    bands = menu_of(window, monkeypatch, si_folder / "si.band.in")  # pw.x, calculation = 'bands'
+    assert texts(bands) == [ITEM, XCRYSDEN, *MENU]
+    for path in (si_folder / "si.scf.out", si_folder / "bands.in"):  # an output, a bands.x input
+        assert ITEM not in texts(menu_of(window, monkeypatch, path)), path.name
+    assert ITEM not in texts(menu_of(window, monkeypatch, si_folder))
+    two = menu_of(window, monkeypatch, si_folder / "si.scf.in", si_folder / "si.band.in")
+    assert ITEM not in texts(two)
+
+
+def test_the_item_comes_after_resumo_and_before_the_converged_scf(main_window, si_folder):
+    menu = main_window.item_actions.menu(
+        si_folder / "si.scf.in", summary=True, structure=True, scf=""
+    )
+    assert texts(menu)[:3] == ["Resumo", ITEM, "Gerar SCF convergido"]
+    assert menu.actions()[3].isSeparator()
+
+
+def test_an_unsniffed_input_has_no_item_and_asks_for_detection(main_window, si_folder, monkeypatch):
+    requested = []
+    monkeypatch.setattr(main_window.service, "file_sniff", lambda path: None)
+    monkeypatch.setattr(main_window.service, "results", lambda folder: requested.append(folder))
+    assert texts(menu_of(main_window, monkeypatch, si_folder / "si.scf.in")) == MENU
+    assert requested == [si_folder]
+
+
+def test_the_item_opens_a_window(qtbot, closing, si_folder, monkeypatch):
+    window = closing
+    window.service.detect_now(si_folder)
+    view = open_from_menu(qtbot, window, monkeypatch, si_folder / "si.scf.in")
+    assert view.windowTitle() == "si.scf.in — 05_si · Visualização 3D"
+    assert view.info.text() == "si.scf.in · Si2 · nat = 2 · ibrav = 2"
+    assert view.parent() is None and view.isVisible()
+    assert view.width() == 1280 and view.height() == 820
+    assert window.structure3d.windows == [view]
+    assert view.canvas.options.background == "escuro"  # the app theme when it opened
+
+
+def test_each_click_is_a_window_with_its_own_settings(qtbot, closing, si_folder, monkeypatch):
+    window = closing
+    window.service.detect_now(si_folder)
+    first = open_from_menu(qtbot, window, monkeypatch, si_folder / "si.scf.in")
+    second = open_from_menu(qtbot, window, monkeypatch, si_folder / "si.scf.in")
+    assert first is not second and window.structure3d.windows == [first, second]
+    zoom = second.canvas.camera.zoom
+    first.panel.radius.setValue(2.0)
+    first.panel.swatches[0].color_changed.emit("#ff00ff")
+    first.canvas.camera.zoom *= 3
+    assert second.canvas.options.radius_scale == 1.0
+    assert second.canvas.options.species_colors == {}
+    assert second.canvas.camera.zoom == pytest.approx(zoom)
+    assert second.panel.radius.value() == 1.0
+
+
+def test_a_file_that_cannot_be_read_gives_a_toast_and_no_window(
+    qtbot, closing, tmp_path, monkeypatch
+):
+    window = closing
+    broken = tmp_path / "quebrado.in"
+    broken.write_text(
+        (FIXTURES / "si_bands" / "si.scf.in").read_text().split("ATOMIC_POSITIONS")[0]
+    )
+    toasts = []
+    monkeypatch.setattr(window.toast, "show_message", lambda *args: toasts.append(args))
+    with qtbot.waitSignal(window.structure3d.failed, timeout=10_000) as blocker:
+        window.structure3d.open(broken)
+    message = (
+        "Visualização 3D de quebrado.in: Estrutura de quebrado.in ilegível: sem ATOMIC_POSITIONS"
+    )
+    assert blocker.args == [message]
+    assert toasts == [(message, "warning")]
+    assert window.structure3d.windows == []
+
+
+def test_closing_a_window_drops_it(qtbot, closing, si_folder):
+    controller = closing.structure3d
+    with qtbot.waitSignal(controller.opened, timeout=10_000) as blocker:
+        controller.open(si_folder / "si.scf.in")
+        assert closing.status.busy.text().startswith("Lendo estrutura…")  # the footer spinner
+    assert closing.status.busy.isHidden()
+    blocker.args[0].close()
+    assert controller.windows == []
+
+
+def test_closing_the_main_window_closes_them_all(qtbot, main_window, si_folder):
+    controller = main_window.structure3d
+    opened = []
+    for _ in range(2):
+        with qtbot.waitSignal(controller.opened, timeout=10_000) as blocker:
+            controller.open(si_folder / "si.scf.in")
+        opened.append(blocker.args[0])
+    assert controller.close_dialog() is True
+    assert controller.windows == []
+    assert all(sip.isdeleted(w) or not w.isVisible() for w in opened)
+    with qtbot.waitSignal(controller.opened, timeout=10_000) as blocker:
+        controller.open(si_folder / "si.scf.in")
+    main_window.close()
+    assert controller.windows == []
+
+
+def test_print_names_the_file_from_the_project_root(qtbot, closing, si_folder, monkeypatch):
+    """Spec 46 R5.5: ``demo_project`` is the root, so the name starts with the folder of the input."""
+    window = closing
+    window.service.detect_now(si_folder)
+    view = open_from_menu(qtbot, window, monkeypatch, si_folder / "si.scf.in")
+    with qtbot.waitSignal(view.image_saved, timeout=10_000) as saved:
+        view.print_button.click()
+    assert saved.args[0] == si_folder / "plots" / "05_si-si.scf-3d.png"
+    assert saved.args[0].read_bytes().startswith(b"\x89PNG")
+    # "Recarregar config.yaml" may move the root: it is asked at every click
+    assert window.structure3d.root() == window.config.paths.local_root
+
+
+def test_print_is_not_written_into_the_fixtures(qtbot, closing, si_folder, monkeypatch):
+    window = closing
+    window.service.detect_now(si_folder)
+    view = open_from_menu(qtbot, window, monkeypatch, si_folder / "si.scf.in")
+    with qtbot.waitSignal(view.image_saved, timeout=10_000):
+        view.print_button.click()
+    assert not (FIXTURES / "si_bands" / "plots").exists()
+
+
+# -- spec 88: the "Átomos fixos" button -------------------------------------------------------------
+
+
+@pytest.fixture
+def windows(qtbot):
+    opened = Windows(qtbot)
+    yield opened
+    opened.close_all()
+
+
+def test_the_button_turns_the_rings_on_and_off(windows):
+    window = windows.open(SLAB_2X1)
+    button, canvas = window.fixed_button, window.canvas
+    assert button.text() == "Átomos fixos" and button.isCheckable()
+    assert button.isEnabled() and not button.isChecked()
+    assert button.toolTip() == "Destacar os átomos com if_pos 0 no input (28 de 68)"
+    layout = button.parentWidget().layout()
+    assert layout.indexOf(button) == layout.indexOf(window.view_button) + 1
+    assert layout.indexOf(window.print_button) == layout.indexOf(button) + 1
+
+    canvas.grab()
+    without = canvas.stats.primitives
+    canvas.dirty = False
+    button.click()
+    assert button.isChecked() and canvas.options.show_fixed is True
+    assert canvas.dirty  # the view is saved on close (spec 47)
+    canvas.grab()
+    assert canvas.stats.primitives >= without + 28
+    button.click()
+    assert not button.isChecked() and canvas.options.show_fixed is False
+    canvas.grab()
+    assert canvas.stats.primitives == without
+
+
+def test_a_saved_choice_opens_with_the_button_on(windows):
+    window = windows.open(SLAB_2X1, options=DisplayOptions(show_fixed=True))
+    assert window.fixed_button.isEnabled() and window.fixed_button.isChecked()
+
+
+def test_an_input_without_fixed_atoms_says_why_the_button_is_off(windows):
+    window = windows.open(SI_SCF)
+    button = window.fixed_button
+    assert not button.isEnabled() and not button.isChecked()
+    assert button.toolTip() == "Este input não fixa nenhum átomo (if_pos)"
+    button.click()  # disabled: nothing
+    assert window.canvas.options.show_fixed is False
+
+
+def test_another_structure_updates_the_button_and_keeps_the_option(windows):
+    window = windows.open(SLAB_2X1)
+    button, options = window.fixed_button, window.canvas.options
+    button.click()
+    window.show_structure(read_structure(SI_SCF))
+    assert not button.isEnabled() and not button.isChecked()
+    assert options.show_fixed is True
+    window.show_structure(read_structure(SLAB_2X1))
+    assert button.isEnabled() and button.isChecked()
+    assert "(28 de 68)" in button.toolTip()

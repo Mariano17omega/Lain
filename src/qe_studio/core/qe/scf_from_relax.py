@@ -1,0 +1,224 @@
+"""An SCF at the relaxed structure of a converged relax / vc-relax (spec 24 R3.3, R4).
+
+"Gerar SCF convergido" writes ``scf_convergido_<prefix>.in`` next to the output: the relax input
+with ``calculation = 'scf'``, without ``restart_mode``, ``nstep``, ``&IONS`` and ``&CELL``, and with
+the final positions (and, for a vc-relax, the final cell) as the output printed them. Everything
+else (pseudopotentials, ``K_POINTS``, cutoffs, ``prefix``, ``outdir``…) stays as written: the edits
+go through ``InputEditor``. The warnings say what that means (spec 27-6 R3): the same ``prefix`` and
+``outdir`` overwrite the relax's ``.save`` (always said), and a vc-relax's ``ibrav = 0`` cell leaves
+the symmetry to pw.x's tolerance.
+
+Whether the context menu offers it is decided from caches (``scf_availability``); the file is
+built in a worker (``generate_scf_file``).
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from ...i18n import _
+from ..files.unique_names import write_new
+from ..sniff import FileKind, FileSniff
+from .cell_card import set_cell
+from .final_structure import FinalStructure, read_final_structure
+from .input_edit import InputEditor, read_input_text
+from .pairing import same_name_input
+
+if TYPE_CHECKING:
+    from ..calculations.base import DetectionResult
+
+RELAX = ("relax", "vc-relax")
+SCF_STEM = "scf_convergido"
+SEP = "_"  # between the stem and the prefix (spec 24, assumed decision 1)
+DEFAULT_PREFIX = "pwscf"  # pw.x's when the input sets none
+DEFAULT_OUTDIR = "./"  # pw.x's without outdir (and without $ESPRESSO_TMPDIR)
+VC_RELAX_CELL = _(
+    "Cálculo vc-relax: a célula foi escrita com ibrav = 0; o pw.x detecta a simetria pela "
+    "tolerância numérica da célula final."
+)
+NO_INPUT = _("Input do relax não encontrado na pasta")
+_UNSAFE = re.compile(r"[\\/\0]")
+
+
+class ScfError(Exception):
+    """Why the SCF cannot be generated, in Portuguese: shown as is."""
+
+
+@dataclass(frozen=True)
+class ScfResult:
+    text: str
+    prefix: str | None
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class GeneratedScf:
+    path: Path
+    warnings: tuple[str, ...] = ()
+
+
+# -- what the menu offers (caches only) -------------------------------------------------------------
+def can_generate_scf(sniff: FileSniff | None) -> bool:
+    """A pw.x relax / vc-relax output whose geometry is known to have converged and whose run
+    ended. A huge output whose 1 MB tail missed the BFGS marker does not count (R3.3)."""
+    if sniff is None or sniff.kind is not FileKind.PW_OUT or sniff.pw is None:
+        return False
+    pw = sniff.pw
+    return sniff.calculation in RELAX and pw.geometry_converged is True and pw.job_done
+
+
+def pair_input(output: Path, results: Iterable[DetectionResult] | None) -> Path | None:
+    """The input of ``output``: the same name with ``.in`` (when it is a QE input), else the
+    ``relax_in`` of the folder's detection, if that result's output is this one."""
+    if (same := same_name_input(output)) is not None:
+        return same
+    for result in results or ():
+        found = result.file("relax_in")
+        if found is not None and result.file("relax_out") == output:
+            return found
+    return None
+
+
+def _not_relax(name: str, calculation: str | None) -> str:
+    return _("{name} não é um relax/vc-relax (calculation = '{value}')").format(
+        name=name, value=calculation or "scf"
+    )
+
+
+def pair_problem(pair: Path | None, sniff: FileSniff | None) -> str:
+    """Why the paired input cannot be used ("" when it can). A missing or unreadable sniff is no
+    objection: the worker reads the input anyway."""
+    if pair is None:
+        return NO_INPUT
+    if sniff is not None and sniff.kind is FileKind.PW_IN and sniff.calculation not in RELAX:
+        return _not_relax(pair.name, sniff.calculation)
+    if sniff is not None and sniff.kind not in (FileKind.PW_IN, FileKind.UNKNOWN):
+        return _("{name} não é um input do pw.x").format(name=pair.name)
+    return ""
+
+
+def scf_availability(
+    output: Path,
+    sniff: FileSniff | None,
+    results: Iterable[DetectionResult] | None,
+    sniff_of: Callable[[Path], FileSniff | None],
+) -> str | None:
+    """The "Gerar SCF convergido" item of ``output``: None hides it, "" enables it, and any other
+    text disables it with that tooltip. Reads caches, and at most the head of the paired input."""
+    if not can_generate_scf(sniff):
+        return None
+    pair = pair_input(output, results)
+    return pair_problem(pair, sniff_of(pair) if pair is not None else None)
+
+
+# -- the SCF ----------------------------------------------------------------------------------------
+def _int(text: str | None) -> int | None:
+    try:
+        return int(text) if text is not None else None
+    except ValueError:
+        return None
+
+
+def scf_from_relax(final: FinalStructure, in_text: str, name: str = _("O input")) -> ScfResult:
+    """The relax input ``in_text`` turned into an SCF at ``final``. Raises ``ScfError`` (nothing
+    to write) when the input is no relax or its ``nat`` disagrees with the output."""
+    editor = InputEditor.from_text(in_text)
+    calculation = (editor.get("control", "calculation") or "scf").lower()
+    if calculation not in RELAX:
+        raise ScfError(_not_relax(name, calculation))
+    nat, count = _int(editor.get("system", "nat")), len(final.positions.lines)
+    if nat != count:
+        raise ScfError(
+            _("nat = {value} no input, {count} posições na saída").format(
+                value=nat if nat is not None else "?", count=count
+            )
+        )
+
+    warnings = [_same_save_dir(editor)]
+    written = editor.raw("control", "calculation") or ""
+    quote = written[0] if written[:1] in ("'", '"') else "'"
+    editor.set("control", "calculation", f"{quote}scf{quote}")
+    for key in ("restart_mode", "nstep"):
+        editor.remove("control", key)
+    for namelist in ("ions", "cell"):
+        while editor.remove_namelist(namelist):  # every one: a repeated &ions too
+            pass
+    editor.replace_card("ATOMIC_POSITIONS", final.positions.unit, list(final.positions.lines))
+    if calculation == "vc-relax":
+        _final_cell(editor, final, warnings)
+    if editor.issues:
+        raise ScfError(_("Não foi possível montar o SCF: {issues}").format(issues=editor.issues[0]))
+    return ScfResult(editor.text(), editor.get("control", "prefix"), tuple(warnings))
+
+
+def _same_save_dir(editor: InputEditor) -> str:
+    """The SCF keeps the relax's ``prefix`` and ``outdir``: running it overwrites the relax's
+    ``<outdir>/<prefix>.save``. Said every time (spec 27-6 R3, decision 4)."""
+    prefix = (editor.get("control", "prefix") or "").strip() or DEFAULT_PREFIX
+    outdir = (editor.get("control", "outdir") or "").strip() or DEFAULT_OUTDIR
+    save = f"{outdir.rstrip('/')}/{prefix}.save"  # "/" stays "/"
+    return _(
+        "O SCF usa o mesmo prefix ({prefix}) e outdir do relax: rodá-lo regrava {save} e impede reiniciar o relax. Mude o prefix ou o outdir antes de rodar."
+    ).format(prefix=prefix, save=save)
+
+
+def _final_cell(editor: InputEditor, final: FinalStructure, warnings: list[str]) -> None:
+    """The vc-relax's cell as printed, with ibrav = 0 (decision 5 of the spec)."""
+    cell = final.cell
+    if cell is None:
+        raise ScfError(_("A saída não traz a célula final (CELL_PARAMETERS) do vc-relax"))
+    if final.positions.unit == "alat" and cell.unit != "alat":
+        raise ScfError(
+            _(
+                "Posições em alat com a célula em {unit}: o alat do SCF seria outro e o Lain não converte unidades"
+            ).format(unit=cell.unit)
+        )
+    if cell.unit == "alat" and cell.alat is None:
+        raise ScfError(_("CELL_PARAMETERS (alat) sem o valor de alat na saída"))
+    note = set_cell(editor, cell.unit, cell.rows, cell.alat, cell=_("a célula final"))
+    if note is not None:
+        warnings.append(note)
+    warnings.append(VC_RELAX_CELL)
+
+
+def scf_name(prefix: str | None) -> str:
+    """``scf_convergido_<prefix>.in`` (``pwscf`` without a prefix, as pw.x)."""
+    clean = _UNSAFE.sub("_", (prefix or "").strip()) or DEFAULT_PREFIX
+    return f"{SCF_STEM}{SEP}{clean}.in"
+
+
+def generate_scf_file(output: Path, results: Iterable[DetectionResult] | None) -> GeneratedScf:
+    """Write the SCF of ``output`` in its folder under the first free name (never over a file).
+    Raises ``ScfError`` and writes nothing when it cannot. Workers only: reads both files."""
+    pair = pair_input(output, results)
+    if pair is None:
+        raise ScfError(NO_INPUT)
+    try:
+        in_text = read_input_text(pair)
+        final = read_final_structure(output)
+    except OSError as exc:
+        name = Path(exc.filename).name if exc.filename else output.name
+        raise ScfError(
+            _("Não foi possível ler {name}: {value}").format(name=name, value=exc.strerror or exc)
+        ) from exc
+    if final is None:
+        raise ScfError(
+            _("{name} não tem o bloco final de coordenadas (Begin final coordinates)").format(
+                name=output.name
+            )
+        )
+    result = scf_from_relax(final, in_text, pair.name)
+    name = scf_name(result.prefix)
+    try:
+        path = write_new(output.parent / name, result.text)
+    except OSError as exc:
+        raise ScfError(
+            _("Não foi possível gravar {name}: {value}").format(
+                name=name, value=exc.strerror or exc
+            )
+        ) from exc
+    return GeneratedScf(path, result.warnings)

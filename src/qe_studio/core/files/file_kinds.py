@@ -1,0 +1,116 @@
+"""What a file is for the viewers and file panels: how it opens and the state it reports.
+
+``viewer_kind`` may read a file's head (a NUL byte means binary); ``status_label`` never reads:
+it runs while the file grid and the explorer paint.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+from ...i18n import N_, _
+from ..qe import projwfc
+from ..sniff import FileSniff, looks_like_input
+from .job_log import JOB_STDOUT
+
+TEXT_SUFFIXES = {
+    ".in", ".inp", ".out", ".log", ".txt", ".dat", ".gnu", ".md", ".markdown", ".yaml", ".yml",
+    ".json", ".xml", ".csv", ".py", ".sh", ".qsub", ".slurm", ".pbs", ".rap", ".xmgr", ".cif",
+    ".xsf", ".pwi", ".pwo", ".dos", ".upf", ".plot",
+}  # fmt: skip
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
+SVG_SUFFIXES = {".svg"}
+MARKDOWN_SUFFIXES = {".md", ".markdown"}  # rendered by the text viewer (spec 38 R1)
+# SGE job scripts: highlighted and checked (spec 38 R2); `.sh` is one entry away.
+SCRIPT_SUFFIXES = {".qsub"}
+# Queue logs: PBS/Torque/SGE stdout `job.o12345` and stderr `job.e12345`, job arrays `.o12345.1`.
+JOB_LOG = re.compile(r"^.+\.[oe]\d+(?:[.-]\d+)?$", re.IGNORECASE)
+
+
+def is_job_log(path: Path) -> bool:
+    return JOB_LOG.match(path.name) is not None
+
+
+def is_job_stdout(path: Path) -> bool:
+    return JOB_STDOUT.match(path.name) is not None
+
+
+def is_markdown(path: Path) -> bool:
+    return path.suffix.lower() in MARKDOWN_SUFFIXES
+
+
+def is_script(path: Path) -> bool:
+    return path.suffix.lower() in SCRIPT_SUFFIXES
+
+
+def viewer_kind(path: Path) -> str:
+    """``text``, ``image``, ``svg`` or ``external`` (opened by the desktop)."""
+    suffix = path.suffix.lower()
+    if suffix in IMAGE_SUFFIXES:
+        return "image"
+    if suffix in SVG_SUFFIXES:
+        return "svg"
+    if (
+        suffix in TEXT_SUFFIXES
+        or is_job_log(path)
+        or projwfc.parse_atm_name(path.name)
+        or path.name.endswith("pdos_tot")
+    ):
+        return "text"
+    if suffix == "":
+        try:
+            with open(path, "rb") as handle:
+                return "external" if b"\x00" in handle.read(4096) else "text"
+        except OSError:
+            return "external"
+    # An input with a suffix of its own (``si.pw``) is still text: its head says so (spec 11 R4.1).
+    return "text" if looks_like_input(path) else "external"
+
+
+def status_label(path: Path, size: int, sniff: FileSniff | None) -> tuple[str, str] | None:
+    """(label, level) for a file's state, or None; the level is ``success``, ``warning`` or
+    ``error``. Paint path: never reads the file.
+
+    QE outputs report whether the run finished. Queue logs are "SEM ERROS" when empty or when they
+    only list the job's machines (spec 85) and "ERRO" otherwise, unless they hold a redirected QE
+    output (then the QE label wins). A log with content not sniffed yet has no label, like a QE
+    output: a clean one must not flash "ERRO" until the detection ends.
+    """
+    if sniff is not None and sniff.is_output and sniff.job_done is not None:
+        if not sniff.job_done:
+            return N_("INCOMPLETO"), "warning"
+        return (N_("AVISO"), "warning") if sniff.warnings else (N_("OK"), "success")
+    if is_job_log(path):
+        if size == 0:
+            return N_("SEM ERROS"), "success"
+        if sniff is None:
+            return None
+        return (N_("SEM ERROS"), "success") if sniff.clean_job_log else (N_("ERRO"), "error")
+    return None
+
+
+STATE_TOOLTIPS = {
+    "OK": _("Execução concluída (JOB DONE)"),
+    "INCOMPLETO": _("Sem JOB DONE: job rodando ou interrompido"),
+    "ERRO": _("O job registrou mensagens de erro (o arquivo não é só a lista das máquinas do job)"),
+    "SEM ERROS": _("O job não registrou erros (arquivo vazio ou só com as máquinas do job)"),
+}
+
+
+def status_tooltip(label: str, sniff: FileSniff | None) -> str:
+    """What a ``status_label`` means, for its tooltip. AVISO lists the sniff's warnings, one per
+    line. Never reads the file."""
+    if label == "AVISO":
+        warnings = sniff.warnings if sniff is not None else ()
+        return "\n".join(warnings) or _("Execução concluída com avisos")
+    return STATE_TOOLTIPS.get(label, "")
+
+
+def human_size(size: int) -> str:
+    value = float(size)
+    for unit in ("B", "KB", "MB", "GB"):
+        if value < 1024 or unit == "GB":
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} TB"

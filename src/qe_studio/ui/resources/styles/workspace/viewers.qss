@@ -1,0 +1,200 @@
+/* Text and image viewers. */
+#textViewer {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+    background: ${workspace};
+    color: ${text};
+    border: none;
+}
+/* Rendered Markdown (spec 38): the text and the page; links, code and tables are colored by the
+   view itself after the import, since a style sheet does not reach QTextDocument.setMarkdown. */
+#markdownView {
+    font-family: "Inter";
+    font-size: 13px;
+    background: ${workspace};
+    color: ${text};
+    border: none;
+}
+#viewerBannerBar {
+    background: ${panel_alt};
+    border-bottom: 1px solid ${border};
+}
+#viewerBannerBar QPushButton {
+    font-size: 11px;
+    padding: 1px 10px;
+    min-height: 16px;
+}
+#viewerBanner {
+    color: ${warning};
+    font-size: 11px;
+}
+#viewerBanner[level="success"] {
+    color: ${success};
+}
+#viewerBanner[level="error"] {
+    color: ${error};
+}
+/* Input viewer (spec 11): the write errors row. */
+#viewerIssuesBar {
+    background: ${panel_alt};
+    border-bottom: 1px solid ${border};
+}
+#viewerIssuesBar[level="error"] {
+    background: ${error_soft};
+}
+#viewerIssuesBar QPushButton {
+    font-size: 11px;
+    padding: 1px 10px;
+    min-height: 16px;
+}
+#viewerIssues {
+    color: ${warning};
+    font-size: 11px;
+}
+#viewerIssues[level="error"] {
+    color: ${error};
+}
+/* Extract strip: chips of the key parameters, click goes to the line. */
+#extractBar {
+    background: ${chrome};
+    border-bottom: 1px solid ${border};
+}
+#extractBar QPushButton {
+    font-size: 11px;
+    padding: 1px 10px;
+    min-height: 16px;
+}
+QToolButton[variant="chip"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${accent_text};
+    background: ${accent_soft};
+    border: 1px solid ${accent_border};
+    border-radius: 4px;
+    padding: 1px 6px;
+}
+QToolButton[variant="chip"]:hover {
+    border-color: ${accent};
+}
+QToolButton[variant="chip"][dim="true"] {
+    color: ${text_muted};
+    background: transparent;
+    border: 1px dashed ${border_strong};
+}
+QToolButton[variant="chip"]:disabled {
+    color: ${text_dim};
+}
+#viewerBar, #searchBar {
+    background: ${chrome};
+    border-bottom: 1px solid ${border};
+}
+#searchCounter {
+    color: ${text_muted};
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+}
+QToolButton[variant="viewerTool"] {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: ${text_secondary};
+    padding: 2px 8px;
+    font-size: 11px;
+}
+QToolButton[variant="viewerTool"]:hover {
+    background: ${hover};
+    color: ${text};
+}
+QToolButton[variant="viewerTool"]:disabled {
+    color: ${text_dim};
+}
+QToolButton[variant="viewerTool"]:checked {
+    background: ${accent_soft};
+    border-color: ${accent_border};
+    color: ${accent_text};
+}
+/* Input diff tab (spec 11 R6). */
+#diffBar {
+    background: ${chrome};
+    border-bottom: 1px solid ${border};
+}
+#diffFile {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+    color: ${text_secondary};
+}
+#diffMessage {
+    background: ${workspace};
+    color: ${text_muted};
+    font-size: 13px;
+}
+#diffTree {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+    background: ${workspace};
+    color: ${text};
+    border: none;
+}
+#diffTree QHeaderView::section {
+    background: ${chrome};
+    color: ${text_muted};
+    border: none;
+    border-bottom: 1px solid ${border};
+    padding: 4px 8px;
+    font-family: "Inter";
+    font-size: 11px;
+}
+#diffTree::item {
+    padding: 2px 0;
+}
+#diffTree::item:selected {
+    background: ${hover};
+    color: ${text};
+}
+#imageViewer {
+    background: ${workspace};
+}
+/* Output summary tab (spec 12). */
+#summaryBar {
+    background: ${chrome};
+    border-bottom: 1px solid ${border};
+}
+#summaryMessage {
+    background: ${workspace};
+    color: ${text_muted};
+    font-size: 13px;
+}
+#summaryView, #summaryScroll, #summaryBody {
+    background: ${workspace};
+}
+#summarySection {
+    background: ${workspace};
+    border-bottom: 1px solid ${border};
+}
+QToolButton[variant="summaryToggle"] {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 0;
+}
+QToolButton[variant="summaryToggle"]:hover {
+    background: ${hover};
+}
+QLabel[variant="summaryLabel"] {
+    color: ${text_secondary};
+    font-size: 12px;
+}
+QLabel[variant="summaryValue"] {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+    color: ${text};
+}
+QLabel[variant="summaryValue"][level="success"] {
+    color: ${success};
+}
+QLabel[variant="summaryValue"][level="warning"] {
+    color: ${warning};
+}
+QLabel[variant="summaryValue"][level="error"] {
+    color: ${error};
+}

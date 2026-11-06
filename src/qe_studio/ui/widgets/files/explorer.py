@@ -1,0 +1,406 @@
+"""Folder explorer: project tree with calculation badges (PRD §2.1.2 navigation mode)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from PyQt6.QtCore import QModelIndex, QPoint, QPointF, QRect, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QFontMetrics, QKeySequence, QPainter, QPen, QShortcut
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
+    QToolTip,
+    QTreeView,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ....core.calculations import DetectionResult
+from ....core.config import UiConfig
+from ....core.files.file_kinds import human_size, status_label, status_tooltip
+from ....core.files.filtering import BADGES, NO_BADGE
+from ....core.files.run_errors import RunError
+from ....i18n import _
+from ...files.detection_service import DetectionService
+from ...theme.manager import ThemeManager
+from ...theme.scale import scaled
+from ..common import IconButton, PanelHeader, selection_of, viewport_of
+from ..painting import BADGE_GAP, badge_layout, mono_font, paint_badge, ui_font
+from .file_types import file_visual, level_token
+from .filter_bar import FilterBar
+from .fs_model import FileFilterProxy, make_fs_model
+from .item_tooltips import is_tooltip
+from .nav_sections import NavSection
+from .project_combo import ProjectCombo
+
+ROW_HEIGHT = 22
+ERROR_BADGE = _("ERRO")  # a folder with a CRASH file or a job log that shows an error (spec 50, 85)
+FILES_SHOW_TIP = _("Mostrar arquivos na árvore")
+FILES_HIDE_TIP = _("Ocultar arquivos da árvore")
+
+
+class ExplorerDelegate(QStyledItemDelegate):
+    def __init__(self, theme: ThemeManager, service: DetectionService, proxy: FileFilterProxy):
+        super().__init__()
+        self.theme, self.service, self.proxy = theme, service, proxy
+
+    def sizeHint(self, option, index) -> QSize:
+        return QSize(option.rect.width(), scaled(ROW_HEIGHT))
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        opt.text = ""
+        opt.icon = type(opt.icon)()
+        widget = option.widget
+        style = widget.style() if widget else None
+        if style:
+            style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, widget)
+
+        path = self.proxy.path(index)
+        is_dir = self.proxy.is_dir(index)
+        selected = bool(option.state & QStyle.StateFlag.State_Selected)
+        rect = option.rect
+        painter.save()
+        icon_name, token = file_visual(path, is_dir)
+        if is_dir and option.state & QStyle.StateFlag.State_Open:
+            icon_name = "folder_open"
+        pixmap = self.theme.pixmap(icon_name, token, 16)
+        painter.drawPixmap(rect.left() + 2, rect.top() + (rect.height() - 16) // 2, pixmap)
+
+        right = rect.right() - 6
+        center = rect.center().y() + 0.5
+        if is_dir:
+            results = self.service.results(path) or []  # schedules the detection on a miss
+            if self.service.peek_error(path) is not None:  # the rightmost badge, always in view
+                left = paint_badge(painter, right, center, ERROR_BADGE, self.theme, "error")
+                right = left - BADGE_GAP
+            for result in reversed(results):
+                left = paint_badge(
+                    painter, right, center, result.badge, self.theme, result.badge_token
+                )
+                right = left - BADGE_GAP
+            if self.proxy.is_pending(index):  # a badge filter waits for this folder's detection
+                right = self._paint_pending(painter, right, rect)
+        else:
+            size = self.proxy.fs.size(self.proxy.mapToSource(index))
+            right = self._paint_file_meta(painter, path, size, right, rect)
+
+        painter.setFont(
+            ui_font(12, QFont.Weight.Medium if selected and is_dir else QFont.Weight.Normal)
+        )
+        painter.setPen(self.theme.color("accent_text" if selected else "text"))
+        text_rect = QRect(
+            rect.left() + 24, rect.top(), int(right) - rect.left() - 28, rect.height()
+        )
+        name = painter.fontMetrics().elidedText(
+            path.name, Qt.TextElideMode.ElideMiddle, max(text_rect.width(), 0)
+        )
+        painter.drawText(
+            text_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, name
+        )
+        if option.state & QStyle.StateFlag.State_HasFocus:  # the keyboard focus ring (spec 19 R4.2)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(QPen(self.theme.color("focus_ring"), 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(QRectF(rect).adjusted(1, 1, -1, -1), 3, 3)
+        painter.restore()
+
+    def _paint_pending(self, painter: QPainter, right: float, rect: QRect) -> float:
+        painter.setFont(mono_font(10))
+        text = _("detectando…")
+        width = painter.fontMetrics().horizontalAdvance(text)
+        painter.setPen(self.theme.color("text_meta"))
+        painter.drawText(
+            QRect(int(right - width), rect.top(), width + 1, rect.height()),
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+            text,
+        )
+        return right - width - 6
+
+    def _paint_file_meta(
+        self, painter: QPainter, path: Path, size: int, right: float, rect: QRect
+    ) -> float:
+        painter.setFont(mono_font(10))
+        text, token, _label = self._file_meta(path, size)
+        width = painter.fontMetrics().horizontalAdvance(text)
+        painter.setPen(self.theme.color(token))
+        painter.drawText(
+            QRect(int(right - width), rect.top(), width + 1, rect.height()),
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+            text,
+        )
+        return right - width - 6
+
+    def _file_meta(self, path: Path, size: int) -> tuple[str, str, str | None]:
+        """(text, color token, state label) at the right of a file row: its state, else its size."""
+        label = status_label(path, size, self.service.file_sniff(path))
+        if label is None:
+            return human_size(size), "text_meta", None
+        return label[0], level_token(label[1]), label[0]
+
+    def helpEvent(self, event, view, option, index) -> bool:
+        """Tooltips of the badges and of the state label (spec 18 R3), from the caches only."""
+        if event is None or view is None or not index.isValid():
+            return super().helpEvent(event, view, option, index)
+        text = self._tooltip_at(event.pos(), option.rect, index) if is_tooltip(event) else ""
+        if not text:
+            return super().helpEvent(event, view, option, index)
+        QToolTip.showText(event.globalPos(), text, view.viewport(), option.rect)
+        return True
+
+    def _tooltip_at(self, pos: QPoint, rect: QRect, index: QModelIndex) -> str:
+        path = self.proxy.path(index)
+        right, center = rect.right() - 6, rect.center().y() + 0.5
+        if self.proxy.is_dir(index):
+            items: list[tuple[str, RunError | DetectionResult]] = []
+            error = self.service.peek_error(path)
+            if error is not None:
+                items.append((ERROR_BADGE, error))
+            results = self.service.peek_results(path) or []
+            items += [(result.badge, result) for result in reversed(results)]
+            for box, item in badge_layout(items, right, center):
+                if box.adjusted(-1, -4, 1, 4).contains(QPointF(pos)):
+                    if isinstance(item, RunError):
+                        return item.tooltip
+                    return item.module.badge_tooltip()
+            return ""
+        size = self.proxy.fs.size(self.proxy.mapToSource(index))
+        text, _token, label = self._file_meta(path, size)
+        if label is None:
+            return ""
+        width = QFontMetrics(mono_font(10)).horizontalAdvance(text)
+        if QRect(int(right - width), rect.top(), width + 1, rect.height()).contains(pos):
+            return status_tooltip(label, self.service.file_sniff(path))
+        return ""
+
+
+class ExplorerPanel(QWidget):
+    folder_selected = pyqtSignal(Path)
+    file_selected = pyqtSignal(Path)
+    file_activated = pyqtSignal(Path)
+    item_menu_requested = pyqtSignal(list, QPoint)  # [item], global position
+    outside_scope = pyqtSignal(Path)  # ``select_path`` was asked for a path above the tree's root
+
+    def __init__(
+        self,
+        theme: ThemeManager,
+        service: DetectionService,
+        root: Path,
+        ui: UiConfig,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent)
+        self.theme, self.service = theme, service
+        self._quiet = False  # the tree's current row is being moved by the panel, not the user
+        self.setObjectName("explorerPanel")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        header = PanelHeader(theme, _("Explorador"), "folder_open")
+        self.collapse_button = header.add_button(
+            IconButton(theme, "unfold_less", _("Recolher tudo"))
+        )
+        self.files_button = header.add_button(IconButton(theme, "draft", FILES_SHOW_TIP))
+        self.files_button.setCheckable(True)  # spec 50 R1: ``ui.tree_show_files``, this session
+        self.refresh_button = header.add_button(IconButton(theme, "refresh", _("Atualizar (F5)")))
+        layout.addWidget(header)
+        self.projects = ProjectCombo()  # spec 31: answered by the window's ProjectController
+        layout.addWidget(self.projects)
+        # Favorite folders (spec 16 R4): hidden while empty, filled by the window's
+        # NavigationController, which also answers their clicks.
+        self.favorites = NavSection(theme, _("Favoritos"), "star", "accent")
+        layout.addWidget(self.favorites)
+        self.favorites.menu_requested.connect(self.item_menu_requested)
+        # Only the folders the model has loaded (the ones opened so far) can be filtered.
+        self.filter_bar = FilterBar(
+            _("Filtrar por nome (pastas já abertas)"),
+            [("badges", _("Pastas"), [*BADGES, NO_BADGE])],
+        )
+        layout.addWidget(self.filter_bar)
+
+        self.model = make_fs_model(root, self)
+        self.proxy = FileFilterProxy(
+            ui.hidden_dirs,
+            dirs_only=not ui.tree_show_files,
+            parent=self,
+            service=service,
+            keep_ancestors=True,
+        )
+        self.proxy.setSourceModel(self.model)
+        self.tree = QTreeView()
+        self.tree.setObjectName("explorerTree")
+        self.tree.setModel(self.proxy)
+        self.tree.setHeaderHidden(True)
+        for column in (1, 2, 3):
+            self.tree.hideColumn(column)
+        self.tree.setIndentation(12)
+        self.tree.setUniformRowHeights(True)
+        self.tree.setAnimated(False)
+        self.tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.setItemDelegate(ExplorerDelegate(theme, service, self.proxy))
+        self.tree.setSortingEnabled(True)
+        self.tree.sortByColumn(0, Qt.SortOrder.AscendingOrder)
+        layout.addWidget(self.tree, 1)
+
+        self.set_root(root)
+        self.set_files_shown(ui.tree_show_files)  # the button's start; connected just below
+        self.files_button.toggled.connect(self._on_files_toggled)
+        selection_of(self.tree).currentChanged.connect(self._on_current)
+        self.tree.activated.connect(self._on_activated)  # double click or Enter
+        self.tree.customContextMenuRequested.connect(self._on_context_menu)
+        self.collapse_button.clicked.connect(self.tree.collapseAll)
+        self.refresh_button.clicked.connect(self.refresh)
+        self.filter_bar.changed.connect(self._on_filter_changed)
+        self.filter_bar.closed.connect(self.tree.setFocus)
+        self.filter_bar.accepted.connect(self.tree.setFocus)
+        find = QShortcut(QKeySequence("Ctrl+F"), self)  # with the focus in this panel only
+        find.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        find.activated.connect(self.filter_bar.open)
+        service.detected.connect(self._on_detected)
+        theme.theme_changed.connect(self._on_theme_changed)
+        theme.scale_changed.connect(self._on_scale_changed)
+
+    def _on_theme_changed(self, _name: str) -> None:
+        viewport_of(self.tree).update()
+
+    def _on_scale_changed(self, _scale: float) -> None:
+        self.tree.scheduleDelayedItemsLayout()  # the rows are taller or shorter now
+
+    def _on_detected(self, _folder: str) -> None:
+        viewport_of(self.tree).update()
+        self.proxy.refilter_later()  # a badge may now match
+
+    def _on_filter_changed(self) -> None:
+        bar = self.filter_bar
+        self.proxy.set_filters(bar.name_text(), bar.category_filter())
+
+    @property
+    def root(self) -> Path:
+        return self._root
+
+    def set_root(self, root: Path) -> None:
+        self._root = Path(root)
+        self.proxy.set_root(self._root)
+        self.model.setRootPath(str(root))
+        self.tree.setRootIndex(self.proxy.index_for(root))
+
+    def set_scope(self, folder: Path) -> None:
+        """Show only ``folder`` and what is inside it (spec 31: the selected project, else the
+        root); ``current_folder`` falls back to it."""
+        self.set_root(folder)
+
+    def apply_config(self, root: Path, ui: UiConfig) -> None:
+        """A reloaded config: project root, hidden folders and whether the tree lists files."""
+        self.proxy.set_hidden_dirs(ui.hidden_dirs)
+        self.set_files_shown(ui.tree_show_files)
+        self.set_root(root)
+
+    def set_files_shown(self, shown: bool) -> None:
+        """List the files in the tree or folders only; the button follows without ``toggled``."""
+        self.files_button.blockSignals(True)
+        self.files_button.setChecked(shown)
+        self.files_button.blockSignals(False)
+        self._show_files(shown)
+
+    def _on_files_toggled(self, checked: bool) -> None:
+        self._show_files(checked)
+
+    def _show_files(self, shown: bool) -> None:
+        self.files_button.setToolTip(FILES_HIDE_TIP if shown else FILES_SHOW_TIP)
+        index = self.tree.currentIndex()
+        hidden_file = None
+        if not shown and index.isValid() and not self.proxy.fs.isDir(self.proxy.mapToSource(index)):
+            hidden_file = self.proxy.path(index)  # its row is about to go (the model's cache)
+        # The folder open in the grid does not change, so the window is told nothing: Qt moves the
+        # current row by itself when its row goes, and ``current_folder`` must keep answering with
+        # the file's folder, not the root.
+        self._quiet = True
+        try:
+            self.proxy.set_dirs_only(not shown)
+            if hidden_file is not None:
+                folder = hidden_file.parent
+                self.tree.setCurrentIndex(
+                    self.proxy.index_for(folder) if folder != self._root else QModelIndex()
+                )
+        finally:
+            self._quiet = False
+
+    def refresh(self) -> None:
+        """Repaint the badges; the caller invalidates the detection it knows is stale."""
+        viewport_of(self.tree).update()
+
+    def current_path(self) -> Path | None:
+        index = self.tree.currentIndex()
+        return self.proxy.path(index) if index.isValid() else None
+
+    def current_folder(self) -> Path:
+        path = self.current_path()
+        if path is None:
+            return self._root
+        return path if path.is_dir() else path.parent
+
+    def shutdown(self) -> None:
+        """Window close: no row of the file system thread reaches the filter any more."""
+        self.model.blockSignals(True)
+        self.proxy.detach()
+
+    @staticmethod
+    def shortcut_help() -> list[tuple[str, str, str]]:
+        """(action, keys, where) of the keys this panel handles itself (not menu actions)."""
+        return [(_("Filtrar a árvore"), "Ctrl+F", _("Árvore de pastas"))]
+
+    def select_path(self, path: Path) -> None:
+        if not Path(path).is_relative_to(self._root):
+            self.outside_scope.emit(Path(path))  # the window decides: another project, or nothing
+            return
+        if Path(path) == self._root:
+            # The root is the tree's root index, not a row: nothing to highlight.
+            self.tree.setCurrentIndex(QModelIndex())
+            self.folder_selected.emit(self._root)
+            return
+        index = self.proxy.index_for(path)
+        if not index.isValid() and self._is_unlisted_file(path):
+            # A folders-only tree (spec 37 R2.4): its folder is selected, the grid selects the file.
+            self.select_path(Path(path).parent)
+            self.file_selected.emit(Path(path))
+            return
+        if not index.isValid() and self.filter_bar.is_active:
+            self.filter_bar.dismiss()  # the filter hides it: navigation wins
+            index = self.proxy.index_for(path)
+        if index.isValid():
+            self.tree.setCurrentIndex(index)
+            self.tree.scrollTo(index)
+            self.tree.expand(index)
+
+    def _is_unlisted_file(self, path: Path) -> bool:
+        """A file the tree does not list because it shows folders only (read from the model)."""
+        if not self.proxy.dirs_only:
+            return False
+        source = self.proxy.fs.index(str(path))
+        return source.isValid() and not self.proxy.fs.isDir(source)
+
+    def _on_current(self, current: QModelIndex, _previous: QModelIndex) -> None:
+        if self._quiet or not current.isValid():
+            return
+        path = self.proxy.path(current)
+        if self.proxy.is_dir(current):
+            self.folder_selected.emit(path)
+        else:
+            self.folder_selected.emit(path.parent)
+            self.file_selected.emit(path)
+
+    def _on_activated(self, index: QModelIndex) -> None:
+        if index.isValid() and not self.proxy.is_dir(index):
+            self.file_activated.emit(self.proxy.path(index))
+
+    def _on_context_menu(self, pos: QPoint) -> None:
+        index = self.tree.indexAt(pos)
+        if index.isValid():
+            self.item_menu_requested.emit(
+                [self.proxy.path(index)], viewport_of(self.tree).mapToGlobal(pos)
+            )

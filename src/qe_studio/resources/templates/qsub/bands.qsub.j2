@@ -1,0 +1,16 @@
+{% extends "qsub/_base.qsub.j2" %}
+{% block programs %}
+BANDSCOMMAND="/opt/espresso-7.1/bin/bands.x"
+{% endblock %}
+{% block body %}
+{% for input, output in pw_runs %}
+${MPICOMMAND} ${QE_COMMAND} -i "{{ input }}" > "{{ output }}"
+
+{% endfor %}
+{% for input, output in bands_x %}
+${BANDSCOMMAND} -i "{{ input }}" > "{{ output }}"
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+{% endblock %}

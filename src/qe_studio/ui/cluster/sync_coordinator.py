@@ -1,0 +1,376 @@
+"""Cluster pull (PRD §5) and push of new files (spec 27) from the window: password of the session,
+the sync window (preview and conflict prompts), final report, the scope shown by the Rsync button,
+the "Cluster" menu and the context menu's "Enviar ao cluster" (spec 17), and the cluster label of
+the reachability monitor.
+
+``core/sync`` decides (``prepare_sync``, ``prepare_push``, ``sync_scope``) and runs
+(``SyncController``, ``PushController``); this only asks, shows and reports. One run at a time,
+either way. ``on_synced`` refreshes what changed when ``synced`` is emitted (a push changes nothing
+local, so it never emits it); a run that went well ends with a toast (``notice``), not a message
+box. ``start_scratch`` copies a cluster folder into its mirror's ``tmp_remote/`` to plot it (spec 66):
+the same window, and a callback when the copy is ready.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import replace
+from pathlib import Path
+
+from PyQt6.QtCore import QObject, Qt, pyqtSignal
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox, QWidget
+
+from ...core.config import AppConfig
+from ...core.remote.download import only_file_rules
+from ...core.sync._process import RsyncRun
+from ...core.sync.controller import SyncController, SyncReport, SyncStatus
+from ...core.sync.monitor import ConnectionMonitor
+from ...core.sync.planner import PlanItem
+from ...core.sync.push import PushController
+from ...core.sync.request import (
+    Direction,
+    SyncRefusal,
+    SyncRequest,
+    SyncScope,
+    prepare_push,
+    prepare_scratch,
+    prepare_sync,
+    push_availability,
+    sync_scope,
+)
+from ...core.sync.rsync import Endpoint
+from ...i18n import _
+from ..dialogs.sync_dialog import ConflictDialog, SyncDialog
+from ..theme.manager import ThemeManager
+from ..widgets.files.context_menu import ItemActions
+
+TITLE = _("Sincronização")
+PUSH_TITLE = _("Envio ao cluster")
+WAIT_RUNNING = _("Aguarde a sincronização em andamento.")
+
+
+class SyncCoordinator(QObject):
+    finished = pyqtSignal(object)  # SyncReport, after its message was shown
+    synced = pyqtSignal(object)  # Path: the local folder a sync may have changed
+    cluster_changed = pyqtSignal(str, str)  # label (user@host), monitor state
+    message = pyqtSignal(str, str, int)  # status bar: text, level, timeout (ms)
+    notice = pyqtSignal(str, str, str)  # toast: text, level, details (the full report)
+    scope_changed = pyqtSignal(str)  # tooltip of the Rsync button: what it would pull
+
+    def __init__(
+        self,
+        config: AppConfig,
+        theme: ThemeManager,
+        dialog_parent: QWidget,
+        parent: QObject | None = None,
+        current_folder: Callable[[], Path] | None = None,
+        refresh: Callable[[Path], None] | None = None,
+    ):
+        super().__init__(parent)
+        self.config, self.theme = config, theme
+        self._dialog_parent = dialog_parent
+        self._current_folder = current_folder or (lambda: self.config.paths.local_root)
+        self._refresh = refresh  # what changed on disk: detection, tree and grid (``on_synced``)
+        self.guards: list[Callable[[], str]] = []  # why no run may start now ("": it may)
+        self.synced.connect(self.on_synced)
+        self.controller: RsyncRun | None = None
+        self.dialog: SyncDialog | None = None
+        self.scope: SyncScope | None = None  # of the run in progress
+        self.conflict_dialog: ConflictDialog | None = None
+        self._session_password: str | None = None  # typed once per run, never saved
+        self._on_ready: Callable[[Path], None] | None = None  # of the copy in progress (spec 66)
+        self._scope_folder: Path = config.paths.local_root
+        self._project: Path | None = None  # the selected project's folder (spec 31); None: all
+        self._folder_action: QAction | None = None
+        self._project_action: QAction | None = None
+        self._push_action: QAction | None = None
+        self._set_root()
+        self.monitor = self._new_monitor()
+
+    @property
+    def running(self) -> bool:
+        return self.controller is not None and self.controller.running
+
+    @property
+    def folder(self) -> Path | None:
+        """The local folder of the run in progress (the root for the whole project), None when idle."""
+        if not self.running or self.scope is None:
+            return None
+        root = self.config.paths.local_root
+        return root / self.scope.relative if self.scope.relative else root
+
+    def _set_root(self) -> None:
+        """The resolved root, once per config: what every folder change would ``resolve`` again
+        (spec 27-8 R3)."""
+        self._root = self.config.paths.local_root.resolve()
+        self._set_whole()
+
+    def _set_whole(self) -> None:
+        """The scope of "Sincronizar projeto": the selected project, else everything (spec 31)."""
+        folder = self._project or self.config.paths.local_root
+        name = self._project.name if self._project else ""
+        self._whole = sync_scope(self.config, folder, resolved_root=self._root, project=name)
+
+    def set_project(self, project: Path | None) -> None:
+        """The project selected in the window (spec 31): what "Sincronizar projeto" pulls."""
+        self._project = project
+        self._set_whole()
+        self.show_scope(self._scope_folder)
+
+    def _new_monitor(self) -> ConnectionMonitor:
+        monitor = ConnectionMonitor(self.config.cluster, self.config.sync_enabled, self)
+        monitor.state_changed.connect(self._on_state)
+        return monitor
+
+    def start_monitor(self) -> None:
+        self._on_state(self.monitor.state.value)
+        self.monitor.start()
+
+    def set_config(self, config: AppConfig) -> None:
+        """Config reload: a new monitor for the new cluster."""
+        self.config = config
+        self._project = None  # the window says it again, after the views follow the new config
+        self._set_root()
+        old = self.monitor
+        old.stop()
+        old.state_changed.disconnect(self._on_state)
+        old.deleteLater()
+        self.monitor = self._new_monitor()
+        self.start_monitor()
+        self.show_scope(self._scope_folder)
+
+    # -- scope (spec 17 R1) -----------------------------------------------------------------------
+    def bind_actions(self, actions: dict[str, QAction]) -> None:
+        """The menu's "Sincronizar <pasta>", "Sincronizar projeto <nome>" / "Sincronizar tudo" and "Enviar <pasta> ao
+        cluster…" (``sync.start``, ``sync.project``, ``sync.push``), kept up to date."""
+        self._folder_action = actions.get("sync.start")
+        self._project_action = actions.get("sync.project")
+        self._push_action = actions.get("sync.push")
+        self.show_scope(self._scope_folder)
+
+    def bind_menu(self, item_actions: ItemActions) -> None:
+        """The context menu's "Enviar ao cluster" of a folder (spec 27 R4.4)."""
+        item_actions.push_state = self.push_state
+        item_actions.push_requested.connect(self.push)
+
+    def push_state(self, path: Path) -> str | None:
+        """The context menu's item for ``path``: None hides it (files), "" enables it, any other
+        text is why it is disabled."""
+        # is_dir: accepted, local disk (a context menu, one folder)
+        if not path.is_dir():
+            return None
+        return push_availability(self.config, path, resolved_root=self._root)
+
+    def show_scope(self, folder: Path) -> None:
+        """Say what a pull would cover now that ``folder`` is the current one."""
+        self._scope_folder = folder
+        scope = sync_scope(self.config, folder, resolved_root=self._root)  # the one resolve
+        enabled = self.config.sync_enabled
+        if self._folder_action is not None:
+            self._folder_action.setText(scope.menu_text)
+            self._folder_action.setToolTip(scope.tooltip)
+            self._folder_action.setEnabled(enabled)
+        if self._project_action is not None:
+            self._project_action.setText(self._whole.menu_text)
+            self._project_action.setToolTip(self._whole.tooltip)
+            self._project_action.setEnabled(enabled)
+        if self._push_action is not None:
+            push = replace(scope, direction=Direction.PUSH)  # same folder, same cluster side
+            self._push_action.setText(push.menu_text)
+            self._push_action.setToolTip(push.tooltip)
+            self._push_action.setEnabled(push.available)
+        self.scope_changed.emit(scope.tooltip)
+
+    def check_connection(self) -> None:
+        self.monitor.check()
+
+    def shutdown(self, timeout_ms: int = 5000) -> bool:
+        """Window close: a running pull or push is cancelled (killed after ``timeout_ms``)."""
+        self.monitor.stop()
+        if self.controller is not None and self.controller.running:
+            return self.controller.shutdown(timeout_ms)
+        return True
+
+    def _on_state(self, state: str) -> None:
+        cluster = self.config.cluster
+        label = (
+            f"{cluster.user}@{cluster.host}" if cluster.configured else _("cluster não configurado")
+        )
+        self.cluster_changed.emit(label, state)
+
+    # -- a pull or a push -------------------------------------------------------------------------
+    def start_selected(self) -> None:
+        """Pull the selected folder (the whole project when nothing is selected): the Rsync button
+        and ``sync.start``."""
+        self.start(self._current_folder())
+
+    def start_project(self) -> None:
+        """ "Sincronizar projeto <nome>" / "Sincronizar tudo": the selected project or else the
+        root, whatever folder is selected (spec 17 R1.3, spec 31 R5)."""
+        self.start(self._project or self.config.paths.local_root)
+
+    def on_synced(self, local_dir: Path) -> None:
+        """A pull changed ``local_dir``: refresh what shows it."""
+        if self._refresh is not None:
+            self._refresh(local_dir)
+
+    def start(self, folder: Path, only: str | None = None) -> None:
+        """Pull ``folder`` from the cluster (the whole project when it is the root); ``only``: just
+        that file of it (the cluster mode's "Baixar", spec 65 R5.2)."""
+        if self.running:
+            return
+        request = self._checked(prepare_sync(self.config, folder, resolved_root=self._root), TITLE)
+        if request is not None:
+            self.run(*request, only=only)
+
+    def push(self, folder: Path) -> None:
+        """Send the new files of ``folder`` to the cluster (spec 27): never the project root."""
+        if self.running:
+            return
+        request = self._checked(
+            prepare_push(self.config, folder, resolved_root=self._root), PUSH_TITLE
+        )
+        if request is not None:
+            self.run_push(*request)
+
+    def start_push(self) -> None:
+        """ "Enviar <pasta> ao cluster…" of the "Cluster" menu: the current folder."""
+        self.push(self._scope_folder)
+
+    def _checked(
+        self, request: SyncRequest | SyncRefusal, title: str
+    ) -> tuple[Path, Endpoint, str | None] | None:
+        """(folder, endpoint, password) of a run that may start, after a guard's reason, explaining a
+        refusal or asking for the password; None when it does not start."""
+        if reason := next(filter(None, (guard() for guard in self.guards)), ""):
+            self.message.emit(reason, "warning", 5000)
+            return None
+        if isinstance(request, SyncRefusal):
+            show = QMessageBox.information if request.level == "info" else QMessageBox.warning
+            show(self._dialog_parent, title, request.message)
+            return None
+        password = None
+        if request.needs_password:
+            password = self.session_password()
+            if password is None:
+                return None
+        return request.folder, request.endpoint, password
+
+    def session_password(self, ask: bool = True) -> str | None:
+        """The password typed in this session (``auth: password`` without one in the config); with
+        ``ask``, the dialog asks for it when there is none yet. None: none, or the user cancelled.
+        The jobs of the cluster use it too (spec 64 R6.3)."""
+        if self._session_password or not ask:
+            return self._session_password
+        cluster = self.config.cluster
+        text, ok = QInputDialog.getText(
+            self._dialog_parent,
+            _("Senha do cluster"),
+            _("Senha de {account} (não é salva):").format(account=f"{cluster.user}@{cluster.host}"),
+            QLineEdit.EchoMode.Password,
+        )
+        if not ok or not text:
+            return None
+        self._session_password = text
+        return text
+
+    def forget_password(self) -> None:
+        """The cluster refused it: the next run asks again."""
+        self._session_password = None
+
+    def run(
+        self, folder: Path, endpoint: Endpoint, password: str | None = None, only: str | None = None
+    ) -> None:
+        rules = only_file_rules(only) if only else None
+        controller = SyncController(self.config, self, extra_args=rules, password=password)
+        project = self._project.name if self._project and folder == self._project else ""
+        scope = sync_scope(self.config, folder, endpoint, resolved_root=self._root, project=project)
+        if only:  # the preview and the title say the file
+            scope = replace(scope, file=only, remote=scope.remote + only)
+        dialog = self._open(controller, scope)
+        controller.conflict_needed.connect(dialog.await_decision)
+        controller.conflict_needed.connect(self._ask_conflict)
+        controller.start(folder, endpoint)
+
+    def start_scratch(self, mirror: Path, on_ready: Callable[[Path], None]) -> None:
+        """Copy the cluster side of ``mirror`` into ``mirror/tmp_remote`` to plot it (spec 66 R3.3):
+        overwritten without a question, the preview only for a large file. ``on_ready(copy)`` when
+        it ends done or up to date; a failure or a cancel plots nothing."""
+        if self.running:
+            self.message.emit(WAIT_RUNNING, "warning", 5000)
+            return
+        request = self._checked(
+            prepare_scratch(self.config, mirror, resolved_root=self._root), TITLE
+        )
+        if request is None:
+            return
+        folder, endpoint, password = request
+        controller = SyncController(self.config, self, password=password, scratch=True)
+        scope = sync_scope(self.config, mirror, endpoint, resolved_root=self._root)
+        self._on_ready = on_ready
+        self._open(controller, replace(scope, scratch=True))
+        controller.start(folder, endpoint)
+
+    def run_push(self, folder: Path, endpoint: Endpoint, password: str | None = None) -> None:
+        controller = PushController(self.config, self, password=password)
+        scope = sync_scope(self.config, folder, endpoint, Direction.PUSH, resolved_root=self._root)
+        self._open(controller, scope)
+        controller.start(folder, endpoint)
+
+    def _open(self, controller: RsyncRun, scope: SyncScope) -> SyncDialog:
+        dialog = SyncDialog(self.theme, controller, scope, self._dialog_parent)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        controller.finished.connect(self._on_finished)
+        self.controller, self.dialog, self.scope = controller, dialog, scope
+        self.monitor.set_syncing(True)
+        dialog.open()
+        return dialog
+
+    def _ask_conflict(self, item: PlanItem) -> None:
+        assert isinstance(self.controller, SyncController)
+        dialog = ConflictDialog(item, self.dialog or self._dialog_parent)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.decided.connect(self.controller.resolve)
+        dialog.finished.connect(self._on_conflict_closed)
+        self.conflict_dialog = dialog
+        dialog.open()
+
+    def _on_conflict_closed(self, _result: int) -> None:
+        self.conflict_dialog = None
+
+    def _on_finished(self, report: SyncReport) -> None:
+        # The dialog deletes itself on close; the controller goes on the next loop turn.
+        controller, dialog, scope = self.controller, self.dialog, self.scope
+        self.controller, self.dialog, self.scope = None, None, None
+        ready, self._on_ready = self._on_ready, None
+        if controller is not None:
+            controller.deleteLater()
+        self.monitor.set_syncing(False)
+        if report.status is not SyncStatus.CANCELLED:
+            self.monitor.report(not report.connection_failed)
+        if report.status is SyncStatus.FAILED and report.auth_failed:
+            self.forget_password()
+        if report.changes_local:
+            self.synced.emit(report.local_dir)
+        # What needs attention opens over the sync window, which closes after it (spec 17 R2.3).
+        parent = dialog or self._dialog_parent
+        title = PUSH_TITLE if scope is not None and scope.push else TITLE
+        if report.status is SyncStatus.FAILED:
+            QMessageBox.critical(parent, title, report.message)
+        elif report.status is SyncStatus.LOCAL_NEWER:
+            QMessageBox.warning(parent, title, report.message)
+        if dialog is not None:
+            dialog.finish()
+        if report.status is SyncStatus.CANCELLED:
+            self.message.emit(report.message, "warning", 5000)
+        elif report.status in (SyncStatus.DONE, SyncStatus.UP_TO_DATE):
+            headline = report.headline
+            self.message.emit(headline, "warning" if report.changed_locally else "info", 6000)
+            level = "success" if report.status is SyncStatus.DONE else "info"
+            if report.changed_locally:
+                level = "warning"  # files were left out: the toast says so
+            self.notice.emit(headline, level, report.details)
+        self.finished.emit(report)
+        if ready is not None and report.status in (SyncStatus.DONE, SyncStatus.UP_TO_DATE):
+            ready(report.local_dir)  # the copy, refreshed above (``synced``)

@@ -1,0 +1,84 @@
+/* Base widgets, menus, tooltips and scrollbars. Colors are tokens from themes/<theme>.yaml. */
+QWidget {
+    font-family: "Inter";
+    font-size: 12px;
+    color: ${text};
+    selection-background-color: ${accent_soft};
+    selection-color: ${selection_text};
+}
+QMainWindow, QDialog {
+    background: ${window};
+}
+QToolTip {
+    background: ${popover};
+    color: ${text};
+    border: 1px solid ${border_strong};
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+QMenuBar {
+    background: ${window};
+    color: ${text_secondary};
+    border-bottom: 1px solid ${border};
+    padding: 1px 4px;
+}
+QMenuBar::item {
+    padding: 4px 8px;
+    background: transparent;
+    border-radius: 3px;
+}
+QMenuBar::item:selected {
+    background: ${hover};
+    color: ${text};
+}
+QMenu {
+    background: ${popover};
+    border: 1px solid ${border_strong};
+    border-radius: 6px;
+    padding: 4px;
+}
+QMenu::item {
+    padding: 5px 22px 5px 10px;
+    border-radius: 4px;
+    color: ${text};
+}
+QMenu::item:selected {
+    background: ${accent_soft};
+    color: ${accent_text};
+}
+QMenu::item:disabled {
+    color: ${text_dim};
+}
+QMenu::separator {
+    height: 1px;
+    background: ${border};
+    margin: 4px 6px;
+}
+QScrollBar:vertical {
+    background: transparent;
+    width: 10px;
+    margin: 0;
+}
+QScrollBar:horizontal {
+    background: transparent;
+    height: 10px;
+    margin: 0;
+}
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: ${scrollbar};
+    border-radius: 4px;
+    margin: 2px;
+    min-height: 24px;
+    min-width: 24px;
+}
+QScrollBar::handle:hover {
+    background: ${scrollbar_hover};
+}
+QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
+    width: 0;
+    height: 0;
+}
+QAbstractScrollArea {
+    background: transparent;
+}

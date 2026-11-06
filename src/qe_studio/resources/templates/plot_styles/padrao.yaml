@@ -1,0 +1,30 @@
+# Lain: estilo de gráfico. Copie este arquivo com outro nome para criar um estilo.
+#
+# O nome do arquivo (sem .yaml) é o que o .plot guarda; "name" é o que o campo "Estilo do gráfico"
+# mostra. Um estilo novo aparece depois de "Recarregar config.yaml" (ou ao abrir o Lain de novo).
+# O Lain só lê esta pasta: o que você muda no painel vai para o .plot do gráfico, nunca para cá.
+#
+# Um estilo pode dar só alguns campos: os que faltam vêm deste arquivo (padrao.yaml). Campos aceitos:
+#   figura:   figure_width, figure_height (polegadas), font_size (pt), background, line_width
+#   legenda:  show_legend, legend_loc (best, upper right, upper left, lower right, lower left,
+#             center right, outside), legend_dx, legend_dy (-1 a 1), legend_frame,
+#             legend_size, tick_size, label_size (pt, ou null = automático), legend_transparency (0 a 1)
+#   cores:    valence_color, conduction_color, fermi_color, up_color, down_color (bandas);
+#             total_color, orbital_colors, atomos_colors (PDOS); accuracy_color, energy_color,
+#             magnetization_color, threshold_color (SCF); force_color, pressure_color, volume_color
+#             (relax)
+# atomos_colors usa o rótulo da espécie na saída (como no ATOMIC_SPECIES) e é somado ao deste
+# arquivo; ponha entre aspas os rótulos que o YAML lê como booleano ("No"). Agrupado por espécie +
+# orbital, os orbitais de um elemento são tons da sua cor.
+lain_style: 1
+name: Padrão
+params:
+  figure_width: 6.0
+  figure_height: 4.5
+  line_width: 1.2
+  background: "#ffffff"
+  valence_color: "#2563eb"
+  conduction_color: "#00d2ff"
+  fermi_color: "#f43f5e"
+  orbital_colors: {s: "#fbbf24", p: "#06b6d4", d: "#a855f7", f: "#ec4899"}
+  atomos_colors: {Al: "#E41A1C", C: "#377EB8", H: "#4DAF4A", Hg: "#FF7F00", K: "#984EA3", O: "#228B22", Si: "#F781BF"}

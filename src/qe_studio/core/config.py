@@ -1,0 +1,479 @@
+"""Loading and validation of ``config.yaml`` (PRD §6).
+
+The app has no settings window: everything operational comes from this file. Unknown keys
+are rejected so typos surface as errors instead of silently falling back to defaults.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import sys
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal
+
+import yaml
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+
+import qe_studio
+
+from ..i18n import N_, _
+from .app.fontscale import MAX_SCALE, MIN_SCALE
+from .plotting import styles as plot_styles
+
+ENV_CONFIG = "QE_STUDIO_CONFIG"
+# Set and not empty: the lookup skips the checkout's config.yaml (the tests, spec 61 R1.5).
+ENV_NO_CHECKOUT = "QE_STUDIO_NO_CHECKOUT_CONFIG"
+CONFIG_NAME = "config.yaml"
+
+
+ExportFormat = Literal["png", "svg", "pdf"]
+
+DEFAULT_EXCLUDES = [
+    "tmp/",
+    "*.save/",
+    "*.amn",
+    "*.mmn",
+    "UNK*",
+    "*.unk*",
+    "*.wfc*",
+    "*.mix*",
+    "*.hub*",
+    "*.igk*",
+    "core",
+    "core.[0-9]*",
+]
+DEFAULT_PUSH_EXCLUDES = ["plots/", "*.plot"]
+
+
+class _Section(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class PathsConfig(_Section):
+    local_root: Path = Path("~/qe_simulations")
+    remote_root: str = ""
+    # Where XCrySDen is installed: its folder or the ``xcrysden`` script itself. None (blank):
+    # "Abrir com XCrysDen" is disabled (spec 45). Existence is not checked here: the menu says why.
+    xcrysden_path: str | None = None
+    # Lain's own data (QSettings file, instance lock, log, fallback of read-only roots). None
+    # (blank): the system's places. A relative path is made absolute by ``parse_config`` (spec 61 R2).
+    data: Path | None = None
+
+    @field_validator("local_root")
+    @classmethod
+    def _expand(cls, value: Path) -> Path:
+        return Path(os.path.expandvars(str(value))).expanduser()
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def _expand_data(cls, value: object) -> object:
+        # Before validation: a blank string would become Path("."), the current folder.
+        if not isinstance(value, str | os.PathLike):
+            return value  # None, or a wrong type pydantic reports
+        text = str(value).strip()
+        return Path(os.path.expandvars(text)).expanduser() if text else None
+
+    @field_validator("remote_root")
+    @classmethod
+    def _strip_slash(cls, value: str) -> str:
+        value = value.strip()
+        return value.rstrip("/") if value not in ("", "/") else value
+
+    @field_validator("xcrysden_path")
+    @classmethod
+    def _expand_program(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        return str(Path(os.path.expandvars(value.strip())).expanduser())
+
+
+class ClusterConfig(_Section):
+    host: str = ""
+    port: int = Field(default=22, ge=1, le=65535)
+    user: str = ""
+    auth: Literal["key", "password"] = "key"
+    key_path: Path | None = None
+    password_env: str | None = "QE_STUDIO_SSH_PASSWORD"
+    password: SecretStr | None = None
+    connect_timeout: int = Field(default=10, gt=0, le=300)
+    status_poll_seconds: int = Field(default=300, ge=30)
+    # The job list left of the LED (spec 64): run on the cluster over ssh; empty turns it off.
+    jobs_command: str = "qstatus -a"
+    jobs_poll_seconds: int = Field(default=300, ge=30)  # only while the window is active
+    jobs_rotate_seconds: int = Field(default=5, ge=1, le=3600)  # between the user's running jobs
+    # "Submeter…" on a .qsub of the cluster mode (spec 69): run in its folder; empty turns it off.
+    submit_command: str = "qsub"
+    # The queue popup's cancel button, for a waiting job only (spec 70); empty turns it off.
+    delete_command: str = "qdel"
+    # One ssh connection shared by the actions on the cluster (spec 72); false: every ssh logs in.
+    multiplex: bool = True
+
+    @field_validator("key_path")
+    @classmethod
+    def _expand(cls, value: Path | None) -> Path | None:
+        return None if value is None else Path(os.path.expandvars(str(value))).expanduser()
+
+    @field_validator("jobs_command", "submit_command", "delete_command")
+    @classmethod
+    def _strip_command(cls, value: str) -> str:
+        return value.strip()
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.host.strip() and self.user.strip())
+
+    def resolve_password(self, environ: Mapping[str, str] | None = None) -> str | None:
+        """Password from ``password_env`` (preferred) or the inline ``password``."""
+        environ = os.environ if environ is None else environ
+        if self.password_env and environ.get(self.password_env):
+            return environ[self.password_env]
+        return self.password.get_secret_value() if self.password else None
+
+
+class SyncConfig(_Section):
+    exclude: list[str] = Field(default_factory=lambda: list(DEFAULT_EXCLUDES))
+    rsync_binary: str = "rsync"
+    ssh_binary: str = "ssh"
+    # Show the plan and wait for "Baixar" before transferring (spec 17 R2.5); false transfers
+    # directly (automation, tests). Updates still ask file by file either way. A push always asks.
+    confirm_plan: bool = True
+    # Compare files by content (rsync --checksum) to decide what to download; false: by date and
+    # size (faster on big trees). Only the pull uses it (spec 63).
+    checksum: bool = True
+    # Never sent to the cluster, on top of ``exclude`` (spec 27 R5): figures and plot settings.
+    push_exclude: list[str] = Field(default_factory=lambda: list(DEFAULT_PUSH_EXCLUDES))
+
+
+class ExportConfig(_Section):
+    formats: list[ExportFormat] = Field(default_factory=lambda: ["png", "svg", "pdf"])
+    dpi: int = Field(default=300, ge=72, le=2400)
+
+    @field_validator("formats")
+    @classmethod
+    def _unique(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError(_("informe ao menos um formato"))
+        return list(dict.fromkeys(value))
+
+
+class PlotConfig(_Section):
+    """What a new plot takes from the config: the energy window and the export. Its look (size,
+    line width, colors, background) comes from the plot styles (``core/plotting/styles.py``)."""
+
+    energy_min: float = -5.0
+    energy_max: float = 5.0
+    shift_to_fermi: bool = True
+    export: ExportConfig = Field(default_factory=ExportConfig)
+
+    @model_validator(mode="after")
+    def _energy_window(self) -> PlotConfig:
+        if self.energy_min >= self.energy_max:
+            raise ValueError(_("energy_min deve ser menor que energy_max"))
+        return self
+
+
+class UiConfig(_Section):
+    theme: Literal["dark", "light", "system"] = "dark"  # system: follow the OS color scheme
+    # The language of the texts; applied at startup (a reload tells to restart). "auto" follows the
+    # system: Portuguese for pt*, English for anything else (spec end R2).
+    language: Literal["auto", "pt_BR", "en"] = "auto"
+    # Scales every font and the heights that hold text; paddings and icons stay (spec 19 R2).
+    font_scale: float = Field(default=1.0, ge=MIN_SCALE, le=MAX_SCALE)
+    hidden_dirs: list[str] = Field(default_factory=lambda: ["tmp", "*.save"])
+    # The folder tree lists only folders; true adds the files (the file grid always shows them).
+    tree_show_files: bool = False
+    # F5 rereads every file, even those whose (mtime, size) did not change (spec 14 R4.2).
+    paranoid_refresh: bool = False
+    # The sidebar "Plot" button plots a folder never plotted before; false: it only opens the
+    # adjustments panel, where "Gerar Plot" plots (a folder plotted before is shown either way).
+    auto_generate_plot: bool = True
+
+
+# One ``@`` with text on both sides, and nothing that would break ``MYEMAIL="…"`` in a script.
+_EMAIL = re.compile(r"""[^\s@'"`$\\]+@[^\s@'"`$\\]+""")
+
+
+class JobsConfig(_Section):
+    """What "Criar cálculo" takes from the config: the defaults of NP and the pools of its ``.qsub``
+    scripts, the e-mail they notify and the cluster's pseudopotentials. The rest of the cluster side
+    (QE and MPI paths, parallel environment, OpenMP, Intel MPI and mail environment) is fixed in the
+    script templates, the cluster's new model
+    (``Documentation/Referencia_de_scripts_QSUB/Novo_modelo_de_scripts_QSUB``, spec 86)."""
+
+    cores: int = Field(default=64, ge=1)  # default of the NP field
+    nk: int = Field(default=4, ge=1)  # default of the pools field (pw.x -nk), spec 28 R2.3
+    # The pseudopotentials on the cluster (POSIX), written into every generated pw.x input; None keeps
+    # the SCF's (spec 28 R2.2).
+    pseudo_dir: str | None = None
+    # ``MYEMAIL`` of the scripts: who the cluster notifies when a job starts and ends (spec 86 R1).
+    myemail: str | None = None
+
+    @field_validator("pseudo_dir", "myemail")
+    @classmethod
+    def _blank_is_none(cls, value: str | None) -> str | None:
+        return value.strip() or None if value is not None else None
+
+    @field_validator("myemail")
+    @classmethod
+    def _shell_safe_email(cls, value: str | None) -> str | None:
+        if value is not None and not _EMAIL.fullmatch(value):
+            raise ValueError(_("e-mail inválido: {value}").format(value=value))
+        return value
+
+
+class LogConfig(_Section):
+    """The log file (spec 89): ``core/app/logs.py`` applies it, also on a reload."""
+
+    enabled: bool = True
+    max_size_mb: int = Field(default=10, ge=1, le=1000)  # lain.log and lain.log.1 together
+    level: Literal["info", "debug"] = "info"
+
+
+class AppConfig(_Section):
+    paths: PathsConfig = Field(default_factory=PathsConfig)
+    cluster: ClusterConfig = Field(default_factory=ClusterConfig)
+    sync: SyncConfig = Field(default_factory=SyncConfig)
+    plot: PlotConfig = Field(default_factory=PlotConfig)
+    ui: UiConfig = Field(default_factory=UiConfig)
+    jobs: JobsConfig = Field(default_factory=JobsConfig)
+    log: LogConfig = Field(default_factory=LogConfig)
+
+    @property
+    def sync_enabled(self) -> bool:
+        return self.cluster.configured and bool(self.paths.remote_root)
+
+
+class ConfigError(Exception):
+    """Config file missing (when explicitly requested), unreadable or invalid."""
+
+    def __init__(self, path: Path | None, problems: list[str]):
+        self.path = path
+        self.problems = problems
+        where = f" ({path})" if path else ""
+        super().__init__(
+            _("Configuração inválida{where}:\n").format(where=where) + "\n".join(problems)
+        )
+
+
+@dataclass
+class LoadedConfig:
+    config: AppConfig
+    path: Path | None
+    warnings: list[str] = field(default_factory=list)
+    # True only when the lookup found no config.yaml at all (spec 18 R5: the welcome state). A
+    # LoadedConfig built in code with ``path=None`` (tests, scripts) is not a first run.
+    first_run: bool = False
+
+
+def user_config_path() -> Path:
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    else:
+        base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return base / "qe-studio" / CONFIG_NAME
+
+
+def checkout_dir() -> Path | None:
+    """The repository the package runs from (``<checkout>/src/qe_studio``, an editable install), whose
+    ``config.yaml`` is found from any folder (spec 61 R1); None for an installed package or when
+    ``$QE_STUDIO_NO_CHECKOUT_CONFIG`` is set. Reads ``os.environ``, not the lookup's ``environ``."""
+    if os.environ.get(ENV_NO_CHECKOUT):
+        return None
+    init = Path(qe_studio.__file__).resolve()
+    root = init.parents[2]
+    return root if init.parents[1].name == "src" and (root / "pyproject.toml").is_file() else None
+
+
+def find_config(
+    cli_path: str | os.PathLike[str] | None = None,
+    environ: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
+    checkout: Path | None = None,
+) -> Path | None:
+    """First existing config in search order; explicit paths must exist. ``checkout``: the
+    repository whose config.yaml comes after ``./config.yaml`` (None: ``checkout_dir()``)."""
+    environ = os.environ if environ is None else environ
+    for explicit, origin in ((cli_path, "--config"), (environ.get(ENV_CONFIG), ENV_CONFIG)):
+        if explicit:
+            path = Path(explicit).expanduser()
+            if not path.is_file():
+                raise ConfigError(
+                    path, [_("arquivo indicado por {origin} não encontrado").format(origin=origin)]
+                )
+            return path
+    checkout = checkout_dir() if checkout is None else checkout
+    candidates = [(cwd or Path.cwd()) / CONFIG_NAME]
+    if checkout is not None:
+        candidates.append(checkout / CONFIG_NAME)
+    for candidate in (*candidates, user_config_path()):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _format_validation(exc: ValidationError) -> list[str]:
+    problems = []
+    for err in exc.errors():
+        loc = ".".join(str(part) for part in err["loc"]) or _("(raiz)")
+        msg = err["msg"].removeprefix("Value error, ")
+        if err["type"] == "extra_forbidden":
+            msg = _("chave desconhecida")
+        problems.append(f"• {loc}: {msg}")
+    return problems
+
+
+REMOVED = N_("{name} foi removido e é ignorado: apague a linha do config.yaml.")
+MOVED_TO_STYLES = N_(
+    "{name} passou para os estilos de gráfico (resources/templates/plot_styles/padrao.yaml) e é "
+    "ignorado: apague a linha do config.yaml."
+)
+# The look of a new plot, now in the plot styles (spec 82 R2.2).
+STYLE_KEYS = (
+    "figure_size",
+    "line_width",
+    "band_colors",
+    "fermi_color",
+    "background",
+    "orbital_colors",
+    "atomos_colors",
+)
+# Keys that no longer exist, and what the warning says: dropped before validation so old files
+# still load.
+REMOVED_KEYS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("plot", "export", "theme"), REMOVED),
+    *((("plot", key), MOVED_TO_STYLES) for key in STYLE_KEYS),
+    # The cluster side of the .qsub scripts, now fixed in their templates.
+    (("jobs", "qe_bin"), REMOVED),
+    (("jobs", "mpi_command"), REMOVED),
+    (("jobs", "parallel_env"), REMOVED),
+    (("jobs", "omp_threads"), REMOVED),
+    (("jobs", "env_lines"), REMOVED),
+)
+
+
+def _drop_removed_keys(data: dict, warnings: list[str]) -> dict:
+    """Copy of ``data`` without ``REMOVED_KEYS``; each one found adds its warning."""
+    for keys, message in REMOVED_KEYS:
+        parents = [data]
+        for key in keys[:-1]:
+            parent = parents[-1].get(key)
+            if not isinstance(parent, dict):  # wrong type: pydantic reports it
+                break
+            parents.append(parent)
+        else:
+            if keys[-1] in parents[-1]:
+                data = _without(data, keys)
+                warnings.append(_(message).format(name=".".join(keys)))
+    return data
+
+
+def _without(data: dict, keys: tuple[str, ...]) -> dict:
+    head, *rest = keys
+    if not rest:
+        return {k: v for k, v in data.items() if k != head}
+    return {k: (_without(v, tuple(rest)) if k == head else v) for k, v in data.items()}
+
+
+def parse_config(
+    data: object, path: Path | None = None, warnings: list[str] | None = None
+) -> AppConfig:
+    """Validate ``data``. Warnings about removed keys are appended to ``warnings`` if given."""
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        raise ConfigError(path, [_("o arquivo deve conter um mapeamento YAML (chave: valor)")])
+    data = _drop_removed_keys(data, [] if warnings is None else warnings)
+    try:
+        config = AppConfig.model_validate(data)
+    except ValidationError as exc:
+        raise ConfigError(path, _format_validation(exc)) from exc
+    _anchor_data(config.paths, path)
+    return config
+
+
+def _anchor_data(paths: PathsConfig, path: Path | None) -> None:
+    """A relative ``paths.data`` is relative to the folder of the config file that sets it, so a
+    copied folder works anywhere (spec 61 R2.1); with no file there is nothing to anchor it to."""
+    if paths.data is not None and not paths.data.is_absolute():
+        paths.data = Path(os.path.abspath(path.parent / paths.data)) if path is not None else None
+
+
+def _warnings(config: AppConfig) -> list[str]:
+    warnings = []
+    if not config.paths.local_root.is_dir():
+        warnings.append(
+            _("Pasta local não encontrada: {local_root}").format(local_root=config.paths.local_root)
+        )
+    cluster = config.cluster
+    if cluster.password is not None:
+        warnings.append(
+            _("Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave.")
+        )
+    if config.sync_enabled:
+        if cluster.auth == "key" and cluster.key_path and not cluster.key_path.is_file():
+            warnings.append(
+                _("Chave SSH não encontrada: {key_path}").format(key_path=cluster.key_path)
+            )
+        if cluster.auth == "password" and cluster.resolve_password() is None:
+            warnings.append(
+                _("auth: password, mas a variável {value} não está definida.").format(
+                    value=cluster.password_env or "(password_env)"
+                )
+            )
+    else:
+        warnings.append(
+            _("Cluster não configurado (host/user/remote_root): sincronização desativada.")
+        )
+    return warnings
+
+
+def read_config_data(path: Path) -> object:
+    """The parsed YAML of the config file at ``path``."""
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ConfigError(
+            path, [_("não foi possível ler o arquivo: {exc}").format(exc=exc)]
+        ) from exc
+    except yaml.YAMLError as exc:
+        raise ConfigError(path, [_("YAML inválido: {exc}").format(exc=exc)]) from exc
+
+
+def load_config(
+    cli_path: str | os.PathLike[str] | None = None,
+    environ: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
+) -> LoadedConfig:
+    """Find, read and check the config, then read the plot styles and install them (spec 82 R1.4:
+    at startup and on "Recarregar config.yaml"); their warnings join the config's."""
+    path = find_config(cli_path, environ, cwd)
+    if path is None:
+        config = AppConfig()
+        styles = _install_styles()
+        return LoadedConfig(
+            config,
+            None,
+            [_("config.yaml não encontrado; usando valores padrão."), *styles, *_warnings(config)],
+            first_run=True,
+        )
+    removed: list[str] = []
+    config = parse_config(read_config_data(path), path, removed)
+    return LoadedConfig(config, path, [*removed, *_install_styles(), *_warnings(config)])
+
+
+def _install_styles() -> list[str]:
+    """Read the plot styles, make them the ones in use and return their warnings."""
+    styles = plot_styles.load_styles(plot_styles.STYLES_DIR)
+    plot_styles.set_styles(styles)
+    return list(styles.warnings)

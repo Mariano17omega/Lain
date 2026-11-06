@@ -1,0 +1,7 @@
+/* Full-height panels separated by 1 px rules (no floating blocks). */
+QSplitter::handle {
+    background: ${border};
+}
+QSplitter::handle:hover {
+    background: ${accent_border};
+}

@@ -1,0 +1,450 @@
+"""Main window: full-height layout from the mockups (PRD §2.1).
+
+``ActivityBar | QSplitter[ left panel (explorer ⇄ plot parameters) | file grid | workspace ]``
+
+The composition root (spec 15 R4): it builds the widgets and each feature's controller (its
+``for_window``), registers the actions and wires the signals, and keeps only what spans several of
+them: reloading the config and closing (``ui/shutdown.py``).
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+from PyQt6.QtCore import QPoint, QSettings, Qt, QUrl, pyqtSignal
+from PyQt6.QtGui import QAction, QCloseEvent, QDesktopServices
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QMainWindow,
+    QMessageBox,
+    QSplitter,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ..core.config import ConfigError, LoadedConfig, load_config
+from ..core.files.file_kinds import viewer_kind
+from ..core.project.compounds import CompoundStore
+from ..core.project.folder_memory import FolderMemory
+from ..core.project.nav_store import NavigationStore
+from ..i18n import _
+from .actions import build_menus
+from .cluster.job_actions import JobActionsController
+from .cluster.job_cancel import JobCancelController
+from .cluster.jobs_controller import JobsController
+from .cluster.remote_controller import RemoteController
+from .cluster.remote_trash import RemoteTrashController
+from .cluster.sync_coordinator import SyncCoordinator
+from .dialogs.open_many import MANY_FILES, ask_open_many
+from .files.detection_service import DetectionService
+from .files.navigation_controller import NavigationController
+from .files.project_controller import ProjectController
+from .files.rename_controller import RenameController
+from .plot.grids_controller import GridsController
+from .plot.plot_settings import PlotSettingsStore
+from .plot.plot_workflow import PlotWorkflow
+from .shell.first_run import FirstRunController
+from .shell.focus_controller import FocusController
+from .shell.footer_path import FooterPath
+from .shell.help_controller import HelpController
+from .shell.layout_controller import LayoutController
+from .shell.palette_controller import PaletteController
+from .shell.restart_notice import reload_notices
+from .shutdown import ShutdownReport, close_dialogs, run_shutdown
+from .theme.manager import ThemeManager
+from .tools.adsorption_energy_controller import AdsorptionEnergyController
+from .tools.calc_create_controller import CalcCreateController
+from .tools.derive_controller import DeriveController
+from .tools.structure3d_controller import Structure3DController
+from .widgets.files.context_menu import ItemActions
+from .widgets.files.explorer import ExplorerPanel
+from .widgets.files.file_grid import FilePanel
+from .widgets.plot.plot_params import ParamsPanel
+from .widgets.plot.plot_view import PlotView
+from .widgets.shell.bars import ActivityBar, StatusBar, TopBar
+from .widgets.shell.workspace import Workspace
+from .widgets.toast import Toast
+
+log = logging.getLogger(__name__)
+
+
+class MainWindow(QMainWindow):
+    # Relayed from the controllers: scripts and tests wait on the window.
+    plot_ready = pyqtSignal(object)  # PlotSession
+    plot_failed = pyqtSignal(str)
+    export_finished = pyqtSignal(object)  # list[Path]
+    sync_finished = pyqtSignal(object)  # SyncReport
+
+    def __init__(
+        self,
+        loaded: LoadedConfig,
+        theme: ThemeManager,
+        settings: QSettings | None = None,
+        memory: FolderMemory | None = None,
+        navigation: NavigationStore | None = None,
+        compounds: CompoundStore | None = None,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent)
+        self.setObjectName("mainWindow")
+        self.loaded = loaded
+        self.theme = theme
+        self.settings = settings or QSettings()
+        self.memory = memory or FolderMemory()
+        self.navigation_store = navigation or NavigationStore()
+        self.compounds = compounds or CompoundStore()  # atoms chosen per compound (spec 21)
+        self.memory.set_root(self.root)  # its keys are relative to the project root
+        self.service = DetectionService(self.memory, self)
+        self.service.paranoid_refresh = self.config.ui.paranoid_refresh
+        self._actions: dict[str, QAction] = {}  # by stable id (spec 18 reads it)
+        self.shutdown_report: ShutdownReport | None = None  # closeEvent's; ``app.main`` logs it
+
+        self._build()
+        self._build_controllers()
+        self._build_menus()
+        self._connect()
+        self.panel_layout.restore()
+        self.sync.start_monitor()
+        self.navigation.restore()
+        self.first_run.refresh()
+        for warning in loaded.warnings:
+            log.warning(warning)
+        # A corrupt folders.json or navigation.json is set aside once: say so before any config warning.
+        stored = self.memory.load_warning() or self.navigation_store.load_warning()
+        if warning := stored or next(iter(loaded.warnings), None):
+            self.status.set_message(warning, "warning")
+
+    # -- properties ---------------------------------------------------------------------------------
+    @property
+    def config(self):
+        return self.loaded.config
+
+    @property
+    def root(self) -> Path:
+        return self.config.paths.local_root
+
+    @property
+    def monitor(self):
+        return self.sync.monitor
+
+    # -- construction -----------------------------------------------------------------------------
+    def _build(self) -> None:
+        self.resize(1440, 900)
+        central = QWidget()
+        outer = QVBoxLayout(central)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        self.top_bar = TopBar(self.theme)
+        outer.addWidget(self.top_bar)
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+        self.activity = ActivityBar(self.theme)
+        body.addWidget(self.activity)
+
+        hidden = self.config.ui.hidden_dirs
+        self.explorer = ExplorerPanel(self.theme, self.service, self.root, self.config.ui)
+        self.left = QStackedWidget()
+        self.left.setObjectName("leftPanel")
+        self.left.setMinimumWidth(200)
+        self.left.addWidget(self.explorer)
+        self.params = ParamsPanel(self.theme, settings=self.settings)
+        self.left.addWidget(self.params)
+        self.files = FilePanel(self.theme, self.service, self.root, hidden)
+        self.files.setMinimumWidth(170)
+        self.workspace = Workspace(self.theme, settings=self.settings)
+        self.workspace.setMinimumWidth(320)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.setHandleWidth(1)
+        self.splitter.setChildrenCollapsible(False)
+        body.addWidget(self.splitter, 1)
+        outer.addLayout(body, 1)
+        self.setCentralWidget(central)
+        self.status = StatusBar(self.theme)
+        self.setStatusBar(self.status)
+        self.toast = Toast(self.theme, self, footer=self.status)  # notices, e.g. a pull's end
+
+    def _build_controllers(self) -> None:
+        panels = {"tree": self.left, "grid": self.files, "workspace": self.workspace}
+        self.panel_layout = LayoutController(
+            self, self.splitter, panels, self.top_bar, self.activity, self.settings, self
+        )
+        self.navigation = NavigationController(
+            self,
+            self.explorer,
+            self.top_bar,
+            self.root,
+            self.navigation_store,
+            self.settings,
+            parent=self,
+        )
+        self.item_actions = ItemActions(self, self.service, self.navigation.is_favorite)
+        self.footer = FooterPath.for_window(self)  # the path on the right of the status bar
+        self.plot_settings = PlotSettingsStore(self)
+        self.plot_workflow = PlotWorkflow(
+            service=self.service,
+            workspace=self.workspace,
+            params=self.params,
+            memory=self.memory,
+            settings=self.plot_settings,
+            status=self.status,
+            theme=self.theme,
+            config=lambda: self.config,
+            dialog_parent=self,
+            compounds=self.compounds,
+            parent=self,
+        )
+        self.sync = SyncCoordinator(
+            self.config,
+            self.theme,
+            self,
+            self,
+            current_folder=self.current_folder,
+            refresh=self.refresh_folder,
+        )
+        self.jobs = JobsController.for_window(self)  # the cluster's jobs on the top bar (spec 64)
+        self.help = HelpController.for_window(self)
+        self.command_palette = PaletteController.for_window(self)
+        self.first_run = FirstRunController.for_window(self)
+        self.project = ProjectController.for_window(self)  # "Projeto" dropdown (spec 31)
+        self.remote = RemoteController.for_window(self)  # the cluster mode (spec 65)
+        self.job_actions = JobActionsController.for_window(self)  # "Submeter…" (spec 69)
+        self.job_cancel = JobCancelController.for_window(self)  # "Cancelar simulação…" (spec 70)
+        self.remote_trash = RemoteTrashController.for_window(self)  # "Apagar…" (spec 84)
+        self.focus_areas = FocusController.for_window(self)  # tab order and Ctrl+1..4
+        self.grids = GridsController.for_window(self)  # "Grids" button and window (spec 23)
+        self.derive = DeriveController.for_window(self)  # "Gerar SCF convergido" (spec 24)
+        self.calc_create = CalcCreateController.for_window(self)  # "Criar cálculo" (spec 26)
+        self.renamer = RenameController.for_window(self)  # "Renomear", after what it asks (27-3)
+        self.structure3d = Structure3DController.for_window(self)  # spec 43
+        self.adsorption = AdsorptionEnergyController.for_window(self)  # "Calcular adsorção…" (78)
+
+    def _build_menus(self) -> None:
+        self._actions = build_menus(self)
+        self.sync.bind_actions(self._actions)
+        self.sync.bind_menu(self.item_actions)  # "Enviar ao cluster" of a folder (spec 27)
+
+    def _connect(self) -> None:
+        self.explorer.folder_selected.connect(self.on_folder_selected)
+        self.explorer.file_selected.connect(self.files.select_file)
+        self.explorer.file_activated.connect(self.open_file)
+        self.files.file_activated.connect(self.open_file)
+        self.files.folder_activated.connect(self.explorer.select_path)
+        self.files.files_activated.connect(self.open_files)
+        self.explorer.item_menu_requested.connect(self._show_item_menu)
+        self.files.item_menu_requested.connect(self._show_item_menu)
+        self.item_actions.message.connect(self.status.set_message)
+        self.item_actions.rename_requested.connect(self.rename_path)
+        self.item_actions.plot_file_requested.connect(self.plot_file)
+        self.item_actions.summary_requested.connect(self.open_summary)
+        self.item_actions.compare_requested.connect(self.compare_inputs)
+        self.item_actions.bands_dos_requested.connect(self.plot_workflow.plot_pair)
+        self.item_actions.favorite_toggled.connect(self.navigation.set_favorite)
+        self.activity.sync_requested.connect(self.sync.start_selected)
+        self.activity.theme_requested.connect(self.toggle_theme)
+        self.activity.generate_requested.connect(self.plot_button)
+        self.top_bar.plot_file_requested.connect(self.plot_workflow.plot_open_file)
+        self.workspace.external_open_requested.connect(self.item_actions.open_default)
+        self.workspace.reveal_requested.connect(self.reveal_in_explorer)
+        self.workspace.message.connect(self.status.set_message)
+        self.params.back_requested.connect(self.panel_layout.show_tree)
+        self.params.generate_requested.connect(self.generate_plot)
+        layout, workflow, sync = self.panel_layout, self.plot_workflow, self.sync
+        layout.workspace_visibility_changed.connect(workflow.update_readout)
+        workflow.panel_requested.connect(self._show_panel)
+        workflow.message.connect(self.status.set_message)
+        workflow.plot_file_available.connect(self.top_bar.set_plot_file)
+        workflow.export_finished.connect(self._on_exported)
+        workflow.export_finished.connect(self.export_finished)
+        workflow.plot_ready.connect(self.plot_ready)
+        workflow.plot_failed.connect(self.plot_failed)
+        self.navigation.message.connect(self.status.set_message)
+        self.help.message.connect(self.status.set_message)
+        self.first_run.message.connect(self.status.set_message)
+        self.service.message.connect(self.status.set_message)
+        self.focus_areas.message.connect(self.status.set_message)
+        sync.cluster_changed.connect(self.top_bar.set_cluster)
+        sync.cluster_changed.connect(self.activity.set_cluster)
+        sync.message.connect(self.status.set_message)
+        sync.notice.connect(self.toast.show_message)
+        sync.scope_changed.connect(self.activity.set_sync_tooltip)
+        sync.finished.connect(self.sync_finished)
+
+    # -- state ----------------------------------------------------------------------------------
+    def focusNextPrevChild(self, next: bool) -> bool:
+        """Tab and Shift+Tab: the order of the window's regions, rebuilt first (spec 19 R4.3)."""
+        self.focus_areas.apply_tab_order()
+        return super().focusNextPrevChild(next)
+
+    def closeEvent(self, event: QCloseEvent | None) -> None:
+        if not close_dialogs(self):  # one keeps what the user typed: the window stays
+            if event is not None:
+                event.ignore()
+            return
+        self.shutdown_report = run_shutdown(self)
+        super().closeEvent(event)
+
+    # -- navigation -----------------------------------------------------------------------------
+    def current_folder(self) -> Path:
+        return self.explorer.current_folder()
+
+    def on_folder_selected(self, folder: Path) -> None:
+        if folder != self.files.folder:
+            self.files.set_folder(folder)
+        self.navigation.visited(folder)
+        self.sync.show_scope(folder)
+        self.footer.show_folder(folder)
+
+    def open_file(self, path: Path) -> None:
+        kind = viewer_kind(path)
+        if kind == "external":
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+            return
+        self.workspace.open_file(path, kind)
+        self.set_panel_visible("workspace", True)
+
+    def open_files(self, paths: list[Path]) -> None:
+        """Enter on a selection: every file opens in the workspace (folders are skipped); more
+        than ``MANY_FILES`` ask first (spec 16 R5.4)."""
+        files = [path for path in paths if not path.is_dir()]
+        if len(files) > MANY_FILES and not ask_open_many(self, len(files)):
+            return
+        for path in files:
+            self.open_file(path)
+
+    def reveal_in_explorer(self, path: Path) -> None:
+        """Tab menu "Revelar no explorador": select the item in the tree and the grid."""
+        self.set_left_mode("tree")
+        self.set_panel_visible("grid", True)
+        self.explorer.select_path(path)
+
+    def set_left_mode(self, mode: str) -> None:
+        self.panel_layout.set_left_mode(mode)
+
+    def set_panel_visible(self, panel: str, visible: bool) -> None:
+        self.panel_layout.set_panel_visible(panel, visible)
+
+    def _show_panel(self, name: str) -> None:
+        if name == "params":
+            self.set_left_mode("params")
+        else:
+            self.set_panel_visible(name, True)
+
+    def open_folder_externally(self) -> None:
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.current_folder())))
+
+    def refresh(self) -> None:
+        if self.remote.refresh():  # the cluster mode: F5 lists the cluster's folder again
+            return
+        self.service.invalidate()
+        self.command_palette.invalidate()  # its folder index is rebuilt on the next open
+        self.project.reload()
+        self.explorer.refresh()
+        self.files.refresh()
+        self.status.set_message(_("Atualizado."), timeout_ms=2500)
+
+    def refresh_folder(self, folder: Path) -> None:
+        """What changed on disk under ``folder`` (a pull): detection, tree and grid read it again."""
+        self.service.invalidate(folder)
+        self.explorer.refresh()
+        self.files.refresh()
+
+    # -- context menu (spec 5 R3) -------------------------------------------------------------------
+    def _show_item_menu(self, paths: list[Path], pos: QPoint) -> None:
+        self.item_actions.show(paths, pos, can_rename=paths != [self.root])
+
+    def compare_inputs(self, a: Path, b: Path) -> None:
+        """ "Comparar" of two selected inputs: the diff tab (spec 16 R5.5)."""
+        self.workspace.open_diff(a, b)
+        self.set_panel_visible("workspace", True)
+
+    def open_summary(self, path: Path) -> None:
+        """ "Resumo" of a QE output: a tab in the workspace (spec 12)."""
+        self.workspace.open_summary(path)
+        self.set_panel_visible("workspace", True)
+
+    def rename_path(self, path: Path) -> None:
+        """Rename a file or folder (``RenameController``: spec 5 R3.4, spec 27-3 R2)."""
+        self.renamer.rename(path)
+
+    # -- plots (PlotWorkflow) -----------------------------------------------------------------------
+    def current_plot(self) -> PlotView | None:
+        return self.plot_workflow.current_plot()
+
+    def plot_button(self) -> None:
+        if self.remote.plot(generate=False):  # the cluster mode plots a copy (spec 66)
+            return
+        self.plot_workflow.button.click(self.current_folder(), self.files.selected_paths())
+
+    def generate_plot(self) -> None:
+        if self.remote.plot(generate=True):
+            return
+        self.plot_workflow.generator.click(self.current_folder(), self.files.selected_paths())
+
+    def generate_plot_for(self, folder: Path, auto_export: bool = True) -> None:
+        self.plot_workflow.generate(folder, auto_export)
+
+    def plot_file(self, path: Path, kind: str) -> None:
+        self.plot_workflow.plot_file(path, kind)
+
+    def export_plot(self) -> bool:
+        return self.plot_workflow.export()
+
+    def _on_exported(self, _written: list[Path]) -> None:
+        self.files.refresh()
+
+    # -- theme & config -------------------------------------------------------------------------
+    def toggle_theme(self) -> None:
+        self.settings.setValue("ui/theme", self.theme.toggle())  # the mode, not the concrete theme
+        self.status.set_message(
+            _("Tema: {theme}.").format(theme=self.theme.label()), timeout_ms=2000
+        )
+
+    def open_config(self) -> None:
+        if self.loaded.path is None:
+            self.first_run.create_config()  # no config to open: offer to create one (spec 18 R5.5)
+            return
+        self.open_file(self.loaded.path)
+
+    def reload_config(self) -> None:
+        self.load_config_file(self.loaded.path)
+
+    def load_config_file(self, path: Path | None) -> None:
+        """Load the config at ``path`` (None: look it up again) and apply it to the window."""
+        try:
+            loaded = load_config(path)
+        except ConfigError as exc:
+            QMessageBox.critical(self, _("config.yaml inválido"), str(exc))
+            return
+        self._apply_loaded(loaded)
+        message = loaded.warnings[0] if loaded.warnings else _("config.yaml recarregado.")
+        self.status.set_message(message, "warning" if loaded.warnings else "info", 5000)
+        if notice := reload_notices(loaded):
+            self.toast.show_message(notice)
+
+    def use_session_root(self, folder: Path) -> None:
+        """Browse ``folder`` as the project for this session only: the config file is not written,
+        and the next reload goes back to its ``paths.local_root`` (spec 18 R5.2)."""
+        paths = self.config.paths.model_copy(update={"local_root": folder})
+        config = self.config.model_copy(update={"paths": paths})
+        self._apply_loaded(LoadedConfig(config, self.loaded.path, self.loaded.warnings))
+
+    def _apply_loaded(self, loaded: LoadedConfig) -> None:
+        old_root = self.root
+        self.loaded = loaded
+        self.memory.set_root(self.root)
+        self.navigation.set_root(self.root)
+        self.service.paranoid_refresh = self.config.ui.paranoid_refresh
+        self.theme.set_font_scale(self.config.ui.font_scale)
+        self.sync.set_config(self.config)
+        self.jobs.set_config(self.config)
+        self.remote.set_config(self.config)
+        self.explorer.apply_config(self.root, self.config.ui)
+        self.files.apply_config(self.root, self.config.ui.hidden_dirs)
+        self.project.config_applied(old_root)  # the views were reset to the root (spec 31)
+        self.refresh()
+        if self.root != old_root:  # a new project: start at its top
+            self.explorer.select_path(self.root)
+        self.first_run.refresh()

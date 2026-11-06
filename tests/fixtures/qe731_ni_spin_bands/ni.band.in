@@ -1,0 +1,38 @@
+&control
+    calculation = 'bands',
+    prefix='ni',
+    pseudo_dir = '/home/m/.burai/.pseudopot',
+    outdir='./tmp'
+/
+&system
+    ibrav=  2,
+    celldm(1)=  6.65,
+    ntyp= 1,
+    nat=  1,
+    ecutwfc = 30,
+    ecutrho = 240,
+    occupations= 'smearing',
+    smearing= 'mv',
+    degauss= 0.02,
+    nspin= 2,
+    starting_magnetization(1)= 0.8,
+    nbnd = 14
+/
+&electrons
+    conv_thr =  1.0d-9,
+    mixing_beta = 0.7
+/
+ATOMIC_SPECIES
+ Ni 58.6934 Ni.pbe-nd-rrkjus.UPF
+
+ATOMIC_POSITIONS alat
+ Ni 0.00 0.00 0.00
+
+K_POINTS {tpiba_b}
+6
+  0.5 0.5 0.5 10  !L
+  0.0 0.0 0.0 10  !G
+  1.0 0.0 0.0  5  !X
+  1.0 0.5 0.0  5  !W
+  0.75 0.75 0.0 14 !K
+  0.0 0.0 0.0  1  !G

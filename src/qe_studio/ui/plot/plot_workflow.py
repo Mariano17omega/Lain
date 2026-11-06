@@ -1,0 +1,497 @@
+"""The plot workflow (PRD §3, §4): detect → choose or map → load → plot tab → render → export.
+
+``PlotWorkflow`` only orchestrates: the decisions are ``core`` (``plot_choice``, ``load_plot``,
+``build_session``; exports go through ``PlotExporter``); it opens the dialogs, runs the workers and
+updates the widgets it was given. It never knows the main window: what the window must do (show a
+panel, a status message) is a signal.
+"""
+
+from __future__ import annotations
+
+import copy
+import logging
+from collections.abc import Callable
+from dataclasses import dataclass
+from functools import partial
+from pathlib import Path
+from typing import Any
+
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PyQt6.QtWidgets import QInputDialog, QMessageBox, QWidget
+
+from ...core.calculations import (
+    CLOSE_DROP_MIN_BYTES,
+    DetectionResult,
+    drop_cached,
+    module_for,
+    module_for_file,
+)
+from ...core.calculations.base import LoadError, Stores
+from ...core.config import AppConfig
+from ...core.detection import (
+    Ambiguous,
+    Chosen,
+    ManualTarget,
+    PairTarget,
+    mapping_message,
+    plot_choice,
+    plottable_modules,
+)
+from ...core.plotting.session import PlotSession, build_session, load_plot, target_key
+from ...core.project.compounds import CompoundStore
+from ...core.project.folder_memory import FolderMemory
+from ...core.project.grid_store import GridStore
+from ...core.tasks import TaskGroup
+from ...i18n import _
+from ..dialogs.mapping import ask_mapping
+from ..files.detection_service import DetectionService
+from ..shell.busy import BusyTracker
+from ..theme.manager import ThemeManager
+from ..widgets.plot.plot_params import ParamsPanel
+from ..widgets.plot.plot_view import PlotView
+from ..widgets.shell.bars import StatusBar
+from ..widgets.shell.workspace import Workspace
+from ..widgets.viewer.text_viewer import TextViewer
+from .generate_plot import GeneratePlot
+from .plot_button import PlotButton
+from .plot_export import EXPORT_WAIT_MS, PlotExporter
+from .plot_settings import PlotSettingsStore
+
+log = logging.getLogger(__name__)
+RENDER_DEBOUNCE_MS = 120
+
+
+def choose_result(parent: QWidget, results: list[DetectionResult]) -> DetectionResult | None:
+    """Several plottable kinds in one folder (e.g. BANDS + PDOS): ask which one."""
+    labels = [r.module.display_name for r in results]
+    label, ok = QInputDialog.getItem(
+        parent, _("Gerar gráfico"), _("Tipo de cálculo:"), labels, 0, False
+    )
+    return results[labels.index(label)] if ok else None
+
+
+@dataclass
+class _Loading:
+    """A plot being loaded: its data first (load pool), then its ``.plot`` (settings queue)."""
+
+    auto_export: bool
+    preview: bool = False  # of one output file ("Plotar", "Plotar SCF"), not of its folder
+    result: DetectionResult | None = None
+    dataset: Any = None
+
+
+class PlotWorkflow(QObject):
+    plot_ready = pyqtSignal(object)  # PlotSession, its tab shown
+    plot_failed = pyqtSignal(str)
+    export_finished = pyqtSignal(object)  # list[Path] written into plots/
+    message = pyqtSignal(str, str, int)  # text, level, timeout (ms; 0 = stays)
+    panel_requested = pyqtSignal(str)  # "workspace" | "params"
+    # The current tab is an output one module plots alone: (visible, button label, tooltip)
+    plot_file_available = pyqtSignal(bool, str, str)
+
+    def __init__(
+        self,
+        *,
+        service: DetectionService,
+        workspace: Workspace,
+        params: ParamsPanel,
+        memory: FolderMemory,
+        settings: PlotSettingsStore,
+        status: StatusBar,
+        theme: ThemeManager,
+        config: Callable[[], AppConfig],
+        dialog_parent: QWidget,
+        compounds: CompoundStore | None = None,
+        grids: GridStore | None = None,
+        parent: QObject | None = None,
+    ):
+        super().__init__(parent)
+        self.service, self.workspace, self.params = service, workspace, params
+        self.memory, self.settings, self.status, self.theme = memory, settings, status, theme
+        # Kept per user, not per folder: atoms per compound, the saved grids and their settings.
+        self.stores = Stores(compounds or CompoundStore(), grids or GridStore())
+        self._config = config
+        self._dialog_parent = dialog_parent
+        self._detecting: dict[str, bool] = {}  # folder → auto_export, waiting for detection
+        self._loading: dict[str, _Loading] = {}  # by plot key
+        self._previews: set[str] = set()  # keys of the open tabs that ``plot_file`` showed
+        self._loads = TaskGroup()  # by plot key, in the global pool
+        self.button = PlotButton(self, config)  # the activity bar's "Plot"
+        self.generator = GeneratePlot(self)  # the panel's "Gerar Plot" and Ctrl+G
+        self._replacing: str | None = None  # key of the tab a new session is about to replace
+        self._plot_file_source: tuple[Path, str] | None = None  # what the "Plotar …" button plots
+        # Busy indicator (spec 15 R2): counted by name, so a task that never ends cannot leave a
+        # global cursor behind; detections, loads and exports all show in the footer.
+        self.busy = BusyTracker(status)
+        self.exporter = PlotExporter(
+            self.busy, dialog_parent, self, root=lambda: self._config().paths.local_root
+        )
+        self.exporter.finished.connect(self.export_finished)
+        self.exporter.message.connect(self.message)
+        self._render_timer = QTimer(self)
+        self._render_timer.setSingleShot(True)
+        self._render_timer.setInterval(RENDER_DEBOUNCE_MS)
+        self._render_timer.timeout.connect(self._render_current)
+
+        service.detected.connect(self._on_detected)
+        workspace.current_changed.connect(self._on_tab_changed)
+        workspace.tab_closing.connect(self._on_tab_closing)
+        params.changed.connect(self._on_param_changed)
+        params.remap_requested.connect(self.remap)
+        params.restore_requested.connect(self.restore_defaults)
+        settings.warning.connect(self._on_settings_warning)
+
+    # -- queries --------------------------------------------------------------------------------
+    def current_plot(self) -> PlotView | None:
+        widget = self.workspace.current()
+        return widget if isinstance(widget, PlotView) else None
+
+    def plot_of(self, folder: Path) -> PlotView | None:
+        """The open plot of ``folder``: the current tab first. A figure of several folders (bands
+        + DOS) is not the plot of its first one, nor is the preview of one of its outputs
+        (``plot_file``: the SCF of a bands folder)."""
+
+        def shows(view: PlotView) -> bool:
+            session = view.session
+            return (
+                session.folder == folder
+                and not session.composite
+                and session.key not in self._previews
+            )
+
+        view = self.current_plot()
+        if view is not None and shows(view):
+            return view
+        views = (w for _key, w in self.workspace.items() if isinstance(w, PlotView))
+        return next((w for w in views if shows(w)), None)
+
+    # -- entry points ---------------------------------------------------------------------------
+    def generate(self, folder: Path, auto_export: bool = True) -> None:
+        """Detect → (choose / map manually) → load in a worker → plot tab → save to plots/.
+
+        Detection runs in the service pool (big outputs, network disks): the rest continues
+        in ``_on_detected``.
+        """
+        key = str(folder)
+        if key in self._detecting:
+            return
+        self._detecting[key] = auto_export
+        self.busy.begin(f"detect:{key}", _("Detectando cálculo…"))
+        self.service.request(Path(folder), fresh=True)
+
+    def plot_file(self, path: Path, kind: str) -> None:
+        """Preview the plot of one output file (context-menu "Plotar", "Plotar SCF" button).
+
+        Not saved to plots/: "Exportar" / Ctrl+E does that.
+        """
+        module = module_for(kind)
+        assert module.single_file_role is not None
+        mapping = {module.single_file_role: [path]}
+        target = ManualTarget(module, path.parent, mapping, self.service.sniff_cache.sniff)
+        self._load(target, False, preview=True)
+
+    def plot_pair(self, bands: Path, dos: Path, auto_export: bool = False) -> None:
+        """ "Bandas com DOS" (spec 22): both folders are detected and paired in the load worker.
+        Saved to plots/ for "Gerar Plot" only; an open figure of the pair is redone, edits kept."""
+        sniff = self.service.sniff_cache.sniff
+        self._load(PairTarget(bands, dos, sniff, self.memory), auto_export)
+
+    def plot_open_file(self) -> None:
+        if self._plot_file_source is not None:
+            self.plot_file(*self._plot_file_source)
+
+    def remap(self) -> None:
+        view = self.current_plot()
+        if view is None:
+            return
+        results = [view.session.result]
+        target = self._map_manually(view.session.folder, results, mapping_message(results))
+        if target is not None:
+            self._load(target, auto_export=False)
+
+    def export(self) -> bool:
+        """Save the current plot to <folder>/plots/ (PRD §4.4); whether an export started."""
+        view = self.current_plot()
+        if view is None:
+            self.message.emit(_("Nenhum gráfico aberto."), "warning", 3000)
+            return False
+        return self.exporter.export(view.session)
+
+    @property
+    def exporting(self) -> bool:
+        return self.exporter.running
+
+    def wait_for_exports(self) -> bool:
+        """Before a rename moves a folder: an export must not recreate the old one."""
+        return self.exporter.wait()
+
+    def cancel_loads(self) -> None:
+        """Window close: the datasets being loaded are not wanted any more."""
+        self._loads.cancel_all()
+        self.button.cancel()
+        self.generator.cancel()
+
+    def shutdown(self, timeout_ms: int = EXPORT_WAIT_MS) -> bool:
+        """Window close: loads are dropped, exports finish (no half-written files)."""
+        self.cancel_loads()
+        return self.exporter.shutdown(timeout_ms)
+
+    # -- detection → choice -----------------------------------------------------------------------
+    def _on_detected(self, key: str) -> None:
+        self.update_plot_file_button()
+        if key not in self._detecting:
+            return
+        # Taken now: by the next loop turn a refresh or sync may have invalidated the cache.
+        results = self.service.results(Path(key))
+        if results is None:
+            return  # invalidated already: detection runs again and lands here
+        auto_export = self._detecting.pop(key)
+        self.busy.end(f"detect:{key}")
+        # Not a worker: the dialogs below must not open inside the detection signal's slot.
+        QTimer.singleShot(0, partial(self._plot_detected, Path(key), results, auto_export))
+
+    def _plot_detected(
+        self, folder: Path, results: list[DetectionResult], auto_export: bool
+    ) -> None:
+        choice = plot_choice(results)
+        if isinstance(choice, Ambiguous):
+            target = choose_result(self._dialog_parent, choice.results)
+        elif isinstance(choice, Chosen):
+            target = choice.result
+        else:
+            target = self._map_manually(folder, results, choice.message)
+        if target is not None:
+            self._load(target, auto_export)
+
+    def _map_manually(
+        self, folder: Path, results: list[DetectionResult], message: str
+    ) -> ManualTarget | None:
+        modules = plottable_modules()
+        answer = ask_mapping(self._dialog_parent, folder, modules, results, message)
+        if answer is None:
+            return None
+        kind, mapping, remember = answer
+        module = next(m for m in modules if m.kind == kind)
+        if remember:
+            self.memory.set_mapping(folder, kind, mapping)
+            self.service.invalidate(folder)
+        return ManualTarget(module, folder, mapping, self.service.sniff_cache.sniff)
+
+    # -- loading ------------------------------------------------------------------------------------
+    def _load(
+        self,
+        target: DetectionResult | ManualTarget | PairTarget,
+        auto_export: bool,
+        preview: bool = False,
+    ) -> None:
+        """Load the plot of ``target``. A request for a plot already loading replaces the running
+        one (a "Remapear" meanwhile must win): both of its stages are cancelled, so only the newest
+        reaches the tab, and an export asked by the first request is kept. ``preview``: a
+        ``plot_file`` of one output, not the plot of its folder (unless both asked for it)."""
+        self.stores.set_root(self._config().paths.local_root)  # the atoms read by build_session
+        key = target_key(target)
+        previous = self._loading.get(key)
+        if previous is not None:
+            auto_export = auto_export or previous.auto_export
+            preview = preview and previous.preview
+            self.settings.cancel_read(key)  # the load task itself is cancelled by ``submit``
+        self.settings.flush(key)  # queued before the read of this plot's .plot
+        self._loading[key] = _Loading(auto_export, preview)
+        if previous is None:  # busy once per plot, until the newest request ends
+            loading_text = _("Carregando {name}…").format(name=target.module.display_name.lower())
+            self.busy.begin(f"load:{key}", loading_text)
+            self.workspace.set_busy(key, True)  # an open tab of this plot, until it is replaced
+        sniff = self.service.sniff_cache.sniff
+        self._loads.submit(
+            key, load_plot, target, sniff, on_done=self._on_data, on_error=self._on_load_failed
+        )
+
+    def _on_data(self, key: str, loaded: tuple[DetectionResult, Any]) -> None:
+        loading = self._loading.get(key)
+        if loading is None:
+            return
+        loading.result, loading.dataset = loaded
+        result = loading.result
+        self.settings.read(
+            key, result.folder, result.kind, on_done=self._on_stored, on_error=self._on_load_failed
+        )
+
+    def _on_stored(self, key: str, stored: tuple[dict[str, Any] | None, list[str]]) -> None:
+        loading = self._finish_load(key)
+        if loading is not None and loading.result is not None:
+            self.show_loaded(loading.result, loading.dataset, stored, loading.auto_export)
+            if loading.preview:  # after the tab it replaced was closed (which drops the mark)
+                self._previews.add(key)
+
+    def _on_load_failed(self, key: str, error: Exception) -> None:
+        if self._finish_load(key) is None:
+            return
+        if isinstance(error, LoadError):
+            text = str(error)
+        else:  # parsing errors must reach the user, not kill the worker
+            log.error("load failed", exc_info=error)
+            text = f"{type(error).__name__}: {error}"
+        self.message.emit(_("Falha ao carregar os dados do gráfico."), "error", 8000)
+        QMessageBox.warning(self._dialog_parent, _("Não foi possível gerar o gráfico"), text)
+        self.plot_failed.emit(text)
+
+    def _finish_load(self, key: str) -> _Loading | None:
+        self.busy.end(f"load:{key}")
+        self.workspace.set_busy(key, False)
+        return self._loading.pop(key, None)
+
+    def show_loaded(
+        self,
+        result: DetectionResult,
+        dataset: Any,
+        stored: tuple[dict[str, Any] | None, list[str]],
+        auto_export: bool = False,
+    ) -> PlotSession:
+        """The plot tab of a loaded result (replacing an open one of the same plot)."""
+        existing = self.workspace.widget_for(target_key(result))
+        open_session = existing.session if isinstance(existing, PlotView) else None
+        session, warnings = build_session(
+            result, dataset, self._config(), stored, self.memory, open_session, self.stores
+        )
+        return self.show_session(session, warnings, auto_export)
+
+    def show_session(
+        self, session: PlotSession, warnings: list[str] | None = None, auto_export: bool = False
+    ) -> PlotSession:
+        """The tab of ``session`` (a loaded plot, a grid), replacing an open one with its key."""
+        warnings = list(warnings or []) + self.stores.pop_warnings()
+        if self.workspace.widget_for(session.key) is not None:
+            self._replacing = session.key  # the new tab shows this dataset: it stays cached
+            try:
+                self.workspace.close_key(session.key)
+            finally:
+                self._replacing = None
+        view = PlotView(self.theme, session)
+        view.rendered.connect(self._on_rendered)
+        view.drawing_changed.connect(self._on_drawing)
+        view.limits_changed.connect(self._on_limits_changed)
+        view.export_requested.connect(self.export)
+        self.workspace.add(
+            session.key, view, session.title, ("bubble_chart", "accent"), str(session.plot_target)
+        )
+        if view.drawing:  # started in the constructor, before anything was connected
+            self._on_drawing(session.key, True)
+        self.panel_requested.emit("workspace")  # workspace.add made the tab current: bound
+        self.panel_requested.emit("params")
+        shown = f"{session.module.display_name}: {session.plot_target.name}"
+        self.message.emit(shown, "info", 4000)
+        if warnings:
+            self.message.emit(warnings[0], "warning", 8000)
+        if auto_export:
+            self.export()
+        self.plot_ready.emit(session)
+        return session
+
+    # -- open plots ---------------------------------------------------------------------------------
+    def _on_tab_changed(self, widget) -> None:
+        if isinstance(widget, PlotView):
+            self.params.bind(widget.session)
+        elif widget is None:
+            self.params.bind(None)
+        self.update_readout()
+        self.update_plot_file_button()
+
+    def _on_tab_closing(self, widget) -> None:
+        if isinstance(widget, PlotView):
+            key = widget.session.key
+            widget.cancel_load()  # a figure still being drawn
+            self.busy.end(f"draw:{key}")
+            self.settings.flush(key)
+            self.params.discard(key)
+            self._previews.discard(key)
+            # Closing the tab ends a load of it still pending (a regenerate): nothing opens later.
+            self._loads.cancel(key)
+            self._finish_load(key)
+            if key != self._replacing:  # big datasets go with their tab (spec 27-4 R2.4)
+                for path in widget.session.paths:
+                    drop_cached(path, min_bytes=CLOSE_DROP_MIN_BYTES)
+
+    def _on_param_changed(self, name: str) -> None:
+        self._render_timer.start()
+        self.stores.set_root(self._config().paths.local_root)
+        session = self.params.session
+        # What a user store keeps (the atoms of a compound) is saved there, not in the .plot.
+        if session is not None and not session.persist(name, self.stores):
+            self.settings.mark(session)
+
+    def _on_limits_changed(self) -> None:
+        # Pan/zoom or Reset in the plot toolbar (always the visible, current plot).
+        self.params.refresh_values()
+        view = self.current_plot()
+        if view is not None:
+            self.settings.mark(view.session)
+
+    def restore_defaults(self) -> None:
+        session = self.params.session
+        if session is None:
+            return
+        name = f"{session.kind}.plot"
+        answer = QMessageBox.question(
+            self._dialog_parent,
+            _("Restaurar padrões"),
+            _("Voltar todos os ajustes deste gráfico ao padrão e apagar {name}?").format(name=name),
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        session.params = copy.deepcopy(session.defaults)
+        self.settings.delete(session)
+        self.params.bind(session)
+        view = self.workspace.widget_for(session.key)
+        if isinstance(view, PlotView):
+            view.render()
+
+    def _render_current(self) -> None:
+        view = self.current_plot()
+        if view is not None:
+            view.render()
+
+    def _on_drawing(self, key: str, drawing: bool) -> None:
+        """A worker draws (or has drawn) the figure of the plot ``key``: footer and tab spinner."""
+        if drawing:
+            self.busy.begin(f"draw:{key}", _("Desenhando…"))
+        else:
+            self.busy.end(f"draw:{key}")
+        self.workspace.set_busy(key, drawing)
+
+    def _on_rendered(self, _info) -> None:
+        # Any open plot re-renders on a theme change: show what the current one says.
+        self.update_readout()
+        view = self.current_plot()
+        if view is not None and view.session is self.params.session and view.session.info:
+            self.params.update_readout()
+
+    def update_readout(self) -> None:
+        """Footer summary of the plot on screen, empty when none is (spec 1 R6)."""
+        view = None if self.workspace.isHidden() else self.current_plot()
+        info = view.session.info if view is not None else None
+        if view is None or info is None:
+            self.status.set_readout("")
+            return
+        params = view.session.params
+        dpi = params.export_dpi
+        px = f"{round(params.figure_width * dpi)}×{round(params.figure_height * dpi)} px"
+        name = view.session.plot_target.name
+        self.status.set_readout(f"{name} · {info.summary} · {px} ({dpi} DPI)")
+
+    def update_plot_file_button(self) -> None:
+        """The "Plotar …" button while the current tab is an output one module can plot alone;
+        its label and tooltip come from that module."""
+        widget = self.workspace.current()
+        source, label, tip = None, "", ""
+        if isinstance(widget, TextViewer):
+            sniff = self.service.file_sniff(widget.path)
+            if sniff is None:  # not detected yet: the button follows when it arrives
+                self.service.results(widget.path.parent)
+            if module := module_for_file(sniff):
+                source = (widget.path, module.kind)
+                label, tip = module.plot_file_label, module.plot_file_tip
+        self._plot_file_source = source
+        self.plot_file_available.emit(source is not None, label, tip)
+
+    def _on_settings_warning(self, text: str) -> None:
+        self.message.emit(text, "warning", 8000)

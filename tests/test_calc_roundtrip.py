@@ -1,0 +1,194 @@
+"""Spec 25: a generated folder, once its outputs are there, is what Lain detects and plots.
+
+The outputs are copies of the fixtures' runs, under the names the generated script gives them
+(spec 28 R1.5: ``scf_<prefix>.out``, ``nscf_<prefix>.out``, bands.x's ``./band`` files).
+"""
+
+import shutil
+
+from fragment_helpers import SMALL
+from qe_studio.core.calc_create.types import by_id
+from qe_studio.core.calc_create.writer import create_folder
+from qe_studio.core.calculations.bands import BandsModule
+from qe_studio.core.detection import detect_folder
+from qe_studio.core.sniff import SniffCache
+
+from calc_helpers import AL_PATH, JOBS, al, from_text, ni
+from conftest import FIXTURES
+from surface_helpers import BULK, MOLECULE, SLAB_001, SUPERCELL_001, read
+
+
+def results(folder):
+    cache = SniffCache()
+    return {r.kind: r for r in detect_folder(folder, sniff=cache.sniff)}, cache
+
+
+def fill(folder, source, pairs):
+    for old, new in pairs:
+        shutil.copy(FIXTURES / source / old, folder / new)
+
+
+def test_bands_folder_is_detected_with_its_path(tmp_path):
+    calc = by_id("bandas")
+    created = create_folder(tmp_path, calc, "Al", calc.plan(al(), {"kpath": AL_PATH}, JOBS))
+    assert created.folder.name == "Bands_Al"
+    fill(
+        created.folder,
+        "al_bands",
+        [
+            ("al.scf.out", "scf_al.out"),
+            ("al.band.out", "bands.out"),
+            ("bands.out", "bands_pp.out"),
+            ("bands.dat", "band"),
+            ("bands.dat.gnu", "band.gnu"),
+        ],
+    )
+    found, cache = results(created.folder)
+    bands = found["bands"]
+    assert bands.plottable
+    assert bands.file("bands_in") == created.folder / "bands.in"
+    assert bands.file("scf_out") == created.folder / "scf_al.out"
+    assert bands.file("gnu") == created.folder / "band.gnu"
+    dataset = BandsModule().load(bands, cache.sniff)
+    assert dataset.labels == ["L", "Gamma", "X", "U", "Gamma"]
+
+
+def test_spin_bands_folder_pairs_both_channels(tmp_path):
+    calc = by_id("bandas")
+    created = create_folder(tmp_path, calc, "Ni", calc.plan(ni(), {"kpath": AL_PATH}, JOBS))
+    fill(
+        created.folder,
+        "qe731_ni_spin_bands",
+        [
+            ("ni.scf.out", "scf_ni.out"),
+            ("ni.band.out", "bands.out"),
+            ("bands_up.out", "bands_pp_up.out"),
+            ("bands_dw.out", "bands_pp_dw.out"),
+            ("bands_up.dat", "band_up"),
+            ("bands_up.dat.gnu", "band_up.gnu"),
+            ("bands_dw.dat", "band_dw"),
+            ("bands_dw.dat.gnu", "band_dw.gnu"),
+        ],
+    )
+    found, _ = results(created.folder)
+    bands = found["bands"]
+    assert bands.plottable
+    # Paired by the bands.x inputs (spin_component, filband = './band_up' / './band_dw').
+    assert [p.name for p in bands.files["gnu"]] == ["band_up.gnu"]
+    assert [p.name for p in bands.files["gnu_down"]] == ["band_dw.gnu"]
+    assert not any("canal" in warning for warning in bands.warnings), bands.warnings
+
+
+def test_pdos_folder_is_detected(tmp_path):
+    calc = by_id("pdos")
+    created = create_folder(tmp_path, calc, "", calc.plan(al(), {}, JOBS))
+    folder = created.folder
+    assert folder.name == "PDOS"
+    fill(
+        folder,
+        "al_pdos_flat",
+        [
+            ("al.scf.out", "scf_al.out"),
+            ("al.nscf.out", "nscf_al.out"),
+            ("al.projwfc.out", "projwfc.out"),
+            ("pdos.dat.pdos_tot", "pdos.dat.pdos_tot"),
+        ],
+    )
+    # What the script leaves: projwfc.in/out and pdos_tot in the folder, the projections in orbitals/.
+    assert (folder / "projwfc.in").is_file()
+    (folder / "orbitals").mkdir()
+    for path in (FIXTURES / "al_pdos_flat").glob("*pdos_atm*"):
+        shutil.copy(path, folder / "orbitals" / path.name)
+    found, _ = results(folder)
+    pdos = found["pdos"]
+    assert pdos.plottable
+    assert pdos.file("projwfc_out") == folder / "projwfc.out"
+    assert pdos.file("scf_out") == folder / "scf_al.out"
+    assert pdos.file("nscf_out") == folder / "nscf_al.out"
+
+
+def test_charge_folder_gets_the_scf_badge(tmp_path):
+    """Spec 29 R5.3: nothing detects pp.x; the SCF output next to its inputs is what shows."""
+    calc = by_id("charge")
+    created = create_folder(tmp_path, calc, "Al", calc.plan(al(), {}, JOBS, name="Al"))
+    folder = created.folder
+    assert folder.name == "Charge_Al"
+    assert [p.name for p in created.files] == ["charge.qsub", "scf_al.in", "pp_Al_charge.in"]
+    fill(folder, "al_bands", [("al.scf.out", "scf_al.out")])
+    found, _ = results(folder)
+    assert set(found) == {"scf"}  # no module takes the pp.x input
+    assert found["scf"].badge == "SCF"
+    assert found["scf"].file("scf_out") == folder / "scf_al.out"
+
+
+def test_charge_diff_folder_is_written_whole_and_gets_the_scf_badge(tmp_path):
+    """Spec 30: the eight files are written, none is taken for an output, and the SCF of the unit
+    (``scf_<prefix>.out`` next to ``scf_<prefix>.in``) is what shows."""
+    calc = by_id("charge_diff")
+    scf = from_text(SMALL)
+    created = create_folder(tmp_path, calc, "ilita", calc.plan(scf, {"atoms": (5, 6)}, JOBS))
+    folder = created.folder
+    assert folder.name == "Diff_Charge_ilita"
+    assert [p.name for p in created.files] == [
+        "charge_diff.qsub",
+        "scf_ilita.in",
+        "scf_ilita_clean.in",
+        "scf_ilita_isolated.in",
+        "pp_ilita_charge.in",
+        "pp_ilita_clean_charge.in",
+        "pp_ilita_isolated_charge.in",
+        "pp_charge_diff.in",
+    ]
+    fill(folder, "al_bands", [("al.scf.out", "scf_ilita.out")])
+    found, _ = results(folder)
+    assert set(found) == {"scf"} and found["scf"].badge == "SCF"
+    assert found["scf"].file("scf_out") == folder / "scf_ilita.out"
+
+
+def test_slab_folder_is_detected_as_a_vc_relax(tmp_path):
+    """Spec 40: the slab's input is a pw.x vc-relax; with its output next to it, the folder is a relax
+    whose input is that file (``geracao.md`` is taken for nothing)."""
+    calc = by_id("slab")
+    created = create_folder(tmp_path, calc, "kao", calc.plan(read(BULK), {}, JOBS))
+    folder = created.folder
+    assert folder.name == "Slab_kao"
+    assert [p.name for p in created.files] == ["slab.qsub", "vc-relax_kaolinite.in", "geracao.md"]
+    fill(folder, "kao_vc_relax", [("vc-relax.out", "vc-relax_kaolinite.out")])
+    found, cache = results(folder)
+    assert set(found) == {"relax"}
+    assert found["relax"].file("relax_out") == folder / "vc-relax_kaolinite.out"
+    assert found["relax"].file("relax_in") == folder / "vc-relax_kaolinite.in"
+    assert cache.sniff(folder / "vc-relax_kaolinite.in").calculation == "vc-relax"
+
+
+def test_supercell_folder_is_detected_as_a_vc_relax(tmp_path):
+    """Spec 41: the supercell's input is a pw.x vc-relax too, named by the SCF's prefix."""
+    calc = by_id("supercell")
+    created = create_folder(tmp_path, calc, "kao", calc.plan(read(SLAB_001), {}, JOBS))
+    folder = created.folder
+    assert folder.name == "Supercell_kao"
+    name = "vc-relax_kaolinite-slab-001"
+    assert [p.name for p in created.files] == ["supercell.qsub", f"{name}.in", "geracao.md"]
+    fill(folder, "kao_vc_relax", [("vc-relax.out", f"{name}.out")])
+    found, cache = results(folder)
+    assert set(found) == {"relax"}
+    assert found["relax"].file("relax_out") == folder / f"{name}.out"
+    assert found["relax"].file("relax_in") == folder / f"{name}.in"
+    assert cache.sniff(folder / f"{name}.in").calculation == "vc-relax"
+
+
+def test_adsorption_folder_is_detected_as_a_relax(tmp_path):
+    """Spec 42: the molecule on the surface is a pw.x relax, named by the surface SCF's prefix."""
+    calc = by_id("adsorption")
+    values = {"molecule": read(MOLECULE), "site": (43,), "remove_h": True}
+    created = create_folder(tmp_path, calc, "HgCH3", calc.plan(read(SUPERCELL_001), values, JOBS))
+    folder = created.folder
+    assert folder.name == "Adsorption_HgCH3"
+    name = "relax_kaolinite-slab-001-2x1x1"
+    assert [p.name for p in created.files] == ["adsorption.qsub", f"{name}.in", "geracao.md"]
+    fill(folder, "kao_supercell_relax", [("relax-kaolinite-slab-001-2x1x.out", f"{name}.out")])
+    found, cache = results(folder)
+    assert set(found) == {"relax"}
+    assert found["relax"].file("relax_out") == folder / f"{name}.out"
+    assert found["relax"].file("relax_in") == folder / f"{name}.in"
+    assert cache.sniff(folder / f"{name}.in").calculation == "relax"

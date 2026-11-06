@@ -1,0 +1,35 @@
+# Test fixtures
+
+Real Quantum ESPRESSO outputs, kept small. **Lain supports QE ≥ 7.1:** new fixtures are always
+from 7.1 or newer, and no code or fixture handles older formats.
+
+`tests/test_qe_versions.py` holds one table with a row per fixture folder and checks each row per
+version: the Fermi / HOMO line of the pw.x output, the block separator of `.gnu` files (empty
+line in 7.3, one space in 7.1), the bands.x output and the PDOS column headers. QE 7.1 so far has
+only the `kao_*` pw.x relax outputs; there are no 7.2 or 7.4 runs yet.
+
+**Adding a version:** copy a real run (pw.x scf + bands.x with its `.gnu` + a short projwfc PDOS)
+into `qe<version>_<system>/` (e.g. `qe74_al/`), trimmed like the others (whole BFGS steps,
+per-k-point eigenvalue listings and every Nth PDOS row can go), document it in the table below
+and add a `Run` row. `git add` the folder: `test_fixtures_untouched.py` fails on untracked files.
+
+| Folder | Source | Notes |
+|---|---|---|
+| `i18n_legacy/` | files written by the code of commit `13eeced`, before the i18n series (`bands.plot`, `pdos.plot`, `view3d.plot`, `folders.json`, every `choice` changed) | not QE runs: `test_i18n_closing.py` loads them in both languages and checks that nothing is rewritten (spec 60 R2.3). Never regenerate them with newer code: that is the point |
+| `al_bands/` | Al band-structure tutorial run (QE 7.3.1) | tutorial names (`al.scf.out`, `al.band.in`), `bands.in`/`bands.out` are bands.x files; `al.scf.out` crashes ASE's `espresso-out` reader (regression) |
+| `si_bands/` | Si band-structure tutorial run (QE 7.3.1) | explicit 200-point `K_POINTS crystal` list without labels; pw.x printed no eigenvalues |
+| `al_pdos_flat/` | Al DOS/PDOS tutorial run (QE 7.3.1) | flat layout (no `orbitals/`); PDOS files keep every 4th energy row; `al.projwfc.out` truncated (head + tail) |
+| `qe731_ni_spin_bands/` | Ni fcc, nspin=2 (QE 7.3.1, run locally, PBE `Ni.pbe-nd-rrkjus`), spec 13 | `ni.scf.*`, pw.x bands (45 k-points, `SPIN UP`/`SPIN DOWN` eigenvalues printed) and two bands.x runs, `bands_up.*` (`spin_component = 1`) and `bands_dw.*` (`= 2`), each with its own `filband` and `.gnu`; both channels are metallic |
+| `qe731_ni_spin_pdos/` | same Ni run (QE 7.3.1) | `ni.scf.*`, `ni.nscf.*`, `ni.pdos.*` (projwfc.x, per-k-point projections removed), `ni.pdos_atm#1(Ni)_wfc#1(s)` / `#2(d)` and `ni.pdos_tot` with `up`/`dw` columns |
+| `qe731_ni_spin_fixed/` | same Ni, `tot_magnetization = 0.5` (QE 7.3.1) | SCF only: prints `the spin up/dw Fermi energies are` (two Fermi energies) |
+| `si_relax/` | Si relax tutorial run (QE 7.3.1) | `si.rel.in` / `si.rel.out` |
+| `kao_vc_relax/` | user's kaolinite bulk vc-relax (QE 7.1) | 25 BFGS steps in the run; keeps steps 0–2 and 23–24, `bfgs converged`, `Final scf calculation` and its SCF, `JOB DONE`. A `restart_mode='restart'` run: the header `unit-cell volume` is the input cell, not the first SCF's. Its volume / `CELL_PARAMETERS` follow the step that ran on them, so the trim leaves step 3 (BFGS 23) without them (`test_relax.py`) |
+| `kao_slab_relax/` | user's kaolinite (001) slab relax (QE 7.1) | 42 steps in the run; keeps steps 0–2 and 40–41 |
+| `kao_supercell_relax/` | user's kaolinite 2×1×1 slab relax (QE 7.1) | a single step: `bfgs converged in 1 scf cycles and 0 bfgs steps` |
+| `kao_surface_inputs/` | user's own inputs, not outputs: the reference SCFs of the surface types (specs 40–42) | copies of `Documentation/Exemplo-SLAB/scfs/` with `pseudo_dir = '/home/seu_usuario/PSEUDO/'` (the only change): bulk `scf-kaolinite.in` (ibrav 0, 34 atoms, `6 4 4`), molecule `scf-H3CHg.in` (ibrav 14 box of 40 Bohr, angstrom positions, `gamma`), the relaxed slabs `scf-kaolinite-slab-001.in` / `-010.in` and `-001-2x1x1.in`. `tests/surface_golden.json` holds what the user's scripts make of them |
+
+The `kao_*` outputs were trimmed by removing whole BFGS steps between complete steps and the
+per-k-point eigenvalue listings of every SCF (everything the relax parser reads is untouched).
+
+The PRD folder layout (`scf.out`, `nscf.out`, `projwfc.out`, `orbitals/`) is built at test time
+from `al_pdos_flat/` (see the `al_pdos_orbitals` fixture in `conftest.py`).

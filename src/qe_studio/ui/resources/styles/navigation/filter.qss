@@ -1,0 +1,33 @@
+/* Quick filter row and its chips (spec 16 R3). */
+#filterBar {
+    background: ${panel};
+    border-bottom: 1px solid ${border};
+}
+QToolButton[variant="filterTool"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_secondary};
+    background: transparent;
+    border: 1px solid ${border};
+    border-radius: 4px;
+    padding: 3px 8px;
+}
+QToolButton[variant="filterTool"]:hover {
+    background: ${hover};
+    color: ${text};
+}
+QToolButton[variant="filterTool"]::menu-indicator {
+    image: none;
+}
+QToolButton[variant="chip"] {
+    font-family: "JetBrains Mono";
+    font-size: 10px;
+    color: ${accent_text};
+    background: ${accent_soft};
+    border: 1px solid ${accent_border};
+    border-radius: 9px;
+    padding: 1px 8px;
+}
+QToolButton[variant="chip"]:hover {
+    background: ${hover};
+}

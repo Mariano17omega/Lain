@@ -1,0 +1,94 @@
+# Dark theme tokens (Quantum Precision IDE, DESIGN.md frontmatter + dark mockup).
+# Every key must also exist in light.yaml; QSS files reference them as ${key}.
+window: "#0b0e14"
+chrome: "#101319"          # top bar, activity bar, status bar
+panel: "#101319"           # explorer, file grid
+panel_alt: "#191c22"       # panel headers, cards
+workspace: "#0b0e14"       # plot/text area background
+card: "#191c22"
+card_hover: "#1d2026"
+input: "#191c22"
+popover: "#272a30"
+hover: "#1d2026"
+pressed: "#272a30"
+tab_inactive: "#101319"
+tab_active: "#191c22"
+border: "#252a31"
+border_strong: "#3c494e"
+text: "#e1e2eb"
+text_secondary: "#bbc9cf"
+text_muted: "#859399"
+text_dim: "#5c6b72"
+text_meta: "#8a9aa1"          # grid/tree metadata, counts: informative text, AA on card
+focus_ring: "#00d2ff"         # keyboard focus outline (spec 19 R4)
+accent: "#00d2ff"
+accent_text: "#a5e7ff"
+accent_soft: "rgba(0, 210, 255, 0.12)"
+accent_border: "rgba(0, 210, 255, 0.45)"
+primary_bg: "#00d2ff"
+primary_fg: "#003543"
+primary_hover: "#47d6ff"
+primary_pressed: "#00b8e0"
+success: "#69f6b9"
+warning: "#f59e0b"
+error: "#f43f5e"
+error_soft: "rgba(244, 63, 94, 0.15)"
+scrollbar: "#2a2f36"
+scrollbar_hover: "#3c494e"
+selection_text: "#e1e2eb"
+badge_bands_bg: "rgba(37, 99, 235, 0.20)"
+badge_bands_fg: "#93c5fd"
+badge_bands_border: "rgba(37, 99, 235, 0.45)"
+badge_pdos_bg: "rgba(168, 85, 247, 0.20)"
+badge_pdos_fg: "#d8b4fe"
+badge_pdos_border: "rgba(168, 85, 247, 0.45)"
+badge_relax_bg: "rgba(16, 185, 129, 0.20)"
+badge_relax_fg: "#6ee7b7"
+badge_relax_border: "rgba(16, 185, 129, 0.45)"
+badge_scf_bg: "rgba(0, 210, 255, 0.12)"
+badge_scf_fg: "#a5e7ff"
+badge_scf_border: "rgba(0, 210, 255, 0.35)"
+badge_calc_bg: "rgba(133, 147, 153, 0.18)"
+badge_calc_fg: "#bbc9cf"
+badge_calc_border: "rgba(133, 147, 153, 0.40)"
+badge_other_bg: "rgba(245, 158, 11, 0.18)"
+badge_other_fg: "#fcd34d"
+badge_other_border: "rgba(245, 158, 11, 0.40)"
+badge_error_bg: "rgba(244, 63, 94, 0.20)"
+badge_error_fg: "#fda4af"
+badge_error_border: "rgba(244, 63, 94, 0.45)"
+icon_input: "#6d9bff"
+icon_output: "#bbc9cf"
+icon_data: "#c084fc"
+icon_image: "#00d2ff"
+icon_vector: "#fbbf24"
+icon_folder: "#00d2ff"
+icon_other: "#859399"
+search_match_bg: "rgba(245, 158, 11, 0.30)"   # text viewer: every search hit
+search_current_bg: "rgba(245, 158, 11, 0.50)"  # text viewer: the current hit
+hl_energy: "#a5e7ff"       # output highlight: "!    total energy" (bold)
+hl_success: "#69f6b9"
+hl_error: "#f43f5e"
+hl_warning: "#f59e0b"
+hl_info: "#c084fc"
+hl_header: "#6d9bff"
+gutter_bg: "#101319"       # line number margin
+gutter_fg: "#7b8a91"
+gutter_current_fg: "#bbc9cf"
+syn_namelist: "#6d9bff"    # input highlight: &NAMELIST and the closing /
+syn_key: "#a5e7ff"         # parameter name, with its index
+syn_string: "#69f6b9"
+syn_number: "#fbbf24"      # includes d/D exponents
+syn_logical: "#c084fc"
+syn_comment: "#72828b"
+syn_card: "#f472b6"        # ATOMIC_POSITIONS, K_POINTS…
+syn_card_option: "#fcd34d" # {crystal}, automatic…
+diff_add_bg: "rgba(105, 246, 185, 0.16)"    # input diff: line only in B
+diff_del_bg: "rgba(244, 63, 94, 0.18)"      # line only in A
+diff_change_bg: "rgba(245, 158, 11, 0.18)"  # line that differs
+remote_panel: "#2a1216"    # the cluster mode's tree and files (spec 65): text, text_secondary, text_meta
+remote_accent: "#f43f5e"   # the 2 px band on top of their headers: decorative, no text on it
+job_running_bg: "rgba(105, 246, 185, 0.30)"  # cluster jobs popup (spec 68): the "Running" bar
+job_running_fg: "#69f6b9"
+job_queued_bg: "rgba(245, 158, 11, 0.32)"   # the "Queued" bar
+job_queued_fg: "#fcd34d"

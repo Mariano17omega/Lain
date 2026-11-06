@@ -1,0 +1,158 @@
+from pathlib import Path
+
+import pytest
+
+from qe_studio.core.files.file_kinds import (
+    human_size,
+    is_job_log,
+    is_markdown,
+    is_script,
+    status_label,
+    status_tooltip,
+    viewer_kind,
+)
+from qe_studio.core.sniff import FileKind, FileSniff
+from qe_studio.ui.widgets.files.file_types import file_visual, level_token
+
+
+@pytest.mark.parametrize(
+    ("name", "icon"),
+    [
+        ("bands.in", "description"),
+        ("scf.out", "terminal"),
+        ("bands.dat.gnu", "analytics"),
+        ("pdos.dat.pdos_atm#1(Al)_wfc#1(s)", "bar_chart"),
+        ("bands.png", "image"),
+        ("bands.svg", "polyline"),
+        ("bands.pdf", "picture_as_pdf"),
+        ("job.qsub", "code"),
+        ("bands.plot", "tune"),
+        ("job.o12345", "assignment_late"),
+        ("job.e12345", "assignment_late"),
+        ("whatever", "draft"),
+    ],
+)
+def test_file_visual(name, icon):
+    assert file_visual(Path(name))[0] == icon
+
+
+def test_folder_visual():
+    assert file_visual(Path("x"), is_dir=True) == ("folder", "icon_folder")
+
+
+def test_viewer_kind(tmp_path):
+    text = tmp_path / "band"
+    text.write_text(" &plot nbnd= 1, nks= 1 /\n")
+    binary = tmp_path / "al.wfc1"
+    binary.write_bytes(b"\x00\x01")
+    assert viewer_kind(Path("a.out")) == "text"
+    assert viewer_kind(Path("a.png")) == "image"
+    assert viewer_kind(Path("a.svg")) == "svg"
+    assert viewer_kind(Path("a.pdf")) == "external"
+    assert viewer_kind(Path("bands.plot")) == "text"
+    assert viewer_kind(Path("job.o123")) == "text"
+    assert viewer_kind(text) == "text"
+    assert viewer_kind(binary) == "external"
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("job.o123", True),
+        ("run.O99", True),
+        ("job.o123.4", True),
+        ("job.o123-4", True),
+        ("job.e123", True),
+        ("scf.out", False),
+        ("a.o", False),
+        ("job.o", False),
+        ("foo.obj", False),
+        ("bands.dat", False),
+    ],
+)
+def test_is_job_log(name, expected):
+    assert is_job_log(Path(name)) is expected
+
+
+def test_status_tooltip_explains_every_label():
+    assert "JOB DONE" in status_tooltip("OK", None)
+    assert "JOB DONE" in status_tooltip("INCOMPLETO", None)
+    assert status_tooltip("SEM ERROS", None) == (
+        "O job não registrou erros (arquivo vazio ou só com as máquinas do job)"
+    )
+    assert status_tooltip("ERRO", None) == (
+        "O job registrou mensagens de erro (o arquivo não é só a lista das máquinas do job)"
+    )
+    warned = FileSniff(Path("scf.out"), FileKind.PW_OUT, job_done=True, warnings=("a", "b"))
+    assert status_tooltip("AVISO", warned) == "a\nb"  # the sniff's warnings, one per line
+    assert status_tooltip("AVISO", None)  # never empty
+    assert status_tooltip("OUTRO", None) == ""
+
+
+def test_status_label():
+    log = Path("job.o1")
+    assert status_label(log, 0, None) == ("SEM ERROS", "success")
+    assert status_label(log, 12, None) is None  # not read yet: a clean log must not flash ERRO
+    # pw.x writing to the queue log: its own state wins over "content = error".
+    done = FileSniff(log, FileKind.PW_OUT, job_done=True)
+    assert status_label(log, 4096, done) == ("OK", "success")
+    cut = FileSniff(log, FileKind.PW_OUT, job_done=False)
+    assert status_label(log, 4096, cut) == ("INCOMPLETO", "warning")
+    warned = FileSniff(Path("scf.out"), FileKind.PW_OUT, job_done=True, warnings=("x",))
+    assert status_label(Path("scf.out"), 10, warned) == ("AVISO", "warning")
+    assert status_label(Path("scf.out"), 10, None) is None
+    assert status_label(log, 12, FileSniff(log, FileKind.UNKNOWN)) == ("ERRO", "error")
+    clean = FileSniff(log, FileKind.UNKNOWN, clean_job_log=True)  # only the job's machines: spec 85
+    assert status_label(log, 36, clean) == ("SEM ERROS", "success")
+
+
+def test_the_label_of_a_job_log_comes_from_the_sniff_it_receives():
+    """It never reads the file: this one does not exist, the sniff and the size are what counts."""
+    log = Path("/nao/existe/job.o1")
+    assert status_label(log, 0, None) == ("SEM ERROS", "success")
+    assert status_label(log, 36, None) is None
+    assert status_label(log, 36, FileSniff(log, FileKind.UNKNOWN)) == ("ERRO", "error")
+    clean = FileSniff(log, FileKind.UNKNOWN, clean_job_log=True)
+    assert status_label(log, 36, clean) == ("SEM ERROS", "success")
+    stderr = Path("/nao/existe/job.e1")
+    assert status_label(stderr, 12, None) is None
+    assert status_label(stderr, 12, FileSniff(stderr, FileKind.UNKNOWN)) == ("ERRO", "error")
+
+
+def test_human_size():
+    assert human_size(512) == "512 B"
+    assert human_size(2400) == "2.3 KB"
+    assert human_size(3 * 1024**2) == "3.0 MB"
+
+
+def test_levels_map_to_theme_tokens():
+    assert [level_token(level) for level in ("success", "warning", "error")] == [
+        "success",
+        "warning",
+        "error",
+    ]
+    assert level_token("other") == "text_meta"
+
+
+@pytest.mark.parametrize(
+    ("name", "markdown", "script"),
+    [
+        ("LEIA.md", True, False),
+        ("LEIA.MARKDOWN", True, False),
+        ("notas.markdown", True, False),
+        ("job.qsub", False, True),
+        ("JOB.QSUB", False, True),
+        ("run.sh", False, False),  # `.sh`, `.pbs` and `.slurm` stay plain text (spec 38 scope)
+        ("job.pbs", False, False),
+        ("job.o123", False, False),
+        ("notas.txt", False, False),
+    ],
+)
+def test_markdown_and_script_are_told_by_the_suffix(name, markdown, script):
+    path = Path(name)
+    assert (is_markdown(path), is_script(path)) == (markdown, script)
+    assert viewer_kind(path) == ("text" if markdown or script else viewer_kind(path))
+
+
+def test_markdown_extensions_open_in_the_text_viewer():
+    assert viewer_kind(Path("a.md")) == viewer_kind(Path("a.markdown")) == "text"

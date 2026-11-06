@@ -1,0 +1,605 @@
+from pathlib import Path
+
+import pytest
+import yaml
+
+import qe_studio
+from qe_studio.core.config import (
+    ENV_CONFIG,
+    ENV_NO_CHECKOUT,
+    AppConfig,
+    ConfigError,
+    JobsConfig,
+    LoadedConfig,
+    checkout_dir,
+    find_config,
+    load_config,
+    parse_config,
+)
+from qe_studio.core.config_template import create_config, template_text, with_local_root
+from test_plotting import load
+
+from conftest import FIXTURES
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def write(path: Path, text: str) -> Path:
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_defaults_are_valid():
+    config = AppConfig()
+    assert config.plot.energy_min < config.plot.energy_max
+    assert config.plot.export.formats == ["png", "svg", "pdf"]
+    assert "*.save/" in config.sync.exclude
+    assert config.sync.push_exclude == ["plots/", "*.plot"]  # spec 27 R5
+    assert not config.sync_enabled
+
+
+def test_the_log_section_has_defaults_that_keep_the_log_on(tmp_path):
+    path = tmp_path / "config.yaml"
+    path.write_text("paths:\n  local_root: /tmp\n", encoding="utf-8")
+    log = load_config(path, environ={}, cwd=tmp_path).config.log
+    assert (log.enabled, log.max_size_mb, log.level) == (True, 10, "info")
+
+
+@pytest.mark.parametrize("size", [0, 1001])
+def test_a_log_limit_out_of_range_is_refused(tmp_path, size):
+    path = tmp_path / "config.yaml"
+    path.write_text(f"log:\n  max_size_mb: {size}\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="max_size_mb"):
+        load_config(path, environ={}, cwd=tmp_path)
+
+
+def test_an_unknown_log_level_is_refused(tmp_path):
+    path = tmp_path / "config.yaml"
+    path.write_text("log:\n  level: warning\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="level"):
+        load_config(path, environ={}, cwd=tmp_path)
+
+
+def test_example_config_validates(tmp_path):
+    loaded = load_config(ROOT / "config.example.yaml", environ={}, cwd=tmp_path)
+    config = loaded.config
+    assert config.cluster.host == "cluster.example.org"
+    assert config.sync_enabled
+    assert not [w for w in loaded.warnings if "estilos de gráfico" in w]  # no look left in it
+    assert config.paths.local_root == Path("~/qe_simulations").expanduser()
+    assert config.sync.push_exclude == AppConfig().sync.push_exclude
+
+
+def test_tree_show_files_is_off_by_default_and_documented(tmp_path):
+    """Spec 37 R2.1: the folder tree lists folders only unless the key turns files on."""
+    assert AppConfig().ui.tree_show_files is False
+    assert parse_config({"ui": {"tree_show_files": True}}).ui.tree_show_files is True
+    example = ROOT / "config.example.yaml"
+    assert "tree_show_files" in example.read_text(encoding="utf-8")
+    assert load_config(example, environ={}, cwd=tmp_path).config.ui.tree_show_files is False
+
+
+def test_search_order(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    cwd_cfg = write(tmp_path / "config.yaml", "{}")
+    env_cfg = write(tmp_path / "env.yaml", "{}")
+    cli_cfg = write(tmp_path / "cli.yaml", "{}")
+
+    assert find_config(cli_cfg, {ENV_CONFIG: str(env_cfg)}, tmp_path) == cli_cfg
+    assert find_config(None, {ENV_CONFIG: str(env_cfg)}, tmp_path) == env_cfg
+    assert find_config(None, {}, tmp_path) == cwd_cfg
+
+    cwd_cfg.unlink()
+    user_cfg = tmp_path / "xdg" / "qe-studio" / "config.yaml"
+    user_cfg.parent.mkdir(parents=True)
+    write(user_cfg, "{}")
+    assert find_config(None, {}, tmp_path) == user_cfg
+
+    user_cfg.unlink()
+    assert find_config(None, {}, tmp_path) is None
+
+    # Spec 61 R1.2: the checkout's config.yaml comes after ./config.yaml, before the user's.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    checkout_cfg = write(repo / "config.yaml", "{}")
+    write(user_cfg, "{}")
+    write(cwd_cfg, "{}")
+    assert find_config(None, {}, tmp_path, checkout=repo) == cwd_cfg
+    cwd_cfg.unlink()
+    assert find_config(None, {}, tmp_path, checkout=repo) == checkout_cfg
+    assert find_config(None, {}, repo, checkout=repo) == checkout_cfg  # the cwd is the checkout
+    assert find_config(None, {ENV_CONFIG: str(env_cfg)}, tmp_path, checkout=repo) == env_cfg
+    checkout_cfg.unlink()
+    assert find_config(None, {}, tmp_path, checkout=repo) == user_cfg
+    user_cfg.unlink()
+    assert find_config(None, {}, tmp_path, checkout=repo) is None
+
+
+def test_checkout_dir_finds_the_source_tree(monkeypatch):
+    """Spec 61 R1.1: the tests run from the repository, an editable install of the package."""
+    monkeypatch.delenv(ENV_NO_CHECKOUT, raising=False)
+    found = checkout_dir()
+    assert found == ROOT
+    assert (found / "pyproject.toml").is_file() and (found / "src" / "qe_studio").is_dir()
+    monkeypatch.setenv(ENV_NO_CHECKOUT, "1")
+    assert checkout_dir() is None
+    monkeypatch.setenv(ENV_NO_CHECKOUT, "")  # empty: not set
+    assert checkout_dir() == ROOT
+
+
+def test_checkout_dir_is_none_outside_a_source_tree(tmp_path, monkeypatch):
+    monkeypatch.delenv(ENV_NO_CHECKOUT, raising=False)
+    installed = tmp_path / "lib" / "python3.11" / "site-packages" / "qe_studio" / "__init__.py"
+    monkeypatch.setattr(qe_studio, "__file__", str(installed))
+    assert checkout_dir() is None
+    # A src/ layout with no pyproject.toml is not a checkout either.
+    monkeypatch.setattr(qe_studio, "__file__", str(tmp_path / "x" / "src" / "qe_studio" / "a.py"))
+    assert checkout_dir() is None
+    (tmp_path / "x").mkdir()
+    write(tmp_path / "x" / "pyproject.toml", "")
+    assert checkout_dir() == (tmp_path / "x").resolve()
+
+
+def test_explicit_missing_path_is_an_error(tmp_path):
+    with pytest.raises(ConfigError, match="--config"):
+        find_config(tmp_path / "nope.yaml", {}, tmp_path)
+    with pytest.raises(ConfigError, match=ENV_CONFIG):
+        find_config(None, {ENV_CONFIG: str(tmp_path / "nope.yaml")}, tmp_path)
+
+
+def test_missing_config_uses_defaults(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    loaded = load_config(None, environ={}, cwd=tmp_path)
+    assert loaded.path is None
+    assert loaded.config == AppConfig()
+    assert any("não encontrado" in w for w in loaded.warnings)
+    assert any("sincronização desativada" in w for w in loaded.warnings)
+    assert loaded.first_run  # spec 18 R5: the welcome state
+
+
+def test_only_a_missing_config_is_a_first_run(tmp_path):
+    loaded = load_config(write(tmp_path / "c.yaml", ""), environ={}, cwd=tmp_path)
+    assert not loaded.first_run
+    assert not LoadedConfig(AppConfig(), None).first_run  # built in code: tests, scripts
+
+
+def test_empty_file_uses_defaults(tmp_path):
+    loaded = load_config(write(tmp_path / "c.yaml", ""), environ={}, cwd=tmp_path)
+    assert loaded.config == AppConfig()
+
+
+@pytest.mark.parametrize(
+    ("text", "fragment"),
+    [
+        ("plot: {energy_min: 3, energy_max: 1}", "energy_min deve ser menor"),
+        ("plot: {export: {formats: [jpg]}}", "plot.export.formats"),
+        ("plot: {export: {formats: []}}", "ao menos um formato"),
+        ("cluster: {auth: kerberos}", "cluster.auth"),
+        ("cluster: {port: 70000}", "cluster.port"),
+        ("paths: {local_rot: /x}", "paths.local_rot: chave desconhecida"),
+        ("- a\n- b", "mapeamento YAML"),
+        ("plot: [unclosed", "YAML inválido"),
+    ],
+)
+def test_invalid_configs(tmp_path, text, fragment):
+    with pytest.raises(ConfigError) as info:
+        load_config(write(tmp_path / "bad.yaml", text), environ={}, cwd=tmp_path)
+    assert fragment in str(info.value)
+
+
+def test_paths_are_expanded(monkeypatch, tmp_path):
+    monkeypatch.setenv("SIMS", str(tmp_path))
+    config = parse_config(
+        {
+            "paths": {"local_root": "$SIMS/runs", "remote_root": "/scratch/me/runs/"},
+            "cluster": {"key_path": "~/.ssh/id_x"},
+        }
+    )
+    assert config.paths.local_root == tmp_path / "runs"
+    assert config.paths.remote_root == "/scratch/me/runs"
+    assert config.cluster.key_path == Path.home() / ".ssh" / "id_x"
+
+
+def test_password_resolution():
+    cluster = parse_config(
+        {"cluster": {"auth": "password", "password_env": "PW", "password": "inline"}}
+    ).cluster
+    assert cluster.resolve_password({"PW": "from-env"}) == "from-env"
+    assert cluster.resolve_password({}) == "inline"
+    assert "inline" not in repr(cluster)
+
+
+def test_warnings(tmp_path):
+    text = f"""
+paths: {{local_root: {tmp_path / "missing"}, remote_root: /r}}
+cluster: {{host: h, user: u, auth: password, password_env: NOPE_PW, password: x}}
+"""
+    loaded = load_config(write(tmp_path / "c.yaml", text), environ={}, cwd=tmp_path)
+    joined = "\n".join(loaded.warnings)
+    assert "Pasta local não encontrada" in joined
+    assert "texto puro" in joined
+    assert loaded.config.sync_enabled
+
+
+REMOVED_THEME_WARNING = (
+    "plot.export.theme foi removido e é ignorado: apague a linha do config.yaml."
+)
+
+
+def test_removed_export_theme_loads_with_a_warning(tmp_path):
+    def warnings(text):
+        loaded = load_config(write(tmp_path / "c.yaml", text), environ={}, cwd=tmp_path)
+        return [w for w in loaded.warnings if "plot.export.theme" in w]
+
+    assert warnings("plot: {export: {theme: current}}") == [REMOVED_THEME_WARNING]
+    assert warnings("plot: {export: {theme: purple}}") == [REMOVED_THEME_WARNING]  # value unchecked
+    assert warnings("plot: {export: {dpi: 600}}") == []
+    assert warnings("plot: {background: '#000000'}") == []  # another key, another warning
+    assert not hasattr(parse_config({}).plot.export, "theme")
+
+
+OLD_LOOK = """
+plot:
+  energy_min: -3.0
+  figure_size: [8.0, 6.0]
+  line_width: 2
+  band_colors: {valence: red, conduction: notacolor}
+  fermi_color: "#000000"
+  background: "#000000"
+  orbital_colors: {s: red}
+  atomos_colors: {Fe: "#abcdef"}
+"""
+
+
+def test_the_look_moved_to_the_plot_styles_loads_with_a_warning(tmp_path):
+    """Spec 82 R2.2: an old config.yaml with the look of the plots loads, says where it went, and
+    the plots take the default style's look (not the config's, even an invalid value of it)."""
+    loaded = load_config(write(tmp_path / "c.yaml", OLD_LOOK), environ={}, cwd=tmp_path)
+    moved = [w for w in loaded.warnings if "estilos de gráfico" in w]
+    assert moved == [
+        f"plot.{key} passou para os estilos de gráfico "
+        "(resources/templates/plot_styles/padrao.yaml) e é ignorado: apague a linha do config.yaml."
+        for key in (
+            "figure_size",
+            "line_width",
+            "band_colors",
+            "fermi_color",
+            "background",
+            "orbital_colors",
+            "atomos_colors",
+        )
+    ]
+    assert loaded.config.plot.energy_min == -3.0  # the energy window stays in the config
+    module, dataset, _params = load(FIXTURES / "al_bands")
+    params = module.default_params(loaded.config, dataset)
+    assert (params.line_width, params.figure_size, params.background) == (
+        1.2,
+        (6.0, 4.5),
+        "#ffffff",
+    )
+    assert (params.valence_color, params.fermi_color) == ("#2563eb", "#f43f5e")
+
+
+def test_the_warning_of_a_removed_or_moved_key_follows_the_language():
+    """Its message is data (``REMOVED_KEYS``), translated when the warning is made (spec 82)."""
+    from qe_studio import i18n
+
+    i18n.install("en")  # the conftest puts Portuguese back
+    warnings: list[str] = []
+    parse_config({"plot": {"line_width": 2, "export": {"theme": "dark"}}}, warnings=warnings)
+    assert sorted(warnings) == [
+        "plot.export.theme was removed and is ignored: delete the line from config.yaml.",
+        "plot.line_width moved to the plot styles (resources/templates/plot_styles/padrao.yaml) "
+        "and is ignored: delete the line from config.yaml.",
+    ]
+
+
+OLD_JOBS = """
+jobs:
+  qe_bin: /sw/qe/bin
+  mpi_command: mpirun
+  parallel_env: mpi
+  omp_threads: 2
+  env_lines: [module load qe]
+  cores: 32
+  nk: 8
+"""
+
+
+def test_removed_jobs_keys_load_with_a_warning(tmp_path):
+    """The cluster side of the scripts is fixed in the templates; an old config still loads."""
+    loaded = load_config(write(tmp_path / "c.yaml", OLD_JOBS), environ={}, cwd=tmp_path)
+    removed = [w for w in loaded.warnings if w.startswith("jobs.")]
+    assert removed == [
+        f"jobs.{key} foi removido e é ignorado: apague a linha do config.yaml."
+        for key in ("qe_bin", "mpi_command", "parallel_env", "omp_threads", "env_lines")
+    ]
+    assert (loaded.config.jobs.cores, loaded.config.jobs.nk) == (32, 8)
+
+
+def test_removed_key_is_stripped_not_mutated():
+    data = {"plot": {"export": {"theme": "dark", "dpi": 600}}}
+    collected: list[str] = []
+    config = parse_config(data, warnings=collected)
+    assert config.plot.export.dpi == 600
+    assert collected == [REMOVED_THEME_WARNING]
+    assert data == {"plot": {"export": {"theme": "dark", "dpi": 600}}}  # caller's dict untouched
+    parse_config(data)  # the warnings argument is optional
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"plot": {"export": {"bogus": 1}}},
+        {"plot": {"export": {"theme": "dark", "bogus": 1}}},
+        {"plot": {"bogus": 1}},
+        {"bogus": 1},
+    ],
+)
+def test_other_unknown_keys_are_still_errors(data):
+    with pytest.raises(ConfigError, match="chave desconhecida"):
+        parse_config(data)
+
+
+@pytest.mark.parametrize("data", [{"plot": 3}, {"plot": {"export": "png"}}])
+def test_removed_key_with_wrong_parent_type_is_left_to_validation(data):
+    with pytest.raises(ConfigError):
+        parse_config(data)
+
+
+# -- the packaged template (spec 18 R5.4) ------------------------------------------------------
+def test_packaged_template_is_the_example_in_the_repository_root():
+    packaged = ROOT / "src" / "qe_studio" / "resources" / "config.example.yaml"
+    assert packaged.read_bytes() == (ROOT / "config.example.yaml").read_bytes()
+    assert template_text() == packaged.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("folder", ["/data/project", "/with space/a:b#c", "/ação/ünï"])
+def test_with_local_root_writes_a_valid_yaml_value(tmp_path, folder):
+    text = with_local_root(template_text(), folder)
+    path = write(tmp_path / "config.yaml", text)
+    loaded = load_config(path, environ={}, cwd=tmp_path)
+    assert loaded.config.paths.local_root == Path(folder)
+    assert text.count("local_root:") == template_text().count("local_root:")  # one line changed
+    # Everything but that line is the template.
+    changed = [
+        a for a, b in zip(text.splitlines(), template_text().splitlines(), strict=True) if a != b
+    ]
+    assert len(changed) == 1
+
+
+def test_create_config_writes_the_template_and_refuses_to_overwrite(tmp_path):
+    target = tmp_path / "new" / "qe-studio" / "config.yaml"
+    assert create_config(target) == target
+    assert target.read_text(encoding="utf-8") == template_text()
+    target.write_text("mine: true\n", encoding="utf-8")
+    with pytest.raises(FileExistsError):
+        create_config(target, local_root=tmp_path)
+    assert target.read_text(encoding="utf-8") == "mine: true\n"
+
+
+def test_jobs_defaults_are_the_reference_scripts():
+    jobs = AppConfig().jobs
+    assert (jobs.cores, jobs.nk, jobs.pseudo_dir) == (64, 4, None)  # spec 28 R2
+    assert jobs.myemail is None  # spec 86 R1
+    # The cluster side of the scripts is fixed in their templates, not configured.
+    assert set(JobsConfig.model_fields) == {"cores", "nk", "pseudo_dir", "myemail"}
+
+
+def test_jobs_validation(tmp_path):
+    path = tmp_path / "config.yaml"
+    path.write_text("jobs:\n  cores: 32\n  nk: 8\n  pseudo_dir: ' /home/me/pseudo '\n")
+    jobs = load_config(path, environ={}, cwd=tmp_path).config.jobs
+    assert (jobs.cores, jobs.nk) == (32, 8)
+    assert jobs.pseudo_dir == "/home/me/pseudo"
+    path.write_text("jobs:\n  pseudo_dir: ''\n")
+    assert load_config(path, environ={}, cwd=tmp_path).config.jobs.pseudo_dir is None
+    for bad in (
+        "jobs:\n  calculos: 1\n",
+        "jobs:\n  nk: 0\n",
+        "jobs:\n  cores: 0\n",
+    ):
+        path.write_text(bad)
+        with pytest.raises(ConfigError):
+            load_config(path, environ={}, cwd=tmp_path)
+
+
+# -- jobs.myemail (spec 86 R1) ----------------------------------------------------------------
+def _load_myemail(tmp_path, value):
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump({"jobs": {"myemail": value}}), encoding="utf-8")
+    return load_config(path, environ={}, cwd=tmp_path).config.jobs.myemail
+
+
+def test_myemail_reads_a_plain_address_and_blank_is_none(tmp_path):
+    assert _load_myemail(tmp_path, " usuario@mail.com ") == "usuario@mail.com"
+    assert _load_myemail(tmp_path, "nome.sobrenome+lain@sub.mail.com") == (
+        "nome.sobrenome+lain@sub.mail.com"
+    )
+    assert _load_myemail(tmp_path, "  ") is None
+    assert _load_myemail(tmp_path, "") is None
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        'usu"ario@mail.com',
+        "usu'ario@mail.com",
+        "usu`ario@mail.com",
+        "usu$ario@mail.com",
+        "usu\\ario@mail.com",
+        "usu ario@mail.com",
+        "usu\tario@mail.com",
+        "usuario.mail.com",
+        "@mail.com",
+        "usuario@",
+        "a@b@mail.com",
+    ],
+)
+def test_myemail_refuses_what_would_break_the_script_line(tmp_path, bad):
+    with pytest.raises(ConfigError) as caught:
+        _load_myemail(tmp_path, bad)
+    assert caught.value.problems == [f"• jobs.myemail: e-mail inválido: {bad}"]
+
+
+# -- paths.xcrysden_path (spec 45 R1) --------------------------------------------------------------
+def test_xcrysden_path_is_unset_by_default_and_documented(tmp_path):
+    assert AppConfig().paths.xcrysden_path is None
+    example = ROOT / "config.example.yaml"
+    assert "xcrysden_path" in example.read_text(encoding="utf-8")
+    # The example ships the key empty: the menu item stays disabled until the user fills it.
+    assert load_config(example, environ={}, cwd=tmp_path).config.paths.xcrysden_path is None
+
+
+@pytest.mark.parametrize("value", ["", "   ", None])
+def test_a_blank_xcrysden_path_is_none(value):
+    assert parse_config({"paths": {"xcrysden_path": value}}).paths.xcrysden_path is None
+
+
+def test_xcrysden_path_is_stripped_and_expanded(monkeypatch, tmp_path):
+    monkeypatch.setenv("APPS", str(tmp_path))
+    home = parse_config({"paths": {"xcrysden_path": " ~/xcrysden "}})
+    assert home.paths.xcrysden_path == str(Path.home() / "xcrysden")
+    var = parse_config({"paths": {"xcrysden_path": "$APPS/xcrysden-1.6.2"}})
+    assert var.paths.xcrysden_path == str(tmp_path / "xcrysden-1.6.2")
+
+
+def test_xcrysden_path_only_lives_under_paths():
+    with pytest.raises(ConfigError) as info:
+        parse_config({"xcrysden_path": "/opt/xcrysden"})
+    assert "xcrysden_path: chave desconhecida" in str(info.value)
+
+
+def test_auto_generate_plot_is_on_by_default_and_documented():
+    assert AppConfig().ui.auto_generate_plot is True
+    assert parse_config({"ui": {"auto_generate_plot": False}}).ui.auto_generate_plot is False
+    assert "auto_generate_plot" in (ROOT / "config.example.yaml").read_text(encoding="utf-8")
+
+
+def test_language_is_auto_by_default_and_documented(tmp_path):
+    """Spec end R2.1: ``ui.language`` is auto, pt_BR or en."""
+    assert AppConfig().ui.language == "auto"
+    assert parse_config({"ui": {"language": "en"}}).ui.language == "en"
+    assert parse_config({"ui": {"language": "pt_BR"}}).ui.language == "pt_BR"
+    with pytest.raises(ConfigError):
+        parse_config({"ui": {"language": "fr"}})
+    example = ROOT / "config.example.yaml"
+    assert "language" in example.read_text(encoding="utf-8")
+    assert load_config(example, environ={}, cwd=tmp_path).config.ui.language == "auto"
+
+
+# -- paths.data (spec 61 R2.1) -------------------------------------------------------------------
+def test_data_is_unset_by_default_and_documented(tmp_path):
+    assert AppConfig().paths.data is None
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "  data:" in example.read_text(encoding="utf-8")
+        assert load_config(example, environ={}, cwd=tmp_path).config.paths.data is None
+
+
+def test_relative_data_is_relative_to_the_config_file(tmp_path, monkeypatch):
+    folder = tmp_path / "a"
+    folder.mkdir()
+
+    def data(value: str):
+        path = write(folder / "config.yaml", f"paths:\n  data: {value}\n")
+        return load_config(path, environ={}, cwd=tmp_path).config.paths.data
+
+    assert data("dados") == folder / "dados"
+    assert data("../b/dados") == tmp_path / "b" / "dados"
+    assert data("~/lain-data") == Path.home() / "lain-data"
+    monkeypatch.setenv("LAIN_DATA", str(tmp_path / "env"))
+    assert data("$LAIN_DATA/d") == tmp_path / "env" / "d"
+    assert data(str(tmp_path / "abs")) == tmp_path / "abs"
+    assert data("''") is None
+    assert data("'   '") is None
+    # No file to anchor a relative folder to (a config built in code): none.
+    assert parse_config({"paths": {"data": "dados"}}).paths.data is None
+    assert parse_config({"paths": {"data": str(tmp_path)}}).paths.data == tmp_path
+
+
+# -- sync.checksum (spec 63 R1) ----------------------------------------------------------------------
+def test_checksum_is_on_by_default_and_documented(tmp_path):
+    assert AppConfig().sync.checksum is True
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "checksum:" in example.read_text(encoding="utf-8")
+        assert load_config(example, environ={}, cwd=tmp_path).config.sync.checksum is True
+    assert parse_config({"sync": {"checksum": False}}).sync.checksum is False
+
+
+# -- the cluster's jobs (spec 64 R3) ---------------------------------------------------------------
+def test_the_jobs_keys_have_defaults_and_limits():
+    cluster = AppConfig().cluster
+    assert cluster.jobs_command == "qstatus -a"
+    assert (cluster.jobs_poll_seconds, cluster.jobs_rotate_seconds) == (300, 5)
+    assert parse_config({"cluster": {"jobs_command": "  "}}).cluster.jobs_command == ""
+    for key, value in (
+        ("jobs_poll_seconds", 29),
+        ("jobs_rotate_seconds", 0),
+        ("jobs_rotate_seconds", 3601),
+    ):
+        with pytest.raises(ConfigError):
+            parse_config({"cluster": {key: value}})
+    edge = parse_config({"cluster": {"jobs_poll_seconds": 30, "jobs_rotate_seconds": 3600}})
+    assert (edge.cluster.jobs_poll_seconds, edge.cluster.jobs_rotate_seconds) == (30, 3600)
+
+
+def test_the_jobs_keys_are_in_both_examples(tmp_path):
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        text = example.read_text(encoding="utf-8")
+        for key in ("jobs_command:", "jobs_poll_seconds:", "jobs_rotate_seconds:"):
+            assert key in text
+        cluster = load_config(example, environ={}, cwd=tmp_path).config.cluster
+        assert cluster.jobs_command == "qstatus -a"
+
+
+# -- submitting a .qsub (spec 69 R2.3) -------------------------------------------------------------
+def test_the_submit_command_has_a_default_and_is_stripped(tmp_path):
+    assert AppConfig().cluster.submit_command == "qsub"
+    stripped = parse_config({"cluster": {"submit_command": "  /opt/sge/bin/qsub  "}})
+    assert stripped.cluster.submit_command == "/opt/sge/bin/qsub"
+    assert parse_config({"cluster": {"submit_command": " "}}).cluster.submit_command == ""
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "submit_command:" in example.read_text(encoding="utf-8")
+        cluster = load_config(example, environ={}, cwd=tmp_path).config.cluster
+        assert cluster.submit_command == "qsub"
+
+
+# -- cancelling a waiting job (spec 70 R3) ---------------------------------------------------------
+def test_the_delete_command_has_a_default_and_is_stripped(tmp_path):
+    assert AppConfig().cluster.delete_command == "qdel"
+    stripped = parse_config({"cluster": {"delete_command": "  /opt/sge/bin/qdel  "}})
+    assert stripped.cluster.delete_command == "/opt/sge/bin/qdel"
+    assert parse_config({"cluster": {"delete_command": " "}}).cluster.delete_command == ""
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "delete_command:" in example.read_text(encoding="utf-8")
+        cluster = load_config(example, environ={}, cwd=tmp_path).config.cluster
+        assert cluster.delete_command == "qdel"
+
+
+# -- one ssh connection for many actions (spec 72 R2, R4.10) ---------------------------------------
+def test_the_shared_ssh_connection_is_on_by_default(tmp_path):
+    """Production shares the connection; only the tests' ``config_data`` turns it off."""
+    assert AppConfig().cluster.multiplex is True
+    assert parse_config({}).cluster.multiplex is True
+    assert parse_config({"cluster": {"multiplex": False}}).cluster.multiplex is False
+    for example in (
+        ROOT / "config.example.yaml",
+        ROOT / "src/qe_studio/resources/config.example.yaml",
+    ):
+        assert "multiplex:" in example.read_text(encoding="utf-8")
+        assert load_config(example, environ={}, cwd=tmp_path).config.cluster.multiplex is True

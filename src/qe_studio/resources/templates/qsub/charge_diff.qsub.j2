@@ -1,0 +1,22 @@
+{% extends "qsub/_base.qsub.j2" %}
+{% block programs %}
+PPCOMMAND="/opt/espresso-7.1/bin/pp.x"
+{% endblock %}
+{% block body %}
+{% if xsf_dir %}
+{# pp.x does not make the folder of fileout: without it the write of the .xsf fails. #}
+mkdir -p {{ xsf_dir }}
+
+{% endif %}
+{# The three SCFs share the K_POINTS automatic, so they run alike: MPI and the same pools. #}
+{% for input, output in pw_runs %}
+${MPICOMMAND} ${QE_COMMAND} -i "{{ input }}" > "{{ output }}"
+{% endfor %}
+
+{# pp.x runs without MPI, also as in cargas.qsub. #}
+{% for input, output in pps %}
+${PPCOMMAND} -i "{{ input }}" > "{{ output }}"
+{% endfor %}
+
+${PPCOMMAND} -i "{{ diff[0] }}" > "{{ diff[1] }}"
+{% endblock %}

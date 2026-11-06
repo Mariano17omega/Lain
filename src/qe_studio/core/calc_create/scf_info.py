@@ -1,0 +1,192 @@
+"""What "Criar cálculo" takes from the user's SCF input (spec 25 R4.1).
+
+``scf_info`` reads the text with ``InputEditor`` (the derived inputs are edits of that same text) and
+the crystal with ``qe.lattice`` (ASE refuses ``ibrav != 0``). Missing values are None: each
+calculation type falls back to its own default. ``read_scf`` reads the file and, when the SCF has
+already run next to it, the number of bands pw.x used; ``read_other_scf`` is the same for a second
+SCF a form field picks (spec 40 R1.2), its head checked too. Workers only.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import functools
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from ...i18n import _
+from ..qe.input_edit import InputEditor, read_input_text
+from ..qe.lattice import Crystal, StructureError, crystal_from_editor
+from ..qe.pw_input import fortran_float, fortran_int
+from .kpath import KMesh
+
+__all__ = [
+    "DEFAULT_PREFIX",
+    "ScfInfo",
+    "ScfInputError",
+    "read_other_scf",
+    "read_scf",
+    "same_scfs",
+    "scf_info",
+]
+
+DEFAULT_PREFIX = "pwscf"  # pw.x's when the input sets none
+
+
+class ScfInputError(Exception):
+    """Why the file cannot be the SCF of a new calculation, in Portuguese."""
+
+
+@dataclass(frozen=True)
+class ScfInfo:
+    text: str
+    path: Path | None = None
+    prefix: str = DEFAULT_PREFIX
+    outdir: str | None = None
+    pseudo_dir: str | None = None
+    ibrav: int | None = None
+    nat: int | None = None
+    ntyp: int | None = None
+    ecutwfc: float | None = None
+    ecutrho: float | None = None
+    nspin: int = 1
+    occupations: str | None = None
+    smearing: str | None = None
+    degauss: float | None = None
+    nbnd: int | None = None
+    kpoints_option: str | None = None  # of the K_POINTS card ("automatic", "gamma"…); None: no card
+    kmesh: KMesh | None = None  # when the card is automatic
+    species: tuple[str, ...] = ()  # ATOMIC_SPECIES labels
+    # Left out of ``==``: it holds arrays, and the same ``text`` gives the same crystal (spec 87 R1.5).
+    crystal: Crystal | None = field(default=None, repr=False, compare=False)
+    structure_problem: str | None = None  # why ``crystal`` is None
+    scf_bands: int | None = None  # Kohn-Sham states of the SCF's own output, when it ran
+
+    @property
+    def name(self) -> str:
+        return self.path.name if self.path is not None else "SCF"
+
+    def value(self, namelist: str, key: str) -> str | None:
+        """A value of the SCF as written (no outer quotes), for the defaults of other keys."""
+        return _reader(self.text).get(namelist, key)
+
+    @property
+    def spin(self) -> bool:
+        """Collinear spin: bands.x runs once per channel."""
+        return self.nspin == 2
+
+
+def same_scfs(a: Sequence[ScfInfo], b: Sequence[ScfInfo]) -> bool:
+    """The same SCFs, read once, in the same order: the same objects (an SCF read again is a new
+    one, even from the same file). What says the window's SCFs changed (step 2, the 3D view)."""
+    return len(a) == len(b) and all(x is y for x, y in zip(a, b, strict=True))
+
+
+@functools.lru_cache(maxsize=16)
+def _reader(text: str) -> InputEditor:
+    """A read-only editor of an SCF's text (never edited: ``plan`` makes its own)."""
+    return InputEditor.from_text(text)
+
+
+def _int(text: str | None) -> int | None:
+    return fortran_int(text)
+
+
+def _float(text: str | None) -> float | None:
+    return fortran_float(text) if text is not None else None
+
+
+def scf_info(text: str, path: Path | None = None) -> ScfInfo:
+    """The facts of an SCF input. Raises ``ScfInputError`` when it is no pw.x SCF."""
+    name = path.name if path is not None else _("O arquivo")
+    editor = InputEditor.from_text(text)
+    if editor.issues:
+        raise ScfInputError(
+            _("{name} não pôde ser lido: {issues}").format(name=name, issues=editor.issues[0])
+        )
+    if not editor.has_namelist("system"):
+        raise ScfInputError(_("{name} não é um input do pw.x (sem &SYSTEM)").format(name=name))
+    calculation = (editor.get("control", "calculation") or "scf").strip().lower()
+    if calculation != "scf":
+        raise ScfInputError(
+            _("O arquivo não é um SCF (calculation = '{calculation}')").format(
+                calculation=calculation
+            )
+        )
+
+    def get(namelist: str, key: str) -> str | None:
+        value = editor.get(namelist, key)
+        return value.strip() if value is not None and value.strip() else None
+
+    card = editor.card("K_POINTS")
+    kmesh = (
+        KMesh.parse(card.lines[0]) if card and card.option == "automatic" and card.lines else None
+    )
+    species_card = editor.card("ATOMIC_SPECIES")
+    species = tuple(line.split()[0] for line in species_card.lines) if species_card else ()
+    try:
+        crystal, problem = crystal_from_editor(editor), None
+    except StructureError as exc:
+        crystal, problem = None, str(exc)
+    except ValueError as exc:  # numpy's LinAlgError is one  # e.g. nat = 0 with positions in alat
+        crystal, problem = None, _("Estrutura inválida no SCF: {reason}").format(reason=exc)
+    return ScfInfo(
+        text=text,
+        path=path,
+        prefix=get("control", "prefix") or DEFAULT_PREFIX,
+        outdir=get("control", "outdir"),
+        pseudo_dir=get("control", "pseudo_dir"),
+        ibrav=_int(get("system", "ibrav")),
+        nat=_int(get("system", "nat")),
+        ntyp=_int(get("system", "ntyp")),
+        ecutwfc=_float(get("system", "ecutwfc")),
+        ecutrho=_float(get("system", "ecutrho")),
+        nspin=_int(get("system", "nspin")) or 1,
+        occupations=(get("system", "occupations") or "").lower() or None,
+        smearing=get("system", "smearing"),
+        degauss=_float(get("system", "degauss")),
+        nbnd=_int(get("system", "nbnd")),
+        kpoints_option=card.option if card is not None else None,
+        kmesh=kmesh,
+        species=species,
+        crystal=crystal,
+        structure_problem=problem,
+    )
+
+
+def _bands_of_output(path: Path) -> int | None:
+    """Kohn-Sham states printed by the SCF's output next to it (``X.out`` of ``X.in``)."""
+    from ..sniff import FileKind, sniff
+
+    output = path.with_suffix(".out")
+    if output == path or not output.is_file():
+        return None
+    found = sniff(output)
+    return found.pw.n_bands if found.kind is FileKind.PW_OUT and found.pw is not None else None
+
+
+def read_scf(path: Path) -> ScfInfo:
+    """``scf_info`` of a file, plus ``scf_bands``. Raises ``ScfInputError``. Workers only."""
+    try:
+        text = read_input_text(path)
+    except OSError as exc:
+        raise ScfInputError(
+            _("Não foi possível ler {name}: {value}").format(
+                name=path.name, value=exc.strerror or exc
+            )
+        ) from exc
+    info = scf_info(text, path)
+    return dataclasses.replace(info, scf_bands=_bands_of_output(path))
+
+
+def read_other_scf(path: Path) -> ScfInfo:
+    """``read_scf`` of a file a field picks, which must look like a QE input (the check step 1 makes
+    on the GUI thread, here in the worker). Raises ``ScfInputError``. Workers only."""
+    from ..sniff import looks_like_input
+
+    if not looks_like_input(path):
+        raise ScfInputError(
+            _("{name} não parece um input do Quantum ESPRESSO").format(name=path.name)
+        )
+    return read_scf(path)

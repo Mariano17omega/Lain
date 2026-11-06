@@ -1,0 +1,41 @@
+# Lain: ajustes do gráfico. Gerado automaticamente; apague para voltar aos padrões.
+lain_plot: 1
+kind: bands
+params:
+  title: ''
+  figure_width: 6.0
+  figure_height: 4.5
+  font_size: 11.0
+  background: '#ffffff'
+  line_width: 1.2
+  show_legend: false
+  legend_loc: upper right
+  legend_dx: 0.0
+  legend_dy: 0.0
+  legend_frame: false
+  legend_size: null
+  legend_transparency: 0.2
+  tick_size: null
+  label_size: null
+  export_png: true
+  export_svg: true
+  export_pdf: true
+  export_dpi: 600
+  reference: absolute
+  emin: -5.0
+  emax: 5.0
+  xmin: null
+  xmax: null
+  labels: ''
+  show_hs_lines: true
+  show_fermi_line: true
+  valence_color: '#2563eb'
+  conduction_color: '#00d2ff'
+  fermi_color: '#f43f5e'
+  legend_gap: false
+  gap_method: homo_lumo
+  spin_channels: both
+  spin_layout: overlay
+  spin_coloring: channel
+  up_color: '#2563eb'
+  down_color: '#f97316'

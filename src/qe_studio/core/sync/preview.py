@@ -1,0 +1,243 @@
+"""What the plan preview shows before a pull (spec 17 R2.3) or a push (spec 27 R4.3): the summary
+line, the warning about large files and the items grouped by action and folder, largest first. The
+dialog only lays out ``describe_plan``; what counts as large is ``planner.LARGE_FILE_BYTES``."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+
+from ...i18n import _, ngettext
+from ..files.file_kinds import human_size
+from .planner import Action, PlanItem, SyncPlan, total_size
+from .push_plan import PushAction, PushItem, PushPlan
+
+ACTION_ORDER = (Action.NEW, Action.UPDATE, Action.LOCAL_NEWER)
+ACTION_TITLES = {
+    Action.NEW: _("Novos"),
+    Action.UPDATE: _("A atualizar"),
+    Action.LOCAL_NEWER: _("Mais recentes no computador"),
+}
+ACTION_NOTES = {
+    Action.NEW: "",
+    Action.UPDATE: _("pedirá confirmação"),
+    Action.LOCAL_NEWER: _("não será alterado"),
+}
+REPLACED = _("será substituído")  # an existing file of the scratch copy of a remote plot (spec 66)
+PUSH_ORDER = (PushAction.NEW, PushAction.EXISTS)
+PUSH_TITLES = {
+    PushAction.NEW: _("Serão enviados"),
+    PushAction.EXISTS: _("Já existem no cluster, não serão alterados"),
+}
+PUSH_NOTES = {PushAction.NEW: "", PushAction.EXISTS: _("não será alterado")}
+SYNCED_FOLDER = _("(pasta sincronizada)")  # label of the items right in the folder being pulled
+LARGE_TIP = _("Arquivo grande: confira o espaço em disco antes de baixar")
+PUSH_LARGE_TIP = _("Arquivo grande: confira a cota no cluster antes de enviar")
+PULL_DATE = _("Data no cluster")
+PUSH_DATE = _("Data local")
+
+Item = PlanItem | PushItem
+
+
+@dataclass(frozen=True)
+class PlanGroup:
+    action: Action | PushAction
+    folder: str  # relative to the synced folder, "." for the folder itself
+    items: tuple[Item, ...]  # largest first
+
+    @property
+    def size(self) -> int:
+        return sum(item.size for item in self.items)
+
+    @property
+    def has_large(self) -> bool:
+        return any(item.is_large for item in self.items)
+
+    @property
+    def label(self) -> str:
+        return SYNCED_FOLDER if self.folder == "." else f"{self.folder}/"
+
+
+def _grouped(items: Sequence[Item], order: Iterable[Action | PushAction]) -> list[PlanGroup]:
+    groups = []
+    for action in order:
+        folders: dict[str, list[Item]] = {}
+        for item in items:
+            if item.action is action:
+                folders.setdefault(item.folder, []).append(item)
+        for folder in sorted(folders, key=lambda f: (f != ".", f)):
+            ordered = sorted(folders[folder], key=lambda item: (-item.size, item.path))
+            groups.append(PlanGroup(action, folder, tuple(ordered)))
+    return groups
+
+
+def plan_groups(plan: SyncPlan) -> list[PlanGroup]:
+    """Groups by action (new, update, local newer), then folder; items by size, descending."""
+    return _grouped(plan.items, ACTION_ORDER)
+
+
+def push_groups(plan: PushPlan) -> list[PlanGroup]:
+    """Groups by action (to send, already on the cluster), then folder; items by size."""
+    return _grouped(plan.items, PUSH_ORDER)
+
+
+def plan_summary(plan: SyncPlan) -> str:
+    """ "12 arquivos novos (35.2 MB) · 3 a atualizar (1.1 MB) · 2 mais recentes no computador
+    (não serão alterados)"; parts without items are left out. A plan that overwrites (spec 66)
+    says "3 a substituir (1.1 MB)" for every file that exists."""
+    parts = []
+    if new := plan.new:
+        parts.append(
+            ngettext(
+                "{count} arquivo novo ({size})", "{count} arquivos novos ({size})", len(new)
+            ).format(count=len(new), size=human_size(total_size(new)))
+        )
+    if plan.overwrite:
+        if replaced := plan.conflicts + plan.local_newer:
+            parts.append(
+                _("{count} a substituir ({human_size})").format(
+                    count=len(replaced), human_size=human_size(total_size(replaced))
+                )
+            )
+        return " · ".join(parts) or _("Nada a transferir.")
+    if updates := plan.conflicts:
+        parts.append(
+            _("{count} a atualizar ({human_size})").format(
+                count=len(updates), human_size=human_size(total_size(updates))
+            )
+        )
+    if newer := plan.local_newer:
+        parts.append(
+            ngettext(
+                "{count} mais recente no computador (não será alterado)",
+                "{count} mais recentes no computador (não serão alterados)",
+                len(newer),
+            ).format(count=len(newer))
+        )
+    return " · ".join(parts) or _("Nada a transferir.")
+
+
+def push_summary(plan: PushPlan) -> str:
+    """ "2 arquivos a enviar (3.1 MB) · 1 já existe no cluster (não será alterado)"."""
+    parts = []
+    if new := plan.new:
+        parts.append(
+            ngettext(
+                "{count} arquivo a enviar ({size})", "{count} arquivos a enviar ({size})", len(new)
+            ).format(count=len(new), size=human_size(plan.total_bytes))
+        )
+    if exists := plan.exists:
+        parts.append(
+            ngettext(
+                "{count} já existe no cluster (não será alterado)",
+                "{count} já existem no cluster (não serão alterados)",
+                len(exists),
+            ).format(count=len(exists))
+        )
+    return " · ".join(parts) or _("Nada a enviar.")
+
+
+def large_summary(plan: SyncPlan | PushPlan) -> str | None:
+    """ "2 arquivos grandes somam 14.3 GB", or None when no file is large."""
+    large = plan.large
+    if not large:
+        return None
+    size = human_size(sum(item.size for item in large))
+    return ngettext(
+        "{count} arquivo grande soma {size}", "{count} arquivos grandes somam {size}", len(large)
+    ).format(count=len(large), size=size)
+
+
+def format_mtime(epoch: float | None) -> str:
+    return datetime.fromtimestamp(epoch).strftime("%d/%m/%Y %H:%M:%S") if epoch else "—"
+
+
+# -- the tree the preview page lays out --------------------------------------------------------
+@dataclass(frozen=True)
+class PreviewRow:
+    name: str
+    path: str
+    size: int
+    when: str
+    note: str
+    large: bool
+
+
+@dataclass(frozen=True)
+class PreviewGroup:
+    label: str
+    size: int
+    has_large: bool  # the folder opens by itself
+    rows: tuple[PreviewRow, ...]
+
+
+@dataclass(frozen=True)
+class PreviewSection:
+    title: str  # "Novos (12)", "Serão enviados (2 · 3.1 MB)"
+    size: int
+    note: str
+    groups: tuple[PreviewGroup, ...]
+    expanded: bool = True
+    dimmed: bool = False  # informative only: drawn in the metadata color
+
+
+@dataclass(frozen=True)
+class Preview:
+    summary: str
+    large: str | None
+    large_tip: str
+    date_header: str
+    sections: tuple[PreviewSection, ...]
+
+
+def describe_plan(plan: SyncPlan | PushPlan) -> Preview:
+    """The whole preview of a pull or a push plan."""
+    if isinstance(plan, PushPlan):
+        return _push_preview(plan)
+    groups = plan_groups(plan)
+    sections = []
+    for action in ACTION_ORDER:
+        mine = [group for group in groups if group.action is action]
+        if mine:
+            note = REPLACED if plan.overwrite and action is not Action.NEW else ACTION_NOTES[action]
+            title = f"{ACTION_TITLES[action]} ({sum(len(g.items) for g in mine)})"
+            rows = tuple(_group(g, note, _remote_mtime) for g in mine)
+            sections.append(PreviewSection(title, sum(g.size for g in mine), note, rows))
+    return Preview(plan_summary(plan), large_summary(plan), LARGE_TIP, PULL_DATE, tuple(sections))
+
+
+def _push_preview(plan: PushPlan) -> Preview:
+    groups = push_groups(plan)
+    sections = []
+    for action in PUSH_ORDER:
+        mine = [group for group in groups if group.action is action]
+        if not mine:
+            continue
+        count, size = sum(len(g.items) for g in mine), sum(g.size for g in mine)
+        exists = action is PushAction.EXISTS
+        title = f"{PUSH_TITLES[action]} ({count})"
+        if not exists:
+            title = f"{PUSH_TITLES[action]} ({count} · {human_size(size)})"
+        note = PUSH_NOTES[action]
+        rows = tuple(_group(g, note, _local_mtime) for g in mine)
+        sections.append(PreviewSection(title, size, note, rows, not exists, exists))
+    return Preview(
+        push_summary(plan), large_summary(plan), PUSH_LARGE_TIP, PUSH_DATE, tuple(sections)
+    )
+
+
+def _remote_mtime(item: Item) -> float | None:
+    return item.remote_mtime if isinstance(item, PlanItem) else None
+
+
+def _local_mtime(item: Item) -> float | None:
+    return item.mtime if isinstance(item, PushItem) else item.local_mtime
+
+
+def _group(group: PlanGroup, note: str, when: Callable[[Item], float | None]) -> PreviewGroup:
+    rows = tuple(
+        PreviewRow(item.name, item.path, item.size, format_mtime(when(item)), note, item.is_large)
+        for item in group.items
+    )
+    return PreviewGroup(group.label, group.size, group.has_large, rows)

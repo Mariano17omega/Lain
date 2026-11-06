@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Path to installed versions of quantum espresso:
+# /opt/espresso-6.1
+# /opt/espresso-6.4.1
+# /opt/espresso-6.5
+# /opt/espresso-7.1
+# /opt/espresso-7.3
+
+### E-mail address to inform you about the start and the end of the job
+MYEMAIL="{{ myemail }}"
+
+###       Simulation setup          ###
+# nk parameter
+NK={{ nk }}
+
+# QE executable
+QE_COMMAND="/opt/espresso-7.1/bin/pw.x -nk $NK"
+{% block programs %}{% endblock %}
+
+
+# Input file
+{% block inputs %}
+{% for variable, name in inputs %}
+{{ variable }}="{{ name }}"
+{% endfor %}
+{% endblock %}
+
+###       Grid setup                   ###
+#$ -N "{{ job_name }}"
+#$ -pe physica {{ np }}
+#$ -cwd -j y -notify
+
+# Save worker nodes for debugging
+cat "$PE_HOSTFILE"
+
+###        Intel MPI and Mail setup             ###
+export OMP_NUM_THREADS=1
+export I_MPI_PIN_DOMAIN=core
+source /opt/intel/oneapi/mkl/latest/env/vars.sh
+source /opt/intel/oneapi/mpi/latest/env/vars.sh
+source /opt/bin/sendmail.sh
+
+# Hydra executable
+MPICOMMAND="/opt/intel/oneapi/mpi/latest/bin/mpiexec -bootstrap ssh"
+
+###		Start simulation			###
+# Job started mail
+sendMail "Running ..."
+
+#########################################
+# Run
+#########################################
+
+
+{% block body %}{% endblock %}
+{% block post %}{% endblock %}
+
+
+######################################### 
+
+# Job finished mail
+sendMail "Job done" "$?"
+
+exit 0

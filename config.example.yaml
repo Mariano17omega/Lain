@@ -1,0 +1,153 @@
+# Lain: QE Studio configuration.
+# Copy to config.yaml (git-ignored) and adjust. Lain looks for its config in:
+#   1. --config PATH   2. $QE_STUDIO_CONFIG   3. ./config.yaml   4. config.yaml in the Lain checkout
+#   (the repository an editable install runs from)   5. ~/.config/qe-studio/config.yaml
+
+paths:
+  # Local folder holding the simulation tree shown in the explorer.
+  local_root: ~/qe_simulations
+  # Matching folder on the cluster (POSIX path). Sync mirrors local_root/<sub> <- remote_root/<sub>.
+  remote_root: /home/seu_usuario/qe_simulations
+  # Where XCrySDen is installed: its folder (the one holding the `xcrysden` script) or the script
+  # itself. Empty: "Abrir com XCrysDen" in the right-click menu stays disabled.
+  # Reload with "Recarregar config.yaml".
+  xcrysden_path: ""
+  # Folder for Lain's data (interface state, instance lock, log). Relative to this file; empty: the
+  # system's default places. Copying the folder of this file with it takes Lain's state along.
+  # Changes apply when Lain restarts.
+  # data: data
+  data: ""
+
+cluster:
+  host: cluster.example.org
+  port: 22
+  user: seu_usuario
+  # auth: key       -> uses key_path (non-interactive; passphrase keys need ssh-agent)
+  # auth: password  -> reads the password from the environment variable named in password_env.
+  #                    An inline `password:` is accepted but discouraged (stored in plain text).
+  auth: key
+  key_path: ~/.ssh/id_ed25519
+  password_env: QE_STUDIO_SSH_PASSWORD
+  connect_timeout: 10
+  # Seconds between reachability probes (TCP only, no login).
+  status_poll_seconds: 300
+  # Your jobs, left of the LED, and the whole queue in one click. This command runs on the cluster
+  # over ssh, with the login above; empty turns it off. A non-interactive ssh may not have the
+  # PATH of your terminal: if qstatus is not found, give its full path (`which qstatus`).
+  jobs_command: qstatus -a
+  # Seconds between job queries (each one logs in; only while the Lain window is active).
+  jobs_poll_seconds: 300
+  # Seconds each of your running jobs stays on the bar before the next one.
+  jobs_rotate_seconds: 5
+  # "Submeter…" on a .qsub in the cluster mode. Runs over ssh in the script's folder, after
+  # `chmod a+x`, only once you confirm it, and only if none of your jobs runs in that folder (checked
+  # with jobs_command, which it needs). Empty turns it off. As with jobs_command, a qsub that is not
+  # in the PATH of a non-interactive ssh needs its full path (`which qsub`).
+  submit_command: qsub
+  # The cancel button of a job still WAITING in the queue popup. Runs with the job's ID, only once
+  # you confirm it, and only if a fresh jobs_command still lists it as waiting: a running job is
+  # never deleted, it is stopped by creating <prefix>.EXIT in its folder ("Cancelar simulação…" in
+  # the cluster mode). Empty turns the button off.
+  delete_command: qdel
+  # One ssh connection shared by the actions in a row (listing, queue, submit, cancel, sync): one
+  # login instead of one per command. It stays open 120 s after the last command, and closes when
+  # Lain closes. The cluster's host key is checked as always. false: every ssh logs in by itself
+  # (a cluster that forbids sharing a connection, or to debug a login).
+  multiplex: true
+
+sync:
+  # rsync --exclude patterns (rsync semantics: trailing "/" = directories only).
+  exclude:
+    - tmp/
+    - "*.save/"
+    - "*.amn"
+    - "*.mmn"
+    - "UNK*"
+    - "*.unk*"
+    - "*.wfc*"
+    - "*.mix*"
+    - "*.hub*"
+    - "*.igk*"
+    - core
+    - "core.[0-9]*"
+  rsync_binary: rsync
+  ssh_binary: ssh
+  # Before downloading, show the plan (new files, updates, sizes, large files) and wait for
+  # "Baixar". false = transfer directly (automation); updates still ask file by file.
+  # Sending to the cluster ("Enviar ao cluster") always shows its plan, whatever this says.
+  confirm_plan: true
+  # Compare files by content (rsync --checksum) to decide what to download; false: by date and
+  # size (faster on big trees). Cost: reads every file on both sides on each sync.
+  checksum: true
+  # "Enviar ao cluster" only adds new files (one the cluster has is never changed). On top of
+  # `exclude`, these never go up: figures and plot settings are local.
+  push_exclude:
+    - plots/
+    - "*.plot"
+
+plot:
+  # Default energy window (eV, relative to the reference energy).
+  energy_min: -5.0
+  energy_max: 5.0
+  # Zero the energy axis at E_F (false = absolute energies).
+  shift_to_fermi: true
+  # The look of a new plot (figure size, line width, colors, background, legend) is not set here:
+  # it comes from the plot styles in src/qe_studio/resources/templates/plot_styles/. padrao.yaml is
+  # the default; copy it with another name to make a style, then pick it in "Estilo do gráfico".
+  export:
+    # Any of: png, svg, pdf
+    formats: [png, svg, pdf]
+    # PNG resolution: 300 or 600
+    dpi: 300
+
+ui:
+  # dark, light or system (follow the operating system's color scheme). The Tema button / Ctrl+T
+  # in the app cycles them and remembers your last choice.
+  theme: dark
+  # Language of the interface: auto, pt_BR or en. auto follows the system (Portuguese for pt*,
+  # English for anything else). It is applied when the program starts: after changing it, restart
+  # Lain ("Recarregar config.yaml" only tells you so). The environment variables QE_STUDIO_LANGUAGE
+  # and LAIN_LANGUAGE (auto, pt_BR or en) take precedence over this key; the first one wins.
+  language: auto
+  # Size of every font, from 0.8 to 1.6 (1.0 = default). Reload with "Recarregar config.yaml".
+  font_scale: 1.0
+  # Folder names/patterns hidden in the explorer.
+  hidden_dirs: [tmp, "*.save"]
+  # false: the folder tree lists only folders (the file grid always lists files too).
+  # true: the tree lists the files as well. Reload with "Recarregar config.yaml".
+  # The file icon in the tree's header (between "Recolher tudo" and "Atualizar") switches it while
+  # the program runs; nothing is saved, and a reload goes back to the value written here.
+  tree_show_files: false
+  # F5 (Atualizar) keeps what it read from files whose size and modification time did not
+  # change. true: reread every file on F5 (only needed if something rewrites files keeping both).
+  paranoid_refresh: false
+  # The Plot button (activity bar) brings an open plot to front and shows a folder plotted before
+  # (settings or figures in its plots/) as it was, without saving again. For a folder never plotted:
+  # true plots and saves it; false only opens the plot adjustments panel (press "Gerar Plot" there).
+  # Reload with "Recarregar config.yaml".
+  auto_generate_plot: true
+
+jobs:
+  # "Criar cálculo" writes SGE + Intel MPI .qsub scripts. Their cluster side (QE and MPI paths,
+  # parallel environment, OMP_NUM_THREADS, the Intel MPI environment and the job's e-mails) is
+  # fixed in the script templates, the cluster's new model; only the values below are configured.
+  # Default of the NP field (cores of the job).
+  cores: 64
+  # Default of the pools field (pw.x -nk). NP must be a multiple of it.
+  nk: 4
+  # Folder of the pseudopotentials on the cluster, written as pseudo_dir into every pw.x input
+  # "Criar cálculo" generates (each folder is then self-contained). Unset: the SCF's pseudo_dir stays.
+  # pseudo_dir: /home/me/pseudo
+  # E-mail the cluster notifies when the job starts and ends (MYEMAIL in the script). Unset: the
+  # script goes out with an empty MYEMAIL.
+  # myemail: usuario@mail.com
+
+log:
+  # Write Lain's log, lain.log in the data folder (paths.data, or the system's default place).
+  # false: no file is written; errors still reach the terminal. Reload with "Recarregar config.yaml".
+  enabled: true
+  # The most the log takes on disk, in MB (1 to 1000): lain.log and the older lain.log.1 together.
+  max_size_mb: 10
+  # info: what you did and what it changed. debug: also every command, background task and file
+  # read (for a bug you are chasing). The command-line --verbose asks for debug too.
+  level: info

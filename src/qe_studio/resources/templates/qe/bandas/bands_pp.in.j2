@@ -1,0 +1,8 @@
+&BANDS
+  prefix = {{ prefix | fstr }}
+  outdir = {{ outdir | fstr }}
+  filband = {{ filband | fstr }}
+{% if spin_component is not none %}
+  spin_component = {{ spin_component }}
+{% endif %}
+/

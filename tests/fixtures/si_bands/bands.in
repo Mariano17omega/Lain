@@ -1,0 +1,7 @@
+ &bands
+    prefix  = 'silicon'
+    filband = 'bands.dat'
+    lsym=.true.
+    outdir='./tmp'
+
+/

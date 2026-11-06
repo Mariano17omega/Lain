@@ -1,0 +1,72 @@
+/* Modal dialogs: mapping, conflicts, overwrite, sync progress. */
+QDialog QLabel[variant="dialogTitle"] {
+    font-size: 14px;
+    font-weight: 600;
+    color: ${text};
+}
+QDialog QLabel[variant="dialogText"] {
+    color: ${text_secondary};
+}
+QDialog QLabel[variant="dialogError"] {
+    color: ${error};
+}
+QDialog QLabel[variant="mono"] {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${accent_text};
+}
+QMessageBox {
+    background: ${window};
+}
+QMessageBox QLabel {
+    color: ${text};
+}
+#syncDialog {
+    background: ${chrome};
+}
+#syncStage {
+    font-size: 13px;
+    color: ${text};
+}
+#syncDetail {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+    color: ${text_muted};
+}
+QDialog QLabel[variant="dialogWarning"] {
+    color: ${warning};
+    font-weight: 600;
+}
+#syncScope {
+    font-size: 14px;
+    font-weight: 600;
+    color: ${text};
+}
+#planTree {
+    background: ${panel};
+    border: 1px solid ${border};
+}
+#detailsText {
+    font-family: "JetBrains Mono";
+    font-size: 11px;
+}
+
+/* Atom picker of the PDOS (spec 21). */
+#atomsTable {
+    background: ${panel};
+    alternate-background-color: ${panel_alt};
+    color: ${text};
+    border: 1px solid ${border};
+    gridline-color: ${border};
+}
+#atomsTable QHeaderView::section, #gridCellsTable QHeaderView::section {
+    background: ${chrome};
+    color: ${text_muted};
+    border: none;
+    border-bottom: 1px solid ${border};
+    padding: 4px 8px;
+    font-size: 11px;
+}
+#atomsTable::item {
+    padding: 2px 8px;
+}

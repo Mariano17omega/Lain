@@ -1,0 +1,400 @@
+"""Activity bar, top bar and status bar (PRD §2.1, mockups)."""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QPainter, QPen
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QStatusBar,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ....i18n import _
+from ...theme.manager import ThemeManager
+from ...theme.scale import scaled
+from ..common import IconButton
+from ..elided_label import ElidedLabel
+from ..files.breadcrumb import Breadcrumb
+from ..spinner import CircularProgress
+
+log = logging.getLogger(__name__)
+
+THEME_ICONS = {"dark": "dark_mode", "light": "light_mode", "system": "contrast"}  # by theme mode
+LED_TOKENS = {
+    "online": "success",
+    "offline": "error",
+    "syncing": "warning",
+    "unknown": "text_dim",
+    "disabled": "text_dim",
+}
+LED_TIPS = {
+    "online": _("Cluster acessível"),
+    "offline": _("Cluster inacessível"),
+    "syncing": _("Sincronizando…"),
+    "unknown": _("Verificando conexão…"),
+    "disabled": _("Cluster não configurado (config.yaml)"),
+}
+REMOTE_TIP = _("Ver os arquivos do cluster (clique de novo para voltar aos locais)")
+
+
+class StatusLed(QWidget):
+    def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.theme = theme
+        self.state = "unknown"
+        self.setFixedSize(10, 10)
+        theme.theme_changed.connect(self._on_theme_changed)
+
+    def _on_theme_changed(self, _name: str) -> None:
+        self.update()
+
+    def set_state(self, state: str, detail: str = "") -> None:
+        """``detail`` (``usuario@host``) goes under the state's sentence in the tooltip."""
+        self.state = state
+        tip = LED_TIPS.get(state, state)
+        self.setToolTip(f"{tip}\n{detail}" if detail else tip)
+        self.update()
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self.theme.color(LED_TOKENS.get(self.state, "text_dim")))
+        painter.drawEllipse(1, 1, 8, 8)
+        painter.end()
+
+
+class ActivityButton(IconButton):
+    """Icon over a 9 px label; optional status dot (Rsync)."""
+
+    def __init__(self, theme: ThemeManager, icon: str, text: str, tooltip: str, checkable=False):
+        super().__init__(theme, icon, tooltip, "activity", "text_muted", "accent", 20)
+        self.setText(text)
+        self.setAccessibleName("")  # it has a visible label: that is its name
+        self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        self.setCheckable(checkable)
+        self.setFixedSize(QSize(scaled(46), scaled(44)))
+        self.dot_state: str | None = None
+
+    def set_dot(self, state: str | None) -> None:
+        self.dot_state = state
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        super().paintEvent(event)
+        if self.dot_state is None:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(self.theme.color("chrome"), 1.5))
+        painter.setBrush(self.theme.color(LED_TOKENS.get(self.dot_state, "text_dim")))
+        painter.drawEllipse(self.width() - 15, 5, 7, 7)
+        painter.end()
+
+
+class ActivityBar(QWidget):
+    explorer_requested = pyqtSignal()
+    grid_toggled = pyqtSignal(bool)
+    generate_requested = pyqtSignal()
+    grids_requested = pyqtSignal()
+    sync_requested = pyqtSignal()
+    remote_toggled = pyqtSignal(bool)  # "Cluster": the cluster mode on or off (spec 65)
+    create_requested = pyqtSignal()  # "Criar cálculo" (spec 26)
+    theme_requested = pyqtSignal()
+
+    def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.theme = theme
+        self.setObjectName("activityBar")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setFixedWidth(scaled(56))
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(5, 6, 5, 8)
+        layout.setSpacing(4)
+        self.tree = ActivityButton(
+            theme, "account_tree", _("Árvore"), _("Mostrar/ocultar a árvore de pastas"), True
+        )
+        self.grid = ActivityButton(
+            theme, "grid_view", _("Grade"), _("Mostrar/ocultar arquivos"), True
+        )
+        # No shortcut: Ctrl+G is "Gerar Plot" (``plot.generate``), which always plots and saves.
+        self.generate = ActivityButton(
+            theme,
+            "bolt",
+            _("Plot"),
+            _(
+                "Plotar a pasta selecionada (com uma pasta de bandas e uma de PDOS selecionadas na "
+                "grade: Bandas com DOS); com a geração automática desligada (ui.auto_generate_plot) "
+                "só abre os ajustes"
+            ),
+        )
+        # A grid of the open plots in one figure (spec 23).
+        self.grids = ActivityButton(
+            theme,
+            "dashboard",
+            _("Grids"),
+            _("Unir gráficos abertos numa grade N×M (uma só figura)"),
+        )
+        self.rsync = ActivityButton(theme, "sync", _("Rsync"), _("Sincronizar com o cluster"))
+        self.remote = ActivityButton(theme, "cloud_done", _("Cluster"), REMOTE_TIP, True)
+        self.new_calc = ActivityButton(
+            theme, "add_circle", _("Criar"), _("Criar cálculo (scripts e inputs)")
+        )
+        self.theme_button = ActivityButton(
+            theme, "dark_mode", _("Tema"), _("Alternar tema (Ctrl+T)")
+        )
+        buttons = (self.tree, self.grid, self.generate, self.grids, self.rsync, self.remote)
+        for button in (*buttons, self.new_calc):
+            layout.addWidget(button, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addStretch(1)
+        layout.addWidget(self.theme_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.tree.setChecked(True)
+        self.grid.setChecked(True)
+
+        self.tree.clicked.connect(self.explorer_requested)
+        self.grid.toggled.connect(self.grid_toggled)
+        self.generate.clicked.connect(self.generate_requested)
+        self.grids.clicked.connect(self.grids_requested)
+        self.rsync.clicked.connect(self.sync_requested)
+        self.remote.clicked.connect(self.remote_toggled)  # a click only: setChecked says nothing
+        self.new_calc.clicked.connect(self.create_requested)
+        self.theme_button.clicked.connect(self.theme_requested)
+        theme.theme_changed.connect(self._sync_theme_button)
+        theme.mode_changed.connect(self._sync_theme_button)
+        theme.scale_changed.connect(self._on_scale_changed)
+        self._sync_theme_button()
+
+    def _on_scale_changed(self, _scale: float) -> None:
+        self.setFixedWidth(scaled(56))
+        for button in self.findChildren(ActivityButton):
+            button.setFixedSize(QSize(scaled(46), scaled(44)))
+
+    def set_left_mode(self, mode: str) -> None:
+        self.tree.setChecked(mode == "tree")
+
+    def set_cluster(self, _label: str, state: str) -> None:
+        """The reachability dot of "Rsync" (none when the cluster is not configured)."""
+        self.rsync.set_dot(None if state == "disabled" else state)
+
+    def set_sync_tooltip(self, text: str) -> None:
+        """What "Rsync" would pull from the current folder (spec 17 R1)."""
+        self.rsync.setToolTip(text)
+
+    def _sync_theme_button(self, *_args) -> None:
+        """Icon and tooltip say the current mode (spec 19 R1.3), not the one a click would pick."""
+        self.theme_button.set_icon_name(THEME_ICONS[self.theme.mode])
+        self.theme_button.setToolTip(_("Tema: {theme} · Ctrl+T").format(theme=self.theme.label()))
+
+
+class TopBar(QWidget):
+    plot_file_requested = pyqtSignal()
+    panel_toggled = pyqtSignal(str, bool)  # "tree" | "grid" | "workspace"
+
+    def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.theme = theme
+        self.setObjectName("topBar")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setFixedHeight(scaled(36))
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 0, 8, 0)
+        layout.setSpacing(8)
+        self._layout = layout
+
+        # History buttons and the clickable path (spec 16 R1, R2); disabled until there is somewhere
+        # to go back or forward to.
+        self.back_button = IconButton(theme, "arrow_back", _("Voltar (Alt+←)"))
+        self.forward_button = IconButton(theme, "arrow_forward", _("Avançar (Alt+→)"))
+        for button in (self.back_button, self.forward_button):
+            button.setEnabled(False)
+        self.breadcrumb = Breadcrumb()
+        # Only while an output one module can plot on its own is open (the window decides).
+        self.plot_file = QPushButton(_("Plotar SCF"))
+        self.plot_file.setObjectName("plotFileButton")
+        self.plot_file.setToolTip(_("Plotar a convergência do SCF do arquivo aberto"))
+        self.plot_file.clicked.connect(self.plot_file_requested)
+        self.plot_file.hide()
+        self.led = StatusLed(theme)
+        separator = QWidget()
+        separator.setObjectName("topSeparator")
+        separator.setFixedHeight(18)
+        separator.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+        layout.addWidget(self.back_button)
+        layout.addWidget(self.forward_button)
+        layout.addWidget(self.breadcrumb, 1)
+        layout.addWidget(self.plot_file)
+        layout.addWidget(self.led)
+        layout.addWidget(separator)
+        self._history = (False, False)  # what the history allows, kept while locked
+        self._remote = False  # the cluster mode is on: history and path are off (spec 65)
+        self.toggles: dict[str, QToolButton] = {}
+        for key, icon, text in (
+            ("tree", "account_tree", _("Árvore")),
+            ("grid", "grid_view", _("Grade")),
+            ("workspace", "bubble_chart", _("Gráficos")),
+        ):
+            button = IconButton(
+                theme,
+                icon,
+                _("Mostrar/ocultar {name}").format(name=text.lower()),
+                "toggle",
+                size=14,
+            )
+            button.setText(text)
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            button.setCheckable(True)
+            button.setChecked(True)
+            button.toggled.connect(lambda checked, k=key: self.panel_toggled.emit(k, checked))
+            self.toggles[key] = button
+            layout.addWidget(button)
+        theme.theme_changed.connect(self._refresh_icons)
+        theme.scale_changed.connect(self._on_scale_changed)
+        self._refresh_icons()
+
+    def _on_scale_changed(self, _scale: float) -> None:
+        self.setFixedHeight(scaled(36))
+        self.breadcrumb.updateGeometry()
+        self.breadcrumb.relayout()
+
+    def set_root(self, root: Path) -> None:
+        """The project the breadcrumb starts from."""
+        self.breadcrumb.set_root(root)
+
+    def set_path(self, folder: Path) -> None:
+        self.breadcrumb.set_path(folder)
+
+    def set_plot_file(self, visible: bool, label: str = "", tip: str = "") -> None:
+        """The button of the open output: named by the module that plots it (spec 35 R4)."""
+        if visible and label:
+            self.plot_file.setText(label)
+            self.plot_file.setToolTip(tip)
+        self.plot_file.setVisible(visible)
+
+    def add_before_led(self, widget: QWidget) -> None:
+        """A widget right of "Plotar SCF" and left of the LED (the jobs of the cluster, spec 64)."""
+        self._layout.insertWidget(self._layout.indexOf(self.led), widget)
+
+    def set_history(self, can_back: bool, can_forward: bool) -> None:
+        self._history = (can_back, can_forward)
+        self.back_button.setEnabled(can_back and not self._remote)
+        self.forward_button.setEnabled(can_forward and not self._remote)
+
+    def set_remote(self, remote: bool) -> None:
+        """The cluster mode (spec 65): the history and the clickable path, both local, are off
+        while it is on, whatever the local navigation does meanwhile."""
+        self._remote = remote
+        self.breadcrumb.setEnabled(not remote)
+        self.set_history(*self._history)
+
+    def set_cluster(self, label: str, state: str) -> None:
+        """Only the LED shows the cluster; ``usuario@host`` is in its tooltip (spec 33 R3). A cluster
+        that is not configured has nothing to add to the state's sentence."""
+        self.led.set_state(state, "" if state == "disabled" else label)
+
+    def _refresh_icons(self, *_args) -> None:
+        self.plot_file.setIcon(self.theme.icon("monitoring", "text_secondary", size=14))
+
+
+class StatusBar(QStatusBar):
+    # The message keeps this much; when the bar is narrower the readout and the path are elided.
+    MESSAGE_MIN_WIDTH = 200
+    # Layout margins and gaps of the bar that no label accounts for.
+    SLACK = 24
+    LABEL_MIN_WIDTH = 48
+
+    def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("statusBar")
+        self.setSizeGripEnabled(False)
+        # Detecting, loading or exporting a plot: a small spinner and what is going on (spec 15
+        # R2). Replaces the global busy cursor; the message on its right is the usual one.
+        self.spinner = CircularProgress(theme, 12)
+        self.spinner.hide()
+        self.busy = QLabel()
+        self.busy.setObjectName("busyLabel")
+        self.busy.hide()
+        self.message = QLabel()
+        self.message.setMinimumWidth(self.MESSAGE_MIN_WIDTH)
+        self.readout = ElidedLabel()
+        self.path = ElidedLabel()
+        self.addWidget(self.spinner)
+        self.addWidget(self.busy)
+        self.addWidget(self.message, 1)
+        self.addPermanentWidget(self.readout)
+        self.addPermanentWidget(self.path)
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        # Bound methods, not lambdas: a lambda slot outliving the widget's wrapper crashes.
+        self._timer.timeout.connect(self._clear_message)
+
+    def set_message(self, text: str, level: str = "info", timeout_ms: int = 0) -> None:
+        if text:  # an empty one is the timer clearing the bar
+            # The cause has a line of its own: never above INFO.
+            loud = level in ("warning", "error")
+            log.log(logging.INFO if loud else logging.DEBUG, "told: %s", text)
+        self.message.setText(text)
+        self.message.setProperty("level", level)
+        style = self.message.style()
+        if style is not None:
+            style.unpolish(self.message)
+            style.polish(self.message)
+        if timeout_ms:
+            self._timer.start(timeout_ms)
+        else:
+            self._timer.stop()
+
+    def _clear_message(self) -> None:
+        self.set_message("")
+
+    def set_busy(self, text: str | None) -> None:
+        """Show the spinner with ``text``; None hides both."""
+        self.busy.setText(text or "")
+        self.spinner.setVisible(text is not None)
+        self.busy.setVisible(text is not None)
+        self._fit_labels()
+
+    def set_readout(self, text: str) -> None:
+        self.readout.set_full_text(text)
+        self._fit_labels()
+
+    def set_path(self, text: str) -> None:
+        self.path.set_full_text(text)
+        self._fit_labels()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._fit_labels()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._fit_labels()
+
+    def _fit_labels(self) -> None:
+        """Elide the readout and the path so the message keeps ``MESSAGE_MIN_WIDTH``.
+
+        The room left is shared: the path gets at most half of it, or more when the readout is
+        short. Budgets are set from here (not left to the layout) so the result does not depend
+        on how a box layout shrinks its items. Until the bar is shown its width means nothing.
+        """
+        if not self.isVisible():
+            return
+        fixed = sum(w.sizeHint().width() for w in (self.spinner, self.busy) if not w.isHidden())
+        room = max(0, self.width() - fixed - self.MESSAGE_MIN_WIDTH - self.SLACK)
+        readout, path = self.readout.natural_width(), self.path.natural_width()
+        if readout + path <= room:
+            self.readout.set_budget(None)
+            self.path.set_budget(None)
+            return
+        path_budget = min(path, max(room // 2, room - readout))
+        path_budget = max(path_budget, self.LABEL_MIN_WIDTH)
+        self.path.set_budget(path_budget)
+        self.readout.set_budget(max(room - path_budget, self.LABEL_MIN_WIDTH))

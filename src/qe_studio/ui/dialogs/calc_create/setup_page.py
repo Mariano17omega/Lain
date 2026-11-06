@@ -1,0 +1,432 @@
+"""Step 1 of "Criar cálculo" (spec 26 R3, spec 28 R5.3): the type, the SCF input, the folder name
+(optional: the folder is then the type's prefix alone), "Numerar" (spec 51: the place's next number in
+front of the name, for every type) and where it goes. A type that runs several SCFs (``multi_scf``,
+spec 79) gets a list (``scf_list.ScfList``) in place of the one SCF field.
+
+The SCF is checked on the GUI thread only by its head (``looks_like_input``) and read in a worker
+(``read_scf``); the file is never written. The name and the place are checked with ``stat`` only.
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ....core.calc_create.naming import inherited_suffix
+from ....core.calc_create.preview import SITE_PLACEHOLDER, location_warnings, target_text
+from ....core.calc_create.scf_info import ScfInfo, ScfInputError, read_scf
+from ....core.calc_create.types import REGISTRY, CalcType
+from ....core.calc_create.writer import validate_parent, validate_parts, validate_suffix
+from ....core.sniff import looks_like_input
+from ....core.tasks import TaskGroup
+from ....i18n import _
+from ...shell.busy import BusyTracker
+from ...widgets.common import set_variant
+from .labels import message_label, show_message
+from .scf_list import INPUT_FILTER, ScfList
+
+log = logging.getLogger(__name__)
+
+READING = _("Lendo SCF…")
+CHOOSE_TYPE = _("Escolha o tipo de cálculo")
+CHOOSE_SCF = _("Escolha o input de SCF")
+REBUILD_NOTE = _("Esta mudança refaz a próxima etapa: os campos voltam aos padrões")
+REBUILD_EDITS_NOTE = _("{note} e as edições dos arquivos se perdem").format(
+    note=REBUILD_NOTE
+)  # spec 39 R2.5
+NUMBER_TIP = _(
+    "Põe um número antes do nome da pasta, seguindo as pastas que já existem aqui "
+    "(0_Relax, 1_Bands…)"
+)
+SITE_TAG_TIP = _(
+    "Põe no fim do nome da pasta o átomo do sítio escolhido na aba Sítio "
+    "(O11, ou O43-O46 no bidentado)"
+)
+INHERIT_TIP = _("Repete no nome da pasta o que vem depois do tipo no nome da pasta do SCF")
+FINGERPRINT_TIP = _(
+    "Grava na pasta nova um fingerprint.md com o tipo de cálculo e de onde vieram os SCFs"
+)
+
+
+def choose_scf(parent: QWidget, start: Path) -> Path | None:
+    path, _filter = QFileDialog.getOpenFileName(
+        parent, _("Escolher input de SCF"), str(start), INPUT_FILTER
+    )
+    return Path(path) if path else None
+
+
+def choose_folder(parent: QWidget, start: Path) -> Path | None:
+    path = QFileDialog.getExistingDirectory(parent, _("Onde criar a pasta"), str(start))
+    return Path(path) if path else None
+
+
+class SetupPage(QWidget):
+    changed = pyqtSignal()  # anything "Continuar" depends on
+    scf_ready = pyqtSignal(object)  # ScfInfo, or None when it could not be used
+
+    def __init__(
+        self,
+        root: Path,
+        start: Path,
+        busy: BusyTracker | None = None,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent)
+        self.root, self.start, self.busy = root, start, busy
+        self._scf: ScfInfo | None = None
+        self._scf_path: Path | None = None
+        self._scf_problem = ""
+        self._inheritable = ""  # the suffix of the SCF's folder (spec 77)
+        self._reading = False
+        self._location = start
+        self._tasks = TaskGroup()
+        # Ended by ``shutdown`` (the window's ``done``), never from our own ``destroyed``: PyQt may
+        # call a plain callable on it after freeing it, which crashed the test run.
+        self._busy_key = f"calc:scf:{id(self)}"
+
+        self.type_combo = QComboBox()
+        self.type_combo.setAccessibleName(_("Tipo de cálculo"))
+        for calc_type in REGISTRY:
+            self.type_combo.addItem(calc_type.label, calc_type.id)
+        self.type_combo.setPlaceholderText(CHOOSE_TYPE)
+        self.type_combo.setCurrentIndex(-1)
+        self.type_combo.currentIndexChanged.connect(self._update)
+        self.scf_edit = set_variant(QLineEdit(), "mono")
+        self.scf_edit.setReadOnly(True)
+        self.scf_edit.setPlaceholderText(_("Nenhum arquivo escolhido"))
+        self.scf_edit.setAccessibleName(CalcType.scf_label)
+        self.scf_label = set_variant(QLabel(), "fieldLabel")  # the type's name for it (spec 40)
+        self.scf_button = QPushButton(_("Escolher…"))
+        self.scf_button.clicked.connect(self._pick_scf)
+        self.scf_message = message_label("error")
+        self.scf_box = self._with_button(self.scf_edit, self.scf_button)
+        self.scf_list = ScfList(start, CalcType.scf_label, busy)
+        self.scf_list.changed.connect(self._update)
+        self.scfs_label = set_variant(QLabel(), "fieldLabel")
+        self.suffix_edit = QLineEdit()
+        self.suffix_edit.setAccessibleName(_("Nome da pasta"))
+        self.suffix_edit.setPlaceholderText(_("opcional, ex.: Al, Fe_teste"))
+        self.suffix_edit.textChanged.connect(self._update)
+        self.suffix_message = message_label("error")
+        self.number_check = QCheckBox(_("Numerar"))
+        self.number_check.setObjectName("numberCheck")
+        self.number_check.setAccessibleName(_("Numerar"))
+        self.number_check.setToolTip(NUMBER_TIP)
+        self.number_check.toggled.connect(self._update)
+        self.site_check = QCheckBox(_("Sítio no nome"))
+        self.site_check.setObjectName("siteTagCheck")
+        self.site_check.setToolTip(SITE_TAG_TIP)
+        self.site_check.toggled.connect(self._update)
+        self.inherit_check = QCheckBox()
+        self.inherit_check.setObjectName("inheritCheck")
+        self.inherit_check.setToolTip(INHERIT_TIP)
+        self.inherit_check.toggled.connect(self._update)
+        self.fingerprint_check = QCheckBox(_("Gerar fingerprint.md"))  # spec 80
+        self.fingerprint_check.setObjectName("fingerprintCheck")
+        self.fingerprint_check.setToolTip(FINGERPRINT_TIP)
+        self.fingerprint_check.toggled.connect(self._update)
+        self.location_edit = set_variant(QLineEdit(str(start)), "mono")
+        self.location_edit.setReadOnly(True)
+        self.location_edit.setAccessibleName(_("Local"))
+        self.location_button = QPushButton(_("Escolher…"))
+        self.location_button.clicked.connect(self._pick_location)
+        self.location_message = message_label("warning")
+        self.reason = message_label()  # why "Continuar" is disabled (spec 39 R1.1)
+        self.name_preview = set_variant(message_label(), "mono")
+        self.rebuild_note = message_label("warning")
+        for button in (self.scf_button, self.location_button):
+            button.setAutoDefault(False)
+
+        grid = QGridLayout()
+        grid.setColumnStretch(1, 1)
+        grid.setVerticalSpacing(6)
+        rows: list[tuple[str | QLabel, QWidget, tuple[QWidget, ...]]] = [
+            (_("Tipo de cálculo"), self.type_combo, ()),
+            (
+                self.scf_label,
+                self.scf_box,
+                (self.scf_message,),
+            ),
+            (self.scfs_label, self.scf_list, ()),
+            (
+                _("Nome da pasta"),
+                self.suffix_edit,
+                (
+                    self.suffix_message,
+                    self.number_check,
+                    self.site_check,
+                    self.inherit_check,
+                    self.fingerprint_check,
+                ),
+            ),
+            (
+                _("Local"),
+                self._with_button(self.location_edit, self.location_button),
+                (self.location_message,),
+            ),
+        ]
+        row = 0
+        for label, widget, below in rows:  # ``below``: under the field, in its column
+            if isinstance(label, str):
+                label = set_variant(QLabel(label), "fieldLabel")
+            top = widget is self.scf_list  # the list's label sits at its top
+            grid.addWidget(label, row, 0, Qt.AlignmentFlag.AlignTop if top else Qt.AlignmentFlag(0))
+            grid.addWidget(widget, row, 1)
+            row += 1
+            for extra in below:
+                grid.addWidget(extra, row, 1)
+                row += 1
+        layout = QVBoxLayout(self)
+        layout.addLayout(grid)
+        layout.addSpacing(8)
+        layout.addWidget(self.reason)
+        layout.addWidget(self.name_preview)
+        layout.addWidget(self.rebuild_note)
+        layout.addStretch(1)
+        self._update()
+
+    @staticmethod
+    def _with_button(edit: QLineEdit, button: QPushButton) -> QWidget:
+        box = QWidget()
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(edit, 1)
+        row.addWidget(button)
+        return box
+
+    # -- what was chosen -----------------------------------------------------------------------
+    @property
+    def calc_type(self) -> CalcType | None:
+        index = self.type_combo.currentIndex()
+        return REGISTRY[index] if 0 <= index < len(REGISTRY) else None
+
+    def set_type(self, type_id: str) -> None:
+        self.type_combo.setCurrentIndex(self.type_combo.findData(type_id))
+
+    @property
+    def multi(self) -> bool:
+        """The type takes a list of SCFs (spec 79)."""
+        calc_type = self.calc_type
+        return calc_type is not None and calc_type.multi_scf
+
+    @property
+    def scf(self) -> ScfInfo | None:
+        """The SCF (the list's first, for a ``multi_scf`` type): the script's job name, the cores."""
+        if self.multi:
+            scfs = self.scf_list.scfs
+            return scfs[0] if scfs and not self.scf_list.problem() else None
+        return self._scf
+
+    @property
+    def scfs(self) -> tuple[ScfInfo, ...]:
+        """The list's SCFs for a ``multi_scf`` type, in its order; () for any other type."""
+        return self.scf_list.scfs if self.multi and not self.scf_list.problem() else ()
+
+    @property
+    def suffix(self) -> str:
+        return self.suffix_edit.text().strip()
+
+    @property
+    def numbered(self) -> bool:
+        return self.number_check.isChecked()
+
+    @property
+    def site_tag(self) -> bool:
+        """ "Sítio no nome" is on and the type has a site to name (spec 77)."""
+        calc_type = self.calc_type
+        return self.site_check.isChecked() and calc_type is not None and calc_type.site_tag
+
+    @property
+    def inherited(self) -> str:
+        """The suffix of the SCF's folder when "Herdar sufixo" is on (it has one), else ""."""
+        return self._inheritable if self.inherit_check.isChecked() else ""
+
+    @property
+    def fingerprint(self) -> bool:
+        """ "Gerar fingerprint.md" is on (spec 80)."""
+        return self.fingerprint_check.isChecked()
+
+    @property
+    def location(self) -> Path:
+        return self._location
+
+    def problems(self) -> list[str]:
+        """What keeps "Continuar" disabled, in the order of the rows ([] = nothing)."""
+        return self._problems(
+            validate_suffix(self.suffix) + validate_parts(self.inherited),
+            validate_parent(self._location),
+        )
+
+    def _problems(self, named: list[str], place: list[str]) -> list[str]:
+        problems = []
+        if self.calc_type is None:
+            problems.append(CHOOSE_TYPE)
+        if self.multi:
+            listed = self.scf_list.problem()
+            problems += [listed] if listed else []
+        elif self._scf is None:
+            problems.append(self._scf_problem or (READING if self._reading else CHOOSE_SCF))
+        refused = self._refused()
+        if refused:
+            problems.append(refused)
+        return problems + named + place
+
+    def _refused(self) -> str:
+        """Why the type refuses the SCF read ("" = it does not: spec 42 R1, a bulk's SCF for a
+        molecule on a surface)."""
+        calc_type, scf = self.calc_type, self.scf
+        if calc_type is None or scf is None:
+            return ""
+        return calc_type.check_scf(scf) or ""
+
+    def location_warnings(self) -> tuple[str, ...]:
+        return location_warnings(self._location, self.root)
+
+    # -- the SCF -------------------------------------------------------------------------------
+    def _pick_scf(self) -> None:
+        start = self._scf_path.parent if self._scf_path is not None else self.start
+        path = choose_scf(self, start)
+        if path is not None:
+            self.set_scf(path)
+
+    def set_scf(self, path: Path) -> None:
+        """Use ``path`` as the SCF: its head now, its contents in a worker (``scf_ready``)."""
+        self._scf, self._scf_path, self._scf_problem = None, path, ""
+        self.scf_edit.setText(str(path))
+        self._tasks.cancel_all()
+        # Accepted, local disk: one file the user just picked, its head only (spec 27-8 R3.3).
+        if not path.is_file() or not looks_like_input(path):
+            self._scf_problem = _("{name} não parece um input do Quantum ESPRESSO").format(
+                name=path.name
+            )
+            self._end_reading()
+            self.scf_ready.emit(None)
+            return
+        self._reading = True
+        show_message(self.scf_message, READING, "hint")
+        if self.busy is not None:
+            self.busy.begin(self._busy_key, READING)
+        self._tasks.submit("scf", read_scf, path, on_done=self._on_read, on_error=self._on_failed)
+        self._update()
+
+    def _on_read(self, _key: str, info: ScfInfo) -> None:
+        self._scf = info
+        self._end_reading()
+        self.scf_ready.emit(info)
+
+    def _on_failed(self, _key: str, exc: BaseException) -> None:
+        if isinstance(exc, ScfInputError):
+            self._scf_problem = str(exc)
+        else:
+            log.error("file: reading the SCF for a new calculation failed", exc_info=exc)
+            self._scf_problem = _("Não foi possível ler o SCF: {error}").format(error=exc)
+        self._end_reading()
+        self.scf_ready.emit(None)
+
+    def _end_reading(self) -> None:
+        self._reading = False
+        if self.busy is not None:
+            self.busy.end(self._busy_key)
+        show_message(self.scf_message, self._scf_problem, "error")
+        self._update()
+
+    # -- the place -----------------------------------------------------------------------------
+    def _pick_location(self) -> None:
+        path = choose_folder(self, self._location)
+        if path is not None:
+            self.set_location(path)
+
+    def set_location(self, path: Path) -> None:
+        self._location = path
+        self.location_edit.setText(str(path))
+        self._update()
+
+    def show_rebuild_note(self, shown: bool, lose_edits: bool = False) -> None:
+        note = REBUILD_EDITS_NOTE if lose_edits else REBUILD_NOTE
+        show_message(self.rebuild_note, note if shown else "")
+
+    def show_reason(self, text: str) -> None:
+        """The line that says why "Continuar" does not go on (empty: it does): on the page, not
+        only in the button's tooltip, which a disabled button rarely shows."""
+        show_message(self.reason, text)
+
+    def _update(self, *_args) -> None:
+        suffix = self.suffix
+        self._show_boxes()
+        named = validate_suffix(suffix)
+        show_message(self.suffix_message, named[0] if named else "")
+        named += validate_parts(self.inherited)
+        place = validate_parent(self._location)
+        show_message(
+            self.location_message,
+            "\n".join(place or list(self.location_warnings())),
+            "error" if place else "warning",
+        )
+        calc_type = self.calc_type
+        scf_label = calc_type.scf_label if calc_type is not None else CalcType.scf_label
+        self._show_scf_rows(scf_label)
+        preview = ""
+        if calc_type is not None and not named and not place:
+            preview = target_text(
+                self._location,
+                calc_type,
+                suffix,
+                self.numbered,
+                self.inherited,
+                SITE_PLACEHOLDER if self.site_tag else "",
+            )
+        show_message(self.name_preview, preview)
+        if not self._reading and not self.multi:  # the type's refusal is the SCF's message too
+            show_message(self.scf_message, self._scf_problem or self._refused(), "error")
+        problems = self._problems(named, place)
+        self.show_reason(problems[0] if problems else "")
+        self.changed.emit()
+
+    def _show_scf_rows(self, scf_label: str) -> None:
+        """The one SCF field, or the list for a ``multi_scf`` type (spec 79 R1.1)."""
+        multi = self.multi
+        for label in (self.scf_label, self.scfs_label):
+            label.setText(f"{scf_label} *")
+        self.scf_edit.setAccessibleName(scf_label)
+        self.scf_list.list.setAccessibleName(scf_label)
+        for widget in (self.scf_label, self.scf_box):
+            widget.setVisible(not multi)
+        for widget in (self.scfs_label, self.scf_list):
+            widget.setVisible(multi)
+        if multi:
+            self.scf_message.hide()
+
+    def _show_boxes(self) -> None:
+        """ "Sítio no nome" for a type with a site, "Herdar sufixo" for an SCF in a folder that has
+        one (spec 77 R2.1); the sufixo is in the box's text."""
+        calc_type = self.calc_type
+        self.site_check.setVisible(calc_type is not None and calc_type.site_tag)
+        scf = self.scf
+        self._inheritable = inherited_suffix(scf.path) if scf is not None else ""
+        self.inherit_check.setVisible(bool(self._inheritable))
+        if self._inheritable:
+            self.inherit_check.setText(
+                _("Herdar sufixo do SCF ({suffix})").format(suffix=self._inheritable)
+            )
+
+    def shutdown(self) -> None:
+        """The window is done: a SCF still being read is dropped, and so is its spinner."""
+        self._tasks.shutdown(0)
+        self.scf_list.shutdown()
+        self._reading = False
+        if self.busy is not None:
+            self.busy.end(self._busy_key)

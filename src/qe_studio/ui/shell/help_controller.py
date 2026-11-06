@@ -1,0 +1,164 @@
+"""The Ajuda menu (spec 18 R1): shortcuts, QE docs, log, data folder and "Sobre".
+
+Shortcut rows come from two places, so the list cannot go stale: the action registry (every menu
+action that has a key) and the ``shortcut_help()`` of the widgets that handle keys themselves.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from pathlib import Path
+
+from PyQt6.QtCore import PYQT_VERSION_STR, QT_VERSION_STR, QObject, QUrl, pyqtSignal
+from PyQt6.QtGui import QAction, QDesktopServices
+from PyQt6.QtWidgets import QWidget
+
+from ... import APP_NAME, __version__
+from ...core.app.about import package_versions
+from ...core.app.logs import log_is_off
+from ...core.appdirs import data_dir, log_path
+from ...core.config import LoadedConfig
+from ...core.project.project_data import describe
+from ...core.qe.qe_docs import doc_for
+from ...i18n import _
+from ..actions import ACTIONS
+from ..dialogs.about import AboutDialog
+from ..dialogs.shortcuts import ShortcutsDialog
+from ..widgets.structure3d.canvas import StructureCanvas
+from ..widgets.viewer.text_viewer import TextViewer
+
+ShortcutRows = list[tuple[str, str, str]]
+
+
+class HelpController(QObject):
+    message = pyqtSignal(str, str, int)  # text, level, timeout ms
+
+    def __init__(
+        self,
+        window: QWidget,
+        actions: Callable[[], dict[str, QAction]],
+        providers: Sequence[Callable[[], ShortcutRows]],
+        loaded: Callable[[], LoadedConfig],
+        open_file: Callable[[Path], None],
+        settings_file: Callable[[], str],
+        parent: QObject | None = None,
+    ):
+        super().__init__(parent)
+        self.window = window
+        self._actions, self._providers = actions, providers
+        self._loaded, self._open_file = loaded, open_file
+        self._settings_file = settings_file  # the file of the QSettings in use (spec 61 R2.8)
+        self.dialog: ShortcutsDialog | None = None
+
+    @classmethod
+    def for_window(cls, window) -> HelpController:
+        """The controller of a ``MainWindow``: its action registry and its key-handling widgets."""
+        providers = [
+            window.explorer.shortcut_help,
+            window.files.shortcut_help,
+            TextViewer.shortcut_help,
+            window.workspace.shortcut_help,
+            window.navigation.shortcut_help,
+            StructureCanvas.shortcut_help,
+        ]
+        return cls(
+            window,
+            lambda: window._actions,
+            providers,
+            lambda: window.loaded,
+            window.open_file,
+            lambda: window.settings.fileName(),
+            parent=window,
+        )
+
+    # -- shortcuts ----------------------------------------------------------------------------
+    def shortcut_rows(self) -> ShortcutRows:
+        actions = self._actions()
+        rows: ShortcutRows = []
+        for spec in ACTIONS:
+            action = actions.get(spec.id)
+            keys = action.shortcut().toString() if action is not None else ""
+            if keys:
+                rows.append((spec.text, keys, _("Menu {menu}").format(menu=spec.menu)))
+        for provider in self._providers:
+            rows.extend(provider())
+        return rows
+
+    def show_shortcuts(self) -> None:
+        """One non-modal dialog: asking again brings the open one to the front."""
+        if self.dialog is not None:
+            self.dialog.raise_()
+            self.dialog.activateWindow()
+            return
+        dialog = ShortcutsDialog(self.shortcut_rows(), self.window)
+        dialog.destroyed.connect(self._on_dialog_closed)
+        self.dialog = dialog
+        dialog.show()
+
+    def _on_dialog_closed(self) -> None:
+        self.dialog = None
+
+    def close_dialog(self) -> bool:
+        """The main window is closing: the shortcuts window has no state."""
+        dialog = self.dialog
+        return dialog is None or dialog.close()
+
+    # -- QE documentation (spec 73) -----------------------------------------------------------
+    def open_doc(self, doc_id: str) -> None:
+        """Hand the page's URL to the system browser; say so when none is registered."""
+        doc = doc_for(doc_id)
+        if not QDesktopServices.openUrl(QUrl(doc.url)):
+            text = _("Não foi possível abrir {url}: nenhum navegador configurado no sistema.")
+            self.message.emit(text.format(url=doc.url), "warning", 6000)
+
+    def open_doc_pw(self) -> None:
+        self.open_doc("pw")
+
+    def open_doc_bands(self) -> None:
+        self.open_doc("bands")
+
+    def open_doc_projwfc(self) -> None:
+        self.open_doc("projwfc")
+
+    # -- log and data -------------------------------------------------------------------------
+    def open_log(self) -> None:
+        path = log_path()
+        if not path.is_file():
+            if log_is_off():
+                text = _("O log está desligado (log.enabled no config.yaml).")
+            else:
+                text = _("Ainda não há arquivo de log: {path}").format(path=path)
+            self.message.emit(text, "warning", 5000)
+            return
+        self._open_file(path)
+
+    def open_data_dir(self) -> None:
+        folder = data_dir()
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            text = _("Não foi possível abrir {folder}: {error}")
+            self.message.emit(text.format(folder=folder, error=exc.strerror or exc), "error", 5000)
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
+
+    # -- about --------------------------------------------------------------------------------
+    def about_rows(self) -> list[tuple[str, str]]:
+        loaded = self._loaded()
+        config_path = loaded.path
+        stack = package_versions()
+        rows = [(APP_NAME, __version__), stack[0]]
+        rows += [("Qt", QT_VERSION_STR), ("PyQt", PYQT_VERSION_STR), *stack[1:]]
+        rows += [
+            (_("Config"), str(config_path) if config_path else _("nenhum")),
+            (_("Log"), _("desligado") if log_is_off() else str(log_path())),
+            (_("Dados"), str(data_dir())),
+            (_("Configurações da interface"), self._settings_file()),
+            (_("Configurações do projeto"), describe(loaded.config.paths.local_root)),  # spec 48
+        ]
+        return rows
+
+    def show_about(self) -> None:
+        dialog = AboutDialog(f"{APP_NAME} {__version__}", self.about_rows(), self.window)
+        dialog.exec()
+        dialog.deleteLater()
