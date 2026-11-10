@@ -2,6 +2,7 @@
 
 Spec 9 adds "Plotar" to the menu of an SCF output, spec 12 "Resumo" to every QE output."""
 
+import os
 import shutil
 from pathlib import Path
 
@@ -88,8 +89,12 @@ def test_folders_and_equal_files_stay_in_name_order_whatever_the_sort(
     folder = demo_project / "05_sort"
     for name in ("gamma", "alpha", "beta"):
         (folder / name).mkdir(parents=True)
-    for name in ("c.txt", "a.txt", "b.txt"):  # one size each, one second apart is not needed
+    for name in ("c.txt", "a.txt", "b.txt"):  # one size each
         (folder / name).write_text("same")
+    # A date is a tie only when it is the same: a slow disk (a CI runner) gives each entry its own
+    # millisecond, and the newest then comes first when sorted descending.
+    for entry in folder.iterdir():
+        os.utime(entry, ns=(1_700_000_000_000_000_000,) * 2)
     window = main_window
     show_folder(qtbot, window, folder)
     window.files.set_sort(column)

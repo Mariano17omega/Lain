@@ -104,7 +104,9 @@ class ExceptionReporter:
         template = _("{title}: {kind}{short}") if off else _("{title}: {kind}{short} (ver o log)")
         text = template.format(title=TITLE, kind=kind.__name__, short=f": {short}" if short else "")
         trace = "".join(traceback.format_exception(kind, value, tb))
-        details = trace if off else f"{trace}\n{_('Log')}: {log_path()}"
+        # ``_()`` outside the f-string: the extractor of Python 3.11 does not read inside one.
+        log_label = _("Log")
+        details = trace if off else f"{trace}\n{log_label}: {log_path()}"
         window.toast.show_message(text, "error", details)
 
 
