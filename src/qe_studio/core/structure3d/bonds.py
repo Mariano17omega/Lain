@@ -13,7 +13,10 @@ from .model import AtomRef, Structure, as_shift
 DEFAULT_FACTOR = 1.15
 MIN_DISTANCE = 0.1  # Å, anything closer is the same atom
 KDTREE_THRESHOLD = 1000  # atoms; below it the dense numpy search is faster
-MAX_REACH = 3  # cells searched per direction, whatever the geometry
+# Cells searched per direction. A sheared cell is reduced first, so only a cell too small to be
+# physical needs more, and this keeps such an input from searching millions of translations.
+MAX_REACH = 3
+_REDUCTION_ROUNDS = 64
 
 
 @dataclass(frozen=True, eq=False)
@@ -50,6 +53,28 @@ def _cell_heights(cell: np.ndarray) -> np.ndarray:
     return volume / np.maximum(areas, 1e-12)
 
 
+def _reduction(cell: np.ndarray) -> np.ndarray:
+    """(3, 3) integers of determinant ±1 such that ``U @ cell`` is a short basis of the same
+    lattice: each vector is replaced by its shortest form against the other two until none shrinks."""
+    unimodular = np.eye(3, dtype=int)
+    corners = np.array(list(itertools.product((0, 1), repeat=2)), dtype=int)
+    for _ in range(_REDUCTION_ROUNDS):
+        changed = False
+        for i, others in enumerate(([1, 2], [0, 2], [0, 1])):
+            basis = unimodular @ cell  # from the integers each time, so no rounding piles up
+            plane = basis[others]
+            nearest = np.linalg.lstsq(plane.T, basis[i], rcond=None)[0]
+            steps = np.floor(nearest).astype(int) + corners  # the four lattice points around it
+            lengths = ((basis[i] - steps @ plane) ** 2).sum(axis=1)
+            best = int(lengths.argmin())
+            if lengths[best] < (basis[i] @ basis[i]) * (1.0 - 1e-9):
+                unimodular[i] -= steps[best] @ unimodular[others]
+                changed = True
+        if not changed:
+            break
+    return unimodular
+
+
 def _lex_positive(shift: np.ndarray) -> bool:
     for value in shift:
         if value != 0:
@@ -69,13 +94,21 @@ def compute_bonds(
     if n == 0:
         return empty
 
+    r_max = 2.0 * float(r.max()) * factor
+    # A cell so sheared that a bond could reach past MAX_REACH is searched on a short basis of the
+    # same lattice; any other cell is searched as it is (``basis`` stays the identity).
+    basis = np.eye(3, dtype=int)
+    if np.ceil(r_max / _cell_heights(cell)).max() > MAX_REACH:
+        basis = _reduction(cell)
+    search_cell = basis @ cell
+    search_frac = frac @ np.rint(np.linalg.inv(basis)).astype(int)
+
     # Search on positions wrapped into [0, 1) so that the translation range is bounded; the
     # result is converted back to the frame of the input coordinates at the end.
-    offsets = np.floor(frac).astype(int)
-    wrapped = frac - offsets
-    points = wrapped @ cell
-    r_max = 2.0 * float(r.max()) * factor
-    rho = r_max / _cell_heights(cell)  # reach of a bond along each lattice direction, in cells
+    offsets = np.floor(search_frac).astype(int)
+    wrapped = search_frac - offsets
+    points = wrapped @ search_cell
+    rho = r_max / _cell_heights(search_cell)  # reach of a bond along each direction, in cells
     reach = np.clip(np.ceil(rho), 1, MAX_REACH).astype(int)
     use_tree = n >= KDTREE_THRESHOLD
     if use_tree:
@@ -90,7 +123,7 @@ def compute_bonds(
         subset = np.nonzero(np.all((moved >= -rho) & (moved <= 1.0 + rho), axis=1))[0]
         if len(subset) == 0:
             continue
-        shifted = points[subset] + s_arr @ cell
+        shifted = points[subset] + s_arr @ search_cell
         if use_tree:
             pairs = tree.sparse_distance_matrix(KDTree(shifted), r_max, output_type="ndarray")
             ii, jj, dd = pairs["i"], pairs["j"], pairs["v"]
@@ -113,7 +146,9 @@ def compute_bonds(
 
     i = np.concatenate(found_i)
     j = np.concatenate(found_j)
-    shift = np.concatenate(found_s) - offsets[j] + offsets[i]  # back to the input frame
+    shift = (np.concatenate(found_s) - offsets[j] + offsets[i]) @ basis  # back to the input frame
+    first = shift[np.arange(len(shift)), (shift != 0).argmax(axis=1)]
+    shift[(i == j) & (first < 0)] *= -1  # a bond of an atom with its image keeps a positive shift
     dist = np.linalg.norm((frac[j] + shift - frac[i]) @ cell, axis=1)
     order = np.lexsort((shift[:, 2], shift[:, 1], shift[:, 0], j, i))
     return Bonds(i[order], j[order], shift[order], dist[order])
@@ -146,9 +181,6 @@ class BondGraph:
         ]
         out.sort(key=lambda item: item[1])
         return out
-
-    def coordination(self, ref: AtomRef) -> int:
-        return int(self._start[ref.index + 1] - self._start[ref.index])
 
 
 __all__ = ["DEFAULT_FACTOR", "BondGraph", "Bonds", "bonds_for", "compute_bonds", "covalent_radii"]

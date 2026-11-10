@@ -84,10 +84,10 @@ def test_bands_reference_change_keeps_window():
     old = params.reference
     params.reference = "absolute"
     module.param_changed(ds, params, "reference", old)
-    assert params.emin == pytest.approx(-5.0 + ds.fermi)
+    assert params.emin == pytest.approx(-5.0 + ds.reference("fermi"))
     params.reference = "midgap"
     module.param_changed(ds, params, "reference", "absolute")
-    assert params.emin == pytest.approx(-5.0 + ds.fermi - ds.reference("midgap"))
+    assert params.emin == pytest.approx(-5.0 + ds.reference("fermi") - ds.reference("midgap"))
 
 
 def test_bands_label_override_and_merge():

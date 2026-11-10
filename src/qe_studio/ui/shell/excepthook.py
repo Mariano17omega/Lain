@@ -52,16 +52,19 @@ class ExceptionReporter:
     ) -> None:
         exc_info = (kind, value, tb)
         if self._handling:
-            log.error("unexpected error (while handling another)", exc_info=exc_info)
+            log.error("session: unexpected error (while handling another)", exc_info=exc_info)
             return
         self._handling = True
         try:
             shown, count = self._count(kind, value, tb)
-            log.error("unexpected error" + (f" (x{count})" if count > 1 else ""), exc_info=exc_info)
+            log.error(
+                "session: unexpected error" + (f" (x{count})" if count > 1 else ""),
+                exc_info=exc_info,
+            )
             if shown:
                 self._present(kind, value, tb)
         except Exception:  # the hook itself must never raise: that would end the app
-            log.exception("failed to report an unexpected error")
+            log.exception("session: failed to report an unexpected error")
         finally:
             self._handling = False
 

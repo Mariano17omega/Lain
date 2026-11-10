@@ -6,6 +6,9 @@ can be hundreds of MB. Only the first cycle is read; ``cycles`` says how many th
 An iteration is complete once its ``total energy`` and ``estimated scf accuracy`` are read. The last
 iteration of a converged run prints its energy as ``!    total energy``. A cut iteration (job running
 or killed) is dropped and counted in ``truncated``.
+
+A hybrid run starts with a semi-local cycle (the one read here) and prints its converged energy as
+``!!   total energy`` after the exchange loop: that one is its final energy.
 """
 
 from __future__ import annotations
@@ -18,13 +21,14 @@ from pathlib import Path
 from typing import Literal
 
 from .relax import NUMBER
+from .units import number
 
 ScfStatus = Literal["converged", "not_converged", "running"]
 
 _ITERATION = re.compile(r"^\s*iteration\s+#\s*(\d+)")
 _ECUT = re.compile(rf"\becut\s*=\s*({NUMBER})\s*Ry")
 _BETA = re.compile(rf"\bbeta\s*=\s*({NUMBER})")
-_ENERGY = re.compile(rf"^\s*(!)?\s*total\s+energy\s*=\s*({NUMBER})\s*Ry")
+_ENERGY = re.compile(rf"^\s*(!+)?\s*total\s+energy\s*=\s*({NUMBER})\s*Ry")
 _ACCURACY = re.compile(rf"estimated\s+scf\s+accuracy\s*<\s*({NUMBER})\s*Ry")
 _HARRIS = re.compile(rf"Harris-Foulkes\s+estimate\s*=\s*({NUMBER})\s*Ry")
 _TOTAL_MAG = re.compile(rf"total\s+magnetization\s*=\s*((?:{NUMBER}\s+){{1,3}})Bohr")
@@ -35,10 +39,6 @@ _MIXING_BETA = re.compile(rf"^\s*mixing\s+beta\s*=\s*({NUMBER})")
 _MIXING_MODE = re.compile(r"number\s+of\s+iterations\s+used\s*=\s*\d+\s+(\S+)\s+mixing")
 _CONVERGED = re.compile(r"convergence\s+has\s+been\s+achieved\s+in\s+(\d+)\s+iterations")
 _NOT_CONVERGED = re.compile(r"convergence\s+NOT\s+achieved\s+after\s+(\d+)\s+iterations")
-
-
-def _number(text: str) -> float:
-    return float(text.replace("D", "E").replace("d", "e"))
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,8 @@ class ScfData:
     mixing_beta: float | None = None
     mixing_mode: str | None = None  # plain | TF | local-TF
     n_reported: int | None = None  # N of "convergence has been achieved in N iterations"
-    final_energy_ry: float | None = None  # the "!" total energy
+    # The "!" total energy; "!!" in a hybrid run, None when its exchange loop did not finish.
+    final_energy_ry: float | None = None
     job_done: bool = False
     truncated: int = 0
     cycles: int = 0  # SCF cycles in the file (relax and vc-relax have several)
@@ -80,8 +81,10 @@ class ScfData:
         ]
 
 
-def _magnitude(values: str) -> float:
-    return math.sqrt(sum(_number(v) ** 2 for v in values.split()))
+def _total_magnetization(values: str) -> float:
+    """The signed value when collinear, the vector's norm when noncollinear."""
+    components = [number(value) for value in values.split()]
+    return components[0] if len(components) == 1 else math.sqrt(sum(v * v for v in components))
 
 
 def parse_scf(lines: Iterable[str]) -> ScfData:
@@ -92,6 +95,8 @@ def parse_scf(lines: Iterable[str]) -> ScfData:
     status: ScfStatus = "running"
     n_reported: int | None = None
     final_energy: float | None = None
+    exx_energy: float | None = None
+    hybrid = False
     job_done = False
     truncated = cycles = 0
     phase = "header"  # header → reading (first cycle) → after (first cycle closed)
@@ -129,8 +134,8 @@ def parse_scf(lines: Iterable[str]) -> ScfData:
                 "index": index,
                 "energy_ry": None,
                 "accuracy_ry": None,
-                "ecut_ry": _number(ecut.group(1)) if ecut else None,
-                "beta": _number(beta.group(1)) if beta else None,
+                "ecut_ry": number(ecut.group(1)) if ecut else None,
+                "beta": number(beta.group(1)) if beta else None,
                 "harris_ry": None,
                 "total_mag": None,
                 "abs_mag": None,
@@ -138,12 +143,16 @@ def parse_scf(lines: Iterable[str]) -> ScfData:
             }
             continue
         if phase == "after":
+            if "EXX: now go back" in line:
+                hybrid = True
+            elif exx_energy is None and "!!" in line and (match := _ENERGY.match(line)):
+                exx_energy = number(match.group(2))
             continue
         if phase == "header":
             if "threshold" in line and threshold is None and (m := _THRESHOLD.search(line)):
-                threshold = _number(m.group(1))
+                threshold = number(m.group(1))
             elif "mixing beta" in line and mixing_beta is None and (m := _MIXING_BETA.match(line)):
-                mixing_beta = _number(m.group(1))
+                mixing_beta = number(m.group(1))
             elif (
                 "iterations used" in line
                 and mixing_mode is None
@@ -161,20 +170,20 @@ def parse_scf(lines: Iterable[str]) -> ScfData:
         elif current is None:
             continue
         elif "total energy" in line and (match := _ENERGY.match(line)):
-            current["energy_ry"] = _number(match.group(2))
+            current["energy_ry"] = number(match.group(2))
             if match.group(1) and final_energy is None:
                 final_energy = current["energy_ry"]
         elif "accuracy" in line and (match := _ACCURACY.search(line)):
-            current["accuracy_ry"] = _number(match.group(1))
+            current["accuracy_ry"] = number(match.group(1))
         elif "Harris" in line and (match := _HARRIS.search(line)):
-            current["harris_ry"] = _number(match.group(1))
+            current["harris_ry"] = number(match.group(1))
         elif "magnetization" in line:
             if match := _TOTAL_MAG.search(line):
-                current["total_mag"] = _magnitude(match.group(1))
+                current["total_mag"] = _total_magnetization(match.group(1))
             elif match := _ABS_MAG.search(line):
-                current["abs_mag"] = _number(match.group(1))
+                current["abs_mag"] = number(match.group(1))
         elif "cpu time" in line and (match := _CPU.search(line)):
-            current["cpu_s"] = _number(match.group(1))
+            current["cpu_s"] = number(match.group(1))
     close()  # a cut iteration at the end of the file
 
     return ScfData(
@@ -184,7 +193,7 @@ def parse_scf(lines: Iterable[str]) -> ScfData:
         mixing_beta=mixing_beta,
         mixing_mode=mixing_mode,
         n_reported=n_reported,
-        final_energy_ry=final_energy,
+        final_energy_ry=exx_energy if exx_energy is not None or hybrid else final_energy,
         job_done=job_done,
         truncated=truncated,
         cycles=cycles,

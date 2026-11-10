@@ -34,6 +34,7 @@ from .slab_fields import (
     COMPLETE_LABEL,
     DEFAULT_CELL_DOFREE,
     METALS_LABEL,
+    asks_mesh,
     dofree_field,
     mesh_field,
     non_orthogonal_notes,
@@ -57,6 +58,10 @@ __all__ = ["SlabType"]
 NO_MOLECULE_NOTE = _("Sem molécula: o vácuo é o mínimo")
 NO_MESH = _("Preencha a rede de k-points: o SCF não tem K_POINTS automatic")
 GAMMA_NOTE = _("K_POINTS gamma do SCF mantido: confira se basta para a célula do slab")
+NBND_ADDED_NOTE = _("nbnd removido: o pw.x calcula o padrão para o slab com os O + H adicionados")
+ODD_ELECTRONS_NOTE = _(
+    "occupations = 'fixed' com {pairs} pares O + H adicionados: o número de elétrons pode ficar ímpar e o pw.x para; confira"
+)
 FIELD_OF_ERROR = {NEED_O_H: "complete", NO_BULK_H: "complete"}  # the field a SurfaceError marks
 Facts = list[tuple[str, str]]  # the lines of geracao.md
 
@@ -73,7 +78,8 @@ class SlabType(VcRelaxType):
     def input_fields(self, scf: ScfInfo) -> list[FormField]:
         group = self.calculation
         relax = [form_field for form_field in super().input_fields(scf) if form_field.id != "kmesh"]
-        return [*surface_fields(), mesh_field(group), *relax, dofree_field(group)]
+        mesh = mesh_field(group, standard=asks_mesh(scf))
+        return [*surface_fields(), mesh, *relax, dofree_field(group)]
 
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values
@@ -184,6 +190,8 @@ class SlabType(VcRelaxType):
             )
         result = make_slab(bulk, options, scf.species)
         work.notes.extend(result.notes)
+        if result.added:
+            self._electrons_added(work, editor, len(result.added))
         rule = work.values[FIX_RULE] or BOTTOM
         fix = fixed_for(work, result.model, rule, options.bond_scale)
         model = apply_fix(result.model, fix, rule) if fix is not None else result.model
@@ -192,6 +200,14 @@ class SlabType(VcRelaxType):
         work.notes.extend(non_orthogonal_notes(dofree, model.cell))
         work.notes.extend(bond_notes(result, options))
         facts += structure_facts(model, result, options, rule, fix)
+
+    def _electrons_added(self, work: Work, editor: InputEditor, pairs: int) -> None:
+        """The O + H pairs bring electrons the SCF's ``nbnd`` did not count: pw.x's default does. Each
+        pair has an odd number of them (6 + 1), which fixed occupations do not take."""
+        if editor.remove("system", "nbnd"):
+            work.notes.append(NBND_ADDED_NOTE)
+        if pairs % 2 and (work.scf.occupations or "fixed") == "fixed":
+            work.notes.append(ODD_ELECTRONS_NOTE.format(pairs=pairs))
 
     def _kpoints(self, work: Work, editor: InputEditor, axis: str, facts: Facts) -> None:
         scf, typed = work.scf, work.values.get("kmesh")

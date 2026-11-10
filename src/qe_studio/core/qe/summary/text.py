@@ -6,12 +6,13 @@ import re
 
 from .model import OutputSummary, SummaryRow
 
-_TIME_PART = re.compile(r"(\d+(?:\.\d+)?)\s*([hms])")
-_UNIT_SECONDS = {"h": 3600.0, "m": 60.0, "s": 1.0}
+_TIME_PART = re.compile(r"(\d+(?:\.\d+)?)\s*([dhms])")
+_UNIT_SECONDS = {"d": 86400.0, "h": 3600.0, "m": 60.0, "s": 1.0}
 
 
 def parse_qe_time(text: str) -> float | None:
-    """Seconds of a QE time field: ``1.88s``, ``1h10m``, ``3h 4m``, ``38m32.15s``, ``40m 7.94s``."""
+    """Seconds of a QE time field: ``1.88s``, ``1h10m``, ``3h 4m``, ``38m32.15s``, ``40m 7.94s``,
+    ``1d 3h54m``."""
     parts = _TIME_PART.findall(text)
     if not parts:
         return None
@@ -30,7 +31,7 @@ def format_duration(seconds: float) -> str:
 
 
 def duration_text(field: str) -> str:
-    """A QE time field as a human duration; the raw text when it has no h/m/s part."""
+    """A QE time field as a human duration; the raw text when it has no d/h/m/s part."""
     seconds = parse_qe_time(field)
     return format_duration(seconds) if seconds is not None else field.strip()
 

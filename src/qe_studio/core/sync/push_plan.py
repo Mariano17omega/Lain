@@ -9,7 +9,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 
-from .planner import LARGE_FILE_BYTES
+from .. import cancel
+from .planner import CHECK_EVERY_FILES, LARGE_FILE_BYTES
 from .rsync import DryRunItem
 
 
@@ -73,7 +74,7 @@ def build_push_plan(records: Iterable[DryRunItem], local_dir: Path) -> PushPlan:
     """Sizes and dates come from the local files (one stat each, in a worker); a file gone since
     the dry run is left out."""
     plan = PushPlan()
-    for record in records:
+    for record in cancel.checked(records, CHECK_EVERY_FILES):
         if not record.is_file:
             continue
         try:

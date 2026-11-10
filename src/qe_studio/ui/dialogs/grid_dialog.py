@@ -26,9 +26,12 @@ from ...core.plotting.grid import MAX_SIZE, GridCell, GridSpec, PlotRef
 from ...core.project.grid_store import GridStore
 from ...i18n import _
 from ..theme.manager import ThemeManager
+from ..theme.scale import scaled
 from ..widgets.common import set_variant
 from ..widgets.plot.grid_preview import GridPreview
 from .grid_cells import CellsTable, PlotChoice
+
+GRID_FULL = _("Todas as posições da grade estão ocupadas")
 
 
 def default_name(taken: list[str]) -> str:
@@ -53,7 +56,7 @@ class GridDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(_("Grids"))
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        self.resize(760, 580)
+        self.resize(scaled(760), scaled(580))
         self.store, self._choices = store, choices
         self._saved_as: str | None = None  # the saved grid this one is (replaced without asking)
 
@@ -222,6 +225,9 @@ class GridDialog(QDialog):
         self.problem.setVisible(bool(errors))
         self.generate_button.setEnabled(not errors)
         self.save_button.setEnabled(not errors)
+        free = self.table.has_free_position()
+        self.add_button.setEnabled(free)
+        self.add_button.setToolTip("" if free else GRID_FULL)
         labels = []
         for number, cell in enumerate(spec.cells, 1):
             combo = self.table.combo(number - 1)

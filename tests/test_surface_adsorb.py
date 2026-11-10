@@ -51,6 +51,15 @@ def put(surface, molecule, sites, **options):
     return adsorb(surface, SiteRequest(len(sites) == 2, tuple(sites)), molecule, **options)
 
 
+def test_a_site_atom_is_never_removed_as_the_h_of_another(molecule):
+    frac = np.array([[0.5, 0.5, 0.5], [0.57, 0.5, 0.5]])  # 0.7 Å apart: each is the other's H
+    pair = Model(np.diag([10.0, 10.0, 20.0]), ("H", "H"), frac)
+    request = SiteRequest(True, (1, 2), species=("H",))
+    with pytest.raises(SiteError) as failure:
+        adsorb(pair, request, molecule, remove_h=True)
+    assert failure.value.role == "deprotonation" and REMOVE_H_LABEL in str(failure.value)
+
+
 @pytest.mark.parametrize("case", list(ADSORBED))
 def test_the_scripts_structure(surface, molecule, case):
     data, sites = golden(case), ADSORBED[case]

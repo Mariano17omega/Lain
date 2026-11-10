@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import dataclasses
+import re
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from fragment_helpers import SMALL
@@ -17,6 +19,7 @@ from qe_studio.core.calc_create.structures import (
 )
 from qe_studio.core.calc_create.types import CalcPlan, PlannedFile, by_id
 from qe_studio.core.structure3d.options import DisplayOptions, carry_species
+from qe_studio.core.structure3d.source import StructureReadError, structure_of_text
 from structure3d_helpers import make_structure
 
 from calc_helpers import JOBS, SI_SCF, al, from_text
@@ -27,6 +30,22 @@ COMPLEX = "Molécula na superfície (relax_kaolinite-slab-001-2x1x1.in)"
 
 def labels(structures) -> list[str]:
     return [each.label for each in structures]
+
+
+def test_an_input_without_atoms_is_skipped():
+    scf = al()
+    empty = re.sub(r"nat\s*=\s*\d+", "nat = 0", scf.text)
+    plan = CalcPlan((PlannedFile("x.in", "pw_input", empty, "Sem átomos"),))
+    assert labels(plan_structures(scf, plan)) == ["SCF base (al.scf.in)"]
+
+
+def test_a_numeric_failure_is_a_read_error(monkeypatch):
+    def singular(_editor):
+        raise np.linalg.LinAlgError("singular")
+
+    monkeypatch.setattr("qe_studio.core.structure3d.source.crystal_from_editor", singular)
+    with pytest.raises(StructureReadError):
+        structure_of_text(al().text)
 
 
 @pytest.mark.parametrize("type_id", ["bandas", "pdos", "relax", "vc-relax", "scf", "charge"])

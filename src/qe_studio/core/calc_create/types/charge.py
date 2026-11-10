@@ -10,10 +10,13 @@ The script makes the folder of ``fileout`` (pp.x does not) and runs pp.x without
 from __future__ import annotations
 
 import shlex
+from collections.abc import Sequence
 from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
 from ....i18n import N_, _
+from ...qe.input_edit import InputEditor
+from ...qe.pw_input import fortran_int
 from ..render import render
 from ..scf_info import ScfInfo
 from ..unit import UNIT_OUTDIR, absolute, climbs
@@ -50,6 +53,13 @@ OUTPUT_FORMATS = {
 CODE_SEPARATOR = " — "  # between the code and the label of a choice, in every language
 # The formats pp.x writes for an ``iflag``; it ignores ``output_format`` on the others (1D, polar).
 FORMATS_OF_IFLAG = {2: (2, 3, 7), 3: (3, 5, 6)}
+# What pp.x stops without in ``&PLOT``. The form has no field for these: they are typed in the pp.x tab.
+PLOT_KEYS_OF_IFLAG = {
+    0: ("e1", "nx"),
+    1: ("e1", "nx"),
+    2: ("e1", "e2", "nx", "ny"),
+    4: ("radius", "nx", "ny"),
+}
 
 
 def choice(code: int, labels: dict[int, str]) -> str:
@@ -133,6 +143,28 @@ def format_problem(iflag: int, output_format: int) -> str | None:
     )
 
 
+def plot_problems(files: Sequence[PlannedFile]) -> list[str]:
+    """What the ``&PLOT`` of each pp.x input lacks for its ``iflag``, read from the texts as they will
+    be written, so that typing the keys in the tab clears it."""
+    problems = []
+    for planned in files:
+        if planned.kind != "qe_input":
+            continue
+        editor = InputEditor.from_text(planned.text)
+        iflag = fortran_int(editor.get("plot", "iflag"))
+        if iflag not in PLOT_KEYS_OF_IFLAG:
+            continue
+        have = {key.partition("(")[0] for key in editor.keys("plot")}
+        missing = [key for key in PLOT_KEYS_OF_IFLAG[iflag] if key not in have]
+        if missing:
+            problems.append(
+                _(
+                    "{name}: iflag = {iflag} exige {keys} em &PLOT; o formulário não tem esses campos: escreva-os na aba deste arquivo (Avançado)"
+                ).format(name=planned.name, iflag=iflag, keys=", ".join(missing))
+            )
+    return problems
+
+
 class ChargeType(CalcType):
     id: ClassVar[str] = "charge"
     label: ClassVar[str] = _("Carga")
@@ -178,6 +210,9 @@ class ChargeType(CalcType):
             "pp": work.run(PP_KEY),
             "fileout_dir": fileout_dir(fileout),
         }
+
+    def text_errors(self, files: Sequence[PlannedFile]) -> list[str]:
+        return plot_problems(files)
 
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values

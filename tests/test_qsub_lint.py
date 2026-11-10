@@ -4,7 +4,9 @@ import pytest
 
 from fragment_helpers import SMALL
 from qe_studio.core.calc_create.types import REGISTRY
-from qe_studio.core.viewer.qsub_lint import SGE_OPTIONS, job_name, lint_script, pe_slots
+from qe_studio.core.files.job_script import job_name, pe_slots
+from qe_studio.core.viewer import qsub_lint
+from qe_studio.core.viewer.qsub_lint import SGE_OPTIONS, lint_script
 from reference_helpers import REFERENCE, needs_reference
 
 from calc_helpers import AL_PATH, JOBS, al, from_text
@@ -64,10 +66,11 @@ def test_a_bare_directive_and_a_comment_with_a_quote_are_fine():
 # -- one example per rule ----------------------------------------------------------------------
 def test_crlf_is_one_error_on_the_first_line_with_a_carriage_return():
     text = "#!/bin/bash\r\necho a\r\necho b\r\n"
-    assert found(text) == [(1, 11, 12, "error")]
+    # the span is the text of the line: the editor drops the \r, so a span on it shows nothing
+    assert found(text) == [(1, 0, 11, "error")]
     assert "CRLF" in messages(text)[0]
     # the rest is read as if the \r were not there: no second problem
-    assert found("#!/bin/bash\necho a\r\nif true; then\r\n  :\r\nfi\r\n") == [(2, 6, 7, "error")]
+    assert found("#!/bin/bash\necho a\r\nif true; then\r\n  :\r\nfi\r\n") == [(2, 0, 6, "error")]
 
 
 def test_an_unclosed_quote_is_an_error_at_the_line_where_it_opened():
@@ -85,11 +88,17 @@ def test_a_quote_escaped_or_inside_the_other_kind_does_not_open():
     assert found(HEAD + "echo 'say \"hi\"' ok\n") == []
 
 
-def test_brace_without_close_on_the_line():
+def test_brace_that_is_never_closed():
     assert found(HEAD + "echo ${VAR\n") == [(2, 5, 10, "error")]
     assert found(HEAD + 'echo "${VAR"\n') == [(2, 6, 12, "error")]
     assert found(HEAD + "echo '${VAR'\n") == []  # single quotes: not an expansion
     assert found(HEAD + "echo ${A:-${B}}\n") == []
+    assert found(HEAD + "echo ${A\necho ${B}\n") == [(2, 5, 8, "error")]  # } closes the second
+
+
+def test_an_apostrophe_in_a_brace_inside_double_quotes_is_not_a_quote():
+    # bash outside POSIX mode rejects it, ``sh`` accepts it: not wrong without ambiguity
+    assert found(HEAD + 'echo "${X:-it\'s}"\necho ok\n') == []
 
 
 @pytest.mark.parametrize(
@@ -150,6 +159,107 @@ def test_a_continued_line_keeps_the_command_position():
     assert found(HEAD + "echo a \\\n  fi\n") == []  # an argument, not a closer
 
 
+# Each one is valid for ``bash -O extglob -n``.
+VALID_NESTING = [
+    # a word after a substitution, an array, a redirection
+    "echo $(date) done\n",
+    "echo job $(hostname) for step 1\n",
+    "states=(done running)\n",
+    "states=(done\n  fi # it's\n  running)\n",
+    "echo hi &> done\n",
+    "echo hi &>> done\n",
+    "echo hi >& done\n",
+    "> done\n",
+    "diff <(echo done) <(echo fi) done\n",
+    "ls @(done|fi).txt\n",
+    "[[ $x =~ (done|fi) ]]\n",
+    # a case inside a substitution or a subshell
+    'nk=$(case "$sys" in\n a) echo 4 ;;\nesac)\n',
+    "(case $x in a) echo ;; esac)\n",
+    # arithmetic
+    "if true; then\n  n=$(( 1 << k ))\nfi\n",
+    "for i in 1 2; do\n  m=$((m<<i))\ndone\n",
+    "if ((1<<k)) then :; fi\n",
+    "for (( i=0; i<3; i++ )); do :; done\n",
+    "for ((i=0;i<3;i++)) do :; done\n",
+    "y=$(((1+2)*3))\n",
+    "echo $((16#ff))\n",
+    "echo $((1); (2))\n",
+    # quotes inside a substitution inside quotes
+    'x="$(echo "it\'s")"\n',
+    'y="$(sed "s/\'//g" f)"\n',
+    'x="a `echo "b"` c"\n',
+    # patterns of a case
+    "case $x in\n  for|while) echo ;;\nesac\n",
+    "case $x in\n  do|done) echo ;;\nesac\n",
+    "case $x in\n  (fi|done) echo;;\nesac\n",
+    "case a in a|esac) echo ok;; esac\n",
+    "case esac in (esac) echo ok;; esac\n",
+    "case a in a) echo;& b) echo;;& c) echo;; esac\n",
+    "case a in a) echo; esac\n",
+    # backticks
+    "x=`for f in a b; do echo $f; done`\n",
+    "x=`while read l; do echo $l; done < f`\n",
+    "x=`echo a # b`; echo c\n",
+    # heredoc delimiters
+    "cat <<!\nit's a body\n!\n",
+    "cat <<1\nit's\n1\n",
+    "cat <<$E\nit's\n$E\n",
+    'cat <<E"O"F\nit\'s\nEOF\n',
+    "cat <<\\EOF\nit's\nEOF\n",
+    "cat <<''\nit's\n\necho ok\n",
+    "x=$(cat <<EOF\nit's\nEOF\n)\n",
+    # ${…} over several lines, with quotes inside
+    'echo "${X:-\ndefault}"\n',
+    "echo ${X:-\ndefault}\n",
+    'echo ${X:-"}"}\n',
+    'echo "${X:-"it\'s"}"\n',
+    # comments, functions, subshells, closers in a row
+    "x=$(echo a # it's )\n)\n",
+    "f() { if a; then b; fi; }\n",
+    "f () for i in a; do b; done\n",
+    "while (true) do :; done\n",
+    "if (true) then if true; then :; fi; fi\n",
+    "for a in 1; do for b in 2; do :; done done\n",
+    "if a; then if b; then c; fi fi\n",
+    "while a; do case b in c) :;; esac done\n",
+]
+
+
+@pytest.mark.parametrize("script", VALID_NESTING)
+def test_valid_nesting_has_no_problem(script):
+    assert found(HEAD + script) == []
+
+
+@pytest.mark.parametrize(
+    "script, issues",
+    [
+        ("echo $(x); done\n", [(2, 11, 15)]),  # a real stray done, after a substitution
+        ("x=$(if a; then b)\n", [(2, 4, 6)]),  # the block must end inside its own level
+        ("x=`if a; then b`\n", [(2, 3, 5)]),
+        ("(for i in 1; do b)\n", [(2, 1, 4)]),
+        ('x=$(echo "abc\n', [(2, 9, 13)]),  # an open quote, inside an open substitution
+        ("case a in a) echo;;\nfor\nesac\nesac\n", [(5, 0, 4)]),  # for is a pattern; 2nd esac stray
+    ],
+)
+def test_real_errors_are_still_reported_through_the_nesting(script, issues):
+    assert found(HEAD + script) == [(*issue, "error") for issue in issues]
+
+
+def test_a_line_of_a_heredoc_inside_arithmetic_stays_arithmetic():
+    """The ``fi`` after ``<< k`` must still be seen: ``k`` is an operand, not a delimiter."""
+    assert found(HEAD + "n=$(( 1 << k ))\nfi\n") == [(3, 0, 2, "error")]
+
+
+def test_a_failure_of_the_checker_is_logged_with_the_script(monkeypatch, caplog):
+    def broken(_text):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(qsub_lint, "_lint", broken)
+    assert lint_script("x", "/runs/job.qsub") == []
+    assert caplog.records[-1].getMessage() == "file: cannot check /runs/job.qsub"
+
+
 def test_unknown_option_of_a_directive_is_a_warning():
     assert found(HEAD + "#$ -zz\n") == [(2, 3, 6, "warning")]
     assert "-zz" in messages(HEAD + "#$ -zz\n")[0]
@@ -161,6 +271,7 @@ def test_the_known_options_and_negative_values_raise_no_warning():
     assert found(HEAD + f"#$ {options}\n") == []
     assert found(HEAD + "#$ -hard -l h_vmem=2G -tc 10 -p -5\n") == []
     assert {"hard", "soft", "tc", "notify", "shell"} <= SGE_OPTIONS
+    assert found(HEAD + "#$ -jsv /a -display b:0 -xd c -clearp\n") == []
 
 
 def test_pe_needs_the_environment_and_the_slots():
@@ -216,7 +327,7 @@ def test_a_delimiter_with_trailing_text_does_not_close_the_heredoc():
 def test_issues_are_sorted_and_fit_their_line():
     text = 'echo "a\nif true\n${B\nfi\nfi\n#$ -zz\n'
     issues = lint_script(text)
-    assert len(issues) >= 4
+    assert len(issues) >= 3
     assert issues == sorted(issues, key=lambda i: (i.line, i.col_start))
     lines = text.split("\n")
     for issue in issues:
@@ -274,3 +385,9 @@ def test_the_slots_are_those_of_the_last_pe(script, slots):
 
 def test_the_slots_are_read_with_crlf_line_ends():
     assert pe_slots("#!/bin/bash\r\n#$ -pe physica 64\r\n") == 64
+
+
+@pytest.mark.parametrize("separator", ["\f", "\x85", " ", "\v", "\x1c"])
+def test_only_a_newline_ends_a_directive_line(separator):
+    assert job_name(f"# note{separator}#$ -N fake\n", "run.qsub") == "run.qsub"
+    assert pe_slots(f"#$ -pe mpi 8 {separator}#$ -pe mpi 16\n") == 8

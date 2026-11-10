@@ -13,7 +13,8 @@ from PyQt6.QtWidgets import QMenu
 from qe_studio.core import cancel
 from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.remote import listing as remote_listing
-from qe_studio.core.remote.listing import NOT_FOUND, RemoteEntry, RemoteFailure
+from qe_studio.core.remote.failure import RemoteFailure
+from qe_studio.core.remote.listing import NOT_FOUND, RemoteEntry
 from qe_studio.core.sync import monitor
 from qe_studio.core.sync.request import SyncRefusal, prepare_scratch
 from qe_studio.core.sync.rsync import Endpoint

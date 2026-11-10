@@ -2,13 +2,14 @@
 the same file.
 
 The input and its section of ``view3d.plot`` are read in a worker (``core/structure3d/view_file.load_view``:
-the GUI never reads them), under the footer spinner "Lendo estrutura…"; then a ``StructureWindow`` opens
+the GUI never reads them), queued behind the saves so a file reopened at once shows the view just
+closed, under the footer spinner "Lendo estrutura…"; then a ``StructureWindow`` opens
 with the saved view (spec 47 R2). A file that cannot be shown gives a warning toast and no window. The open
 windows are kept here and dropped by their own ``closed`` signal, which is also when their view is saved
 (R3): written only when the user changed it, its section removed after "Restaurar padrões", nothing for an
 untouched window. Closing the main window closes them all, so they save then too, and its shutdown step
-waits for the writes. Only this controller writes ``view3d.plot``, in a queue of its own, one write at a
-time and in the order the windows closed (the GUI thread never reads or writes it): with two windows of one
+waits for the writes. Only this controller writes ``view3d.plot``, in a queue of its own (the readings
+share it), one job at a time and in the order they were asked (the GUI thread never reads or writes it): with two windows of one
 file, the last to close wins.
 
 The second viewer, the external XCrySDen ("Abrir com XCrysDen", spec 45), is launched by ``ItemActions``;
@@ -62,10 +63,12 @@ class Structure3DController(QObject):
         self.theme, self.busy, self.toast, self.settings = theme, busy, toast, settings
         self.root = root  # the project root, read at every "Print" (the file's name, spec 46 R5)
         self.windows: list[StructureWindow] = []
-        self._tasks = TaskGroup()
         self._paths: dict[str, Path] = {}
         self._save_pool = QThreadPool()  # no Qt parent: see core/tasks.py, "private pools"
-        self._save_pool.setMaxThreadCount(1)  # one at a time: the sections of a folder share a file
+        # One at a time: the sections of a folder share a file, and a window opened right after
+        # another closed reads after the write of its view, as ``PlotSettingsStore`` orders them.
+        self._save_pool.setMaxThreadCount(1)
+        self._tasks = TaskGroup(self._save_pool)  # the readings, by window
         self._saves = TaskGroup(self._save_pool)  # by file: a newer save of it wins
         self._count = itertools.count(1)
 
@@ -106,10 +109,10 @@ class Structure3DController(QObject):
         if "options" in session:
             ignored = apply_options(options, session["options"], structure)
             if ignored:
-                log.warning("view3d.plot of %s: ignored %s", structure.source.path, ignored)
+                log.warning("file: view3d.plot of %s: ignored %s", structure.source.path, ignored)
         camera = camera_from_stored(session.get("camera"))
         if "camera" in session and camera is None:
-            log.warning("view3d.plot of %s: camera ignored", structure.source.path)
+            log.warning("file: view3d.plot of %s: camera ignored", structure.source.path)
         window = StructureWindow(
             structure, self.theme, self.settings, options=options, camera=camera, root=self.root
         )
@@ -124,7 +127,7 @@ class Structure3DController(QObject):
         if isinstance(exc, StructureReadError):
             reason = str(exc)
         else:
-            log.error("reading the structure of %s failed", path, exc_info=exc)
+            log.error("file: reading the structure of %s failed", path, exc_info=exc)
             reason = _("Erro inesperado: {error}").format(error=exc)
         message = _("Visualização 3D de {name}: {reason}").format(name=path.name, reason=reason)
         self.toast.show_message(message, "warning")
@@ -153,7 +156,7 @@ class Structure3DController(QObject):
 
     def _on_saved(self, key: str, warning: str | None) -> None:
         if warning:
-            log.warning("%s", warning)
+            log.warning("file: %s", warning)
             self.toast.show_message(warning, "warning")
         self.saved.emit(Path(key))
 

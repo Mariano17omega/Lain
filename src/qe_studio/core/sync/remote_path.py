@@ -1,16 +1,21 @@
-"""A path of the cluster in a command: the remote side of a sync (``Endpoint``), and that path as the
+"""The sides of a sync in a command. ``Endpoint`` is the cluster's: ``remote_arg`` gives its path as the
 cluster's shell reads it, quoted but for a leading ``~`` or ``~user``, which only the shell can make a
-home. rsync leaves that tilde unescaped, so ``shell_path`` names the folder rsync names; an old client's
-``--protect-args`` hides the path from the shell, so a path like this goes without that option. Pure:
-nothing runs."""
+home, and ``shell_path`` the same word for a folder alone. The path always goes through that shell, so
+``*``, ``?`` and ``[`` in a name stay literal: rsync's own protection does not cover them
+(``--protect-args`` leaves them to the remote rsync, which expands them, and the default of 3.2.4 and
+later leaves them to the shell). A client of 3.2.4 or later gets ``--old-args``, so that it does not
+escape our quotes; an older one needs nothing. ``local_arg`` is the computer's side. Pure: nothing
+runs."""
 
 from __future__ import annotations
 
 import re
 import shlex
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 _HOME = re.compile(r"^~(?:[A-Za-z0-9_][A-Za-z0-9._-]*)?(?=/|$)")  # ``~`` or ``~user``, then ``/``
+_DRIVE = re.compile(r"^([A-Za-z]):[\\/]*(.*)$", re.DOTALL)  # ``C:\Users\me``
 
 
 @dataclass(frozen=True)
@@ -39,23 +44,30 @@ def shell_path(path: str) -> str:
 
 
 def _old_client(version: tuple[int, ...] | None) -> bool:
-    """A local rsync that does not protect remote arguments by itself."""
+    """A local rsync that passes remote arguments to the shell as they are."""
     return version is not None and version < (3, 2, 4)
 
 
-def _home_for_shell(remote: Endpoint, version: tuple[int, ...] | None) -> bool:
-    """A leading ``~`` on an old client: with ``--protect-args``, rsync would look for a folder called
-    ``~``."""
-    return _old_client(version) and remote.host is not None and _HOME.match(remote.path) is not None
-
-
-def protect_args(remote: Endpoint, version: tuple[int, ...] | None) -> bool:
-    """Whether the rsync of ``version`` needs ``--protect-args`` for ``remote``."""
-    return _old_client(version) and not _home_for_shell(remote, version)
+def old_args(remote: Endpoint, version: tuple[int, ...] | None) -> bool:
+    """Whether the rsync of ``version`` needs ``--old-args`` to send ``remote_arg``'s quotes to the
+    cluster's shell as they are (an unknown version counts as a new client)."""
+    return remote.host is not None and not _old_client(version)
 
 
 def remote_arg(remote: Endpoint, version: tuple[int, ...] | None) -> str:
-    """The cluster side of a command: ``remote.spec()``, quoted when the shell reads the path."""
-    if not _home_for_shell(remote, version):
+    """The cluster side of a command: ``remote.spec()``, quoted for the shell that reads the path."""
+    if remote.host is None:
         return remote.spec()
     return replace(remote, path=shell_path(remote.path.rstrip("/"))).spec()
+
+
+def local_arg(folder: Path | str, cygdrive_prefix: str) -> str:
+    """The computer's side of a command, ending in ``/``. rsync takes ``C:\\Users`` for a host called
+    ``C``: a drive path goes in the form of the Cygwin-based Windows builds, ``/cygdrive/c/Users/``
+    (``cygdrive_prefix`` is ``sync.cygdrive_prefix``)."""
+    text = str(folder).rstrip("/\\")
+    drive = _DRIVE.match(text)
+    if drive is None:
+        return text + "/"
+    rest = drive[2].replace("\\", "/")
+    return f"{cygdrive_prefix}/{drive[1].lower()}/{rest}".rstrip("/") + "/"

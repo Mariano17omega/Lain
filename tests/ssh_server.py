@@ -92,6 +92,43 @@ class _Session:
     method: str = ""
 
 
+def _tilde_words(command: str) -> list[tuple[str, bool]]:
+    """``command`` as the cluster's shell splits it: (word, whether its first character was an
+    unquoted ``~``). ``shlex.split`` alone cannot tell ``~/x`` (a home) from ``\\~/x`` or ``'~/x'``
+    (a folder called ``~``), which is what a client sends when it protects its arguments."""
+    words: list[tuple[str, bool]] = []
+    current: list[str] = []
+    tilde = started = False
+    quote = ""
+    chars = iter(command)
+    for char in chars:
+        if quote:
+            if char == quote:
+                quote = ""
+            elif char == "\\" and quote == '"':
+                current.append(next(chars, ""))
+            else:
+                current.append(char)
+        elif char in "'\"":
+            quote, started = char, True
+        elif char == "\\":
+            current.append(next(chars, ""))
+            started = True
+        elif char.isspace():
+            if started:
+                words.append(("".join(current), tilde))
+            current, tilde, started = [], False, False
+        else:
+            tilde = tilde or (not started and char == "~")
+            current.append(char)
+            started = True
+    if quote:
+        raise ValueError("No closing quotation")
+    if started:
+        words.append(("".join(current), tilde))
+    return words
+
+
 class _Transport(paramiko.Transport):
     """Lets the exec worker wait until paramiko has sent "request ok" for its channel.
 
@@ -382,6 +419,7 @@ class LocalSSHServer:
     ) -> None:
         try:
             argv = shlex.split(command)
+            argv = [self._home(arg) if tilde else arg for arg, tilde in _tilde_words(command)]
         except ValueError:
             argv = []
         mkdir = cwd = None
@@ -429,6 +467,11 @@ class LocalSSHServer:
         if argv[:2] == ["rsync", "--server"] or (argv and argv[0] in PROBE_COMMANDS):
             return argv
         return None
+
+    def _home(self, arg: str) -> str:
+        """What the cluster's shell makes of a ``~`` that began a word unquoted: the served folder is
+        the home, as for a login on the cluster."""
+        return str(self.root) + arg[1:] if arg == "~" or arg.startswith("~/") else arg
 
     def _inside_root(self, folder: str) -> Path | None:
         """``folder`` (relative ones from the served folder), or None when it lies outside it."""

@@ -47,6 +47,22 @@ def _newest(paths: list[Path]) -> float:
         return 0.0
 
 
+def _totals_of(
+    group_file: Path, candidates: list[Path], sniffs: dict[Path, FileSniff], folder: Path
+) -> list[Path]:
+    """The ``pdos_tot`` files that can be the total of the group of ``group_file``: those of its
+    prefix in its folder, else in the simulation folder (``orbitals/`` holds only the projections).
+    Without one, any candidate if the listing has just this group (a renamed total), else none: the
+    Σ PDOS is right, the total of another run is not."""
+    place, prefix = _group_key(group_file)
+    named = [p for p in candidates if p.name.removesuffix("pdos_tot").rstrip(".") == prefix]
+    found = [p for p in named if p.parent == place] or [p for p in named if p.parent == folder]
+    if found:
+        return found
+    groups = {_group_key(p) for p, s in sniffs.items() if s.kind is FileKind.PDOS_ATM}
+    return candidates if len(groups) <= 1 else []
+
+
 class PdosModule(CalculationModule[PdosDataset, PdosParams]):
     kind: ClassVar[str] = "pdos"
     badge: ClassVar[str] = "PDOS"
@@ -113,10 +129,9 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
                 )
             return sorted(chosen)
         if role.id == "pdos_tot" and "pdos_atm" in result.files:
-            prefix = _group_key(result.files["pdos_atm"][0])[1]
-            same = [p for p in candidates if p.name.removesuffix("pdos_tot").rstrip(".") == prefix]
-            if same:
-                candidates = same
+            candidates = _totals_of(result.files["pdos_atm"][0], candidates, sniffs, result.folder)
+            if not candidates:
+                return []
         return super().select(role, candidates, sniffs, result)
 
     def finalize(
@@ -142,12 +157,13 @@ class PdosModule(CalculationModule[PdosDataset, PdosParams]):
     def param_changed(self, dataset: PdosDataset, params: PdosParams, name: str, old: Any) -> None:
         params_mod.param_changed(dataset, params, name, old)
 
-    def apply_limits(self, params: PdosParams, axes_limits: AxesLimits) -> None:
+    def apply_limits(
+        self, dataset: PdosDataset, params: PdosParams, axes_limits: AxesLimits
+    ) -> None:
         xlim, ylim = axes_limits[0]
         energy, dos = (ylim, xlim) if params.orientation == "vertical" else (xlim, ylim)
         params.emin, params.emax = energy
-        # Mirrored: the DOS axis is symmetric, so its limit is the larger side; else it starts at 0.
-        params.dos_max = max(abs(dos[0]), abs(dos[1])) if params.spin_mode == "mirror" else dos[1]
+        params.dos_max = render_mod.dos_max_of_view(dataset, params, dos)
 
     def table(self, dataset: PdosDataset, params: PdosParams) -> PlotTable:
         return table_mod.pdos_table(dataset, params)

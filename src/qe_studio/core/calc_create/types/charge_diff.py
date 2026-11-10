@@ -10,6 +10,7 @@ alone; ``avancado`` adds the format of the XSF files and the folder they go to, 
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
@@ -32,6 +33,7 @@ from .charge import (
     format_problem,
     iflag_field,
     output_format_field,
+    plot_problems,
 )
 from .files import InputFile, unit_stem
 from .scf import KEY as SCF_KEY
@@ -126,6 +128,9 @@ class ChargeDiffType(CalcType):
             "diff": work.run(PP_DIFF),
             "xsf_dir": fileout_dir(_xsf(xsf_dir_of(work.values), "x")),
         }
+
+    def text_errors(self, files: Sequence[PlannedFile]) -> list[str]:
+        return plot_problems(files)
 
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values

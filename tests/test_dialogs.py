@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QWidget
 
 from qe_studio.core.calculations import REGISTRY
@@ -35,6 +37,22 @@ def test_mapping_dialog_lists_the_spin_down_roles_and_the_bandsx_inputs(qtbot):
     assert dialog.edits["bandsx_in"].placeholderText().startswith("vários arquivos")
     assert dialog.edits["bandsx_in"].text().count(";") == 1
     assert dialog.mapping()["gnu"][0].name == "bands_up.dat.gnu"
+
+
+def test_a_semicolon_splits_only_a_field_of_several_files(qtbot, tmp_path):
+    folder = FIXTURES / "al_bands"
+    dialog = ManualMappingDialog(folder, plottable(), detect_folder(folder))
+    qtbot.addWidget(dialog)
+    ok = dialog.buttons.button(QDialogButtonBox.StandardButton.Ok)
+    role = next(role for role in dialog.module.roles if role.id == "scf_out")
+    assert not role.multiple
+    odd = tmp_path / "run;1.out"  # a ";" is a legal character of a file name
+    odd.write_text("x")
+    dialog.edits["scf_out"].setText(str(odd))
+    assert dialog.mapping()["scf_out"] == [odd] and ok.isEnabled()
+    dialog.edits["scf_out"].setText("a;b")  # one path that does not exist, not two
+    assert dialog.mapping()["scf_out"] == [Path("a;b")] and not ok.isEnabled()
+    # a field of several files still splits on it: test_mapping_dialog_switches_kind (pdos_atm)
 
 
 def test_mapping_dialog_switches_kind(qtbot):

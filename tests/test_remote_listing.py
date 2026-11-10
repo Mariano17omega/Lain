@@ -10,11 +10,11 @@ import pytest
 
 from qe_studio.core.config import parse_config
 from qe_studio.core.remote import listing
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.remote.listing import (
     NO_ACCESS,
     NOT_FOUND,
     RemoteEntry,
-    RemoteFailure,
     classify,
     list_outputs,
     list_remote,
@@ -23,7 +23,7 @@ from qe_studio.core.remote.listing import (
     sort_entries,
 )
 from qe_studio.core.sync.command import CommandResult
-from qe_studio.core.sync.rsync import list_command, outputs_command
+from qe_studio.core.sync.rsync import list_command, outputs_command, parse_version
 
 # What rsync 3.5.0 printed (LC_ALL=C.UTF-8, TZ=UTC, --no-h), measured for the spec, plus a link in
 # its ``-l`` form and a name with a non-printable byte.
@@ -109,12 +109,11 @@ def test_a_link_without_its_target_is_still_a_link():
 def test_the_list_command():
     argv = list_command(config(), "/scratch/u/a b", (3, 5, 0))
     assert argv[:2] == ["rsync", "--list-only"]
-    assert "--no-h" in argv and argv[-1] == "u@hpc:/scratch/u/a b/"
-    assert "--protect-args" not in argv
+    assert "--no-h" in argv and argv[-1] == "u@hpc:'/scratch/u/a b'/"
+    assert "--old-args" in argv  # the quotes are for the cluster's shell, a name stays one word
     ssh = shlex.split(argv[argv.index("-e") + 1])
     assert "StrictHostKeyChecking=yes" in ssh
-    old = list_command(config(), "/scratch/u", (3, 2, 3))
-    assert "--protect-args" in old  # names read from the cluster never reach a remote shell
+    assert "--old-args" not in list_command(config(), "/scratch/u", (3, 2, 3))
 
 
 def test_the_outputs_command_lists_only_scheduler_outputs_below():
@@ -124,7 +123,7 @@ def test_the_outputs_command_lists_only_scheduler_outputs_below():
     filters = [a for a in argv if a.startswith(("--include", "--exclude"))]
     assert filters == ["--include=*/", "--include=*.o[0-9]*", "--exclude=*"]
     assert argv[-1] == "u@hpc:/scratch/u/proj/"
-    assert "--protect-args" in outputs_command(config(), "/scratch/u", (3, 2, 3))
+    assert "--old-args" not in outputs_command(config(), "/scratch/u", (3, 2, 3))
 
 
 def test_a_silent_walk_is_not_cut_by_rsync_s_own_limit():
@@ -327,3 +326,62 @@ def test_a_subfolder_that_cannot_be_read_through_ssh(ssh_server, output):
     assert isinstance(found, listing.Outputs), found
     assert found.found == ([output] if output == "Al.o12" else [])
     assert len(found.unread) == 1 and found.unread[0].endswith("proj/locked")
+
+
+# -- a file that vanished, a version rsync does not say, failures in other words ---------------------
+VANISHED_FILE = (
+    'file has vanished: "/scratch/u/proj/tmp1"\nrsync warning: some files vanished (code 24)\n'
+)
+
+
+def test_a_file_that_vanished_during_the_listing_is_no_failure():
+    found = classify(CommandResult(24, TOP + OUTPUT, VANISHED_FILE), [])
+    assert [entry.name for entry in found] == ["Al.o12"]
+
+
+def test_a_listing_that_vanished_without_the_folder_is_a_failure():
+    assert isinstance(classify(CommandResult(24, "", VANISHED_FILE), []), RemoteFailure)
+
+
+def test_a_version_written_with_a_v():
+    assert parse_version("rsync  version v3.2.7  protocol version 31\n") == (3, 2, 7)
+
+
+def asked(monkeypatch, version_answer):
+    """``list_remote``, with ``version_answer`` to ``--version``; the commands run, in order."""
+    seen: list[list[str]] = []
+
+    def run(argv, _env, _timeout_s):
+        seen.append(argv)
+        return version_answer if "--version" in argv else CommandResult(0, TOP + OUTPUT, "")
+
+    monkeypatch.setattr(listing, "_versions", {})
+    monkeypatch.setattr(listing, "run_command", run)
+    return list_remote(config(), "/scratch/u"), seen
+
+
+def test_a_banner_without_a_version_is_a_new_client(monkeypatch):
+    found, seen = asked(monkeypatch, CommandResult(0, "a rsync of some build\n", ""))
+    assert [entry.name for entry in found] == ["Al.o12"]
+    assert len(seen) == 2 and "--protect-args" not in seen[1]
+
+
+@pytest.mark.parametrize(
+    "answer", [CommandResult(1, "", "boom\n"), CommandResult(None, "", "", timed_out=True)]
+)
+def test_a_version_that_does_not_answer_is_a_local_failure(monkeypatch, answer):
+    found, seen = asked(monkeypatch, answer)
+    assert isinstance(found, RemoteFailure) and found.local and "--version" in found.message
+    assert len(seen) == 1
+
+
+def test_one_failure_understood_does_not_hide_another(answers):
+    """The first line is ENOENT, which alone would count as nothing unread."""
+    io_error = 'rsync: [sender] readdir("/scratch/u/proj/b"): Input/output error (5)\n'
+    found = outputs_of(answers, 23, TOP + OUTPUT, GONE + io_error + ERROR_23)
+    assert found == listing.Outputs(["Al.o12"], ("/scratch/u/proj/b",))
+
+
+def test_a_failure_that_cannot_be_understood_is_a_failure(answers):
+    found = outputs_of(answers, 23, TOP + OUTPUT, GONE + "rsync: something new\n" + ERROR_23)
+    assert isinstance(found, RemoteFailure)

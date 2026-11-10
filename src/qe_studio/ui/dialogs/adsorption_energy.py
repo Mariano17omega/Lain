@@ -34,7 +34,8 @@ from ...core.analysis.adsorption_energy import (
 )
 from ...i18n import _
 from ..theme.manager import ThemeManager
-from ..widgets.common import set_variant
+from ..theme.scale import scaled
+from ..widgets.common import hide_vertical_header, set_variant
 from ..widgets.painting import mono_font
 
 TITLE = _("Energia de adsorção")
@@ -54,7 +55,7 @@ class AdsorptionEnergyDialog(QDialog):
         self.outcome = Outcome("", None)
         self.setWindowTitle(TITLE)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        self.resize(720, 420)
+        self.resize(scaled(720), scaled(420))
         layout = QVBoxLayout(self)
         layout.addWidget(set_variant(QLabel(TITLE), "dialogTitle"))
         self.table = self._table(theme)
@@ -107,7 +108,7 @@ class AdsorptionEnergyDialog(QDialog):
     def _table(self, theme: ThemeManager) -> QTableWidget:
         table = QTableWidget(len(self.rows), len(HEADERS))
         table.setHorizontalHeaderLabels(list(HEADERS))
-        table.verticalHeader().setVisible(False)  # type: ignore[union-attr]
+        hide_vertical_header(table)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         header = table.horizontalHeader()

@@ -1,11 +1,21 @@
 """Spec 26 R4.3 and spec 27-2: the band path table of "Criar cálculo" (typed, never suggested)."""
 
+import random
+from functools import partial
+
 import pytest
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QPushButton
 
 from qe_studio.core.calc_create.kpath import MAX_NPTS, KPath, KPoint, distribute, to_card
-from qe_studio.ui.dialogs.calc_create.kpath_editor import BREAK_TIP, K1, LABEL, NPTS, KPathEditor
+from qe_studio.ui.dialogs.calc_create.kpath_editor import (
+    BREAK_TIP,
+    END_TEXT,
+    K1,
+    LABEL,
+    NPTS,
+    KPathEditor,
+)
 from qe_studio.ui.theme.manager import ThemeManager
 
 from calc_helpers import AL_PATH, al, hex_cell, hex_path
@@ -98,6 +108,46 @@ def test_break_makes_the_path_jump(editor):
     assert editor.table.item(3, NPTS).text() == "10"  # X keeps its own count
     editor.table.setCurrentCell(4, LABEL)
     assert not editor.break_button.isEnabled()  # nothing after the last point
+
+
+def test_a_break_never_moves_past_the_last_point(editor):
+    """L G X U|G: moving U down (or the last G up) swaps them. A break after the last point means
+    nothing and cannot be seen or cleared, so it stays between the same two positions."""
+    editor.set_path(AL_PATH)
+    editor.table.setCurrentCell(3, LABEL)
+    editor.toggle_break()
+    assert editor.value().breaks == frozenset({3})
+    editor.move_point(1)  # L G X Gamma U
+    assert labels(editor) == ["L", "Gamma", "X", "Gamma", "U"]
+    assert editor.value().breaks == frozenset({3})
+    assert editor.table.item(4, NPTS).text() == END_TEXT
+    editor.move_point(-1)  # and back: L G X U Gamma, the break where it was
+    assert labels(editor) == ["L", "Gamma", "X", "U", "Gamma"]
+    assert editor.value().breaks == frozenset({3})
+    editor.table.setCurrentCell(4, LABEL)
+    editor.move_point(-1)  # the last point goes up
+    assert labels(editor) == ["L", "Gamma", "X", "Gamma", "U"]
+    assert editor.value().breaks == frozenset({3})
+
+
+def test_no_edit_leaves_a_break_after_the_last_point(editor):
+    """Add, remove, move and break in any order: the last point never carries a break."""
+    rng = random.Random(7)
+    editor.set_path(AL_PATH)
+    actions = [
+        editor.add_point,
+        editor.remove_point,
+        editor.toggle_break,
+        partial(editor.move_point, 1),
+        partial(editor.move_point, -1),
+    ]
+    for _step in range(400):
+        count = editor.table.rowCount()
+        if count:
+            editor.table.setCurrentCell(rng.randrange(count), LABEL)
+        rng.choice(actions)()
+        last = editor.table.rowCount() - 1
+        assert all(index < last for index in editor.value().breaks), labels(editor)
 
 
 def test_a_point_added_after_a_break_takes_the_break_with_it(editor):

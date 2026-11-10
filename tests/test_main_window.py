@@ -129,8 +129,9 @@ def test_open_text_and_image(qtbot, main_window, demo_project, tmp_path):
     png = tmp_path / "fig.png"
     image.save(str(png))
     window.open_file(png)
-    assert isinstance(window.workspace.current(), ImageViewer)
-    assert window.workspace.current().natural_size.width() == 40
+    shown = window.workspace.current()
+    assert isinstance(shown, ImageViewer)
+    qtbot.waitUntil(lambda: shown.natural_size.width() == 40, timeout=5000)  # read in a worker
     window.workspace.close_tab(0)
     window.workspace.close_tab(0)
     assert window.workspace.current() is None

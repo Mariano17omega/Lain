@@ -64,7 +64,7 @@
     padding: 1px 10px;
     min-height: 16px;
 }
-QToolButton[variant="chip"] {
+#extractBar QToolButton[variant="chip"] {
     font-family: "JetBrains Mono";
     font-size: 11px;
     color: ${accent_text};
@@ -73,15 +73,15 @@ QToolButton[variant="chip"] {
     border-radius: 4px;
     padding: 1px 6px;
 }
-QToolButton[variant="chip"]:hover {
+#extractBar QToolButton[variant="chip"]:hover {
     border-color: ${accent};
 }
-QToolButton[variant="chip"][dim="true"] {
+#extractBar QToolButton[variant="chip"][dim="true"] {
     color: ${text_muted};
     background: transparent;
     border: 1px dashed ${border_strong};
 }
-QToolButton[variant="chip"]:disabled {
+#extractBar QToolButton[variant="chip"]:disabled {
     color: ${text_dim};
 }
 #viewerBar, #searchBar {

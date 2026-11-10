@@ -1,22 +1,46 @@
 # Translations
 
 The texts in the code are Portuguese, the source language: `pt_BR` needs no catalog. English lives in
-`en/LC_MESSAGES/lain.po`; `lain.mo` next to it is compiled from it and versioned, so `uv run lain`
-needs no build step. The language is chosen once, at startup (`ui.language`, `QE_STUDIO_LANGUAGE`):
-see `qe_studio/i18n.py`.
+`en/LC_MESSAGES/lain_<domain>.po`, one catalog per area of the code (a gettext domain); the `.mo` next
+to each is compiled from it and versioned, so `uv run lain` needs no build step. The language is chosen
+once, at startup (`ui.language`, `QE_STUDIO_LANGUAGE`): `qe_studio/i18n.py:install` chains the domains,
+so `_()` stays a single function and the code never names a domain.
+
+## Domains
+
+A message goes to the domain of the files that use it (`scripts/i18n.py:AREAS`, first prefix wins); a
+message used by files of two or more areas goes to `common`. `update` decides this, nobody assigns it:
+a message that changes area moves to the other file with its translation.
+
+| Domain | Files (under `src/qe_studio/`) |
+|---|---|
+| `common` | messages used by more than one area |
+| `calc_create` | `core/calc_create/` |
+| `calculations` | `core/calculations/`, `core/plotting/`, `core/analysis/` |
+| `ui` | the rest of `ui/` (dialogs, shell, plot widgets, actions, tools, theme) |
+| `qe` | `core/qe/` |
+| `sync` | `core/sync/`, `core/remote/`, `ui/cluster/`, `ui/widgets/cluster/` |
+| `files` | `core/files/`, `core/project/`, `core/search/`, `ui/files/`, `ui/widgets/files/` |
+| `structure3d` | `core/structure3d/`, `ui/widgets/structure3d/` |
+| `viewer` | `core/viewer/`, `ui/widgets/viewer/` |
+| `core` | the rest of `core/` and the top-level modules |
+
+A new area is a row in `AREAS` and a name in `qe_studio/i18n.py:DOMAINS` (the lookup order); the tests
+fail while the two disagree.
 
 ## Workflow
 
 After changing a text in the code:
 
 ```bash
-uv run python scripts/i18n.py update           # new messages go into lain.po, empty; a changed one is "fuzzy"
+uv run python scripts/i18n.py update           # new messages go into the .po of their domain, empty; a changed one is "fuzzy"
 # translate the empty entries; review each fuzzy one and delete its "#, fuzzy" line
-uv run python scripts/i18n.py compile          # lain.po → lain.mo, with the translated messages only
+uv run python scripts/i18n.py compile          # each .po → its .mo, with the translated messages only
 uv run python scripts/i18n.py check            # exit 0 only if every message is translated (CI runs it)
 ```
 
-Commit `lain.po` and `lain.mo` together. A message left empty is shown in Portuguese. `compile`
+Any command takes `--area <domain>` to work on one catalog. A `.po` already saying what the code says is
+not rewritten, so `update` touches only the files that changed. Commit the `.po` and `.mo` files together. A message left empty is shown in Portuguese. `compile`
 refuses a fuzzy message, a plural with an empty form and a translation that lost or gained a
 `{field}`, a rich-text tag or an `&` of its source.
 

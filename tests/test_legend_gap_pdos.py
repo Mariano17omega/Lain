@@ -144,7 +144,7 @@ def test_the_nscf_run_wins_over_the_scf_run():
 
 
 def test_an_nscf_without_homo_lumo_leaves_it_to_the_scf_run():
-    scf, nscf = pw(1.0, "homo_lumo", 2.0), pw(0.6)
+    scf, nscf = pw(0.1, "homo_lumo", 1.1), pw(0.6)  # a pair the curve agrees with (spec 91)
     assert pdos_gap(scf, nscf, gapped()) == GapInfo(1.0, "homo_lumo")
 
 

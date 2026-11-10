@@ -217,6 +217,7 @@ def remove_bonded_h(
     """``model`` without the one H bonded to each site atom (1-based ``sites``): the new model, the H
     removed (1-based, ascending) and the SCF's number of every atom kept. Raises ``SiteError``."""
     hydrogens = [i for i, label in enumerate(model.labels) if element_of(label) == "H"]
+    anchors = {number - 1 for number in sites}
     chosen: dict[int, int] = {}  # H → the site atom it leaves
     for number in sites:
         anchor = number - 1
@@ -238,6 +239,13 @@ def remove_bonded_h(
                 "deprotonation",
             )
         h = bonded[0]
+        if h in anchors:
+            raise SiteError(
+                _(
+                    "O H ligado a {name} é {name_2}, outro átomo do sítio: desmarque '{label}'"
+                ).format(name=_name(model, anchor), name_2=_name(model, h), label=REMOVE_H_LABEL),
+                "deprotonation",
+            )
         if h in chosen:
             raise SiteError(
                 _(

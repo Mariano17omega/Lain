@@ -53,6 +53,13 @@ class PlotExporter(QObject):
         Existing files are never overwritten without asking (PRD §7 data integrity): the question
         comes first, then the worker writes.
         """
+        if self._tasks.active(session.key) is not None:
+            # Superseding it would leave its worker writing, uncounted by running/wait/shutdown, and
+            # this plan was made before its files exist: no overwrite question could be right.
+            self.message.emit(
+                _("Já há uma exportação deste gráfico em andamento."), "warning", 4000
+            )
+            return False
         plan = plan_export(
             session, self._root()
         )  # stats the targets on this thread: see its docstring
@@ -112,5 +119,5 @@ class PlotExporter(QObject):
     def _on_failed(self, key: str, error: Exception) -> None:
         self.busy.end(f"export:{key}")
         if not isinstance(error, OSError | ValueError):
-            log.error("export failed", exc_info=error)
+            log.error("export: failed", exc_info=error)
         QMessageBox.warning(self._dialog_parent, _("Falha ao exportar"), str(error))

@@ -20,6 +20,7 @@ from qe_studio.core.qe.scf_from_relax import (
     generate_scf_file,
     pair_input,
     pair_problem,
+    scf_availability,
     scf_from_relax,
     scf_name,
 )
@@ -310,6 +311,28 @@ def test_pair_input_by_name_then_by_role(tmp_path):
     assert pair_input(other if chosen == output else output, results) is None
     (si / "si.rel.in").unlink()
     assert pair_input(si / "si.rel.out", detect_folder(si)) is None
+
+
+def test_availability_reads_no_file(tmp_path, monkeypatch):
+    """The context menu is built on the GUI thread: one ``stat`` and the caches."""
+    folder = copy_fixture("si_relax", tmp_path)
+    output, paired = folder / "si.rel.out", folder / "si.rel.in"
+    cache = SniffCache()
+    sniffed = cache.sniff(output)
+
+    def no_read(*args, **kwargs):
+        raise AssertionError(f"read a file: {args}")
+
+    with monkeypatch.context() as patch:
+        patch.setattr("qe_studio.core.sniff._read_head", no_read)
+        assert scf_availability(output, sniffed, None, cache.peek) == ""  # not sniffed yet
+    paired.write_text(SI_IN.read_text().replace("'relax'", "'scf'"))
+    cache.sniff(paired)
+    with monkeypatch.context() as patch:
+        patch.setattr("qe_studio.core.sniff._read_head", no_read)
+        assert "não é um relax" in scf_availability(output, sniffed, None, cache.peek)
+        paired.unlink()
+        assert scf_availability(output, sniffed, None, cache.peek) == NO_INPUT
 
 
 def test_pair_problem():

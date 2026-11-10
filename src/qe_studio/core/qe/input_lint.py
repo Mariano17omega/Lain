@@ -19,6 +19,7 @@ from .input_lexer import (
     KNOWN_CARDS,
     CardHeader,
     Entry,
+    Kind,
     LexState,
     LintIssue,
     NamelistOpen,
@@ -33,6 +34,16 @@ __all__ = ["Card", "Entry", "InputDoc", "LintIssue", "lint", "neighbour_issue"]
 # pp.x's: ``&INPUTPH`` is one edit from ``&INPUTPP`` and would be told to be it (spec 29 R5.2).
 _ALL_NAMELISTS = frozenset().union(
     *(known for program, known in PROGRAM_NAMELISTS.items() if program != "pp")
+)
+# The one card pw.x reads again without stopping with "two occurrences".
+_REPEATABLE_CARDS = frozenset({"ADDITIONAL_K_POINTS"})
+# Cards whose rows pw.x reads by counting the fields of the line (``QE:Modules/read_cards.f90``:
+# ATOMIC_POSITIONS 442-491, ATOMIC_FORCES 602, OCCUPATIONS 1035, ATOMIC_VELOCITIES 1258). A ``#`` that is
+# not in the first column starts no comment there: ``read_line`` skips only lines that start with it
+# (``Modules/parser.f90:125``) and ``field_count`` stops only at ``!``, so it is a field (L-08). The
+# other cards read their numbers from a list and ignore what follows.
+_FIELD_COUNTED_CARDS = frozenset(
+    {"ATOMIC_POSITIONS", "ATOMIC_FORCES", "OCCUPATIONS", "ATOMIC_VELOCITIES"}
 )
 
 
@@ -54,7 +65,8 @@ class InputDoc:
     issues: list[LintIssue] = field(default_factory=list)
 
     def get(self, namelist: str, key: str) -> Entry | None:
-        for entry in self.namelists.get(namelist, ()):
+        """The entry of ``key``; the last one when it is repeated, as Fortran reads it."""
+        for entry in reversed(self.namelists.get(namelist, ())):
             if entry.key == key.lower():
                 return entry
         return None
@@ -155,8 +167,16 @@ def _lint(text: str) -> InputDoc:
         if scan.card is not None:
             building = _CardBuild(scan.card, number)
             headers.append((scan.card, number))
-        elif scan.body is not None and building is not None:
-            building.body.append(scan.body)
+        elif building is not None:
+            if scan.body is not None:
+                building.body.append(scan.body)
+            if building.header.name in _FIELD_COUNTED_CARDS:
+                for token in scan.tokens:
+                    if token.kind is Kind.COMMENT and token.start > 0 and line[token.start] == "#":
+                        message = _(
+                            "O QE só ignora '#' na coluna 1: em {card} ele conta como campo e o pw.x para; comente com '!'"
+                        ).format(card=building.header.name)
+                        rule(number, token.start, token.end, message)
         state = scan.state
 
     if unclosed is not None:
@@ -191,6 +211,7 @@ def _check_names(doc: InputDoc, opened, headers, rule) -> None:
         rule(line, token.start, token.end, message)
     if program is None:
         return
+    read_cards: set[str] = set()
     for header, line in headers:
         if not header.known:
             suggestion = _closest(header.name, KNOWN_CARDS)
@@ -199,6 +220,17 @@ def _check_names(doc: InputDoc, opened, headers, rule) -> None:
                 message += _(" (quis dizer {suggestion}?)").format(suggestion=suggestion)
             rule(line, header.start, header.end, message)
             continue
+        if header.joined:
+            message = _("Falta um espaço entre {name} e a opção: o pw.x ignora o card").format(
+                name=header.name
+            )
+            rule(line, header.start, header.end, message)
+        if program == "pw" and header.name in read_cards - _REPEATABLE_CARDS:
+            message = _("Card {name} repetido: o pw.x interrompe o cálculo").format(
+                name=header.name
+            )
+            rule(line, header.start, header.end, message)
+        read_cards.add(header.name)
         options = CARD_OPTIONS.get(header.name)
         if options and header.option and header.option.lower() not in options:
             message = _("Opção inválida para {name}: {option}").format(

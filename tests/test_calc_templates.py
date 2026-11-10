@@ -13,7 +13,9 @@ from qe_studio.core.calc_create.render import (
     fortran_string,
     render,
     template_names,
+    warm_templates,
 )
+from qe_studio.core.calc_create.scf_info import read_scf
 from qe_studio.core.calc_create.types import REGISTRY, by_id
 from qe_studio.core.calc_create.types.base import Work
 from qe_studio.core.calc_create.types.script import MYEMAIL_NOTE
@@ -21,11 +23,31 @@ from qe_studio.core.config import JobsConfig
 from qe_studio.core.viewer.qsub_lint import lint_script
 from reference_helpers import REFERENCE, needs_reference
 
-from calc_helpers import AL_PATH, JOBS, al, expanded, ni, runs, script_inputs
+from calc_helpers import AL_PATH, AL_SCF, JOBS, al, expanded, ni, runs, script_inputs
 
 ROOT = files("qe_studio.resources").joinpath("templates")
 NEW_MODEL = REFERENCE / "Novo_modelo_de_scripts_QSUB" / "bands.qsub"
 EMAIL = "usuario@mail.com"
+
+
+def test_once_warm_a_plan_reads_no_template(monkeypatch):
+    warm_templates()
+
+    def no_disk(name):
+        raise AssertionError(f"read {name}")
+
+    monkeypatch.setattr("qe_studio.core.calc_create.render._resource", no_disk)
+    result = by_id("charge").plan(al(), {}, JOBS)
+    assert result.ok and len(result.files) == 3
+
+
+def test_reading_an_scf_warms_the_templates(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "qe_studio.core.calc_create.scf_info.warm_templates", lambda: calls.append(1)
+    )
+    read_scf(AL_SCF)
+    assert calls == [1]
 
 
 def test_every_template_is_packaged_and_found():

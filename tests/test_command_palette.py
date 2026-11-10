@@ -215,3 +215,32 @@ def test_odd_queries_never_fail(qtbot, main_window, query):
     open_palette(main_window)
     type_query(qtbot, main_window, query)
     assert isinstance(Path(".").name, str)
+
+
+def test_the_folder_rows_are_built_once_per_index_not_per_keystroke(
+    qtbot, main_window, demo_project, monkeypatch
+):
+    window = main_window
+    open_palette(window)
+    indexed(qtbot, window)
+    palette = window.command_palette
+    built = []
+    real = palette._folder_row
+    monkeypatch.setattr(palette, "_folder_row", lambda *a: built.append(a[0]) or real(*a))
+    first = keys_of(window, "/relax")
+    assert first and built  # the first query builds them
+    built.clear()
+    assert keys_of(window, "/relax") == first and keys_of(window, "/ba")
+    assert built == []  # the next keys reuse them
+    palette.invalidate()  # F5: a new index, new rows
+    indexed(qtbot, window)
+    keys_of(window, "/relax")
+    assert built
+
+
+def test_the_view_root_itself_is_labelled_with_its_name_not_a_dot(main_window, demo_project):
+    window = main_window
+    palette = window.command_palette
+    top = palette._view_root()
+    assert palette._label(top) == top.name
+    assert palette._label(top / "01_relax") == "01_relax"

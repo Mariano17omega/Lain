@@ -116,5 +116,7 @@ class PlotButton(QObject):
             self._show_panels()  # "Gerar Plot" plots the pair: the selection is still there
 
     def _on_pair_failed(self, key: str, error: Exception) -> None:
-        log.warning("bands + DOS of the selection: %s", error)  # the folder is plotted instead
+        log.warning(
+            "plot: bands + DOS of the selection: %s", error
+        )  # the folder is plotted instead
         self._on_pair(key, None)

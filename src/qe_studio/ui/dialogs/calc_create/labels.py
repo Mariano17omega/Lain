@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import QLabel, QWidget
 
+from ....i18n import _
 from ...widgets.common import set_variant
 
 VARIANTS = {"hint": "dialogText", "warning": "dialogWarning", "error": "dialogError"}
+READING = _("Lendo SCF…")  # while a worker reads an SCF input (step 1's, the list's, a field's)
+NO_FILE = _("Nenhum arquivo escolhido")
 
 
 def message_label(level: str = "hint") -> QLabel:

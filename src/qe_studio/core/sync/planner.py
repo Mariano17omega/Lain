@@ -14,8 +14,10 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 
+from .. import cancel
 from .rsync import DryRunItem
 
+CHECK_EVERY_FILES = 500  # one stat each, maybe on a network home
 MTIME_TOLERANCE = 2.0  # seconds; FAT/NTFS and rsync --modify-window slack
 # Above this a file is flagged in the plan preview (spec 17 R2.3): a warning, not a rule.
 LARGE_FILE_BYTES = 100 * 1024**2
@@ -104,7 +106,7 @@ def build_plan(
     records: Iterable[DryRunItem], local_dir: Path, tolerance: float = MTIME_TOLERANCE
 ) -> SyncPlan:
     plan = SyncPlan()
-    for record in records:
+    for record in cancel.checked(records, CHECK_EVERY_FILES):
         if not record.is_file:
             continue
         try:
@@ -143,7 +145,7 @@ def recheck_local(items: Iterable[PlanItem], local_dir: Path) -> Recheck:
     Runs in a worker (one ``stat`` per file, maybe on a network home)."""
     keep: list[PlanItem] = []
     changed: list[PlanItem] = []
-    for item in items:
+    for item in cancel.checked(items, CHECK_EVERY_FILES):
         planned = None if item.local_mtime is None else (item.local_mtime, item.local_size)
         try:
             stat = (Path(local_dir) / item.path).stat()

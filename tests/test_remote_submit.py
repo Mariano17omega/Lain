@@ -7,9 +7,9 @@ import pytest
 
 from qe_studio.core.config import parse_config
 from qe_studio.core.remote import submit as submit_module
-from qe_studio.core.remote.actions import ActionFailure
-from qe_studio.core.remote.cluster_jobs import JobsFailure
-from qe_studio.core.remote.listing import NOT_FOUND, RemoteFailure
+from qe_studio.core.remote import submit_log
+from qe_studio.core.remote.failure import RemoteFailure
+from qe_studio.core.remote.listing import NOT_FOUND
 from qe_studio.core.remote.submit import (
     SubmitBlocked,
     SubmitPlan,
@@ -67,7 +67,9 @@ def test_the_line_is_exact():
 def test_the_answer_of_qsub_is_read():
     assert parse_submitted(ANSWER) == Submitted("24123", "Bands-kao-b")
     assert parse_submitted("warning: no project\n" + ANSWER) == Submitted("24123", "Bands-kao-b")
-    assert parse_submitted('Your job-array 1.1-10:1 ("x") has been submitted') is None
+    assert parse_submitted('Your job-array 1.1-10:1 ("x") has been submitted') == Submitted(
+        "1", "x"
+    )
     assert parse_submitted("") is None
 
 
@@ -99,30 +101,30 @@ def test_a_running_job_of_the_user_in_the_folder_blocks_the_plan(fakes):
 
 def test_a_queue_that_cannot_be_read_fails_with_its_flags(fakes):
     _listing, fetch, run = fakes
-    fetch.result = JobsFailure("O cluster não respondeu a qstatus -a a tempo.", connection=True)
+    fetch.result = RemoteFailure("O cluster não respondeu a qstatus -a a tempo.", connection=True)
     failure = plan_submit(config(), BANDS, "bands.qsub")
-    assert failure == ActionFailure(
+    assert failure == RemoteFailure(
         "Não foi possível conferir se já roda um job nesta pasta: O cluster não respondeu a "
         "qstatus -a a tempo. Nada foi submetido.",
         connection=True,
     )
-    fetch.result = JobsFailure("Permission denied", auth=True)
+    fetch.result = RemoteFailure("Permission denied", auth=True)
     failure = plan_submit(config(), BANDS, "bands.qsub")
-    assert isinstance(failure, ActionFailure) and failure.auth  # spec 71 R4: the LED, the password
+    assert isinstance(failure, RemoteFailure) and failure.auth  # spec 71 R4: the LED, the password
     assert run.commands == []
 
 
 def test_a_listing_that_fails_is_an_action_failure(fakes):
     listing, fetch, _run = fakes
     listing.folders[BANDS] = RemoteFailure(NOT_FOUND, missing=True)
-    assert plan_submit(config(), BANDS, "bands.qsub") == ActionFailure(NOT_FOUND, missing=True)
+    assert plan_submit(config(), BANDS, "bands.qsub") == RemoteFailure(NOT_FOUND, missing=True)
     assert fetch.calls == []
 
 
 def test_an_unsafe_name_is_never_planned(fakes):
     listing, _fetch, _run = fakes
     failure = plan_submit(config(), BANDS, "a b.qsub")
-    assert isinstance(failure, ActionFailure) and failure.local
+    assert isinstance(failure, RemoteFailure) and failure.local
     assert listing.calls == []
 
 
@@ -152,11 +154,11 @@ def test_the_three_answers_of_a_submission(fakes):
 
     run.result = CommandResult(1, "", "Unable to read script file because of error\n")
     failure = submit(config(), plan)
-    assert failure == ActionFailure(
+    assert failure == RemoteFailure(
         "qsub terminou com código 1: Unable to read script file because of error"
     )
 
-    run.result = ActionFailure("Não foi possível executar o ssh (x).", local=True)
+    run.result = RemoteFailure("Não foi possível executar o ssh (x).", local=True)
     assert submit(config(), plan) == run.result
 
 
@@ -232,3 +234,41 @@ def test_a_log_that_cannot_be_written_never_undoes_the_job(fakes, monkeypatch):
     assert isinstance(plan, SubmitPlan)
     assert submit(config(), plan) == Submitted("24123", NAME, log_error="disco cheio")
     assert read_log() == []
+
+
+def test_a_job_array_is_written_in_the_log(fakes):
+    _listing, _fetch, run = fakes
+    run.result = CommandResult(
+        0, f'Your job-array 24123.1-10:1 ("{NAME}") has been submitted\n', ""
+    )
+    plan = plan_submit(config(), BANDS, "bands.qsub")
+    assert isinstance(plan, SubmitPlan)
+    assert submit(config(), plan) == Submitted("24123", NAME)
+    assert [entry.job_id for entry in read_log()] == ["24123"]
+
+
+def test_a_logged_job_whose_name_the_queue_cut_blocks(fakes):
+    _listing, fetch, _run = fakes
+    full = "Bands-kao-b-with-a-name-longer-than-the-column"
+    record(ACCOUNT, "25000", full, BANDS, "bands.qsub")
+    fetch.result = snapshot(with_mine(waiting=1, queued=full[:25]))
+    assert isinstance(plan_submit(config(), BANDS, "bands.qsub"), SubmitBlocked)
+
+
+def test_a_log_that_cannot_be_read_stops_the_submission(fakes, monkeypatch, tmp_path):
+    """A waiting job leaves nothing else in the folder: without the log it would go unseen."""
+    monkeypatch.setattr(submit_log, "log_path", lambda: tmp_path)  # reading a folder fails
+    plan = plan_submit(config(), BANDS, "bands.qsub")
+    assert isinstance(plan, RemoteFailure) and plan.local
+    assert plan.message.endswith("Nada foi submetido.")
+
+
+def test_a_failing_cd_is_named_and_not_qsub(fakes):
+    _listing, _fetch, run = fakes
+    plan = plan_submit(config(), BANDS, "bands.qsub")
+    assert isinstance(plan, SubmitPlan)
+    run.result = CommandResult(1, "", "bash: line 1: cd: /x: No such file or directory\n")
+    answer = submit(config(), plan)
+    assert isinstance(answer, RemoteFailure) and answer.message.startswith(
+        "cd terminou com código 1"
+    )

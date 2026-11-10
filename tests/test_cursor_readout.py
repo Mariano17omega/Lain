@@ -51,6 +51,12 @@ def test_plain_labels():
     assert plain_kpoint_label("X|W") == "X|W" and plain_kpoint_label("") == ""
 
 
+def test_plain_labels_of_greek_letters():
+    assert plain_kpoint_label(r"$\Sigma$") == "Σ" and plain_kpoint_label(r"$\gamma$") == "γ"
+    assert plain_kpoint_label(r"$\Delta_1$") == "Δ₁" and plain_kpoint_label(r"$\lambda$") == "λ"
+    assert plain_kpoint_label(r"$\mathrm{X}$") == r"\mathrm{X}"  # not a letter: left alone
+
+
 def test_nearest_tick_label_tolerance():
     ticks, labels = [0.0, 1.0, 2.0], [r"$\Gamma$", "X", ""]
     assert nearest_tick_label(0.995, ticks, labels, 2.0) == "X"  # within 1 % of the span

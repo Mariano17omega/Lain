@@ -190,15 +190,24 @@ def selected_total(data: PdosData, atoms: Collection[int]) -> Channel | None:
 
 
 def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosData:
+    """The projections of ``atm_files`` (and the total of ``tot_file``). A file that cannot be read
+    (cut short, a number the Fortran format overflowed into ``****``) is left out with a warning, so
+    that one bad file does not take the others down (L-11); none readable raises."""
     warnings: list[str] = []
     energy: np.ndarray | None = None
     series = []
+    unreadable = 0
     for path in sorted(atm_files, key=lambda p: p.name):
         cancel.check()  # one file is short, a hundred of them are not
         meta = parse_atm_name(path.name)
         if meta is None:
             continue
-        grid, channel = read_pdos_file(path)
+        try:
+            grid, channel = read_pdos_file(path)
+        except (ValueError, OSError) as exc:  # PdosFormatError is a ValueError
+            warnings.append(_("{name}: ilegível, ignorado ({exc})").format(name=path.name, exc=exc))
+            unreadable += 1
+            continue
         if energy is None:
             energy = grid
         elif len(grid) != len(energy) or not np.allclose(grid, energy):
@@ -211,29 +220,119 @@ def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosDa
             )
         series.append(PdosSeries(meta.atom, meta.species, meta.wfc, meta.l, meta.j, channel))
     if energy is None:
+        if unreadable:
+            raise PdosFormatError(_("nenhum arquivo pdos_atm# legível: {w}").format(w=warnings[0]))
         raise PdosFormatError(_("nenhum arquivo pdos_atm# encontrado"))
 
     total = None
     total_is_sum = False
     if tot_file is not None:
-        grid, total = read_pdos_file(tot_file, total=True)
-        if len(grid) != len(energy) or not np.allclose(grid, energy):
-            total = Channel(
-                np.interp(energy, grid, total.up),
-                None if total.down is None else np.interp(energy, grid, total.down),
+        try:
+            grid, total = read_pdos_file(tot_file, total=True)
+        except (ValueError, OSError) as exc:
+            warnings.append(
+                _("{name}: ilegível ({exc}): total = soma das projeções").format(
+                    name=tot_file.name, exc=exc
+                )
             )
-    else:
+        else:
+            if len(grid) != len(energy) or not np.allclose(grid, energy):
+                total = Channel(
+                    np.interp(energy, grid, total.up),
+                    None if total.down is None else np.interp(energy, grid, total.down),
+                )
+    if total is None:
         total_is_sum = True
         for s in series:
             total = s.channel if total is None else total + s.channel
-        warnings.append(_("pdos_tot ausente: total = soma das projeções"))
+        if tot_file is None:
+            warnings.append(_("pdos_tot ausente: total = soma das projeções"))
     return PdosData(energy, tuple(series), total, total_is_sum, tuple(warnings))
 
 
-def _empty_runs(energy: np.ndarray, total: Channel) -> list[tuple[int, int]]:
-    """The runs ``[start, stop)`` of empty points (``GAP_DOS_REL_TOL`` of the maximum or less) of
-    the total DOS (both spin channels summed), each bounded by states on both sides: a run that
-    reaches the edge of the grid has nothing to bound it and is left out."""
+# -- is the set of projections whole? (L-11) ----------------------------------------------------------
+# One line per atomic state in the output of projwfc.x (``QE:PP/src/projwfc.f90:433``); a projection
+# file is written for each (atom, wfc) pair, whatever its ``m`` (``partialdos.f90``: ``nlmchi%m == 1``).
+_STATE = re.compile(r"^\s*state #\s*\d+: atom\s+(\d+) \(.*?\), wfc\s+(\d+) \(l=")
+_LISTED = 5  # pairs a warning names
+
+
+def read_projwfc_states(path: Path) -> set[tuple[int, int]]:
+    """The ``(atom, wfc)`` pairs projwfc.x listed in its output (the block near the top, read only up
+    to its end: the rest of the file can be huge); empty when there is none."""
+    found: set[tuple[int, int]] = set()
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            match = _STATE.match(line)
+            if match:
+                found.add((int(match.group(1)), int(match.group(2))))
+            elif found and line.strip():
+                break  # the block is contiguous: the first other line ends it
+    return found
+
+
+def _pairs(pairs: list[tuple[int, int]]) -> str:
+    text = ", ".join(_("átomo {atom} wfc {wfc}").format(atom=a, wfc=w) for a, w in pairs[:_LISTED])
+    return text + ("…" if len(pairs) > _LISTED else "")
+
+
+def completeness_warnings(
+    series: Iterable[PdosSeries], listed: set[tuple[int, int]] | None = None
+) -> list[str]:
+    """Warnings for a set of projections that looks incomplete or mixed: against ``listed`` (the states
+    projwfc.x printed) when there are some, else the holes in the wfc numbers of each atom. Nothing is
+    left out: the plot shows what there is, and the user is told."""
+    have = {(s.atom, s.wfc) for s in series}
+    if listed:
+        missing = sorted(listed - have)
+        extra = sorted(have - listed)
+    else:
+        top: dict[int, int] = {}
+        for atom, wfc in have:
+            top[atom] = max(top.get(atom, 0), wfc)
+        missing = sorted(
+            (a, w) for a, n in top.items() for w in range(1, n + 1) if (a, w) not in have
+        )
+        extra = []
+    out = []
+    if missing:
+        out.append(
+            _(
+                "PDOS incompleta: faltam {n} projeções ({pairs}); arquivo apagado ou execução interrompida?"
+            ).format(n=len(missing), pairs=_pairs(missing))
+        )
+    if extra:
+        out.append(
+            _(
+                "{n} projeções não constam na saída do projwfc.x ({pairs}): de outra execução com o mesmo filpdos?"
+            ).format(n=len(extra), pairs=_pairs(extra))
+        )
+    return out
+
+
+@dataclass(frozen=True)
+class EmptyRegion:
+    """A stretch of the total DOS with no states, bounded by states on both sides."""
+
+    low: float  # the last point with states below it
+    first: float  # its first empty point
+    last: float  # its last empty point
+    high: float  # the first point with states above it
+    floor: float  # the lowest DOS inside it, states/eV
+
+    @property
+    def width(self) -> float:
+        return self.high - self.low
+
+    @property
+    def middle(self) -> float:
+        return (self.low + self.high) / 2
+
+
+def empty_regions(energy: np.ndarray, total: Channel) -> list[EmptyRegion]:
+    """The regions of empty points (``GAP_DOS_REL_TOL`` of the maximum or less) of the total DOS
+    (both spin channels summed), in energy order: one that reaches the edge of the grid has nothing
+    to bound it and is left out."""
     if len(energy) < 3:
         return []
     dos = total.up if total.down is None else total.up + total.down
@@ -243,28 +342,40 @@ def _empty_runs(energy: np.ndarray, total: Channel) -> list[tuple[int, int]]:
     padded = np.concatenate(([False], dos <= GAP_DOS_REL_TOL * peak, [False]))
     changes = np.flatnonzero(padded[1:] != padded[:-1])
     return [
-        (int(start), int(stop))
+        EmptyRegion(
+            float(energy[start - 1]),
+            float(energy[start]),
+            float(energy[stop - 1]),
+            float(energy[stop]),
+            float(dos[start:stop].min()),
+        )
         for start, stop in zip(changes[::2], changes[1::2], strict=True)
         if start != 0 and stop != len(energy)
     ]
 
 
+def region_above(regions: Iterable[EmptyRegion], level: float) -> EmptyRegion | None:
+    """The first of ``regions`` (in energy order) that ends above ``level``: it holds ``level`` or
+    is the next one up."""
+    return next((region for region in regions if region.high > level), None)
+
+
 def dos_gap(energy: np.ndarray, total: Channel, fermi: float | None) -> float | None:
     """The energy gap around ``fermi`` read off the total DOS (both spin channels summed), or None.
 
-    The gap is the widest empty region (``_empty_runs``) at most ``GAP_SEARCH_EV`` from E_F (nearest
-    on a tie), measured from the last point above the threshold below it to the first above it: the
-    error is about the grid step plus the broadening. There is none without E_F or when no such
-    region lies near it (a metal, or E_F deep in a band).
+    The gap is the widest empty region at most ``GAP_SEARCH_EV`` from E_F (nearest on a tie),
+    measured from the last point above the threshold below it to the first above it: the error is
+    about the grid step plus the broadening. There is none without E_F or when no such region lies
+    near it (a metal, or E_F deep in a band).
     """
     if fermi is None:
         return None
     best: tuple[float, float] | None = None  # (width, -away)
-    for start, stop in _empty_runs(energy, total):
-        away = max(float(energy[start]) - fermi, fermi - float(energy[stop - 1]), 0.0)
+    for region in empty_regions(energy, total):
+        away = max(region.first - fermi, fermi - region.last, 0.0)
         if away > GAP_SEARCH_EV:
             continue
-        candidate = (float(energy[stop] - energy[start - 1]), -away)
+        candidate = (region.width, -away)
         if best is None or candidate > best:
             best = candidate
     return None if best is None else best[0]
@@ -278,9 +389,9 @@ def dos_gap_window(
     window), measured as ``dos_gap`` measures; None when none is ``min_width`` wide."""
     low, high = sorted((low, high))
     widths = [
-        float(energy[stop] - energy[start - 1])
-        for start, stop in _empty_runs(energy, total)
-        if low <= energy[start - 1] and energy[stop] <= high
+        region.width
+        for region in empty_regions(energy, total)
+        if low <= region.low and region.high <= high
     ]
     best = max(widths, default=None)
     return best if best is not None and best >= min_width else None

@@ -16,8 +16,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ...core.plotting.grid import MAX_SIZE, GridCell, PlotRef
+from ...core.plotting.grid import GridCell, PlotRef
 from ...i18n import _
+from ..widgets.common import hide_vertical_header
+from ..widgets.no_wheel import NoWheelComboBox, NoWheelSpinBox
 
 HEADERS = (_("Gráfico"), _("Linha"), _("Coluna"), _("Título"))
 MISSING = _(" (pasta não encontrada)")
@@ -48,7 +50,7 @@ class CellsTable(QTableWidget):
         self._choices: list[PlotChoice] = []
         self._limits = (1, 1)
         self.setHorizontalHeaderLabels(list(HEADERS))
-        self.verticalHeader().setVisible(False)  # type: ignore[union-attr]
+        hide_vertical_header(self)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         header = self.horizontalHeader()
         assert header is not None
@@ -87,10 +89,13 @@ class CellsTable(QTableWidget):
 
     # -- changes -------------------------------------------------------------------------------
     def set_choices(self, choices: list[PlotChoice]) -> None:
-        """The open plots to offer; every row keeps the plot it has."""
+        """The open plots to offer; every row keeps the plot it has. The rows' plots may have
+        changed meaning (a cell with no plot now has one, a tab was renamed): ``changed``."""
         self._choices = list(choices)
         for row in range(self.rowCount()):
             self._fill(self.combo(row), self.combo(row).currentData())
+        if self.rowCount():
+            self.changed.emit()
 
     def set_limits(self, rows: int, cols: int) -> None:
         """Rows and columns of the grid: the position spinboxes go no further."""
@@ -100,26 +105,33 @@ class CellsTable(QTableWidget):
             self.spin(row, 2).setMaximum(cols)
 
     def set_cells(self, cells: list[GridCell]) -> None:
+        """Replace every row; ``changed`` once, not once per row."""
         self.setRowCount(0)
         for cell in cells:
-            self.add_cell(cell)
+            self.add_cell(cell, notify=False)
         self.changed.emit()
 
-    def add_cell(self, cell: GridCell | None = None) -> None:
+    def has_free_position(self) -> bool:
+        """Some position of the grid has no cell yet (a new one has somewhere to go)."""
+        return bool(self._free_positions(self.cells()))
+
+    def add_cell(self, cell: GridCell | None = None, notify: bool = True) -> None:
         """A row for ``cell``, or for a new one: the first free position and the first open plot
-        no row shows yet."""
+        no row shows yet (nothing is added when every position is taken)."""
         if cell is None:
             cell = self._new_cell()
+            if cell is None:
+                return
         row = self.rowCount()
         self.insertRow(row)
-        combo = QComboBox()
+        combo = NoWheelComboBox()
         self._fill(combo, cell.ref)
         combo.currentIndexChanged.connect(self.changed)
         self.setCellWidget(row, 0, combo)
         for column, (value, limit) in enumerate(
             zip((cell.row, cell.col), self._limits, strict=True), 1
         ):
-            spin = QSpinBox()
+            spin = NoWheelSpinBox()
             spin.setRange(1, limit)
             spin.setValue(value + 1)
             spin.valueChanged.connect(self.changed)
@@ -128,7 +140,8 @@ class CellsTable(QTableWidget):
         title.setPlaceholderText(_("o do gráfico"))
         title.textChanged.connect(self.changed)
         self.setCellWidget(row, 3, title)
-        self.changed.emit()
+        if notify:
+            self.changed.emit()
 
     def remove_selected(self) -> None:
         rows = sorted({index.row() for index in self.selectedIndexes()}, reverse=True)
@@ -138,12 +151,20 @@ class CellsTable(QTableWidget):
             self.removeRow(row)
         self.changed.emit()
 
-    def _new_cell(self) -> GridCell:
+    def _free_positions(self, cells: list[GridCell]) -> list[tuple[int, int]]:
+        """The positions of the grid no cell has, row by row."""
         rows, cols = self._limits
-        cells = self.cells()
         taken = {(c.row, c.col) for c in cells}
-        free = [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in taken]
-        row, col = free[0] if free else (min(len(cells) // MAX_SIZE, rows - 1), 0)
+        return [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in taken]
+
+    def _new_cell(self) -> GridCell | None:
+        """The cell for the first free position (None: there is none) with the first plot no row
+        shows yet."""
+        cells = self.cells()
+        free = self._free_positions(cells)
+        if not free:
+            return None
+        row, col = free[0]
         used = {c.ref for c in cells}
         ref = next((c.ref for c in self._choices if c.ref not in used), None)
         if ref is None and self._choices:

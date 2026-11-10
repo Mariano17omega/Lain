@@ -349,6 +349,52 @@ def test_hash_comments_in_cards():
     )
 
 
+HASH_MESSAGE = "O QE só ignora '#' na coluna 1"
+
+
+@pytest.mark.parametrize(
+    ("card", "row"),
+    [
+        ("ATOMIC_POSITIONS angstrom", "Si 0.0 0.0 0.0 # first atom"),
+        ("ATOMIC_POSITIONS angstrom", "Si 0.0 0.0 0.0 1 1 1 # free"),
+        ("ATOMIC_FORCES", "Si 0.0 0.0 0.1 # kick"),
+        ("OCCUPATIONS", "1.0 1.0 # filled"),
+        ("ATOMIC_VELOCITIES", "Si 0.0 0.0 0.1 # start"),
+    ],
+)
+def test_l08_a_hash_after_the_data_of_a_field_counted_card_is_an_error(card, row):
+    """pw.x counts ``#`` as a field there (``read_cards.f90``): ``Si 0 0 0 # x`` has 6 columns."""
+    text = pw(tail=f"{card}\n{row}\n")
+    (issue,) = [i for i in lint(text).issues if HASH_MESSAGE in i.message]
+    assert issue.severity == "error" and issue.line == 8
+    assert text.split("\n")[7][issue.col_start] == "#"
+    assert row.split("#")[0].strip() and card.split()[0] in issue.message
+
+
+def test_l08_a_comment_line_indented_in_such_a_card_is_an_error_but_column_1_is_not():
+    text = pw(tail="ATOMIC_POSITIONS angstrom\n  # indented\n# column one\nSi 0.0 0.0 0.0\n")
+    assert [i.line for i in lint(text).issues if HASH_MESSAGE in i.message] == [8]
+
+
+def test_l08_the_bang_comment_and_a_hash_inside_it_are_fine():
+    text = pw(tail="ATOMIC_POSITIONS angstrom\nSi 0.0 0.0 0.0 ! first # atom\n")
+    assert [i for i in lint(text).issues if HASH_MESSAGE in i.message] == []
+
+
+@pytest.mark.parametrize(
+    "tail",
+    [
+        "K_POINTS gamma # only gamma\n",
+        "K_POINTS crystal_b\n1\n0 0 0 20 # G\n",
+        "ATOMIC_SPECIES\nSi 28.0 Si.UPF # label\n",
+        "CELL_PARAMETERS angstrom\n1 0 0 # a1\n0 1 0\n0 0 1\n",
+        "ATOMIC_POSITIONS angstrom # the header\nSi 0.0 0.0 0.0\n",
+    ],
+)
+def test_l08_the_cards_pw_x_reads_from_a_list_keep_tolerating_a_trailing_hash(tail):
+    assert [i for i in lint(pw(tail=tail)).issues if HASH_MESSAGE in i.message] == []
+
+
 def test_text_before_the_first_namelist_is_not_checked():
     assert found("Al's input\n! nothing\n&control\n/\n&system\n/\n&electrons\n/\n") == []
 
@@ -412,3 +458,33 @@ def test_tokens_use_the_theme_token_names():
     ]  # fmt: skip
     scan = scan_line("K_POINTS {automatic}", LexState(Mode.CARD), 3)
     assert [t.kind.value for t in scan.tokens] == ["syn_card", "syn_card_option"]
+
+
+def test_the_last_copy_of_a_repeated_key_is_the_one_read():
+    doc = lint("&control\n prefix = 'a'\n prefix = 'b'\n/\n")
+    assert doc.get("control", "prefix").value_text == "'b'"
+
+
+def test_a_cell_card_as_pw_x_prints_it_is_valid():
+    text = "&control\n/\nCELL_PARAMETERS (alat= 10.16863713)\n1 0 0\n0 1 0\n0 0 1\n"
+    assert found(text) == []
+    assert lint(text).card("CELL_PARAMETERS").option == "alat"
+
+
+def test_a_repeated_card_is_an_error():
+    text = "&control\n/\nK_POINTS gamma\nK_POINTS automatic\n4 4 4 0 0 0\n"
+    message = "Card K_POINTS repetido: o pw.x interrompe o cálculo"
+    assert found(text) == [(4, "K_POINTS", "error", message)]
+
+
+def test_additional_k_points_may_repeat_and_other_programs_are_left_alone():
+    extra = "ADDITIONAL_K_POINTS tpiba_b\n1\n0 0 0 1\n"
+    assert found(f"&control\n/\nK_POINTS gamma\n{extra}{extra}") == []
+    assert found("&bands\n/\nK_POINTS gamma\nK_POINTS gamma\n") == []
+
+
+@pytest.mark.parametrize("card", ["K_POINTS{crystal_b}", "K_POINTS(crystal_b)"])
+def test_a_card_glued_to_its_option_is_an_error(card):
+    """pw.x reads the first word whole, so that word matches no card and the card is ignored."""
+    message = "Falta um espaço entre K_POINTS e a opção: o pw.x ignora o card"
+    assert found(f"&control\n/\n{card}\n1\n0 0 0 1\n") == [(3, "K_POINTS", "error", message)]

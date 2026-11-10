@@ -55,6 +55,25 @@ def test_key_auth_pull(qtbot, tmp_path, ssh_server):
     assert all(c.startswith("rsync --server") for c in server.commands())
 
 
+def test_pull_of_a_remote_root_starting_with_a_tilde(qtbot, tmp_path, ssh_server):
+    """The cluster's shell makes ``~`` the home (here, the served folder): the real rsync, whose
+    arguments a recent client protects by default, must still reach ``~/my runs`` (the
+    ``--files-from`` transfer once looked for a folder called ``~``)."""
+    server, remote = ssh_server
+    write(remote, "my runs/scf.out", "scf", T0)
+    write(remote, "my runs/sub/bands.dat.gnu", "gnu", T0 + 60)
+    local = tmp_path / "local"
+    controller = SyncController(parse_config(server.config_data()))
+    endpoint = Endpoint("~/my runs", HOST_ALIAS, USER)
+    report, _ = run_sync(qtbot, controller, local, endpoint)
+
+    assert report.status is SyncStatus.DONE, report.error
+    assert sorted(report.transferred) == ["scf.out", "sub/bands.dat.gnu"]
+    assert (local / "sub/bands.dat.gnu").read_text() == "gnu"
+    assert not (remote / "~").exists()
+    assert all(c.startswith("rsync --server") for c in server.commands())
+
+
 def test_pull_with_checksum_passes_the_allowlisted_rsync_server(qtbot, tmp_path, ssh_server):
     """The default ``sync.checksum`` reaches ``rsync --server`` and the pull still ends DONE."""
     server, remote = ssh_server

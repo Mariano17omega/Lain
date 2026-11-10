@@ -429,7 +429,7 @@ def test_a_ghost_of_a_fixed_atom_has_a_faint_ring(qapp):
     canvas = along_z(structure, 20.0, center=np.full(3, 7.5), show_fixed=True)
     image = canvas.render_image(SIZE)
     scene = canvas.scene
-    assert scene.n_ghost == 2
+    assert len(scene.positions) - scene.n_real == 2
     xy, _depth, _scale = canvas.camera.project(scene.positions, (400.0, 300.0))
     faint = GHOST_OPACITY * np.array(FIXED_RING[True]) + (1 - GHOST_OPACITY) * np.array(
         BACKGROUND[True]

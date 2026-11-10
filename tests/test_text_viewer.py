@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QInputDialog
 from qe_studio.core.viewer import textfile
 from qe_studio.ui.theme.manager import ThemeManager
 from qe_studio.ui.widgets.viewer.highlighters import OutputHighlighter
-from qe_studio.ui.widgets.viewer.text_viewer import TOO_BIG
+from qe_studio.ui.widgets.viewer.text_viewer import TOO_BIG, TextViewer
 
 from conftest import FIXTURES
 from viewer_helpers import CTRL, SHIFT, key, open_text
@@ -301,6 +301,7 @@ def test_open_in_external_editor(qtbot, main_window, small_limits, fake_apps, la
     numbered(path)
     viewer = open_text(qtbot, main_window, path)
     viewer.external_button.click()
+    qtbot.waitUntil(lambda: bool(launched), timeout=5000)  # the program is found in a worker
     assert launched == [("other", ["--open", path.as_uri()], str(path.parent))]
 
 
@@ -318,4 +319,40 @@ def test_open_in_external_editor_without_a_default_program(
     path = tmp_path / "big.in"
     numbered(path)
     open_text(qtbot, main_window, path).external_button.click()
+    qtbot.waitUntil(lambda: bool(opened), timeout=5000)
     assert opened == [str(path)]
+
+
+# -- the state after a read that ends without text -------------------------------------------------
+def read_alone(qtbot, path: Path) -> TextViewer:
+    viewer = TextViewer(path, ThemeManager("dark"))
+    qtbot.addWidget(viewer)
+    with qtbot.waitSignal(viewer.loaded, timeout=5000):
+        pass
+    return viewer
+
+
+def test_a_file_that_cannot_be_read_leaves_the_loading_state(qtbot, tmp_path):
+    viewer = read_alone(qtbot, tmp_path / "gone.in")
+    assert not viewer.loading
+    assert viewer.editor.placeholderText() == ""  # not "Carregando…"
+    assert not viewer.banner_bar.isHidden() and "gone.in" in viewer.banner.text()
+    assert viewer.load_all_button.isHidden()
+    assert not viewer.external_button.isHidden() and viewer.external_button.isEnabled()
+
+
+def test_an_empty_file_does_not_say_it_is_loading(qtbot, tmp_path):
+    empty = tmp_path / "empty.out"
+    empty.write_text("")
+    viewer = read_alone(qtbot, empty)
+    assert not viewer.loading and viewer.editor.placeholderText() == ""
+
+
+def test_the_editor_says_it_is_loading_while_a_read_is_in_progress(qtbot, tmp_path):
+    path = tmp_path / "a.out"
+    path.write_text("x\n")
+    viewer = TextViewer(path, ThemeManager("dark"))
+    qtbot.addWidget(viewer)
+    assert viewer.loading and viewer.editor.placeholderText() != ""
+    with qtbot.waitSignal(viewer.loaded, timeout=5000):
+        pass

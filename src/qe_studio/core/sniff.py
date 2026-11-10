@@ -49,6 +49,8 @@ class FileKind(StrEnum):
     PROJWFC_OUT = "projwfc_out"
     DOS_IN = "dos_in"
     DOS_OUT = "dos_out"
+    PP_IN = "pp_in"
+    PP_OUT = "pp_out"
     OTHER_OUT = "other_out"
     GNU_DATA = "gnu_data"
     FILBAND = "filband"
@@ -77,23 +79,28 @@ class FileSniff:
             FileKind.BANDSX_OUT,
             FileKind.PROJWFC_OUT,
             FileKind.DOS_OUT,
+            FileKind.PP_OUT,
             FileKind.OTHER_OUT,
         }
 
 
-_PROGRAM = re.compile(r"^\s*Program\s+([A-Z0-9_.]+)\s+v\.", re.M)
+# The program name of the banner: pp.x announces itself as ``POST-PROC`` (``postproc.f90:299``), with
+# a hyphen. ``qe/summary/scan.py`` reads the same banner.
+_PROGRAM = re.compile(r"^\s*Program\s+([A-Z0-9_.-]+)\s+v\.", re.M)
 _NAMELIST = re.compile(r"^\s*&(\w+)", re.M)
 _OUTPUT_KINDS = {
     "PWSCF": FileKind.PW_OUT,
     "BANDS": FileKind.BANDSX_OUT,
     "PROJWFC": FileKind.PROJWFC_OUT,
     "DOS": FileKind.DOS_OUT,
+    "POST-PROC": FileKind.PP_OUT,
 }
 _INPUT_KINDS = {
     "pw": FileKind.PW_IN,
     "bands": FileKind.BANDSX_IN,
     "projwfc": FileKind.PROJWFC_IN,
     "dos": FileKind.DOS_IN,
+    "pp": FileKind.PP_IN,
 }
 
 

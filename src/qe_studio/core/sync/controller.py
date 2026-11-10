@@ -15,8 +15,6 @@ The process handling it shares with the push is ``_process.RsyncRun``.
 from __future__ import annotations
 
 import logging
-import os
-import re
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
@@ -25,6 +23,7 @@ from ...i18n import _
 from ..config import AppConfig
 from ..tasks import run_task
 from ._process import RsyncRun
+from .partial import remove_temp_files
 from .planner import (
     ConflictResolver,
     Decision,
@@ -40,12 +39,16 @@ from .rsync import dry_run_command, parse_dry_run, transfer_command
 
 log = logging.getLogger(__name__)
 
-TEMP_NAME = re.compile(r"^\.(.+)\.[A-Za-z0-9]{6}$")  # rsync's partial file for ``name``
-
 
 def _pull_plan(stdout: str, local_dir: Path) -> SyncPlan:
     """Compares the dry-run listing with the local files: one stat per file, network homes."""
     return build_plan(parse_dry_run(stdout), local_dir)
+
+
+def _make_folder(local_dir: Path, files: list[str]) -> list[str]:
+    """``files``, once the folder the transfer writes into exists (maybe a network home)."""
+    local_dir.mkdir(parents=True, exist_ok=True)
+    return files
 
 
 class SyncController(RsyncRun):
@@ -178,7 +181,19 @@ class SyncController(RsyncRun):
         if not files:
             self._finish(SyncStatus.DONE)
             return
-        self._local_dir.mkdir(parents=True, exist_ok=True)
+        self._plan_task = run_task(
+            _make_folder,
+            self._local_dir,
+            files,
+            on_done=self._on_folder_ready,
+            on_error=self._on_plan_failed,
+        )
+
+    def _on_folder_ready(self, files: list[str]) -> None:
+        if self._running:  # cancel() dropped the mkdir of a cancelled run
+            self._step(self._send_files, files)
+
+    def _send_files(self, files: list[str]) -> None:
         argv = transfer_command(
             self.config, self._remote, self._local_dir, self._version, self.extra_args
         )
@@ -186,25 +201,9 @@ class SyncController(RsyncRun):
 
     # -- helpers ----------------------------------------------------------------------------------
     def _discard_partial(self) -> None:
-        self._remove_temp_files()
-
-    def _remove_temp_files(self) -> None:
-        """rsync writes ``.name.XXXXXX`` temps; SIGKILL can leave them behind."""
-        names: dict[Path, set[str]] = {}
-        for relative in self._transfer:
-            target = self._local_dir / relative
-            names.setdefault(target.parent, set()).add(target.name)
-        for folder, expected in names.items():  # one listing per folder, not one per file
-            try:
-                with os.scandir(folder) as entries:
-                    temps = [e.path for e in entries if _temp_of(e.name) in expected]
-            except OSError:
-                continue
-            for path in temps:
-                try:
-                    os.remove(path)
-                except OSError:
-                    continue
+        """rsync removes its temporary when it exits; a SIGKILL leaves it. In a worker, and the
+        report does not wait: one listing per folder, maybe on a network home."""
+        run_task(remove_temp_files, list(self._transfer), self._local_dir, self._transfer_began)
 
     def _report(
         self, status: SyncStatus, error: str | None, connection_failed: bool, auth_failed: bool
@@ -215,20 +214,16 @@ class SyncController(RsyncRun):
             status,
             self._local_dir,
             self._remote,
-            transferred=list(self._transfer) if status is SyncStatus.DONE else [],
+            transferred=list(self._delivered),
             skipped=[item.path for item in resolver.skipped] if resolver else [],
             local_newer=[item.path for item in local_newer],
             local_newer_folders=[] if self.scratch else self._plan.local_newer_folders,
             changed_locally=tuple(self._changed),
+            not_read=self._not_read,
             error=error,
             connection_failed=connection_failed,
             auth_failed=auth_failed,
         )
-
-
-def _temp_of(name: str) -> str | None:
-    match = TEMP_NAME.match(name)
-    return match.group(1) if match else None
 
 
 __all__ = ["Decision", "PlanItem", "SyncController", "SyncReport", "SyncStatus"]

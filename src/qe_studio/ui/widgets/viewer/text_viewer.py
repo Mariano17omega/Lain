@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QStackedWidget,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -28,6 +27,7 @@ from ....core.viewer import textfile
 from ....core.viewer.text_preview import TextPreview, read_preview
 from ....i18n import _
 from ...theme.manager import ThemeManager
+from ..common import tool_button
 from .code_view import CodeView
 from .highlighters import InputHighlighter, OutputHighlighter, ShellHighlighter, ThemedHighlighter
 from .input_view import InputView
@@ -52,14 +52,6 @@ SHORTCUTS = (
     ("previous_issue", "Shift+F8", _("Problema anterior de escrita")),
     ("escape", "Esc", _("Fechar a busca")),
 )
-
-
-def _tool(text: str, tip: str) -> QToolButton:
-    button = QToolButton()
-    button.setProperty("variant", "viewerTool")
-    button.setText(text)
-    button.setToolTip(tip)
-    return button
 
 
 class TextViewer(QWidget):
@@ -120,8 +112,8 @@ class TextViewer(QWidget):
         tools_layout = QHBoxLayout(self.tools)
         tools_layout.setContentsMargins(8, 2, 8, 2)
         tools_layout.setSpacing(4)
-        self.text_button = _tool(_("Texto"), _("Mostrar o texto do arquivo"))
-        self.rendered_button = _tool(_("Renderizado"), _("Mostrar o Markdown renderizado"))
+        self.text_button = tool_button(_("Texto"), _("Mostrar o texto do arquivo"))
+        self.rendered_button = tool_button(_("Renderizado"), _("Mostrar o Markdown renderizado"))
         modes = QButtonGroup(self)  # two positions: one is always on
         for button in (self.text_button, self.rendered_button):
             button.setCheckable(True)
@@ -129,9 +121,9 @@ class TextViewer(QWidget):
             modes.addButton(button)
             tools_layout.addWidget(button)
         tools_layout.addStretch(1)
-        self.start_button = _tool(_("Ir ao início"), _("Ir ao início (Ctrl+Home)"))
-        self.end_button = _tool(_("Ir ao fim"), _("Ir ao fim (Ctrl+End)"))
-        self.line_button = _tool(_("Ir à linha…"), _("Ir à linha (Ctrl+L)"))
+        self.start_button = tool_button(_("Ir ao início"), _("Ir ao início (Ctrl+Home)"))
+        self.end_button = tool_button(_("Ir ao fim"), _("Ir ao fim (Ctrl+End)"))
+        self.line_button = tool_button(_("Ir à linha…"), _("Ir à linha (Ctrl+L)"))
         for button in (self.start_button, self.end_button, self.line_button):
             tools_layout.addWidget(button)
 
@@ -199,7 +191,8 @@ class TextViewer(QWidget):
         self.load_all_button.setEnabled(False)
         self.external_button.setEnabled(False)
         self.rendered_button.setEnabled(False)  # until the read says whether it can be rendered
-        self._show(False)  # the editor's placeholder says "Carregando…"
+        self._show(False)
+        self.editor.set_loading(True)  # the empty editor says "Carregando…"
         self.editor.setPlainText("")
         if self._task is not None:
             self._task.cancel()
@@ -220,6 +213,7 @@ class TextViewer(QWidget):
 
     def _on_loaded(self, loaded: TextPreview) -> None:
         self._loading = False
+        self.editor.set_loading(False)
         self._size = loaded.size
         self.editor.setPlainText(loaded.text)
         self.editor.set_line_map(loaded.line_map)
@@ -310,10 +304,14 @@ class TextViewer(QWidget):
     def _on_failed(self, error: Exception) -> None:
         self._loading = False
         self._pending_line = None
+        self.editor.set_loading(False)
+        self.load_all_button.setVisible(False)  # nothing was read: there is nothing to load more of
+        self.external_button.setVisible(True)  # the one action left: another program may read it
+        self.external_button.setEnabled(True)
         self.search.set_busy(False)
         self._shortcuts["escape"].setEnabled(not self.search.isHidden())
         if not isinstance(error, OSError):  # a parser bug: the banner says it, the log has it
-            log.error("cannot show %s", self.path, exc_info=error)
+            log.error("tab: cannot show %s", self.path, exc_info=error)
         self._set_banner(
             _("Não foi possível abrir o arquivo: {error}").format(error=error), "warning"
         )

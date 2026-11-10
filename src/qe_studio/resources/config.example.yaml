@@ -84,6 +84,9 @@ sync:
   push_exclude:
     - plots/
     - "*.plot"
+  # Windows only: what comes before the drive letter in rsync's paths. /cygdrive for cwRsync
+  # (/cygdrive/c/Users), "" for MSYS2 (/c/Users).
+  cygdrive_prefix: /cygdrive
 
 plot:
   # Default energy window (eV, relative to the reference energy).

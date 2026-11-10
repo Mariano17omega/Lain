@@ -3,6 +3,7 @@
 import pytest
 
 from fragment_helpers import SMALL
+from qe_studio.core.calc_create.overrides import apply_overrides
 from qe_studio.core.calc_create.render import template_names
 from qe_studio.core.calc_create.types import by_id, visible_fields
 from qe_studio.core.calc_create.types.charge_diff import ATOMS_TAB, DIFF_TEMPLATE
@@ -331,7 +332,7 @@ def test_the_format_and_the_folder_apply_to_the_four_pp_inputs():
         output_format="3 — XCrySDen (2D ou região 3D)",
         xsf_dir="saida/xsf",
     )
-    assert result.errors == ()
+    assert not result.problems
     for key in ("pp_base", "pp_clean", "pp_isolated", "pp_diff"):
         text = text_of(result, key)
         assert "iflag = 2," in text and "output_format = 3," in text
@@ -357,7 +358,20 @@ def test_a_format_that_does_not_fit_the_plot_is_marked():
     result = plan(mode="avancado", iflag="2 — gráfico 2D")  # 5 (XSF 3D) needs iflag = 3
     assert list(result.problems) == ["output_format"]
     assert "output_format = 5 não vale para iflag = 2" in result.errors[0]
-    assert plan(mode="avancado", iflag="1 — gráfico 1D").ok  # pp.x ignores the format there
+    assert not plan(mode="avancado", iflag="1 — gráfico 1D").problems  # pp.x ignores it there
+
+
+def test_a_plot_other_than_3d_needs_its_keys_in_the_four_pp_inputs():
+    result = plan(mode="avancado", iflag="1 — gráfico 1D")
+    assert len(result.text_errors) == 4 and not result.ok
+    keys = ("pp_base", "pp_clean", "pp_isolated", "pp_diff")
+    typed = {
+        key: text_of(result, key).replace("iflag = 1,", "iflag = 1,\ne1(1) = 1.0,\nnx = 100,")
+        for key in keys
+    }
+    assert apply_overrides(result, typed, CHARGE_DIFF).ok
+    one_left = {key: typed[key] for key in keys[:3]}
+    assert len(apply_overrides(result, one_left, CHARGE_DIFF).text_errors) == 1
 
 
 def test_the_names_are_checked_like_the_other_types():

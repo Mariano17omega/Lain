@@ -1,10 +1,19 @@
-"""Small data holders of the painter renderer: frame counts, projection and the primitive table."""
+"""Small data holders of the painter renderer (frame counts, projection, the primitive table) and
+the colour mix its two painters share."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 import numpy as np
+from PyQt6.QtGui import QColor
+
+
+def mix(rgb: np.ndarray, other: float, amount: float) -> QColor:
+    """``rgb`` (0..255) moved ``amount`` of the way to the grey level ``other``."""
+    out = rgb * (1 - amount) + other * amount
+    return QColor(int(out[0]), int(out[1]), int(out[2]))
+
 
 COLUMNS = ("kind", "x1", "y1", "x2", "y2", "depth", "size", "spec", "ghost", "aux")
 

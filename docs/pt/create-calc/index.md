@@ -36,6 +36,7 @@
 - A pasta é nova: `<número>_<Tipo>[_sufixo]` (veja [numeração](../folders.md#numeracao-das-pastas-do-criar-calculo)); uma pasta
   que existe nunca é sobrescrita.
 - `jobs.cores` (NP), `jobs.nk`, `jobs.pseudo_dir` e `jobs.myemail` do `config.yaml` definem os padrões do script.
+  Um input com `K_POINTS gamma` (ou sem o card) com `nk` maior que 1 recebe um aviso: o `pw.x` para com pools nesse caso.
 - **Gerar fingerprint.md** (desligado por padrão, lembrado): registra tipo, nome final, hora, versão do Lain e SCFs de
   origem.
 - Todo script segue o modelo atual do cluster (SGE + Intel MPI), em `resources/templates/qsub/`.

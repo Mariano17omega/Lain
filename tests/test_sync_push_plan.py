@@ -3,6 +3,9 @@
 import os
 from pathlib import Path
 
+import pytest
+
+from qe_studio.core import cancel
 from qe_studio.core.config import parse_config
 from qe_studio.core.sync import request as sync_request
 from qe_studio.core.sync.planner import Action, PlanItem, SyncPlan
@@ -163,6 +166,31 @@ def test_nothing_is_pushed_into_the_cluster_trash(tmp_path):
     own = tmp_path / "ilita" / "trash" / "bandas"
     own.mkdir(parents=True)
     assert isinstance(prepare_push(config(tmp_path), own), PushRequest)
+
+
+def test_a_scratch_copy_is_never_pushed(tmp_path):
+    """Spec 66: the fixed exclusion covers ``tmp_remote/`` inside a transfer, not one that starts
+    at it. A folder that only has the word in its name is the user's."""
+    scratch = tmp_path / "ilita" / "bandas_1" / "tmp_remote"
+    plots = scratch / "plots_remote"
+    plots.mkdir(parents=True)
+    refused = SyncRefusal("warning", sync_request.PUSH_SCRATCH)
+    for folder in (scratch, plots):
+        assert prepare_push(config(tmp_path), folder) == refused
+        assert push_availability(config(tmp_path), folder) == sync_request.PUSH_SCRATCH
+    own = tmp_path / "ilita" / "tmp_remote_old"
+    (own / "x").mkdir(parents=True)
+    assert isinstance(prepare_push(config(tmp_path), own / "x"), PushRequest)
+
+
+def test_a_cancelled_task_stops_the_push_plan(tmp_path):
+    records = [DryRunItem("<f+++++++++", 1, T0, "a.in")]
+
+    class Token:
+        cancelled = True
+
+    with cancel.bind(Token()), pytest.raises(cancel.Cancelled):
+        build_push_plan(records, tmp_path)
 
 
 def test_prepare_push(tmp_path):

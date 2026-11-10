@@ -60,6 +60,11 @@ class BandsDosModule(CalculationModule[BandsDosDataset, BandsDosParams]):
     def load(self, result: DetectionResult, sniff: SniffFn) -> BandsDosDataset:
         return load_dataset(result, sniff)
 
+    def load_cached(self, result: DetectionResult, sniff: SniffFn) -> BandsDosDataset:
+        """``load``, not kept: its two parts are cached on their own, and an entry of its own would
+        charge their arrays to the budget a second time."""
+        return self.load(result, sniff)
+
     def default_params(self, config: AppConfig, dataset: BandsDosDataset) -> BandsDosParams:
         return params_mod.default_params(config, dataset)
 
@@ -84,13 +89,14 @@ class BandsDosModule(CalculationModule[BandsDosDataset, BandsDosParams]):
         return bands_dos_table(dataset, params)
 
     # -- view hooks ----------------------------------------------------------------------------
-    def apply_limits(self, params: BandsDosParams, axes_limits: AxesLimits) -> None:
+    def apply_limits(
+        self, dataset: BandsDosDataset, params: BandsDosParams, axes_limits: AxesLimits
+    ) -> None:
         """Axes 0 (bands): k and the shared energy; axes 1 (DOS): its density limit."""
         (xlim, ylim), (dos_lim, _ylim) = axes_limits[0], axes_limits[1]
         params.emin, params.emax = ylim
         params.xmin, params.xmax = xlim
-        mirrored = params.spin_mode == "mirror"
-        params.dos_max = max(abs(dos_lim[0]), abs(dos_lim[1])) if mirrored else dos_lim[1]
+        params.dos_max = pdos_render.dos_max_of_view(dataset.dos, dos_view(params), dos_lim)
 
     def format_coordinates(
         self, x: float, y: float, axes_index: int, dataset: BandsDosDataset, params: BandsDosParams

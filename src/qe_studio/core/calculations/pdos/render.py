@@ -15,12 +15,12 @@ from ...plotting.draw import finish, new_axes
 from ...plotting.gap_label import gap_handle, gap_label
 from ...plotting.style import PlotStyle
 from ...qe import projwfc
-from ..params import RenderInfo, gap_method_in_force
+from ..params import MID_GAP, RenderInfo, gap_method_in_force
 from ..readout import signed
 from .atoms import notes
 from .data import PdosDataset
 from .gap import gap_for, gap_notes
-from .params import DEFAULT_ORBITAL_COLORS, PdosParams
+from .params import DEFAULT_ORBITAL_COLORS, PdosParams, is_shifted, reference
 
 
 def series_label(key: tuple[str, str]) -> str:
@@ -76,17 +76,28 @@ def spin_mode(dataset: PdosDataset, params: PdosParams) -> str:
     return "mirror"
 
 
-def reference(dataset: PdosDataset, params: PdosParams) -> float:
-    """The energy the plot is measured from: E_F of the chosen run, or 0 (absolute energies)."""
-    fermi = dataset.fermi(params.fermi_source)
-    return fermi if params.shift_to_fermi and fermi is not None else 0.0
+def is_mirrored(dataset: PdosDataset, params: PdosParams) -> bool:
+    """Is the ↓ channel drawn below zero, on a DOS axis symmetric around it?"""
+    return dataset.data.spin_polarized and spin_mode(dataset, params) == "mirror"
+
+
+def dos_max_of_view(
+    dataset: PdosDataset, params: PdosParams, view: tuple[float, float]
+) -> float | None:
+    """The ``dos_max`` a toolbar view of the DOS axis stands for: the larger side of a mirrored
+    axis, else the top of the view (the axis starts at 0). A view with no positive density to keep
+    leaves the limit as it is."""
+    if is_mirrored(dataset, params):
+        return max(abs(view[0]), abs(view[1]))
+    top = max(view)
+    return top if top > 0 else params.dos_max
 
 
 def render_pdos(
     figure: FigureBase, dataset: PdosDataset, params: PdosParams, style: PlotStyle
 ) -> RenderInfo:
     ax = new_axes(figure, style)
-    fermi = dataset.fermi(params.fermi_source)
+    fermi = dataset.fermi_level(params.fermi_source)
     ref = reference(dataset, params)
     pair = dataset.fermi_channels(params.fermi_source)
     dos_lim = draw_pdos(ax, dataset, params, style, ref, fermi, pair)
@@ -178,11 +189,11 @@ def draw_pdos(
         if label not in params.hidden_series:
             channel(ch, colors[label], label, params.line_width, 0.22)
 
-    mirrored = spin and mode == "mirror"
+    mirrored = is_mirrored(dataset, params)
     top = params.dos_max if params.dos_max else (peak * 1.08 or 1.0)
     dos_lim = (-top if mirrored else 0.0, top)
     e_lim = (params.emin, params.emax)
-    e_label = r"$E - E_F$ (eV)" if ref else r"$E$ (eV)"
+    e_label = r"$E - E_F$ (eV)" if is_shifted(dataset, params) else r"$E$ (eV)"
     dos_label = _("PDOS (estados/eV)")
     guide = {"color": style.guide, "lw": 0.7, "zorder": 0}
     if vertical:
@@ -271,8 +282,7 @@ def format_coordinates(
 ) -> str:
     """``E − E_F = −1.234 eV · PDOS = 0.873 est./eV``; the DOS is on X when vertical."""
     energy, dos = (y, x) if params.orientation == "vertical" else (x, y)
-    shifted = params.shift_to_fermi and dataset.fermi(params.fermi_source) is not None
-    name = "E − E_F" if shifted else "E"
+    name = "E − E_F" if is_shifted(dataset, params) else "E"
     return _("{name} = {energy} eV · PDOS = {dos} est./eV").format(
         name=name, energy=signed(energy, ".3f"), dos=signed(dos, ".3f")
     )
@@ -280,12 +290,12 @@ def format_coordinates(
 
 def summary(dataset: PdosDataset, params: PdosParams) -> str:
     parts = []
-    fermi = dataset.fermi(params.fermi_source)
+    fermi = dataset.fermi_level(params.fermi_source)
     source = params.fermi_source.upper()
     if (pair := dataset.fermi_channels(params.fermi_source)) is not None:
         parts.append(f"E_F↑ = {pair[0]:.4f} eV · E_F↓ = {pair[1]:.4f} eV ({source})")
     elif fermi is not None:
-        parts.append(f"E_F = {fermi:.4f} eV ({source})")
+        parts += _fermi_parts(dataset, params.fermi_source, fermi)
     parts += _gap_parts(dataset, params)
     data = dataset.data
     parts.append(
@@ -307,6 +317,19 @@ def summary(dataset: PdosDataset, params: PdosParams) -> str:
                 _("M = {magnetization:.2f} μB/célula").format(magnetization=dataset.magnetization)
             )
     return " · ".join(parts)
+
+
+HOMO_KINDS = ("homo", "homo_lumo")  # fixed occupations: pw.x printed the top of the valence
+
+
+def _fermi_parts(dataset: PdosDataset, source: str, level: float) -> list[str]:
+    """E_F as drawn. In the middle of a gap, what pw.x printed stays only if it is a HOMO: as in
+    the bands, an arbitrary point of the gap says nothing a reader needs (spec 91 R5)."""
+    printed, run = dataset.fermi(source), f"({source.upper()})"
+    if printed is None or level == printed:
+        return [f"E_F = {level:.4f} eV {run}"]
+    homo = [f"HOMO = {printed:.4f} eV {run}"] if dataset.fermi_kind(source) in HOMO_KINDS else []
+    return [*homo, f"E_F = {level:.4f} eV {MID_GAP}"]
 
 
 # Where the footer says the gap of each method was found; ``auto`` adds nothing (spec 34).

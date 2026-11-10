@@ -1,12 +1,14 @@
 """Species label → chemical element, with radii and Jmol colors (tables from ``ase.data``).
 
 The label rule is ``surface/elements.element_of``'s (ASE's ``label_to_symbol``: the first two characters when
-they are a symbol, else the first one: ``Fe1``, ``Fe_up`` → Fe; ``C2`` → C), but an unknown label never
-raises here: it is a gray atom of 1.0 Å (``known=False``). ``ase.data`` is imported on first use only.
+they are a symbol, else the first one: ``Fe1``, ``Fe_up`` → Fe; ``C2`` → C), but deuterium and tritium (``D``,
+``T1``) are hydrogen and an unknown label never raises here: it is a gray atom of 1.0 Å (``known=False``).
+``ase.data`` is imported on first use only.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import cache
 
@@ -20,6 +22,7 @@ UNKNOWN_RADIUS = 1.0  # Å, covalent and van der Waals radius of an unknown elem
 UNKNOWN_COLOR = (0.5, 0.5, 0.5)
 VDW_FALLBACK = 1.8  # Å, for elements with no van der Waals radius in ASE
 _FALLBACK_COLOR = (0.7, 0.7, 0.7)  # elements beyond the Jmol table
+_HYDROGEN_ISOTOPE = re.compile(r"[DT](?![A-Z])", re.IGNORECASE)  # D, T1, d_up; never Du, Tx
 
 _NAMES = (  # Portuguese element names by Z
     _(
@@ -76,7 +79,7 @@ def symbol_from_label(label: str) -> str | None:
         return two
     if label[:1].upper() in table:
         return label[:1].upper()
-    return None
+    return "H" if _HYDROGEN_ISOTOPE.match(label) else None
 
 
 def element_by_z(z: int) -> ElementInfo:

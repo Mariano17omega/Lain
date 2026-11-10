@@ -38,6 +38,19 @@ def view(request, qtbot, windows):
     return window
 
 
+@pytest.mark.parametrize("frame", ["reset_view", "view_along"])
+def test_framing_uses_the_projection_of_the_options(windows, frame):
+    """The camera is told the projection when painting, which comes after the first framing."""
+    canvas = windows.open(SI_SCF).canvas
+    canvas.options.perspective = False
+    canvas.camera.perspective = True
+    if frame == "reset_view":
+        canvas.reset_view()
+    else:
+        canvas.view_along("c")
+    assert canvas.camera.perspective is False
+
+
 def test_the_gestures_move_the_camera(view):
     zoom, pan, rotation = camera_state(view.canvas)
     initial_zoom, initial_pan, initial_rotation = view.initial
@@ -127,6 +140,46 @@ def test_the_camera_stays(qtbot, view, action):
     action(qtbot, view)
     view.canvas.repaint()
     assert same_camera(camera_state(view.canvas), before)
+
+
+@pytest.mark.parametrize(
+    ("key", "modifier"),
+    [
+        (Qt.Key.Key_C, Qt.KeyboardModifier.ControlModifier),
+        (Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier),
+        (Qt.Key.Key_A, Qt.KeyboardModifier.ControlModifier),
+        (Qt.Key.Key_X, Qt.KeyboardModifier.AltModifier),
+        (Qt.Key.Key_R, Qt.KeyboardModifier.ControlModifier),
+        (Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier),
+    ],
+)
+def test_a_chord_with_ctrl_or_alt_is_not_a_camera_key(qtbot, view, key, modifier):
+    """Ctrl+C or Ctrl+Z is not "view along c" / "along z", and changes no saved option."""
+    canvas = view.canvas
+    canvas.dirty = False
+    before, perspective = camera_state(canvas), canvas.options.perspective
+    qtbot.keyClick(canvas, key, modifier)
+    assert same_camera(camera_state(canvas), before)
+    assert canvas.options.perspective == perspective and not canvas.dirty
+
+
+def test_shift_does_not_stop_the_keys_that_need_it(qtbot, view):
+    """ "+" is Shift+= on many keyboards: zoom still answers."""
+    zoom = view.canvas.camera.zoom
+    qtbot.keyClick(view.canvas, Qt.Key.Key_Plus, Qt.KeyboardModifier.ShiftModifier)
+    assert view.canvas.camera.zoom > zoom
+
+
+def test_the_renderer_follows_every_rebuilt_scene(view):
+    """It holds the scene it drew (an ``id()`` of a freed one can come back for the next), so the
+    atoms it picks are always those of the scene on show."""
+    canvas = view.canvas
+    for reps in (2, 3, 1, 2):
+        view.panel.reps[0].setValue(reps)
+        canvas.grab()
+        assert canvas.renderer._scene is canvas.scene
+        assert canvas.renderer._refs == canvas.scene.refs
+        assert len(canvas.renderer._ref_index) == len(canvas.scene.refs)
 
 
 def test_r_and_the_button_restore_the_initial_view(qtbot, view):

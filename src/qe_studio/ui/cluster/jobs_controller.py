@@ -24,7 +24,8 @@ from PyQt6.QtCore import QObject, Qt, QThreadPool, QTimer, pyqtSignal
 from PyQt6.QtGui import QGuiApplication
 
 from ...core.config import AppConfig
-from ...core.remote.cluster_jobs import Job, JobsFailure, JobsSnapshot, fetch_jobs
+from ...core.remote.cluster_jobs import Job, JobsSnapshot, fetch_jobs
+from ...core.remote.failure import RemoteFailure
 from ...core.tasks import TaskGroup
 from ...i18n import _
 from ..widgets.cluster.jobs_indicator import JobsIndicator
@@ -37,7 +38,7 @@ KEY = "jobs"
 
 
 class JobsController(QObject):
-    fetched = pyqtSignal(object)  # JobsSnapshot | JobsFailure, after every answer
+    fetched = pyqtSignal(object)  # JobsSnapshot | RemoteFailure, after every answer
 
     def __init__(
         self,
@@ -49,7 +50,7 @@ class JobsController(QObject):
     ):
         super().__init__(parent)
         self.indicator, self.popup, self.sync, self.config = indicator, popup, sync, config
-        self.result: JobsSnapshot | JobsFailure | None = None  # the cache of the session
+        self.result: JobsSnapshot | RemoteFailure | None = None  # the cache of the session
         self.paused = False  # a refused login or a missing command: only a click asks again
         self._clock: Callable[[], float] = time.monotonic
         self._answered_at: float | None = None  # by ``_clock``
@@ -141,7 +142,7 @@ class JobsController(QObject):
     def query(self) -> None:
         if not self.enabled or self._stopped:
             return
-        password = self._password()
+        password = self.sync.typed_password(self.config.cluster)
         if password is None and self._needs_password():
             self._show()  # "Jobs: informe a senha": the click asks
             return
@@ -151,13 +152,7 @@ class JobsController(QObject):
         self.popup.set_busy(True)
 
     def _needs_password(self) -> bool:
-        cluster = self.config.cluster
-        return cluster.auth == "password" and cluster.resolve_password() is None
-
-    def _password(self) -> str | None:
-        """The one typed in this session, when the config has none (``child_env`` reads the
-        config's itself)."""
-        return self.sync.session_password(ask=False) if self._needs_password() else None
+        return self.sync.needs_password(self.config.cluster)
 
     def _stale(self) -> bool:
         if self._answered_at is None:
@@ -165,23 +160,15 @@ class JobsController(QObject):
         return self._clock() - self._answered_at > self.config.cluster.jobs_poll_seconds
 
     def _on_error(self, key: Hashable, error: Exception) -> None:
-        log.error("jobs query failed", exc_info=error)
+        log.error("cluster: jobs query failed", exc_info=error)
         message = _("Falha ao consultar os jobs: {error}").format(error=error)
-        self._on_result(key, JobsFailure(message, local=True))
+        self._on_result(key, RemoteFailure(message, local=True))
 
-    def _on_result(self, _key: Hashable, result: JobsSnapshot | JobsFailure) -> None:
+    def _on_result(self, _key: Hashable, result: JobsSnapshot | RemoteFailure) -> None:
         self.result, self._answered_at, self._index = result, self._clock(), 0
-        monitor = self.sync.monitor
-        if isinstance(result, JobsSnapshot):
-            monitor.report(True)
-        elif result.connection:
-            monitor.report(False)
-        elif not (result.auth or result.local):
-            monitor.report(True)  # the cluster answered: it is the command that failed
-        if isinstance(result, JobsFailure) and (result.auth or result.missing):
+        self.sync.report_remote(result if isinstance(result, RemoteFailure) else None)
+        if isinstance(result, RemoteFailure) and (result.auth or result.missing):
             self.paused = True
-            if result.auth:
-                self.sync.forget_password()
         self._show()
         if self.popup.isVisible():
             self._fill_popup()
@@ -196,18 +183,18 @@ class JobsController(QObject):
     def _show(self) -> None:
         cluster = self.config.cluster
         result = self.result
-        account = f"{cluster.user}@{cluster.host}"
+        account = cluster.account
         mine: tuple[Job, ...] = ()
         if self._needs_password() and self.sync.session_password(ask=False) is None:
             hint = _("Clique para informar a senha de {account} (não é salva).")
             tip = hint.format(account=account)
-            if isinstance(result, JobsFailure):
+            if isinstance(result, RemoteFailure):
                 tip = f"{result.message}\n{tip}"
             text = _("Jobs: informe a senha")
         elif result is None:
             text, tip = _("Consultando jobs…"), _("Consultando a fila do cluster ({account})…")
             tip = tip.format(account=account)
-        elif isinstance(result, JobsFailure):
+        elif isinstance(result, RemoteFailure):
             text, tip = _("Jobs indisponíveis"), result.message
         else:
             mine = result.mine(cluster.user)
@@ -247,7 +234,7 @@ class JobsController(QObject):
         result = self.result
         if isinstance(result, JobsSnapshot):
             self.popup.show_snapshot(result, self.config.cluster.user)
-        elif isinstance(result, JobsFailure):
+        elif isinstance(result, RemoteFailure):
             self.popup.show_failure(result.message)
         else:
             self.popup.show_loading()

@@ -24,6 +24,7 @@ from .species_keys import remap_hubbard, remap_species_keys
 __all__ = [
     "CLEAN",
     "ISOLATED",
+    "WHOLE_SYSTEM_KEYS",
     "AtomRow",
     "AtomRows",
     "Fragments",

@@ -5,9 +5,10 @@ A member of the ``<kind>.plot`` family (``lain_plot: 1``, ``kind: view3d``, read
 (``view_state.session_of``). The key is the name, not the path: the file lives in the folder whose
 ``plots/`` holds the ``view3d.plot``, so a moved or renamed folder takes its views along.
 
-Writing touches only its own section: the others stay as they were read (order and unknown keys), and an
-unreadable file or one of another version is replaced, like ``write_plot_file`` does with a ``.plot``. A
-folder that is gone is never created again (``atomic_write_text`` would make it and its ``plots/``:
+Writing touches only its own section: the others stay as they were read (order and unknown keys), and a
+corrupt file or one of another version is replaced, like ``write_plot_file`` does with a ``.plot``. A file
+that could not be read (a disk or network error) says nothing about what it holds: it stays as it is and
+the view is not saved. A folder that is gone is never created again (``atomic_write_text`` would make it and its ``plots/``:
 a window closed after its folder was renamed would leave a ghost folder under the old name). Nothing
 here raises: what went wrong comes back as a sentence for the user.
 """
@@ -23,7 +24,12 @@ import yaml
 
 from ...i18n import _
 from ..appdirs import atomic_write_text
-from ..plotting.plot_file import FORMAT_VERSION, plot_file_path, read_plot_file
+from ..plotting.plot_file import (
+    FORMAT_VERSION,
+    plot_file_path,
+    read_plot_file,
+    read_plot_file_checked,
+)
 from .model import Structure
 from .source import read_structure
 
@@ -96,11 +102,11 @@ def write_session(folder: str | Path, name: str, session: dict[str, Any]) -> str
         return _(
             "A pasta {name} não existe mais: a vista de {name_2} não foi salva em {name_3}."
         ).format(name=folder.name, name_2=name, name_3=view_file_path(folder).name)
-    sections, _warnings = read_plot_file(folder, VIEW_KIND)  # unreadable: replaced
-    sections = dict(sections) if sections is not None else {}
-    sections[name] = session  # in place when it was there, else at the end
     path = view_file_path(folder)
     try:
+        sections, _warnings = read_plot_file_checked(folder, VIEW_KIND)  # corrupt: replaced
+        sections = dict(sections) if sections is not None else {}
+        sections[name] = session  # in place when it was there, else at the end
         atomic_write_text(path, _dump(sections))
     except (OSError, yaml.YAMLError) as exc:
         log.warning("writing %s failed: %s", path, exc)

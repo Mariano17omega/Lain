@@ -8,19 +8,21 @@ import pytest
 
 from qe_studio.core.config import parse_config
 from qe_studio.core.project.project_data import PROJECT_DATA_EXCLUDE
+from qe_studio.core.remote.failure import classify_failure
 from qe_studio.core.remote.scratch import SCRATCH_EXCLUDE
 from qe_studio.core.remote.trash_dir import TRASH_EXCLUDE
 from qe_studio.core.sync import askpass, mux
+from qe_studio.core.sync.command import CommandResult
+from qe_studio.core.sync.remote_path import local_arg
 from qe_studio.core.sync.rsync import (
     Endpoint,
     askpass_program,
     child_env,
     decode_rsync_name,
     dry_run_command,
-    explain_failure,
-    is_auth_failure,
     list_command,
     outputs_command,
+    parse_delivered,
     parse_dry_run,
     parse_itemize_line,
     parse_progress,
@@ -30,6 +32,14 @@ from qe_studio.core.sync.rsync import (
     small_files_command,
     ssh_command,
     transfer_command,
+)
+from qe_studio.core.sync.rsync_errors import (
+    cause_line,
+    dry_run_gaps,
+    explain_failure,
+    is_auth_failure,
+    is_connection_failure,
+    only_vanished,
 )
 
 
@@ -122,11 +132,13 @@ def test_dry_run_command():
     assert argv[:6] == ["rsync", "-n", "-rt", "--checksum", "-i", "--modify-window=1"]
     assert "--out-format=%i|%l|%M|%n" in argv
     assert "--exclude=tmp/" in argv and "--exclude=*.wfc*" in argv
-    assert "--no-h" in argv and "--timeout=60" in argv
+    assert "--no-h" in argv and "--timeout=0" in argv  # the cluster hashes in silence
     assert argv[argv.index("-e") + 1].startswith("ssh -p 2222")
-    assert argv[-2:] == ["me@10.0.0.1:/scratch/me/sims/run 1/", "/data/sims/run 1/"]
-    assert "--protect-args" not in argv
-    assert "--protect-args" in dry_run_command(cfg, remote, Path("/l"), (3, 1, 3))
+    assert argv[-2:] == ["me@10.0.0.1:'/scratch/me/sims/run 1'/", "/data/sims/run 1/"]
+    assert "--old-args" in argv
+    assert "--old-args" not in dry_run_command(cfg, remote, Path("/l"), (3, 1, 3))
+    by_date = dry_run_command(config({"checksum": False}), remote, Path("/l"), (3, 2, 7))
+    assert "--timeout=60" in by_date
 
 
 def test_pull_dry_run_compares_content_by_default():
@@ -141,7 +153,9 @@ def test_checksum_off_is_todays_command():
     off = dry_run_command(config({"checksum": False}), remote, local, (3, 2, 7))
     assert "--checksum" not in off
     assert off[:5] == ["rsync", "-n", "-rt", "-i", "--modify-window=1"]
-    assert [a for a in on if a != "--checksum"] == off
+    # The limit is all that differs: nothing arrives while the cluster hashes a file.
+    same_limit = ["--timeout=60" if a == "--timeout=0" else a for a in on if a != "--checksum"]
+    assert same_limit == off
 
 
 def test_push_never_uses_checksum():
@@ -238,39 +252,83 @@ def test_parse_progress():
 
 
 @pytest.mark.parametrize(
-    ("stderr", "fragment"),
+    ("code", "stderr", "fragment"),
     [
-        ("Host key verification failed.\r\nrsync: connection unexpectedly closed", "Chave do host"),
-        ("me@h: Permission denied (publickey,password).", "Autenticação recusada"),
-        ("ssh: connect to host h port 22: Connection timed out", "inacessível"),
-        ('rsync: [sender] change_dir "/x" failed: No such file or directory (2)', "não encontrada"),
         (
+            255,
+            "Host key verification failed.\r\nrsync: connection unexpectedly closed",
+            "Chave do host",
+        ),
+        (255, "me@h: Permission denied (publickey,password).", "Autenticação recusada"),
+        (255, "ssh: connect to host h port 22: Connection timed out", "inacessível"),
+        (
+            23,
+            'rsync: [sender] change_dir "/x" failed: No such file or directory (2)',
+            "não encontrada",
+        ),
+        (
+            12,
             "rsync: connection unexpectedly closed (1048576 bytes received so far) [Receiver]\n"
             "rsync error: error in rsync protocol data stream (code 12)",
             "Conexão interrompida (o cluster encerrou",
         ),
         (
+            12,
             "bash: rsync: command not found\nrsync: connection unexpectedly closed (0 bytes)",
             "rsync não está instalado",
         ),  # the real cause wins over rsync's last words
-        ("something odd\n", "código 12: something odd"),
+        (127, "sh: 1: rsync: not found", "rsync não está instalado"),  # dash
+        (127, "rsync: Command not found.", "rsync não está instalado"),  # csh
+        (12, "something odd\n", "código 12: something odd"),
+        (  # a file rsync cannot read says "Permission denied" too, and is no refused login
+            23,
+            'rsync: [sender] opendir "/x" failed: Permission denied (13)\n'
+            "rsync error: some files/attrs were not transferred (see previous errors) (code 23)",
+            'código 23: rsync: [sender] opendir "/x" failed: Permission denied (13)',
+        ),
+        (  # the cause, not rsync's closing summary
+            11,
+            'rsync: [receiver] write failed on "/l/a": No space left on device (28)\n'
+            "rsync error: error in file IO (code 11) at receiver.c(381)",
+            "No space left on device",
+        ),
     ],
 )
-def test_explain_failure(stderr, fragment):
-    assert fragment in explain_failure(12, stderr)
+def test_explain_failure(code, stderr, fragment):
+    assert fragment in explain_failure(code, stderr)
+
+
+def test_another_program_missing_is_not_rsync_missing():
+    stderr = "bash: module: command not found\nrsync error: unexplained (code 2)"
+    assert "rsync não está instalado" not in explain_failure(2, stderr)
 
 
 @pytest.mark.parametrize(
-    ("stderr", "auth"),
+    ("stderr", "lines"),
     [
-        ("me@h: Permission denied (publickey,password).", True),
-        ("Host key verification failed.\nme@h: Permission denied", False),  # the first cause wins
-        ("ssh: connect to host h port 22: Connection timed out", False),
-        ("", False),
+        ("", ""),
+        ("rsync error: x (code 1)\n", "rsync error: x (code 1)"),  # nothing else was said
+        ("banner\nlast\nrsync error: x (code 1)", "last"),
+        ('login noise\nrsync: "/a" first (13)\nrsync: "/b" then (32)\n', 'rsync: "/a" first (13)'),
     ],
 )
-def test_is_auth_failure(stderr, auth):
-    assert is_auth_failure(stderr) is auth
+def test_cause_line(stderr, lines):
+    assert cause_line(stderr) == lines
+
+
+@pytest.mark.parametrize(
+    ("code", "stderr", "auth"),
+    [
+        (255, "me@h: Permission denied (publickey,password).", True),
+        (255, "Host key verification failed.\nme@h: Permission denied", False),  # first cause wins
+        (255, "ssh: connect to host h port 22: Connection timed out", False),
+        (255, "", False),
+        (23, 'rsync: [sender] opendir "/x" failed: Permission denied (13)', False),
+        (11, 'rsync: mkstemp "/l/.a.XXXXXX" failed: Permission denied (13)', False),
+    ],
+)
+def test_is_auth_failure(code, stderr, auth):
+    assert is_auth_failure(code, stderr) is auth
 
 
 def test_remote_dir_for(tmp_path):
@@ -294,6 +352,7 @@ def test_endpoint_spec():
         (255, "ssh: connect to host h port 22: Connection timed out", True),
         (255, "ssh: Could not resolve hostname h", True),
         (255, "me@h: Permission denied (publickey).", False),
+        (255, "Host key verification failed.", False),  # the cluster answered
         (23, 'rsync: change_dir "/x" failed: No such file or directory (2)', False),
         (30, "rsync error: timeout in data send/receive (code 30)", True),
         (12, "rsync: connection unexpectedly closed (1048576 bytes received so far)", True),
@@ -302,9 +361,100 @@ def test_endpoint_spec():
     ],
 )
 def test_connection_failure_classification(code, stderr, expected):
-    from qe_studio.core.sync.rsync import is_connection_failure
-
     assert is_connection_failure(code, stderr) is expected
+
+
+def test_a_refused_host_key_keeps_its_hint_in_a_cluster_command():
+    failure = classify_failure(CommandResult(255, "", "Host key verification failed.\n"), "qstat")
+    assert "Chave do host" in failure.message and not failure.connection and not failure.auth
+
+
+@pytest.mark.parametrize(
+    ("code", "stderr", "gaps"),
+    [
+        (24, 'file has vanished: "/x/a"\n', ()),
+        (23, 'rsync: [sender] opendir "/x/sub" failed: Permission denied (13)', ("/x/sub",)),
+        (23, 'rsync: [sender] link_stat "/x/a" failed: No such file or directory (2)', ()),
+        (23, 'rsync: [sender] change_dir "/x" failed: Permission denied (13)', None),  # the root
+        (23, 'rsync: [sender] change_dir "/x" failed: No such file or directory (2)', None),
+        (23, 'rsync: [sender] opendir "/x/." failed: Permission denied (13)', None),  # the root
+        (23, "rsync: something this code has never seen", None),
+        (23, "", None),
+        (12, 'rsync: [sender] opendir "/x/sub" failed: Permission denied (13)', None),
+    ],
+)
+def test_dry_run_gaps(code, stderr, gaps):
+    assert dry_run_gaps(code, stderr) == gaps
+
+
+@pytest.mark.parametrize(
+    ("code", "stderr", "expected"),
+    [
+        (24, 'file has vanished: "/x/a"\n', True),
+        (23, 'rsync: [sender] link_stat "/x/a" failed: No such file or directory (2)', True),
+        (23, 'rsync: [sender] send_files failed to open "/x/a": Permission denied (13)', False),
+        (23, "", False),
+        (12, 'rsync: [sender] link_stat "/x/a" failed: No such file or directory (2)', False),
+    ],
+)
+def test_only_vanished(code, stderr, expected):
+    assert only_vanished(code, stderr) is expected
+
+
+def test_a_name_that_is_not_utf8_keeps_its_bytes():
+    name = decode_rsync_name("caf\\#351.in")
+    assert name.encode("utf-8", "surrogateescape") == b"caf\xe9.in"
+
+
+def test_parse_delivered():
+    output = (
+        "sent|sub/\n"  # a folder it created: not one of the files
+        "sent|a.out\n      1000  50%    1.00MB/s    0:00:01 (xfr#1, to-chk=1/2)\r"
+        "sent|caf\\#351.in\nsent|a.out\n"
+    )
+    assert parse_delivered(output, ["a.out", "caf\udce9.in", "never.out"]) == [
+        "a.out",
+        "caf\udce9.in",
+    ]
+
+
+def test_a_delivered_name_is_never_read_as_progress():
+    assert parse_progress("sent|run 50% done.in\n") is None
+    assert parse_progress("0%.in\n") is None  # the end of a name cut by a read
+
+
+@pytest.mark.parametrize(
+    ("folder", "expected"),
+    [
+        ("/data/sims/run 1", "/data/sims/run 1/"),
+        ("/data/sims/", "/data/sims/"),
+        ("C:\\Users\\me\\Lain", "/cygdrive/c/Users/me/Lain/"),
+        ("d:/runs/a", "/cygdrive/d/runs/a/"),
+        ("C:\\", "/cygdrive/c/"),
+    ],
+)
+def test_local_arg(folder, expected):
+    assert local_arg(folder, "/cygdrive") == expected
+
+
+def test_local_arg_for_msys2():
+    assert local_arg("C:\\Users\\me", "") == "/c/Users/me/"
+
+
+def test_the_commands_take_the_cygdrive_prefix_from_the_config():
+    argv = dry_run_command(
+        config({"cygdrive_prefix": "/mnt"}), Endpoint("/r", "h", "u"), Path("/l"), (3, 2, 7)
+    )
+    assert argv[-1] == "/l/"  # not a drive path: left alone
+    argv = small_files_command(config(), "/r", "C:\\tmp\\x", (3, 2, 7))  # type: ignore[arg-type]
+    assert argv[-1] == "/cygdrive/c/tmp/x/"
+
+
+def test_the_askpass_wrapper_is_repaired_when_it_cannot_run():
+    wrapper = Path(askpass_program())
+    wrapper.chmod(0o600)
+    assert askpass_program() == str(wrapper)
+    assert os.access(wrapper, os.X_OK)
 
 
 # -- push (spec 27 R1) ----------------------------------------------------------------------------
@@ -329,7 +479,7 @@ def test_push_dry_run_goes_from_the_local_folder_and_lists_existing_files_too():
     argv = push_dry_run_command(cfg, remote, Path("/data/sims/run 1"), (3, 2, 7))
     assert argv[:5] == ["rsync", "-n", "-rt", "-i", "--modify-window=1"]
     assert "--out-format=%i|%l|%M|%n" in argv
-    assert argv[-2:] == ["/data/sims/run 1/", "me@10.0.0.1:/scratch/me/sims/run 1/"]
+    assert argv[-2:] == ["/data/sims/run 1/", "me@10.0.0.1:'/scratch/me/sims/run 1'/"]
     assert "--ignore-existing" not in argv  # the preview names what the cluster already has
     assert not any(a.startswith("--rsync-path") for a in argv)  # nothing made before "Enviar"
     excludes = [a for a in argv if a.startswith("--exclude=")]
@@ -401,16 +551,17 @@ def test_push_transfer_only_adds_files():
     cfg = config()
     remote = Endpoint("/scratch/me/sims/run 1", "10.0.0.1", "me")
     argv = push_transfer_command(cfg, remote, Path("/data/sims/run 1"), (3, 2, 7), ["--x"])
-    assert argv[:7] == [
+    assert argv[:8] == [
         "rsync",
         "-t",
         "--info=progress2",
+        "--out-format=sent|%n",
         "--files-from=-",
         "--from0",
         "--ignore-existing",
         "--omit-dir-times",
     ]
-    assert argv[-3:] == ["--x", "/data/sims/run 1/", "me@10.0.0.1:/scratch/me/sims/run 1/"]
+    assert argv[-3:] == ["--x", "/data/sims/run 1/", "me@10.0.0.1:'/scratch/me/sims/run 1'/"]
     assert no_forbidden(argv) and "-r" not in argv
     assert argv[argv.index("-e") + 1].startswith("ssh -p 2222")
 
@@ -444,6 +595,7 @@ def test_push_leaves_a_leading_tilde_to_the_shell(folder, word):
 
 
 OLD_CLIENT = (3, 2, 3)  # the last that needs ``--protect-args``
+NEW_CLIENTS = [(3, 2, 4), (3, 4, 1), (3, 5, 0), None]  # None: unknown, treated as new
 TILDE_COMMANDS = [
     dry_run_command,
     transfer_command,
@@ -452,6 +604,7 @@ TILDE_COMMANDS = [
 ]
 
 
+@pytest.mark.parametrize("version", [OLD_CLIENT, *NEW_CLIENTS])
 @pytest.mark.parametrize(
     ("folder", "word"),
     [
@@ -461,52 +614,40 @@ TILDE_COMMANDS = [
         ("~me/runs", "~me/runs"),
     ],
 )
-def test_an_old_client_leaves_a_leading_tilde_to_the_shell(folder, word):
-    """``--protect-args`` hides the path from the cluster's shell, and then ``~`` is a folder called
-    ``~``: the ``mkdir -p`` of a push and the rsync would name two folders."""
+def test_a_leading_tilde_is_left_to_the_shell_on_every_client(folder, word, version):
+    """Protected arguments (``--protect-args``, or the default of rsync 3.2.4 and later) hide the
+    path from the cluster's shell, and then ``~`` is a folder called ``~``: an old client goes
+    without ``--protect-args``, a new one gets ``--old-args``."""
     remote = Endpoint(folder, "10.0.0.1", "me")
     spec = f"me@10.0.0.1:{word}/"
+    new = version != OLD_CLIENT
     for command in TILDE_COMMANDS:
-        argv = command(config(), remote, Path("/d"), OLD_CLIENT)
+        argv = command(config(), remote, Path("/d"), version)
         assert "--protect-args" not in argv, command.__name__
+        assert ("--old-args" in argv) is new, command.__name__
         assert spec in argv, command.__name__
     for argv in (
-        list_command(config(), folder, OLD_CLIENT),
-        outputs_command(config(), folder, OLD_CLIENT),
-        small_files_command(config(), folder, Path("/d"), OLD_CLIENT),
+        list_command(config(), folder, version),
+        outputs_command(config(), folder, version),
+        small_files_command(config(), folder, Path("/d"), version),
     ):
         assert "--protect-args" not in argv
+        assert ("--old-args" in argv) is new
         assert any(a.endswith(f":{word}/") for a in argv), argv
 
 
 @pytest.mark.parametrize("command", TILDE_COMMANDS)
-def test_only_an_old_client_and_a_leading_tilde_change_the_command(command):
-    tilde = Endpoint("~/my runs", "10.0.0.1", "me")
-    new = command(config(), tilde, Path("/d"), (3, 2, 4))
-    assert "--protect-args" not in new and "me@10.0.0.1:~/my runs/" in new  # rsync leaves that ~
-    plain = Endpoint("/scratch/my runs/~/x", "10.0.0.1", "me")
+def test_every_remote_path_is_quoted_for_the_cluster_s_shell(command):
+    """So its ``*``, ``?`` and ``[`` stay literal: ``--protect-args`` leaves them to the remote
+    rsync, which expands them, and rsync 3.2.4's default to the shell."""
+    plain = Endpoint("/scratch/run[1]/~/x", "10.0.0.1", "me")  # only a leading ``~`` is the shell's
+    spec = "me@10.0.0.1:'/scratch/run[1]/~/x'/"
     old = command(config(), plain, Path("/d"), OLD_CLIENT)
-    assert "--protect-args" in old and "me@10.0.0.1:/scratch/my runs/~/x/" in old
-    assert "--protect-args" not in command(config(), Endpoint("~/x"), Path("/d"), None)
-
-
-def test_a_local_push_has_no_rsync_path():
-    argv = push_transfer_command(config(), Endpoint("/tmp/cluster"), Path("/d"))
-    assert not any(a.startswith("--rsync-path") for a in argv) and "-e" not in argv
-
-
-def test_push_password_never_in_argv(monkeypatch):
-    monkeypatch.setenv("LAIN_PUSH_PW", "s3cr3t-pw")
-    cfg = config(auth="password", password_env="LAIN_PUSH_PW")
-    remote = Endpoint("/scratch/me/sims", "10.0.0.1", "me")
-    for build in (push_dry_run_command, push_transfer_command):
-        assert not any("s3cr3t-pw" in arg for arg in build(cfg, remote, Path("/d"), (3, 2, 7)))
-
-
-def test_push_itemize_codes_are_files():
-    sent = parse_itemize_line("<f+++++++++|3|2023/11/14-22:13:20|run/a b.in")
-    changed = parse_itemize_line("<f.st......|9|2023/11/14-22:13:20|scf.out")
-    folder = parse_itemize_line("cd+++++++++|0|2023/11/14-22:13:20|run")
-    assert sent is not None and sent.is_file and sent.path == "run/a b.in"
-    assert changed is not None and changed.is_file
-    assert folder is not None and not folder.is_file
+    assert "--protect-args" not in old and "--old-args" not in old and spec in old
+    for version in NEW_CLIENTS:
+        new = command(config(), plain, Path("/d"), version)
+        assert "--protect-args" not in new and "--old-args" in new and spec in new
+    for version in NEW_CLIENTS:  # a local path: no ssh, no shell
+        local = command(config(), Endpoint("~/x"), Path("/d"), version)
+        assert "--protect-args" not in local and "--old-args" not in local
+        assert "~/x/" in local

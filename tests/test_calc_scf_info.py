@@ -103,3 +103,12 @@ def test_an_inconsistent_structure_is_a_problem_not_a_crash():
     text = re.sub(r"nat\s*=\s*\d+", "nat = 0", AL_SCF.read_text())
     info = from_text(text)
     assert info.crystal is None and info.structure_problem
+
+
+@pytest.mark.parametrize("unit", ["crystal", "alat", "angstrom"])
+def test_no_atoms_is_a_problem_whatever_the_unit_of_the_positions(unit):
+    import re
+
+    text = re.sub(r"nat\s*=\s*\d+", "nat = 0", AL_SCF.read_text())
+    info = from_text(re.sub(r"ATOMIC_POSITIONS.*", f"ATOMIC_POSITIONS {unit}", text))
+    assert info.crystal is None and "nat = 0" in (info.structure_problem or "")

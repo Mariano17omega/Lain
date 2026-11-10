@@ -199,7 +199,7 @@ class ProjectController(QObject):
         self._apply_names([project.name for project in projects])
 
     def _on_list_failed(self, _key: str, exc: Exception) -> None:
-        log.error("listing the projects failed", exc_info=exc)
+        log.error("folder: listing the projects failed", exc_info=exc)
 
     def _apply_names(self, names: list[str]) -> None:
         self._names = names
@@ -253,7 +253,7 @@ class ProjectController(QObject):
         if isinstance(exc, ProjectError):
             reason = str(exc)
         else:
-            log.error("creating the project failed", exc_info=exc)
+            log.error("folder: creating the project failed", exc_info=exc)
             reason = _("Erro inesperado: {error}").format(error=exc)
         QMessageBox.warning(self._dialog_parent, TITLE, reason)
         self.failed.emit(reason)

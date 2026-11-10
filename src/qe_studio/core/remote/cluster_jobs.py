@@ -7,6 +7,9 @@ both ends: ``job-ID`` and ``#`` first; last the queue (running jobs only), the d
 owner; what is left in the middle is the name, spaces and all. Dates stay as the cluster writes them,
 in its time zone.
 
+Submitting, cancelling and the trash all rely on this list, so a list that may be incomplete is a
+failure, never a shorter list: a job line that cannot be read, or a scheduler that says it failed.
+
 ``fetch_jobs`` runs the command over ssh (``core/sync/command.py``) and blocks: it runs in a worker.
 """
 
@@ -22,18 +25,26 @@ from dataclasses import dataclass
 from ...i18n import _
 from ..config import AppConfig
 from ..sync.command import CommandResult, remote_command, run_command
-from ..sync.rsync import child_env, is_auth_failure, is_connection_failure, known_cause
-from .listing import SSH_FAILED
+from ..sync.rsync import child_env
+from .failure import EXTRA_SECONDS, RemoteFailure, classify_failure
 
 log = logging.getLogger(__name__)
 
-EXTRA_SECONDS = 30  # on top of ``cluster.connect_timeout``: what the command itself may take
+SETTING = "cluster.jobs_command"
+SHORTEST_CUT = 10  # SGE's narrowest name column: a shorter name in the queue is the whole name
 
 _TITLE = re.compile(r"^(Running|Waiting) jobs(?: for user: (\S+))?:?$")
 _DATE = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
 _TIME = re.compile(r"^\d{1,2}:\d{2}:\d{2}$")
 _ID = re.compile(r"^\d+$")
-_STDOUT = re.compile(r"^(?P<name>.+)\.o(?P<id>\d+)$")  # ``<name>.o<job-ID>``: ``#$ -j y`` output
+# ``<name>.o<job-ID>``, the output of ``#$ -j y``; a task of an array job adds ``.<task>``
+_STDOUT = re.compile(r"^(?P<name>.+)\.o(?P<id>\d+)(?:\.\d+)?$")
+# What SGE says when it could not answer, while the ``qstatus`` script around it still ends with 0.
+# Only these: ssh banners and login scripts also write on stderr, on every run.
+_SCHEDULER_FAILED = re.compile(
+    r"^.*(?:qmaster|commlib error|\bqstat\b.*not found).*$|^\s*(?:critical )?error:.*$",
+    re.MULTILINE,
+)
 
 
 @dataclass(frozen=True)
@@ -68,21 +79,23 @@ class JobsSnapshot:
         return tuple(job for job in self.waiting if job.owner == user)
 
 
+def same_job_name(listed: str, full: str) -> bool:
+    """Whether ``listed``, a name in the queue, can be the job called ``full`` (a ``.o`` file's name
+    or what ``qsub`` answered). The queue may cut a long name (spec 70, decision 7), so a name long
+    enough to have been cut may be the start of the full one. Only with the job-ID also matching."""
+    return listed == full or (len(listed) >= SHORTEST_CUT and full.startswith(listed))
+
+
 def running_in(file_names: Iterable[str], snapshot: JobsSnapshot, user: str) -> tuple[Job, ...]:
     """The running jobs of ``user`` whose scheduler output ``<name>.o<job-ID>`` is among
     ``file_names`` (a folder's files): the only link the cluster gives between a job and the folder
-    it was submitted from (spec 69 R2.2). The name and the ID must both match."""
-    outputs = {(m["name"], m["id"]) for name in file_names if (m := _STDOUT.match(name))}
-    return tuple(job for job in snapshot.mine(user) if (job.name, job.job_id) in outputs)
-
-
-@dataclass(frozen=True)
-class JobsFailure:
-    message: str
-    connection: bool = False  # the cluster was not reached, or stopped answering
-    auth: bool = False  # it refused the login
-    missing: bool = False  # the command does not exist there
-    local: bool = False  # ssh itself could not be run
+    it was submitted from (spec 69 R2.2). The ID must match, and the name (``same_job_name``)."""
+    outputs = [(m["name"], m["id"]) for name in file_names if (m := _STDOUT.match(name))]
+    return tuple(
+        job
+        for job in snapshot.mine(user)
+        if any(job_id == job.job_id and same_job_name(job.name, n) for n, job_id in outputs)
+    )
 
 
 def _job(tokens: list[str], running: bool, owner: str | None) -> Job | None:
@@ -105,12 +118,14 @@ def parse_qstatus(
     text: str, command: str = "qstatus -a", fetched_at: float | None = None
 ) -> JobsSnapshot:
     """The jobs of a ``qstatus`` listing. An empty one, or one with titles only, has none; text with
-    no title, header or job line in it raises ``ValueError``."""
+    no title, header or job line in it raises ``ValueError``, and so does a line of a section that
+    starts with a job-ID but cannot be read: a queue missing a job would let the guards through."""
     running: list[Job] = []
     waiting: list[Job] = []
     section: bool | None = None  # True: running jobs
     owner: str | None = None  # the user of a "… for user: <login>" section
     known = unknown = False
+    unrecognized = _("Saída de {command} não reconhecida.").format(command=command)
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
@@ -121,55 +136,46 @@ def parse_qstatus(
         if line.startswith("job-ID") or not line.strip("-"):
             known = True
             continue
-        job = _job(line.split(), section, owner) if section is not None else None
+        tokens = line.split()
+        job = _job(tokens, section, owner) if section is not None else None
         if job is None:
+            if section is not None and _ID.match(tokens[0]):
+                log.warning("cluster: queue line not understood: %s", line)
+                raise ValueError(unrecognized)
             unknown = True
             continue
         (running if job.running else waiting).append(job)
         known = True
     if unknown and not known:
-        raise ValueError(_("Saída de {command} não reconhecida.").format(command=command))
+        raise ValueError(unrecognized)
     when = time.time() if fetched_at is None else fetched_at
     return JobsSnapshot(tuple(running), tuple(waiting), when)
 
 
-def classify(result: CommandResult, command: str) -> JobsSnapshot | JobsFailure:
+def classify(result: CommandResult, command: str) -> JobsSnapshot | RemoteFailure:
     """The jobs of a run of ``command``, or why there are none."""
-    if result.timed_out:
-        message = _("O cluster não respondeu a {command} a tempo.").format(command=command)
-        return JobsFailure(message, connection=True)
-    if result.code == 0:
+    if result.code == 0 and not result.timed_out:
+        if cause := _SCHEDULER_FAILED.search(result.stderr):
+            message = _("{command} não conseguiu ler a fila: {cause}")
+            return RemoteFailure(message.format(command=command, cause=cause.group().strip()))
         try:
             return parse_qstatus(result.stdout, command)
         except ValueError as exc:
-            return JobsFailure(str(exc))
-    stderr = result.stderr
-    code = result.code if result.code is not None else -1
-    # ssh's own code: the command may also say "Permission denied" (spec 71 R4).
-    if code == SSH_FAILED and is_auth_failure(stderr):
-        return JobsFailure(known_cause(stderr) or "", auth=True)
-    if code == 127 or "command not found" in stderr:
-        message = _("O comando {command} não foi encontrado no cluster (cluster.jobs_command).")
-        return JobsFailure(message.format(command=command), missing=True)
-    if is_connection_failure(code, stderr):
-        fallback = _("Cluster inacessível (ssh terminou com código {code}).").format(code=code)
-        return JobsFailure(known_cause(stderr) or fallback, connection=True)
-    last = next((ln.strip() for ln in reversed(stderr.splitlines()) if ln.strip()), "")
-    message = _("{command} terminou com código {code}").format(command=command, code=code)
-    return JobsFailure(message + (f": {last}" if last else "."))
+            return RemoteFailure(str(exc))
+    return classify_failure(result, command, SETTING)
 
 
-def fetch_jobs(config: AppConfig, password: str | None = None) -> JobsSnapshot | JobsFailure:
+def fetch_jobs(config: AppConfig, password: str | None = None) -> JobsSnapshot | RemoteFailure:
     """Run ``cluster.jobs_command`` on the cluster and read what it lists. ``password``: the one
     typed in this session (``auth: password``); it reaches ssh through ``SSH_ASKPASS`` only."""
     cluster = config.cluster
     command = cluster.jobs_command
     argv = remote_command(config, command)
-    log.debug("jobs: %s", shlex.join(argv))
+    log.debug("command: %s", shlex.join(argv))
     try:
         env = child_env(cluster, password=password)  # writes the askpass helper once
         result = run_command(argv, env, cluster.connect_timeout + EXTRA_SECONDS)
     except OSError as exc:
         message = _("Não foi possível executar o ssh ({error}).").format(error=exc)
-        return JobsFailure(message, local=True)
+        return RemoteFailure(message, local=True)
     return classify(result, command)

@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ....i18n import _, ngettext
+from ...theme.scale import scaled
 from ..common import set_variant
 from ..painting import mono_font
 
@@ -122,7 +123,7 @@ class AtomTable(QWidget):
     def _setup_table(self) -> None:
         table = self.table
         table.setObjectName("atomsTable")
-        table.setMinimumHeight(180)
+        table.setMinimumHeight(scaled(180))
         vertical = table.verticalHeader()
         assert vertical is not None
         vertical.setVisible(False)
@@ -158,7 +159,7 @@ class AtomTable(QWidget):
         header.setSectionResizeMode(len(headers) - 1 if self.has_notes else 2, STRETCH)
         for column in range(3, 6):  # same width for the three coordinates
             header.setSectionResizeMode(column, QHeaderView.ResizeMode.Fixed)
-            table.setColumnWidth(column, COORDINATE_WIDTH)
+            table.setColumnWidth(column, scaled(COORDINATE_WIDTH))  # holds mono text
         chosen = None if selected is None else set(selected)
         self.checks = {}
         for row_number, row in enumerate(self.rows):

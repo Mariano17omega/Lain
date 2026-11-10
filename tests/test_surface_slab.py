@@ -80,6 +80,15 @@ def test_without_a_molecule_the_vacuum_is_the_minimum(bulk):
     assert np.isclose(model.frac[:, 2].mean(), 0.5)
 
 
+def test_an_uneven_layer_stays_whole_in_the_middle_of_the_box():
+    heights = (0.0, 0.02, 0.04, 0.06, 0.08, 0.99)  # the mean on 0.5 would push the last across
+    frac = np.array([[0.0, 0.0, z] for z in heights])
+    model = make_slab(Model(np.diag([5.0, 5.0, 40.0]), ("Al",) * 6, frac), SlabOptions(vacuum=10.0))
+    z = model.model.frac[:, 2]
+    assert z.min() + z.max() == pytest.approx(1.0) and z.min() > 0 and z.max() < 1
+    assert model.model.cell[2, 2] - np.ptp(model.model.cart[:, 2]) == pytest.approx(10.0)
+
+
 def test_heal_without_h_changes_nothing():
     cell = np.diag([4.0, 4.0, 4.0])
     model = Model(cell, ("Al", "Al"), np.array([[0, 0, 0], [0.5, 0.5, 0.5]]))

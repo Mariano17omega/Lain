@@ -29,12 +29,11 @@ from ....core.tasks import TaskGroup
 from ....i18n import _
 from ...shell.busy import BusyTracker
 from ...widgets.common import set_variant
-from .labels import message_label, show_message
+from .labels import READING, message_label, show_message
 
 log = logging.getLogger(__name__)
 
 INPUT_FILTER = _("Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)")
-READING = _("Lendo SCF…")
 MINIMUM = 2
 TOO_FEW = _("Escolha pelo menos dois inputs de SCF")
 

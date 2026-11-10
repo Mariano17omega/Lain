@@ -44,18 +44,18 @@ def test_large_file_shows_head_and_tail(tmp_path):
     assert job.level == "error" and job.highlight
 
 
-def test_omitted_lines_count_what_the_marker_hides(tmp_path):
+def test_the_line_numbers_skip_what_the_marker_hides(tmp_path):
     lines = [f"line {n}\n" for n in range(1, 400_001)]
     path = tmp_path / "long.out"
     path.write_text("".join(lines))
     preview = read_preview(path)
-    assert preview.truncated and preview.omitted_lines > 0
+    assert preview.truncated
     line_map = preview.line_map
     last_head = line_map.number(line_map.marker_start - 1)
     first_tail = line_map.number(line_map.tail_block)
-    assert first_tail - last_head - 1 == preview.omitted_lines
-    whole = read_preview(write(tmp_path, "a\nb\n", "small.out"))
-    assert not whole.truncated and whole.omitted_lines == 0
+    assert first_tail > last_head + 1
+    assert preview.text.split("\n")[line_map.tail_block + 1] == f"line {first_tail + 1}"
+    assert not read_preview(write(tmp_path, "a\nb\n", "small.out")).truncated
 
 
 def test_loader_marks_outputs(tmp_path):

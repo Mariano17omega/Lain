@@ -253,3 +253,31 @@ def test_rename_key_changes_the_name_where_it_stands():
     )
     assert shared == "&system\n  nat = 2, ntyp(2) = 3 /\n"
     assert lint(text).issues == []
+
+
+def test_removing_an_entry_takes_the_values_that_continue_it():
+    text = "&system\n  ibrav = 0\n  celldm(1) = 1.0,\n     2.0,\n     ! pause\n     3.0\n  nat = 2\n/\n"
+    assert edited(text, ("remove", "system", "celldm(1)")) == (
+        "&system\n  ibrav = 0\n     ! pause\n  nat = 2\n/\n"
+    )
+    assert InputEditor.from_text(text).get("system", "celldm(1)") == "1.0"  # its own value only
+
+
+def test_a_continuation_on_the_closing_line_keeps_the_slash():
+    text = "&system\n  celldm(1) = 1.0,\n     2.0 /\n"
+    assert edited(text, ("remove", "system", "celldm(1)")) == "&system\n     /\n"
+
+
+def test_only_the_last_entry_of_a_line_owns_its_continuation():
+    text = "&system\n  nat = 2, celldm(1) = 1.0,\n     2.0\n/\n"
+    assert edited(text, ("remove", "system", "nat")) == (
+        "&system\n  celldm(1) = 1.0,\n     2.0\n/\n"
+    )
+
+
+def test_a_cell_option_as_pw_x_prints_it_is_replaced_whole():
+    text = "&system\n/\nCELL_PARAMETERS (alat= 10.16863713)\n1 0 0\n0 1 0\n0 0 1\n"
+    rows = ["2 0 0", "0 2 0", "0 0 2"]
+    assert edited(text, ("replace_card", "CELL_PARAMETERS", "angstrom", rows)) == (
+        "&system\n/\nCELL_PARAMETERS (angstrom)\n2 0 0\n0 2 0\n0 0 2\n"
+    )

@@ -180,3 +180,135 @@ def test_header_formula_reads_only_the_first_site_list(tmp_path):
     path.write_text("     number of k points=    10\n         1  Si  tau(   1) = ( 0 0 0 )\n")
     assert header_formula(path) is None
     assert header_formula(tmp_path / "missing.out") is None
+
+
+def test_non_magnetic_spin_orbit_is_noncollinear():
+    """noncolin with lspinorb and no magnetization: two-component spinors, as summary.f90 says."""
+    out = parse_pw_output("     Non magnetic calculation with spin-orbit\n")
+    assert out.noncollinear and not out.spin_polarized
+
+
+# -- L-02: dynamics that print `new unit-cell volume` without being a variable-cell BFGS ----------
+# Texts built from the lines pw.x prints (QE:PW/src/dynamics_module.f90, vcsmd.f90, output_tau.f90).
+SCF = "     Self-consistent Calculation\n!    total energy              =     -15.8682760727 Ry\n"
+BFGS_VOLUME = "     new unit-cell volume =   2253.94778 a.u.^3 (   334.00060 Ang^3 )\n"
+VCSMD_VOLUME = "  new unit-cell volume =    2253.9478 (a.u.)^3\n"
+DAMPED_BANNER = "\n     Damped Dynamics Calculation\n"
+DAMPED_END = (
+    "\n     Damped Dynamics: convergence achieved in   5 steps\n"
+    "\n     End of damped dynamics calculation\n"
+    "\n     Final energy =     -15.8682760727 Ry\n\n"
+    "Begin final coordinates\n" + BFGS_VOLUME + "End final coordinates\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("name", "text", "calculation"),
+    [
+        ("scf", SCF, "scf"),
+        ("relax, bfgs", SCF + "     number of bfgs steps    =        1\n", "relax"),
+        (
+            "vc-relax, bfgs",
+            SCF + "     number of bfgs steps    =        1\n" + BFGS_VOLUME,
+            "vc-relax",
+        ),
+        ("relax, damp, running", SCF + DAMPED_BANNER, "relax"),
+        ("relax, damp, converged", SCF + DAMPED_BANNER + DAMPED_END, "relax"),
+        # Restarted: no banner at step 1, the end marker still says it was a damped dynamics.
+        ("relax, damp, restarted and converged", SCF + DAMPED_END, "relax"),
+        (
+            "relax, fire",
+            SCF + "\n     Minimization using the FIRE algorithm\n" + BFGS_VOLUME,
+            "relax",
+        ),
+        (
+            "relax, fire, a later step only",
+            SCF + "\n     Entering FIRE :   iteration =     7\n",
+            "relax",
+        ),
+        (
+            "vc-relax, damp-pr",
+            SCF
+            + "\n     Parrinello-Rahman Damped Cell Dynamics Minimization: \n"
+            + "     convergence thresholds EPSE = 1.00E-04  EPSF = 1.00E-03\n"
+            + "\n     Entering Dynamics;  it =     1   time = 0.00000 pico-seconds\n"
+            + VCSMD_VOLUME,
+            "vc-relax",
+        ),
+        (
+            "vc-relax, cell_dynamics none",
+            SCF
+            + "\n     Beeman Damped Dynamics Minimization: \n"
+            + "\n     Entering Dynamics;  it =     1   time = 0.00000 pico-seconds\n",
+            "vc-relax",
+        ),
+        (
+            "vc-md",
+            SCF
+            + "\n     Entering Dynamics;  it =     3   time = 0.00006 pico-seconds\n"
+            + VCSMD_VOLUME,
+            "vc-md",
+        ),
+        (
+            "md, verlet",
+            SCF
+            + "\n     Molecular Dynamics Calculation\n     Entering Dynamics:    iteration =     1\n",
+            "md",
+        ),
+        ("md, langevin", SCF + "\n     Over-damped Langevin Dynamics Calculation\n", "md"),
+    ],
+)
+def test_calculation_of_the_dynamics(name, text, calculation):
+    assert parse_pw_output(text).calculation == calculation, name
+
+
+def test_a_marker_only_in_the_tail_decides_too():
+    """Outputs above 16 MB are read as head + tail: the markers may be in either."""
+    head = "     Program PWSCF v.7.3.1 starts on  3Jan2025 at  9:46:28\n" + SCF
+    tail = "\n     Entering FIRE :   iteration =    40\n" + BFGS_VOLUME
+    assert parse_pw_output(head, tail).calculation == "relax"
+
+
+def test_a_damped_relax_is_not_offered_as_an_scf_nor_as_a_vc_relax(tmp_path):
+    from qe_studio.core.calculations.base import output_of
+    from qe_studio.core.sniff import FileKind, SniffCache
+
+    header = "     Program PWSCF v.7.3.1 starts on  3Jan2025 at  9:46:28\n"
+    runs = {
+        "damp": (SCF + DAMPED_BANNER + DAMPED_END, "relax"),
+        "md": (SCF + "\n     Molecular Dynamics Calculation\n", "md"),
+        "vc-md": (SCF + "\n     Entering Dynamics;  it =     1\n" + VCSMD_VOLUME, "vc-md"),
+    }
+    for name, (body, calculation) in runs.items():
+        path = tmp_path / f"{name}.out"
+        path.write_text(header + body)
+        sniffed = SniffCache().sniff(path)
+        assert (sniffed.kind, sniffed.calculation) == (FileKind.PW_OUT, calculation)
+        assert not output_of(FileKind.PW_OUT, "scf")(sniffed)  # no SCF plot, no "from the SCF" menu
+        assert output_of(FileKind.PW_OUT, "relax", "vc-relax")(sniffed) is (name == "damp")
+
+
+# -- L-03: nscf x bands is told by the reference energy line only ----------------------------------
+NON_SCF = "     Band Structure Calculation\n     End of band structure calculation\n"
+
+
+def test_nscf_is_told_from_bands_by_the_reference_energy_line():
+    fermi = "\n     the Fermi energy is     8.0584 ev\n"
+    homo = "\n     highest occupied level (ev):     6.3143\n"
+    homo_lumo = "\n     highest occupied, lowest unoccupied level (ev):     6.3143    6.8182\n"
+    assert parse_pw_output(NON_SCF + fermi).calculation == "nscf"
+    assert parse_pw_output(NON_SCF + homo).calculation == "nscf"  # fixed occupations
+    assert parse_pw_output(NON_SCF + homo_lumo).calculation == "nscf"
+    assert parse_pw_output(NON_SCF).calculation == "bands"  # `bands` never prints it
+
+
+def test_an_nscf_without_the_reference_line_reads_as_bands_known_limit():
+    """L-03, accepted: with the default verbosity the text has no other difference. ``lbands`` gates that line
+    (``print_ks_energies.f90:24,39``), so an nscf cut before it (still running) and one with
+    ``one_atom_occupations`` (which never prints it, ``:192``) look like a bands run."""
+    running = parse_pw_output("     Band Structure Calculation\n     Computing kpt #:    12\n")
+    assert running.calculation == "bands" and not running.job_done
+    one_atom = parse_pw_output(
+        NON_SCF + "          k = 0.0000 0.0000 0.0000 ( 100 PWs)   bands (ev):\n"
+    )
+    assert one_atom.calculation == "bands"

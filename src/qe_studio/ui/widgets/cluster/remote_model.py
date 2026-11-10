@@ -114,15 +114,17 @@ class RemoteTreeModel(QStandardItemModel):
         was_listed = remote_dir in self._listed
         self._listed.add(remote_dir)
         wanted = set(names)
+        gone: set[str] = set()
         for row in reversed(range(parent.rowCount())):
             child = parent.child(row)
             if child is not None and child.text() not in wanted:
-                self._forget(child)
+                gone.add(child.data(DIR_ROLE))
                 parent.removeRow(row)
+        self._forget_paths(gone)
         kept = [child.text() for row in range(parent.rowCount()) if (child := parent.child(row))]
-        if kept != [name for name in names if name in set(kept)]:  # another order: start over
-            for child in kept:
-                self._forget_path(PurePosixPath(remote_dir) / child)
+        kept_set = set(kept)
+        if kept != [name for name in names if name in kept_set]:  # another order: start over
+            self._forget_paths({str(PurePosixPath(remote_dir) / child) for child in kept})
             parent.removeRows(0, parent.rowCount())
         row = 0
         for name in names:
@@ -145,12 +147,20 @@ class RemoteTreeModel(QStandardItemModel):
         self._items[path] = item
         return item
 
-    def _forget(self, item: QStandardItem) -> None:
-        self._forget_path(PurePosixPath(item.data(DIR_ROLE)))
+    def _forget_paths(self, paths: set[str]) -> None:
+        """``paths`` and everything below them leave the lookups: one pass over what is known,
+        walking each key up its (few) ancestors, however many folders go."""
+        if not paths:
+            return
 
-    def _forget_path(self, path: PurePosixPath) -> None:
-        """``path`` and everything below it leave the lookups."""
-        for known in [p for p in self._items if PurePosixPath(p).is_relative_to(path)]:
+        def goes(known: str) -> bool:
+            while known:
+                if known in paths:
+                    return True
+                known = known.rpartition("/")[0]
+            return False
+
+        for known in [p for p in self._items if goes(p)]:
             del self._items[known]
             self._listed.discard(known)
             self._requested.discard(known)

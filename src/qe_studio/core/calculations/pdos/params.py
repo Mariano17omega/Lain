@@ -10,6 +10,7 @@ from ..params import (
     COMMON_FIELDS,
     GAP_METHOD_FIELD,
     LEGEND_GAP_FIELD,
+    MID_GAP_TOOLTIP,
     CommonParams,
     ParamField,
     apply_common_config,
@@ -45,6 +46,8 @@ GROUPINGS = (
     ("orbital", _("Orbital")),
 )
 ORIENTATIONS = (("horizontal", _("Energia no eixo x")), ("vertical", _("Energia no eixo y")))
+# The field's own range: the toolbar stores this limit too, and a negative one flips the axis.
+DOS_MAX_RANGE = (0.0, 1e6)
 SPIN_MODES = (
     ("mirror", _("Espelhado (↓ negativo)")),
     ("overlay", _("Sobreposto")),
@@ -56,11 +59,14 @@ SPIN_MODES = (
 
 @dataclass
 class PdosParams(CommonParams):
-    fermi_source: str = "scf"
+    # Not always offered (``_source_matters``), so the metadata says how to validate a stored value.
+    fermi_source: str = field(
+        default="scf", metadata={"kind": "choice", "choices": ("scf", "nscf")}
+    )
     shift_to_fermi: bool = True
     emin: float = -5.0
     emax: float = 5.0
-    dos_max: float | None = None
+    dos_max: float | None = field(default=None, metadata={"range": DOS_MAX_RANGE})
     grouping: str = "species_orbital"
     orientation: str = "horizontal"
     show_total: bool = True
@@ -94,7 +100,10 @@ def default_params(config: AppConfig, dataset: PdosDataset) -> PdosParams:
         emax=plot.energy_max,
     )
     params.fermi_source = "scf" if dataset.fermi_scf is not None else "nscf"
-    if not params.shift_to_fermi and (fermi := dataset.fermi(params.fermi_source)) is not None:
+    if (
+        not params.shift_to_fermi
+        and (fermi := dataset.fermi_level(params.fermi_source)) is not None
+    ):
         params.emin += fermi
         params.emax += fermi
     apply_common_config(params, config)
@@ -107,15 +116,28 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
     if dataset.fermi_nscf is not None:
         sources.append(("nscf", "NSCF"))
     return [
-        ParamField(
-            "fermi_source",
-            _("E_F de"),
-            "energy",
-            "choice",
-            choices=tuple(sources),
-            refreshes=True,
+        *(
+            [
+                ParamField(
+                    "fermi_source",
+                    _("E_F de"),
+                    "energy",
+                    "choice",
+                    choices=tuple(sources),
+                    refreshes=True,
+                )
+            ]
+            if _source_matters(dataset)
+            else []
         ),
-        ParamField("shift_to_fermi", _("Referenciar a E_F"), "energy", "bool", refreshes=True),
+        ParamField(
+            "shift_to_fermi",
+            _("Referenciar a E_F"),
+            "energy",
+            "bool",
+            refreshes=True,
+            tooltip=MID_GAP_TOOLTIP,
+        ),
         ParamField(
             "emin",
             _("E mín"),
@@ -145,8 +167,8 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
             _("DOS máx"),
             "x_axis",
             "float",
-            minimum=0,
-            maximum=1e6,
+            minimum=DOS_MAX_RANGE[0],
+            maximum=DOS_MAX_RANGE[1],
             step=0.5,
             decimals=2,
             suffix="est./eV",
@@ -177,6 +199,14 @@ def param_schema(dataset: PdosDataset) -> list[ParamField]:
     ]
 
 
+def _source_matters(dataset: PdosDataset) -> bool:
+    """Can "E_F de" change the plot? An insulator's E_F is the middle of its gap whichever run is
+    asked, unless one of the runs keeps an E_F per channel."""
+    if dataset.proven_midgap is None:
+        return True
+    return dataset.fermi_level("scf") != dataset.fermi_level("nscf")
+
+
 def param_changed(dataset: PdosDataset, params: PdosParams, name: str, old: Any) -> None:
     """Keep the visible absolute window when the energy reference changes."""
     if name in ("shift_to_fermi", "fermi_source"):
@@ -187,7 +217,13 @@ def param_changed(dataset: PdosDataset, params: PdosParams, name: str, old: Any)
 
 
 def reference(dataset: PdosDataset, params: PdosParams, **override) -> float:
+    """The energy the plot is measured from: E_F of the chosen run, or 0 (absolute energies)."""
     shift = override.get("shift_to_fermi", params.shift_to_fermi)
     source = override.get("fermi_source", params.fermi_source)
-    fermi = dataset.fermi(source)
+    fermi = dataset.fermi_level(source)
     return fermi if shift and fermi is not None else 0.0
+
+
+def is_shifted(dataset: PdosDataset, params: PdosParams) -> bool:
+    """Whether the energies are measured from E_F (an E_F of exactly 0.0 is still a shift)."""
+    return params.shift_to_fermi and dataset.fermi(params.fermi_source) is not None

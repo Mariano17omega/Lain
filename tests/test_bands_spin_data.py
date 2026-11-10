@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from qe_studio.core.calculations.bands.data import (
+    GAP_NO_EMPTY_NOTE,
     BandsDataset,
     ChannelEdges,
     channel_edges,
@@ -142,6 +143,26 @@ def test_fixed_occupations_count_the_bands_above_the_scf_homo():
     assert dataset.edges["down"].gap == pytest.approx(2.1)
     assert (dataset.vbm, dataset.cbm) == (-0.95, 0.9)
     assert channel_edges(up.energies, -1.0).metallic  # what the HOMO as E_F would say
+
+
+def test_a_full_channel_is_neither_metallic_nor_gapped():
+    # 2 electrons ↑ in 2 bands, and on the path band 2 tops the HOMO of the SCF grid.
+    up = band_data([-3.0, -2.5], [-2.0, -0.95])
+    down = band_data([-3.0, -2.5], [1.2, 1.5])
+    dataset = dataset_of(up, down)
+    spin_band_edges(dataset, fixed_occupations(-1.0, (2.0, 1.0)))
+    assert dataset.edges["up"] == ChannelEdges(-1.0, n_occupied=2)
+    assert channel_edges(up.energies, -1.0).metallic  # what the HOMO as E_F would say
+    assert dataset.edges["down"].gap == pytest.approx(3.7)
+    assert not dataset.metallic and dataset.gap_note == GAP_NO_EMPTY_NOTE
+
+
+def test_a_channel_crossing_e_f_makes_the_run_metallic():
+    up = band_data([-3.0, -2.5], [-1.0, 1.0])  # crosses E_F = 0
+    down = band_data([-3.0, -2.5], [1.2, 1.5])
+    dataset = dataset_of(up, down)
+    spin_band_edges(dataset, PwOutput(fermi=0.0, fermi_kind="fermi", spin_polarized=True))
+    assert dataset.metallic and dataset.gap_note is None
 
 
 def test_fixed_occupations_leave_empty_down_bands_below_the_homo_empty():

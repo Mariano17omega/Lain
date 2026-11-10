@@ -123,3 +123,20 @@ def test_edits_after_the_export_starts_are_not_in_it(
         assert window.export_plot()
         window.params.set_param("emin", -1.0)
     assert seen == [-5.0]
+
+
+def test_a_second_export_of_the_same_plot_is_refused_while_one_runs(
+    qtbot, main_window, demo_project, slow_export, no_dialogs
+):
+    window = main_window
+    folder = demo_project / "03_bands"
+    plot(qtbot, window, folder)
+    told = []
+    window.plot_workflow.exporter.message.connect(lambda text, _level, _ms: told.append(text))
+    with qtbot.waitSignal(window.export_finished, timeout=10_000) as blocker:
+        assert window.export_plot()
+        assert not window.export_plot()  # not superseding: its worker would keep writing
+    assert told[0] == "Já há uma exportação deste gráfico em andamento."
+    assert told[1].startswith("Salvo em plots/")  # the one export that ran
+    assert len(blocker.args[0]) == 4
+    assert not window.plot_workflow.exporting

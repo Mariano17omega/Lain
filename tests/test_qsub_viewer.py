@@ -137,6 +137,14 @@ def test_the_underline_covers_the_span_of_the_problem(qtbot, main_window, tmp_pa
     assert wavy_columns(document, 4) == []
 
 
+def test_a_crlf_line_is_underlined(qtbot, main_window, tmp_path):
+    path = tmp_path / "job.qsub"
+    path.write_bytes(b"#!/bin/bash\r\necho ok\r\n")
+    viewer = open_text(qtbot, main_window, path)
+    viewer._highlighter.rehighlight()
+    assert wavy_columns(viewer.editor.text_document(), 1) == list(range(11))
+
+
 def test_the_highlighter_underlines_with_the_color_of_the_severity():
     theme = ThemeManager("dark")
     text = "#!/bin/bash\n#$ -zz\necho ${A\n"

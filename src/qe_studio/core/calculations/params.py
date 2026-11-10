@@ -160,6 +160,12 @@ LEGEND_LOCATIONS = (
     ("outside", _("Fora (direita)")),
 )
 
+# How a band or PDOS plot says where E_F is in an insulator (spec 91).
+MID_GAP = _("(meio do gap)")
+MID_GAP_TOOLTIP = _(
+    "Em isolante ou semicondutor, E_F é o meio do gap; nos demais casos, o valor impresso pelo pw.x."
+)
+
 # Only the band and PDOS modules offer it (it is not in COMMON_FIELDS): a gap needs a spectrum.
 LEGEND_GAP_FIELD = ParamField(
     "legend_gap",

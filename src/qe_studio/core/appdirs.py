@@ -124,11 +124,12 @@ def _sync_dir(folder: Path) -> None:
             os.close(fd)
 
 
-def atomic_write_text(path: Path, text: str) -> None:
+def atomic_write_text(path: Path, text: str, mode: int | None = None) -> None:
     """Write ``text`` to ``path`` so a reader (or a crash) sees the old file or the whole new one.
 
     The temporary file is unique (two threads or two instances writing the same target never share
     it), is flushed to disk before ``os.replace`` and is removed when anything fails (spec 27-3 R4).
+    ``mode``: the permissions it gets before it takes the name.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = _new_temp(path)
@@ -137,6 +138,8 @@ def atomic_write_text(path: Path, text: str) -> None:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
+        if mode is not None:
+            os.chmod(tmp, mode)
         os.replace(tmp, path)
     except BaseException:
         with contextlib.suppress(OSError):

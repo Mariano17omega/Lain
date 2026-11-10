@@ -403,7 +403,7 @@ class CalcType:
         from ..render import TemplateFailure
         from ..unit import unit_notes
         from .files import check_names
-        from .script import script_file
+        from .script import gamma_pool_notes, script_file
 
         fields = self.fields(scf, jobs, name, scfs)
         shown = {form_field.id for form_field in shown_fields(fields, mode, values)}
@@ -418,6 +418,8 @@ class CalcType:
         try:
             files.append(script_file(self, work, jobs))
             files.extend(self.inputs(work))
+            nk = work.values.get("nk")
+            work.notes.extend(gamma_pool_notes(files, jobs.nk if nk is None else nk))
         except TemplateFailure as exc:
             work.errors.append(str(exc))
         for field_id, text in work.problems.items():

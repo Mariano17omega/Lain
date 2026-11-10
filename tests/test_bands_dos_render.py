@@ -193,12 +193,18 @@ def test_no_tick_label_where_the_panels_meet():
 
 
 def test_toolbar_limits_go_to_the_panel_they_belong_to():
-    module, _dataset, params = combined()
-    module.apply_limits(params, [((0.5, 2.0), (-3.0, 2.0)), ((0.0, 0.8), (-3.0, 2.0))])
+    module, dataset, params = combined()
+    module.apply_limits(dataset, params, [((0.5, 2.0), (-3.0, 2.0)), ((0.0, 0.8), (-3.0, 2.0))])
     assert (params.xmin, params.xmax, params.emin, params.emax) == (0.5, 2.0, -3.0, 2.0)
     assert params.dos_max == 0.8
-    params.spin_mode = "mirror"
-    module.apply_limits(params, [((0.5, 2.0), (-3.0, 2.0)), ((-1.5, 1.2), (-3.0, 2.0))])
+    params.spin_mode = "mirror"  # no effect: Al has no spin, so its DOS axis starts at 0
+    module.apply_limits(dataset, params, [((0.5, 2.0), (-3.0, 2.0)), ((-1.5, 1.2), (-3.0, 2.0))])
+    assert params.dos_max == 1.2
+
+
+def test_the_toolbar_limit_of_a_mirrored_spin_dos_is_its_larger_side():
+    module, dataset, params = combined(SPIN_BANDS, SPIN_PDOS, spin_mode="mirror")
+    module.apply_limits(dataset, params, [((0.5, 2.0), (-3.0, 2.0)), ((-1.5, 1.2), (-3.0, 2.0))])
     assert params.dos_max == 1.5
 
 

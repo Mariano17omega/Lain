@@ -392,7 +392,7 @@ class PlotView(QWidget):
     def _draw_failed(self, error: Exception) -> None:
         self._task = None
         self.drawing_changed.emit(self.session.key, False)
-        log.error("drawing %s failed", self.session.kind, exc_info=error)
+        log.error("plot: drawing %s failed", self.session.kind, exc_info=error)
         raise error  # the window's exception reporter shows it, like a render on the GUI thread
 
     def _on_resized(self) -> None:

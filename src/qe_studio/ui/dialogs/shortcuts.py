@@ -17,6 +17,8 @@ from PyQt6.QtWidgets import (
 
 from ...core.search.fuzzy import fold
 from ...i18n import _
+from ..theme.scale import scaled
+from ..widgets.common import hide_vertical_header
 
 HEADERS = (_("Ação"), _("Atalho"), _("Onde"))
 ARROWS = {"Left": "←", "Right": "→", "Up": "↑", "Down": "↓"}
@@ -33,7 +35,7 @@ class ShortcutsDialog(QDialog):
         self.rows = [(action, pretty_keys(keys), where) for action, keys, where in rows]
         self.setWindowTitle(_("Atalhos de teclado"))
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        self.resize(640, 480)
+        self.resize(scaled(640), scaled(480))
         layout = QVBoxLayout(self)
         self.search = QLineEdit()
         self.search.setPlaceholderText(_("Buscar ação, atalho ou lugar…"))
@@ -41,7 +43,7 @@ class ShortcutsDialog(QDialog):
         layout.addWidget(self.search)
         self.table = QTableWidget(0, len(HEADERS))
         self.table.setHorizontalHeaderLabels(list(HEADERS))
-        self.table.verticalHeader().setVisible(False)  # type: ignore[union-attr]
+        hide_vertical_header(self.table)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setAlternatingRowColors(True)
@@ -65,8 +67,9 @@ class ShortcutsDialog(QDialog):
 
     def visible_rows(self) -> list[tuple[str, str, str]]:
         """The rows the table shows now (after the search)."""
-        out = []
-        for r in range(self.table.rowCount()):
-            cells = [self.table.item(r, c) for c in range(len(HEADERS))]
-            out.append(tuple(cell.text() if cell else "" for cell in cells))
-        return out  # type: ignore[return-value]
+
+        def text(r: int, c: int) -> str:
+            item = self.table.item(r, c)
+            return item.text() if item else ""
+
+        return [(text(r, 0), text(r, 1), text(r, 2)) for r in range(self.table.rowCount())]

@@ -8,10 +8,10 @@ from datetime import datetime
 import pytest
 
 from qe_studio.core.config import parse_config
+from qe_studio.core.remote import submit_log
 from qe_studio.core.remote import trash as trash_module
-from qe_studio.core.remote.actions import ActionFailure
-from qe_studio.core.remote.cluster_jobs import JobsFailure
-from qe_studio.core.remote.listing import NO_ACCESS, RemoteFailure
+from qe_studio.core.remote.failure import RemoteFailure
+from qe_studio.core.remote.listing import NO_ACCESS
 from qe_studio.core.remote.submit_log import record
 from qe_studio.core.remote.trash import (
     IN_TRASH,
@@ -266,9 +266,9 @@ def test_a_job_lain_submitted_from_the_folder_of_the_items_blocks(fakes):
 
 def test_a_queue_that_cannot_be_read_blocks(fakes):
     _listing, fetch, run = fakes
-    fetch.result = JobsFailure("qstatus terminou com código 1.")
+    fetch.result = RemoteFailure("qstatus terminou com código 1.")
     plan = plan_trash(config(), [(f"{PROJECT}/scf.in", False)], now=NOW)
-    assert isinstance(plan, ActionFailure)
+    assert isinstance(plan, RemoteFailure)
     assert plan.message.startswith("Não foi possível conferir se roda um job aqui: qstatus")
     assert plan.message.endswith("Nada foi movido.")
     assert run.commands == []
@@ -278,7 +278,7 @@ def test_a_folder_that_cannot_be_listed_blocks(fakes):
     listing, fetch, _run = fakes
     fetch.result = snapshot(with_mine("Elsewhere"))  # a job runs: the folder must be looked in
     listing.folders[PDOS] = RemoteFailure(NO_ACCESS)
-    assert plan_trash(config(), [(PDOS, True)], now=NOW) == ActionFailure(NO_ACCESS)
+    assert plan_trash(config(), [(PDOS, True)], now=NOW) == RemoteFailure(NO_ACCESS)
 
 
 def test_a_subfolder_that_cannot_be_read_blocks_and_is_named(fakes):
@@ -343,7 +343,23 @@ def test_a_failure_before_any_move_is_the_answer(fakes):
     assert isinstance(plan, TrashPlan)
     run.result = CommandResult(1, "", "mkdir: cannot create directory 'trash': Permission denied\n")
     answer = run_trash(config(), plan)
-    assert isinstance(answer, ActionFailure)
+    assert isinstance(answer, RemoteFailure)
     assert answer.message == (
-        "mv terminou com código 1: mkdir: cannot create directory 'trash': Permission denied"
+        "mkdir terminou com código 1: mkdir: cannot create directory 'trash': Permission denied"
     )
+
+
+def test_a_logged_job_whose_name_the_queue_cut_blocks(fakes):
+    listing, fetch, _run = fakes
+    listing.folders[REMOTE_ROOT] = entries("projeto")
+    full = "Queued-job-with-a-name-longer-than-the-column"
+    record(ACCOUNT, "25000", full, f"{PDOS}/orbitals", "pdos.qsub")
+    fetch.result = snapshot(with_mine(waiting=1, queued=full[:25]))
+    assert isinstance(plan_trash(config(), [(PROJECT, True)], now=NOW), TrashBlocked)
+
+
+def test_a_log_that_cannot_be_read_stops_the_move(fakes, monkeypatch, tmp_path):
+    monkeypatch.setattr(submit_log, "log_path", lambda: tmp_path)  # reading a folder fails
+    plan = plan_trash(config(), [(PDOS, True)], now=NOW)
+    assert isinstance(plan, RemoteFailure) and plan.local
+    assert plan.message.endswith("Nada foi movido.")

@@ -3,6 +3,7 @@ folder, and what is done with them.
 
 - ``file_kinds``: how a file opens and the state it reports (``viewer_kind``, ``status_label``).
 - ``job_log``: whether a job's stdout log only lists the job's machines (spec 85).
+- ``job_script``: what the ``#$`` lines of a ``.qsub`` say: its options, the job's name and slots.
 - ``run_errors``: whether a folder holds the trace of a failed run (spec 50).
 - ``paths``: the folder rules of the file panels: hidden folders, order of names, entry counts.
 - ``filtering``: what the quick filter accepts (spec 16 R3).
@@ -10,5 +11,6 @@ folder, and what is done with them.
 - ``file_ops``: the operations of the context menu, never over an existing file.
 - ``unique_names``: names that never overwrite (``_1``, ``_2``…, spec 24).
 - ``desktop_apps``: the installed programs that open a MIME type ("Abrir com").
+- ``image_file``: the bytes of an image tab, read in a worker.
 - ``xcrysden``: opening a pw.x file with XCrySDen (spec 45).
 """

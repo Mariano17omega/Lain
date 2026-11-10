@@ -27,6 +27,31 @@ from ..widgets.common import set_variant
 
 log = logging.getLogger(__name__)
 
+MAX_LINES = 10  # a longer list scrolls: the buttons stay on screen
+LINE_PX = 16  # a line of ``#detailsText`` (11 px mono) at scale 1
+BOX_PADDING_PX = 22  # the frame, the margins and a horizontal scroll bar
+
+
+def _text_box(lines: Sequence[str]) -> QPlainTextEdit:
+    """``lines`` to read and select, no wrapping, as tall as up to ``MAX_LINES`` of them. A remote
+    path or command has no length limit: it scrolls instead of stretching the window."""
+    box = QPlainTextEdit("\n".join(lines))
+    box.setObjectName("detailsText")
+    box.setReadOnly(True)
+    box.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+    box.setFixedHeight(scaled(LINE_PX * min(len(lines), MAX_LINES) + BOX_PADDING_PX))
+    return box
+
+
+def _folder_label(account: str, folder: str) -> QLabel:
+    """ "Pasta: conta:/caminho", wrapped: a long path must not make the window wider than the
+    screen."""
+    label = set_variant(
+        QLabel(_("Pasta: {account}:{folder}").format(account=account, folder=folder)), "dialogText"
+    )
+    label.setWordWrap(True)
+    return label
+
 
 class SubmitDialog(QDialog):
     """ "Submeter {script}?": the folder, the commands as they go to ssh and a warning per
@@ -39,13 +64,12 @@ class SubmitDialog(QDialog):
         layout = QVBoxLayout(self)
         title = _("Submeter {script}?").format(script=plan.script)
         layout.addWidget(set_variant(QLabel(title), "dialogTitle"))
-        folder = _("Pasta: {account}:{folder}").format(account=account, folder=plan.remote_dir)
-        layout.addWidget(set_variant(QLabel(folder), "dialogText"))
+        layout.addWidget(_folder_label(account, plan.remote_dir))
         if plan.job_name:
             job = _("Job: {name}").format(name=plan.job_name)
             layout.addWidget(set_variant(QLabel(job), "dialogText"))
         layout.addWidget(set_variant(QLabel(_("Comandos que vão rodar no cluster:")), "dialogText"))
-        self.commands = set_variant(QLabel("\n".join(plan.steps)), "mono")
+        self.commands = _text_box(plan.steps)
         layout.addWidget(self.commands)
         self.warnings = []
         for name in plan.exit_files:
@@ -148,6 +172,7 @@ class CancelDialog(QDialog):
             form = QFormLayout()
             for label, value in block:
                 shown = QLabel(value)
+                shown.setWordWrap(True)
                 shown.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 self.values.append(shown)
                 form.addRow(set_variant(QLabel(label), "dialogText"), shown)
@@ -165,8 +190,7 @@ class CancelDialog(QDialog):
         layout.addWidget(self.note)
         command = _("Comando que vai rodar no cluster:")
         layout.addWidget(set_variant(QLabel(command), "dialogText"))
-        self.command = set_variant(QLabel(line), "mono")
-        self.command.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.command = _text_box(line.splitlines() or [line])
         layout.addWidget(self.command)
         buttons = QHBoxLayout()
         buttons.addStretch(1)
@@ -201,19 +225,6 @@ TRASH_NOTE = _(
     "Os itens vão para a pasta trash na raiz do cluster. O Lain nunca apaga de vez: para isso, entre "
     "em trash pelo terminal."
 )
-MAX_LINES = 10  # a longer list scrolls: the buttons stay on screen
-LINE_PX = 16  # a line of ``#detailsText`` (11 px mono) at scale 1
-BOX_PADDING_PX = 22  # the frame, the margins and a horizontal scroll bar
-
-
-def _text_box(lines: Sequence[str]) -> QPlainTextEdit:
-    """``lines`` to read and select, no wrapping, as tall as up to ``MAX_LINES`` of them."""
-    box = QPlainTextEdit("\n".join(lines))
-    box.setObjectName("detailsText")
-    box.setReadOnly(True)
-    box.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-    box.setFixedHeight(scaled(LINE_PX * min(len(lines), MAX_LINES) + BOX_PADDING_PX))
-    return box
 
 
 class TrashDialog(QDialog):
@@ -226,8 +237,7 @@ class TrashDialog(QDialog):
         self.setModal(True)
         layout = QVBoxLayout(self)
         layout.addWidget(set_variant(QLabel(_("Mover para trash?")), "dialogTitle"))
-        folder = _("Pasta: {account}:{folder}").format(account=account, folder=plan.remote_dir)
-        layout.addWidget(set_variant(QLabel(folder), "dialogText"))
+        layout.addWidget(_folder_label(account, plan.remote_dir))
         self.moves = _text_box([f"{item} → {target}" for item, target in plan.moves])
         layout.addWidget(self.moves)
         self.note = set_variant(QLabel(TRASH_NOTE), "dialogText")

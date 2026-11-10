@@ -1,5 +1,6 @@
 """The dataset cache (spec 27-4 R2): a byte budget, one load per key, emptying by folder."""
 
+import dataclasses
 import threading
 from pathlib import Path
 
@@ -14,7 +15,9 @@ from qe_studio.core.calculations.load_cache import (
     LOAD_CACHE_SIZE,
     LoadCache,
 )
-from qe_studio.core.detection import detect_folder
+from qe_studio.core.calculations.sizing import nbytes_of
+from qe_studio.core.detection import PairTarget, detect_folder
+from qe_studio.core.plotting.session import load_plot
 from qe_studio.core.sniff import SniffCache
 from qe_studio.ui.files.detection_service import DetectionService
 
@@ -221,6 +224,31 @@ def test_load_cached_of_a_module_goes_through_the_shared_cache():
     assert len(CACHE) == 1 and CACHE.total_bytes > 0
     assert module.load_cached(result, sniff) is dataset
     assert drop_cached(FIXTURES / "al_bands") == 1 and len(CACHE) == 0
+
+
+def test_the_same_files_seen_from_another_folder_are_another_dataset(tmp_path):
+    sniff = SniffCache().sniff
+    (result,) = detect_folder(FIXTURES / "al_bands", sniff=sniff)
+    first = result.module.load_cached(result, sniff)
+    other = dataclasses.replace(result, folder=tmp_path)
+    assert result.module.load_cached(other, sniff).folder == tmp_path
+    assert first.folder == FIXTURES / "al_bands"
+
+
+def test_new_detection_warnings_reach_the_dataset():
+    sniff = SniffCache().sniff
+    (result,) = detect_folder(FIXTURES / "al_bands", sniff=sniff)
+    assert "uma a menos" not in result.module.load_cached(result, sniff).warnings
+    changed = dataclasses.replace(result, warnings=["uma a menos"])
+    assert "uma a menos" in result.module.load_cached(changed, sniff).warnings
+
+
+def test_bands_with_dos_is_not_charged_on_top_of_its_parts():
+    cache = SniffCache()
+    target = PairTarget(FIXTURES / "al_bands", FIXTURES / "al_pdos_flat", cache.sniff)
+    _result, dataset = load_plot(target, cache.sniff)
+    assert len(CACHE) == 2  # the bands and the PDOS, not a third entry with both
+    assert CACHE.total_bytes == nbytes_of(dataset)
 
 
 def test_invalidate_empties_the_cache(qtbot, tmp_path):

@@ -14,6 +14,7 @@ from qe_studio.core.config import parse_config
 from qe_studio.core.remote import actions
 from qe_studio.core.remote import submit as submit_core
 from qe_studio.core.remote import trash as trash_core
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.remote.trash import IN_TRASH, TrashBlocked, TrashDone, TrashPlan, trash_steps
 from qe_studio.core.sync.command import remote_command
 from qe_studio.ui.cluster import jobs_controller, remote_trash
@@ -237,6 +238,19 @@ def test_the_folder_shown_deleted_from_the_tree_opens_the_one_above(
     assert window.remote.current == REMOTE
 
 
+def test_a_folder_whose_move_failed_stays_on_screen(qtbot, window, monkeypatch, cluster):
+    """The ``mv`` stopped before the folder shown: it is still there, so the grid does not jump
+    to the folder above it (only what really moved counts)."""
+    turn_on(qtbot, window)
+    with qtbot.waitSignal(window.remote.listed):
+        window.remote.open(BANDS)
+    stopped = TrashDone((), RemoteFailure("mv: Permission denied"))
+    monkeypatch.setattr(remote_trash, "run_trash", lambda *args, **kwargs: stopped)
+    result = delete(qtbot, window, monkeypatch, [FOLDER])
+    assert result is stopped
+    assert window.remote.current == BANDS
+
+
 def test_a_running_job_is_a_toast_and_no_dialog(qtbot, window, monkeypatch, cluster):
     cluster.folders.folders[BANDS] = entries(files=("bands.qsub", "bands.in", "Bands-kao-b.o24000"))
     cluster.jobs.result = snapshot(with_mine("Bands-kao-b"))
@@ -258,13 +272,22 @@ def test_nothing_runs_once_the_window_is_closing(qtbot, window, monkeypatch, clu
 
 
 # -- the dialog (R2.2) -----------------------------------------------------------------------------
-def plan() -> TrashPlan:
+def plan(remote_dir: str = REMOTE) -> TrashPlan:
     config = parse_config(
         {"paths": {"remote_root": REMOTE}, "cluster": {"host": "hpc.example", "user": "usuario"}}
     )
     items = ((FOLDER.path, True),)
     moves = trash_core.trash_moves(REMOTE, items, NOW)
-    return TrashPlan(REMOTE, items, moves, trash_steps(config, items, NOW))
+    return TrashPlan(remote_dir, items, moves, trash_steps(config, items, NOW))
+
+
+def test_a_very_long_remote_path_does_not_stretch_the_dialog(qtbot):
+    """The folder wraps and the lists scroll: the buttons stay on a small screen."""
+    long = f"{REMOTE}/" + "/".join(["pasta_com_um_nome_bem_longo"] * 10)
+    assert len(long) > 270
+    dialog = TrashDialog(plan(long), ACCOUNT)
+    qtbot.addWidget(dialog)
+    assert dialog.sizeHint().width() < 900
 
 
 def test_the_dialog_shows_each_target_and_the_commands(qtbot):

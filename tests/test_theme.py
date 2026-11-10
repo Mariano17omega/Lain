@@ -1,8 +1,11 @@
+import tempfile
 from importlib.resources import files
+from pathlib import Path
 
 import pytest
 from PyQt6.QtCore import QtMsgType, qInstallMessageHandler
 
+from qe_studio.ui.theme import manager as manager_module
 from qe_studio.ui.theme.manager import (
     MODES,
     THEMES,
@@ -180,3 +183,31 @@ def test_leaving_system_stops_following_the_os(qapp, qtbot, scheme):
 
 def test_an_unknown_mode_is_dark(qapp):
     assert ThemeManager("sepia").mode == "dark"
+
+
+def test_a_changed_color_is_rendered_again_not_taken_from_the_cache(qapp):
+    manager = ThemeManager("dark")
+    before = manager.asset_tokens()
+    manager.tokens = {**manager.tokens, "text_muted": "#123456"}
+    after = manager.asset_tokens()
+    assert after["icon_close"] != before["icon_close"]  # text_muted: a new file
+    assert after["icon_close_hover"] == before["icon_close_hover"]  # text: the same one
+    for path in (*before.values(), *after.values()):
+        assert Path(path).exists() and Path(path).with_name(f"{Path(path).stem}@2x.png").exists()
+
+
+def test_the_icons_are_written_whole(qapp):
+    paths = ThemeManager("light").asset_tokens().values()
+    assert not [p for p in Path(next(iter(paths))).parent.iterdir() if p.suffix == ".tmp"]
+
+
+def test_a_cache_that_cannot_be_written_does_not_stop_the_theme(qapp, tmp_path, monkeypatch):
+    blocker = tmp_path / "not-a-folder"
+    blocker.write_text("a file where the cache folder should go")
+    monkeypatch.setattr(manager_module, "cache_dir", lambda: blocker)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    manager = ThemeManager("dark")
+    tokens = manager.asset_tokens()
+    assert all(Path(p).exists() and "lain-qss-" in p for p in tokens.values())
+    assert manager.asset_tokens() == tokens  # the next apply() reuses that folder
+    assert "${" not in manager.stylesheet()

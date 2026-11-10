@@ -216,4 +216,4 @@ contributors (architecture, threading, i18n, logging) are in [`CLAUDE.md`](CLAUD
 - Spin: collinear runs (`nspin = 2`) only; non-collinear and spin-orbit runs keep a single channel. k-resolved PDOS
   files are reported as unsupported.
 - Linux is the primary target. On Windows, `rsync` and `ssh` must come from cwRsync or MSYS2
-  (`sync.rsync_binary`, `sync.ssh_binary`).
+  (`sync.rsync_binary`, `sync.ssh_binary`; with MSYS2 also `sync.cygdrive_prefix: ""`).

@@ -10,7 +10,7 @@ from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import QInputDialog
 
 from qe_studio.core.config import LoadedConfig, parse_config
-from qe_studio.core.remote.cluster_jobs import JobsFailure
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.sync.monitor import ConnectionState
 from qe_studio.ui import shutdown
 from qe_studio.ui.theme.scale import scaled
@@ -19,9 +19,9 @@ from qe_studio.ui.widgets.cluster.jobs_popup import CANCEL, EMPTY, FAILURE, LOAD
 from jobs_helpers import EMPTY as EMPTY_LISTING
 from jobs_helpers import QSTATUS_ALL, USER, FakeFetch, cluster_window, snapshot, with_mine
 
-REFUSED = JobsFailure("Autenticação recusada pelo cluster.", auth=True)
-OFFLINE = JobsFailure("Cluster inacessível (tempo de conexão esgotado).", connection=True)
-MISSING = JobsFailure("O comando qstatus -a não foi encontrado no cluster.", missing=True)
+REFUSED = RemoteFailure("Autenticação recusada pelo cluster.", auth=True)
+OFFLINE = RemoteFailure("Cluster inacessível (tempo de conexão esgotado).", connection=True)
+MISSING = RemoteFailure("O comando qstatus -a não foi encontrado no cluster.", missing=True)
 
 
 @pytest.fixture

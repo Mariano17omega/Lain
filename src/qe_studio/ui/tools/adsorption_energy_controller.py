@@ -88,7 +88,7 @@ class AdsorptionEnergyController(QObject):
 
     def _on_error(self, key: str, exc: BaseException) -> None:
         self._end(key)
-        log.error("reading the energies failed", exc_info=exc)
+        log.error("action: reading the energies failed", exc_info=exc)
         message = f"{TITLE}: {exc}"
         self.toast.show_message(message, "warning")
         self.failed.emit(message)
@@ -127,7 +127,7 @@ class AdsorptionEnergyController(QObject):
         self.saved.emit(path)
 
     def _on_save_error(self, _key: str, exc: BaseException) -> None:
-        log.error("writing the adsorption report failed", exc_info=exc)
+        log.error("action: writing the adsorption report failed", exc_info=exc)
         reason = _("Erro inesperado: {error}").format(error=exc)
         QMessageBox.warning(self.dialog_parent, TITLE, reason)
         self.failed.emit(reason)

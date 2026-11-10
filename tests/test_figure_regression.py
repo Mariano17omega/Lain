@@ -95,7 +95,8 @@ GOLDEN = {
         "info": (
             (0.0, 4.7462),
             (-5.0, 5.0),
-            "HOMO = 6.3143 eV · E_gap (no caminho) = 0.454 eV · 16 bandas × 200 pontos k",
+            "HOMO = 6.3143 eV · E_F = 6.5411 eV (meio do gap) · E_gap (no caminho) = 0.454 eV"
+            " · 16 bandas × 200 pontos k",
         ),
     },
     "al_pdos": {

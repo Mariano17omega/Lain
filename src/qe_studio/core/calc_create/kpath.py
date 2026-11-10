@@ -27,6 +27,8 @@ __all__ = [
     "collapse_note",
     "collapsed_segments",
     "distribute",
+    "repeat_note",
+    "repeated_points",
     "segment_progress",
     "to_card",
 ]
@@ -203,6 +205,24 @@ def collapse_note(path: KPath, segment: CollapsedSegment) -> str:
     return _(
         "Segmento {name}→{name_2} colapsa no eixo x do bands.x (passo maior que 5× o anterior): aumente os pontos do segmento anterior, reduza os deste ou use ‘Distribuir pelo comprimento’"
     ).format(name=_name(path, segment.a), name_2=_name(path, segment.b))
+
+
+def repeated_points(path: KPath) -> list[int]:
+    """The indexes ``i`` of the points equal to the next one, also across a break (``X|X``). pw.x then
+    makes two equal consecutive k-points, and bands.x stops at the first of them and leaves its
+    ``.gnu`` empty (``QE:PP/src/bands.f90:537-541``, L-05)."""
+    return [
+        i
+        for i, (a, b) in enumerate(zip(path.points, path.points[1:], strict=False))
+        if np.allclose(a.frac, b.frac, atol=1e-8)
+    ]
+
+
+def repeat_note(path: KPath, index: int) -> str:
+    """The warning of a repeated point (plan note and row tooltip)."""
+    return _(
+        "Os pontos {name} e {name_2} do caminho são iguais: o pw.x gera k-points repetidos e o bands.x deixa o .gnu vazio; use o ponto uma vez só"
+    ).format(name=_name(path, index), name_2=_name(path, index + 1))
 
 
 def distribute(path: KPath, cell, density: float, min_pts: int = 2) -> KPath:

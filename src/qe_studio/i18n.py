@@ -1,8 +1,9 @@
 """Translation of the texts the user reads (gettext).
 
 The source language is Portuguese: the strings in the code are the Portuguese messages and the ``pt_BR``
-language needs no catalog. English lives in ``locale/en/LC_MESSAGES/lain.po`` (compiled to ``.mo``,
-versioned). No Qt here: ``core/`` and ``ui/`` share these functions.
+language needs no catalog. English lives in ``locale/en/LC_MESSAGES/lain_<domain>.po``, one catalog (a
+gettext domain) per area of the code, compiled to ``.mo`` and versioned. ``install`` chains the domains,
+so ``_()`` stays a single function. No Qt here: ``core/`` and ``ui/`` share these functions.
 
 The language is chosen once, at startup, and applies until the program is restarted: ``install`` runs
 before the application modules are imported (``__main__`` does it), so a text may be translated
@@ -17,7 +18,21 @@ from collections.abc import Iterable
 from importlib.resources import files
 from pathlib import Path
 
-DOMAIN = "lain"
+DOMAIN = "lain"  # the prefix of every catalog: ``lain_<name>``
+# The catalogs, in lookup order: the messages shared by several areas first, then the largest areas.
+# ``scripts/i18n.py`` decides which one holds a message (``domain_of``).
+DOMAINS = (
+    "common",
+    "calc_create",
+    "calculations",
+    "ui",
+    "qe",
+    "sync",
+    "files",
+    "structure3d",
+    "viewer",
+    "core",
+)
 SOURCE_LANGUAGE = "pt_BR"
 LANGUAGES = ("pt_BR", "en")
 
@@ -36,10 +51,26 @@ def install(language: str) -> None:
     keeps the language that was installed then.
     """
     global _translation, _language
-    _translation = gettext.translation(
-        DOMAIN, str(locale_dir()), languages=[language], fallback=True
-    )
+    _translation = load(language)
     _language = language
+
+
+def domain_name(domain: str) -> str:
+    """The gettext domain, and the file name without extension, of the catalog ``domain``."""
+    return f"{DOMAIN}_{domain}"
+
+
+def load(language: str) -> gettext.NullTranslations:
+    """The catalogs of ``language`` chained into one; a domain with no ``.mo`` is skipped."""
+    chained = gettext.NullTranslations()
+    for domain in DOMAINS:
+        try:
+            chained.add_fallback(
+                gettext.translation(domain_name(domain), str(locale_dir()), languages=[language])
+            )
+        except OSError:  # no catalog for this language and domain: the source messages show
+            continue
+    return chained
 
 
 def current_language() -> str:

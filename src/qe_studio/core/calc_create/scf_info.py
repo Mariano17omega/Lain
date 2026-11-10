@@ -20,6 +20,7 @@ from ..qe.input_edit import InputEditor, read_input_text
 from ..qe.lattice import Crystal, StructureError, crystal_from_editor
 from ..qe.pw_input import fortran_float, fortran_int
 from .kpath import KMesh
+from .render import warm_templates
 
 __all__ = [
     "DEFAULT_PREFIX",
@@ -129,7 +130,7 @@ def scf_info(text: str, path: Path | None = None) -> ScfInfo:
         crystal, problem = crystal_from_editor(editor), None
     except StructureError as exc:
         crystal, problem = None, str(exc)
-    except ValueError as exc:  # numpy's LinAlgError is one  # e.g. nat = 0 with positions in alat
+    except ValueError as exc:  # numpy's LinAlgError is one
         crystal, problem = None, _("Estrutura inválida no SCF: {reason}").format(reason=exc)
     return ScfInfo(
         text=text,
@@ -177,12 +178,14 @@ def read_scf(path: Path) -> ScfInfo:
             )
         ) from exc
     info = scf_info(text, path)
+    warm_templates()  # every plan starts from an SCF read here, and ``plan`` reads no file
     return dataclasses.replace(info, scf_bands=_bands_of_output(path))
 
 
 def read_other_scf(path: Path) -> ScfInfo:
-    """``read_scf`` of a file a field picks, which must look like a QE input (the check step 1 makes
-    on the GUI thread, here in the worker). Raises ``ScfInputError``. Workers only."""
+    """``read_scf`` of a file the user picks (step 1's SCF, the list's, a field's), which must look
+    like a QE input: the check is made here, in the worker. Raises ``ScfInputError``. Workers
+    only."""
     from ..sniff import looks_like_input
 
     if not looks_like_input(path):

@@ -29,10 +29,10 @@ from pathlib import Path
 
 from ...i18n import N_
 from .. import cancel
-from .structure import SITE, format_formula
+from .structure import SiteList, format_formula
+from .units import BOHR_TO_ANGSTROM, number
 
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[DEde][-+]?\d+)?"
-BOHR_TO_ANGSTROM = 0.529177210903
 # etot_conv_thr (Ry), forc_conv_thr (Ry/Bohr), press_conv_thr (kbar)
 QE_DEFAULT_THRESHOLDS = (1.0e-4, 1.0e-3, 0.5)
 
@@ -71,16 +71,12 @@ _CELL_HEADER = re.compile(
 )
 
 
-def _number(text: str) -> float:
-    return float(text.replace("D", "E").replace("d", "e"))
-
-
 def _cell_row(line: str) -> tuple[float, float, float] | None:
     tokens = line.split()
     if len(tokens) != 3:
         return None
     try:
-        return (_number(tokens[0]), _number(tokens[1]), _number(tokens[2]))
+        return (number(tokens[0]), number(tokens[1]), number(tokens[2]))
     except ValueError:
         return None
 
@@ -174,7 +170,7 @@ def parse_relax(
     criteria: tuple[float | None, ...] | None = None
     bfgs_converged = job_done = vc_relax = final_scf = False
     final_energy: float | None = None
-    species: dict[str, int] = {}
+    sites = SiteList()
     in_header = True
     # vc-relax: where a value printed in this block belongs (see the module docstring)
     block: int | None = None  # the step the current block closed
@@ -241,7 +237,7 @@ def parse_relax(
             continue
         if final_scf:
             if final_energy is None and "!" in line and (match := _ENERGY.match(line)):
-                final_energy = _number(match.group(1))
+                final_energy = number(match.group(1))
             continue
         if cell_rows is not None:
             if (row := _cell_row(line)) is not None:
@@ -260,7 +256,7 @@ def parse_relax(
             if pending is not None:
                 truncated += 1
             pending = {
-                "energy": _number(match.group(1)),
+                "energy": number(match.group(1)),
                 "force": None,
                 "scf": None,
                 "pressure": None,
@@ -269,13 +265,12 @@ def parse_relax(
             in_header = False
             continue
         if in_header:
-            if "tau(" in line and (match := SITE.match(line)):
-                name = match.group("species")
-                species[name] = species.get(name, 0) + 1
+            if "tau(" in line:
+                sites.feed(line)
             elif "thresh." in line:
                 for i, pattern in enumerate((_ENERGY_THR, _FORCE_THR, _PRESS_THR)):
                     if header[i] is None and (match := pattern.search(line)):
-                        header[i] = _number(match.group(1))
+                        header[i] = number(match.group(1))
             continue
         if block is not None:  # the tail of a block: after its step closed, up to ATOMIC_POSITIONS
             if "ATOMIC_POSITIONS" in line:
@@ -284,15 +279,15 @@ def parse_relax(
                 vc_relax = True
                 pattern = _FINAL_ENTHALPY if "Final" in line else _ENTHALPY_NEW
                 if match := pattern.search(line):
-                    set_enthalpy(_number(match.group(1)))
+                    set_enthalpy(number(match.group(1)))
             elif "new unit-cell volume" in line:
                 vc_relax = True
                 if match := _NEW_VOLUME.search(line):
-                    set_geometry(volume=_number(match.group(1)))
+                    set_geometry(volume=number(match.group(1)))
             elif "CELL_PARAMETERS" in line and (match := _CELL_HEADER.match(line)):
                 alat, _angstrom, bohr = match.groups()
                 if alat is not None:
-                    cell_scale = BOHR_TO_ANGSTROM * _number(alat)
+                    cell_scale = BOHR_TO_ANGSTROM * number(alat)
                 else:
                     cell_scale = BOHR_TO_ANGSTROM if bohr is not None else 1.0
                 cell_rows = []
@@ -301,7 +296,7 @@ def parse_relax(
         if "Final scf calculation" in line:
             final_scf = True
         elif "Total force" in line and pending is not None and (match := _FORCE.search(line)):
-            pending["force"] = _number(match.group(1))
+            pending["force"] = number(match.group(1))
         elif "scf cycles" in line:
             if match := _BFGS_END.search(line):
                 bfgs_converged = match.group(1).lower() == "converged"
@@ -311,9 +306,9 @@ def parse_relax(
         elif "bfgs steps" in line and (match := _BFGS_STEPS.search(line)):
             close(int(match.group(1)))
         elif "criteria:" in line and (match := _CRITERIA.search(line)):
-            criteria = tuple(None if g is None else _number(g) for g in match.groups())
+            criteria = tuple(None if g is None else number(g) for g in match.groups())
         elif pending is not None and "P=" in line and (match := _PRESSURE.search(line)):
-            pending["pressure"] = _number(match.group(1))
+            pending["pressure"] = number(match.group(1))
     if pending is not None:
         truncated += 1
 
@@ -341,7 +336,7 @@ def parse_relax(
         job_done=job_done,
         truncated_steps=truncated,
         final_scf_energy=final_energy,
-        formula=format_formula(species),
+        formula=format_formula(sites.species),
         bfgs_converged=bfgs_converged,
         pressure_threshold=thresholds[2],
         pressure_threshold_source=sources[2],
@@ -352,14 +347,23 @@ def parse_relax(
 
 
 def is_relaxed(data: RelaxData) -> bool:
-    """``diagnostics.is_relaxed`` of the reference: the last |ΔE| and force below thresholds."""
+    """Whether the run met its thresholds when pw.x did not say so: the last |ΔE| (|ΔH| in a
+    vc-relax) and force below theirs and, in a vc-relax, P within ``press_conv_thr`` of ``press``.
+    pw.x tests each component of the stress (``bfgs_module``); P, the scalar kept here, is only a
+    necessary condition."""
     if data.bfgs_converged:
         return True
-    deltas = data.energy_deltas
+    deltas = data.convergence_deltas()
     if not deltas:
         return False
-    return deltas[-1] <= data.energy_threshold and data.steps[-1].force_ry_bohr <= (
-        data.force_threshold
+    last = data.steps[-1]
+    if deltas[-1][0] > data.energy_threshold or last.force_ry_bohr > data.force_threshold:
+        return False
+    if data.calculation != "vc-relax":
+        return True
+    return (
+        last.pressure_kbar is not None
+        and abs(last.pressure_kbar - data.target_pressure_kbar) <= data.pressure_threshold
     )
 
 

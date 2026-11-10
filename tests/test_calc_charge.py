@@ -2,6 +2,7 @@
 
 import pytest
 
+from qe_studio.core.calc_create.overrides import apply_overrides
 from qe_studio.core.calc_create.render import TemplateFailure, render
 from qe_studio.core.calc_create.types import by_id, visible_fields
 from qe_studio.core.calc_create.types.charge import (
@@ -238,10 +239,39 @@ def test_the_format_must_fit_the_plot(iflag, output_format, ok):
         iflag=choice(iflag, IFLAGS),
         output_format=choice(output_format, OUTPUT_FORMATS),
     )
-    assert result.ok is ok, result.errors
+    if iflag == 3:  # the others also need the keys of ``&PLOT``, tested below
+        assert result.ok is ok, result.errors
     assert ("output_format" in result.problems) is (not ok)
     if not ok:
         assert "iflag" in result.problems["output_format"]
+
+
+@pytest.mark.parametrize(
+    ("iflag", "output_format", "missing"),
+    [
+        (0, 0, "e1, nx"),
+        (1, 5, "e1, nx"),
+        (2, 7, "e1, e2, nx, ny"),
+        (4, 5, "radius, nx, ny"),
+    ],
+)
+def test_a_plot_other_than_3d_needs_keys_the_form_does_not_have(iflag, output_format, missing):
+    result = plan(
+        mode="avancado",
+        iflag=choice(iflag, IFLAGS),
+        output_format=choice(output_format, OUTPUT_FORMATS),
+    )
+    assert not result.ok and not result.problems
+    assert f"pp_Al_charge.in: iflag = {iflag} exige {missing} em &PLOT" in result.text_errors[0]
+
+
+def test_typing_the_keys_in_the_tab_clears_the_block():
+    result = plan(mode="avancado", iflag=choice(1, IFLAGS))
+    partly = pp_of(result).text.replace("iflag = 1,", "iflag = 1,\nnx = 100,")
+    still = apply_overrides(result, {"pp_charge": partly}, CHARGE)
+    assert not still.ok and "exige e1 em &PLOT" in still.errors[0]
+    typed = partly.replace("nx = 100,", "nx = 100,\ne1(1) = 1.0,")
+    assert apply_overrides(result, {"pp_charge": typed}, CHARGE).ok
 
 
 def test_a_negative_plot_num_is_an_error():

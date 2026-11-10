@@ -10,4 +10,7 @@ A port of the proof of concept in ``Documentation/Exemplo-visualizador_3d`` on n
 - ``bonds``: bonds over periodic images and ``BondGraph``; ``replicate``: the drawn ``Scene`` (copies and ghosts).
 - ``geometry``: the drawn radius of each atom and the bond halves that start on the sphere's surface.
 - ``camera``: arcball, projections, views; ``pick``: the atom under a click; ``options``: ``DisplayOptions``.
+- ``measure``: distance and angle between atom copies; ``measurements``: the measures of one window.
+- ``view_state``: a window's view as plain data; ``view_file``: ``view3d.plot``, one section per file.
+- ``cif``: the CIF of an input; ``image_file``: where the "Print" of a window goes.
 """

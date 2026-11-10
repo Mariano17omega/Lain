@@ -51,7 +51,7 @@ def remote_command(config: AppConfig, command: str) -> list[str]:
     cluster = config.cluster
     return [
         *ssh_command(cluster, config.sync.ssh_binary),
-        f"{cluster.user}@{cluster.host}",
+        cluster.account,
         command,
     ]
 

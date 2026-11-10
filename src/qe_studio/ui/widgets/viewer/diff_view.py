@@ -22,7 +22,6 @@ from PyQt6.QtWidgets import (
     QScrollBar,
     QSplitter,
     QStackedWidget,
-    QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -33,6 +32,7 @@ from ....core.qe.input_diff import Comparison, ParamDiff, TextRow, TooBigError, 
 from ....core.tasks import TaskHandle, run_task
 from ....i18n import _
 from ...theme.manager import ThemeManager
+from ..common import tool_button
 from .code_view import CodeView
 from .highlighters import InputHighlighter
 
@@ -67,15 +67,6 @@ def _bars(pane: CodeView) -> tuple[QScrollBar, QScrollBar]:
     return vertical, horizontal
 
 
-def _tool(text: str, tip: str, checkable: bool = False) -> QToolButton:
-    button = QToolButton()
-    button.setProperty("variant", "viewerTool")
-    button.setText(text)
-    button.setToolTip(tip)
-    button.setCheckable(checkable)
-    return button
-
-
 class DiffView(QWidget):
     """ "Diff · a ↔ b": the table of parameters that differ, or the two texts side by side."""
 
@@ -101,10 +92,12 @@ class DiffView(QWidget):
         row.setSpacing(8)
         self.label_a = self._file_label(_("A"), a)
         self.label_b = self._file_label(_("B"), b)
-        self.params_button = _tool(
-            _("Parâmetros"), _("Só o que difere, parâmetro por parâmetro"), True
+        self.params_button = tool_button(
+            _("Parâmetros"), _("Só o que difere, parâmetro por parâmetro"), checkable=True
         )
-        self.text_button = _tool(_("Texto"), _("Os dois arquivos lado a lado"), True)
+        self.text_button = tool_button(
+            _("Texto"), _("Os dois arquivos lado a lado"), checkable=True
+        )
         self.params_button.setChecked(True)
         modes = QButtonGroup(self)
         modes.setExclusive(True)
@@ -202,7 +195,7 @@ class DiffView(QWidget):
 
     def _on_failed(self, error: Exception) -> None:
         if not isinstance(error, OSError | TooBigError):
-            log.error("comparing %s with %s failed", self.a, self.b, exc_info=error)
+            log.error("tab: comparing %s with %s failed", self.a, self.b, exc_info=error)
         self.message.setText(_("Não foi possível comparar: {error}").format(error=error))
         self._show_page()
         self.loaded.emit()

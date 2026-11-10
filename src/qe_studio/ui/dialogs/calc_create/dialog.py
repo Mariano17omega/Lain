@@ -32,7 +32,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
-    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -45,7 +44,8 @@ from ....core.config import JobsConfig
 from ....i18n import _
 from ...shell.busy import BusyTracker
 from ...theme.manager import ThemeManager
-from ...widgets.common import set_variant
+from ...theme.scale import scaled
+from ...widgets.common import set_variant, show_only_page
 from .labels import message_label, show_message
 from .mode_switch import ModeSwitch
 from .setup_page import CHOOSE_SCF, SetupPage
@@ -79,6 +79,7 @@ class CreateRequest(NamedTuple):
     tag: str = ""  # the site, at the very end of the name (spec 77)
     fingerprint: tuple[Source, ...] | None = None  # the SCFs of ``fingerprint.md``; None: no file
     root: Path | None = None  # what the fingerprint's paths are shown relative to (spec 80)
+    name: str = ""  # the folder's name as the "Arquivos" tab showed it: only the footer's label
 
 
 def ask_discard(parent: QWidget) -> bool:
@@ -123,7 +124,7 @@ class CalcCreateDialog(QDialog):
         self.setObjectName("calcCreateDialog")
         self.setWindowTitle(TITLE)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        self.resize(960, 640)
+        self.resize(scaled(960), scaled(640))
         self.theme, self.jobs, self.busy = theme, jobs, busy
         self.debounce_ms = DEBOUNCE_MS  # of the step 2 built next (tests set 0)
         self.tabs: TabsPage | None = None
@@ -291,6 +292,8 @@ class CalcCreateDialog(QDialog):
             self._update()
             return False
         self.tabs.planned.connect(self._update)
+        for form in self.tabs.forms:  # "Criar" waits for a file a field has begun to read
+            form.reading_started.connect(self._update)
         self.pages.addWidget(self.tabs)
         self._built = (calc_type, scfs, suffix)
         self.setup.show_rebuild_note(False)
@@ -300,15 +303,8 @@ class CalcCreateDialog(QDialog):
         self._show_page(self.setup)
 
     def _show_page(self, page: QWidget) -> None:
-        """Only the current page counts for the window's size (``sync_dialog``)."""
-        for index in range(self.pages.count()):
-            widget = self.pages.widget(index)
-            if widget is not None:
-                policy = (
-                    QSizePolicy.Policy.Preferred if widget is page else QSizePolicy.Policy.Ignored
-                )
-                widget.setSizePolicy(policy, policy)
-        self.pages.setCurrentWidget(page)
+        """Only the current page counts for the window's size (``show_only_page``)."""
+        show_only_page(self.pages, page)
         on_setup = page is self.setup
         self.step.setText(STEP_SETUP if on_setup else STEP_FILES)
         self.mode_switch.setVisible(not on_setup)
@@ -323,7 +319,7 @@ class CalcCreateDialog(QDialog):
         return self.tabs is not None and self.pages.currentWidget() is self.tabs
 
     def _update(self) -> None:
-        problems = self.setup.problems()
+        problems = self.setup.last_problems  # what step 1 just checked: no second look at the disk
         self.continue_button.setEnabled(not problems and not self._busy)
         self.continue_button.setToolTip(problems[0] if problems else "")
         wanted = self._wanted()
@@ -372,6 +368,7 @@ class CalcCreateDialog(QDialog):
         if tabs.blocking():
             return
         setup = self.setup
+        target = tabs.target
         self.create_requested.emit(
             CreateRequest(
                 setup.location,
@@ -384,6 +381,7 @@ class CalcCreateDialog(QDialog):
                 tabs.plan.folder_tag if setup.site_tag else "",
                 tabs.fingerprint_sources(),
                 setup.root,
+                target[2] if target is not None else "",
             )
         )
 

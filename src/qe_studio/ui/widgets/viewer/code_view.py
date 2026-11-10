@@ -56,13 +56,18 @@ class LineNumberArea(QWidget):
 
 
 class CodeView(QPlainTextEdit):
+    def set_loading(self, loading: bool) -> None:
+        """The empty view says "Carregando…" while the text is read and nothing once it is not
+        (an empty file, or a read that failed: the banner says why)."""
+        self.setPlaceholderText(_("Carregando…") if loading else "")
+
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None):
         super().__init__(parent)
         self.theme = theme
         self.setObjectName("textViewer")
         self.set_read_only(True)
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.setPlaceholderText(_("Carregando…"))
+        self.set_loading(True)  # a viewer that reads its text says so until it has it
         self.text_document().setDocumentMargin(8)
         self._line_map = LineMap()
         self._numbers: Sequence[int | None] | None = None

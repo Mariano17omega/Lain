@@ -30,7 +30,8 @@ from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
 from ...core.config import AppConfig
 from ...core.remote.browser import RemoteBrowser
-from ...core.remote.listing import RemoteEntry, RemoteFailure, list_remote
+from ...core.remote.failure import RemoteFailure
+from ...core.remote.listing import RemoteEntry, list_remote
 from ...core.sync.request import SYNC_OFF, SYNC_RUNNING
 from ...core.tasks import TaskGroup
 from ...i18n import _, ngettext
@@ -309,18 +310,12 @@ class RemoteController(QObject):
 
     # -- listings --------------------------------------------------------------------------------
     def _needs_password(self) -> bool:
-        cluster = self.config.cluster
-        return cluster.auth == "password" and cluster.resolve_password() is None
-
-    def _password(self) -> str | None:
-        """The one typed in this session, when the config has none (``child_env`` reads the
-        config's itself)."""
-        return self.sync.session_password(ask=False) if self._needs_password() else None
+        return self.sync.needs_password(self.config.cluster)
 
     def _request(self, remote_dir: str) -> None:
         if self._tasks.active(remote_dir) is not None:
             return  # being listed: its answer goes to the tree and the grid alike
-        password = self._password()
+        password = self.sync.typed_password(self.config.cluster)
         if password is None and self._needs_password():
             self._deliver(remote_dir, RemoteFailure(NO_PASSWORD, local=True))
             return
@@ -342,7 +337,7 @@ class RemoteController(QObject):
             self.busy.end(BUSY_KEY)
 
     def _on_error(self, key: Hashable, error: Exception) -> None:
-        log.error("listing the cluster failed", exc_info=error)
+        log.error("cluster: listing failed", exc_info=error)
         message = _("Falha ao listar a pasta: {error}").format(error=error)
         self._on_listed(key, RemoteFailure(message, local=True))
 
@@ -354,7 +349,7 @@ class RemoteController(QObject):
         browser = self.browser
         if not self.active or browser is None:
             return
-        self._report(result)
+        self.sync.report_remote(result if isinstance(result, RemoteFailure) else None)
         tree_waits = remote_dir in self._tree_wanted
         self._tree_wanted.discard(remote_dir)
         if isinstance(result, RemoteFailure):
@@ -371,19 +366,6 @@ class RemoteController(QObject):
             if PurePosixPath(self.current).is_relative_to(remote_dir):
                 self.tree_panel.reveal(self.current)  # the tree may now reach the folder shown
         self.listed.emit(remote_dir, result)
-
-    def _report(self, result: list[RemoteEntry] | RemoteFailure) -> None:
-        """The LED, as the jobs' answers feed it; a refused login forgets the password."""
-        monitor = self.sync.monitor
-        if not isinstance(result, RemoteFailure):
-            monitor.report(True)
-            return
-        if result.connection:
-            monitor.report(False)
-        elif not (result.auth or result.local):
-            monitor.report(True)  # the cluster answered: it is the folder that failed
-        if result.auth:
-            self.sync.forget_password()
 
     def _show_failure(self, remote_dir: str, failure: RemoteFailure) -> None:
         browser = self.browser

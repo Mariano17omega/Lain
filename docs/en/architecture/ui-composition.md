@@ -25,4 +25,4 @@ flowchart TB
 - **Theme**: modular QSS in `ui/resources/styles/<domain>/*.qss` with `${token}` from
   `ui/resources/themes/{dark,light}.yaml`.
 - **Sizes** that hold text come from the font scale (`core/app/fontscale.py`, `ui/theme/scale.py`).
-- **Language**: texts in Portuguese inside `_()`; English comes from `locale/en/LC_MESSAGES/lain.po`.
+- **Language**: texts in Portuguese inside `_()`; English comes from `locale/en/LC_MESSAGES/lain_<domain>.po`.

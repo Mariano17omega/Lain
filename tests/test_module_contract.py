@@ -111,7 +111,9 @@ class DummyModule(CalculationModule[DummyData, DummyParams]):
     def save_stored(self, dataset: DummyData, params: DummyParams, name: str, stores: Stores):
         stores.compounds.save(STORE_KEY, "X", params.pick)
 
-    def apply_limits(self, params: DummyParams, axes_limits: AxesLimits) -> None:
+    def apply_limits(
+        self, dataset: DummyData, params: DummyParams, axes_limits: AxesLimits
+    ) -> None:
         params.ymin, params.ymax = axes_limits[0][1]
 
     def render(self, figure, dataset, params, style) -> RenderInfo:

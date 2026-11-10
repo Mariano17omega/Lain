@@ -13,7 +13,8 @@ import pytest
 
 from qe_studio.core.config import parse_config
 from qe_studio.core.remote import cluster_jobs
-from qe_studio.core.remote.cluster_jobs import JobsFailure, JobsSnapshot, fetch_jobs
+from qe_studio.core.remote.cluster_jobs import JobsSnapshot, fetch_jobs
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.sync.askpass import SECRET_ENV
 
 from jobs_helpers import QSTATUS_ALL
@@ -84,12 +85,12 @@ def test_a_wrong_password_is_a_refused_login(server, monkeypatch):
     monkeypatch.delenv("LAIN_NO_PW", raising=False)
     config = parse_config(server.config_data(auth="password", password_env="LAIN_NO_PW"))
     result = fetch_jobs(config, password="wrong")
-    assert isinstance(result, JobsFailure) and result.auth and not result.connection
+    assert isinstance(result, RemoteFailure) and result.auth and not result.connection
     assert server.log == [] and [a.accepted for a in server.attempts] == [False]
 
 
 def test_a_command_the_cluster_does_not_have(server):
     result = fetch_jobs(parse_config(server.config_data(jobs_command="squeue -u lain-test")))
-    assert isinstance(result, JobsFailure) and result.missing, result
+    assert isinstance(result, RemoteFailure) and result.missing, result
     assert "squeue -u lain-test" in result.message
     assert [r.allowed for r in server.log] == [False]  # refused by the server, never run

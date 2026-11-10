@@ -18,11 +18,6 @@ def shifts(n1: int, n2: int, n3: int) -> np.ndarray:
     )
 
 
-def original_mask(copies: np.ndarray) -> np.ndarray:
-    """True for the copy that is the original cell, (0, 0, 0)."""
-    return ~np.any(copies, axis=1)
-
-
 @dataclass(frozen=True, eq=False)
 class Scene:
     """Everything the renderer draws; the ``Structure`` itself never changes."""
@@ -32,7 +27,6 @@ class Scene:
     fixed: np.ndarray  # (A,) bool, the atom has a 0 in its ``if_pos`` (spec 88)
     refs: tuple[AtomRef, ...]  # identity of each real atom
     n_real: int
-    original: np.ndarray  # (n_real,) bool, atom belongs to the original (0, 0, 0) copy
     bond_a: np.ndarray  # (K,) int index into ``positions``
     bond_b: np.ndarray  # (K,) int index into ``positions``
     cell: np.ndarray  # (3, 3) Å, original cell
@@ -42,10 +36,6 @@ class Scene:
     def position(self, ref: AtomRef) -> np.ndarray:
         """Cartesian position (Å) of any atom copy, drawn or not."""
         return (self.frac[ref.index] + np.asarray(ref.shift, dtype=float)) @ self.cell
-
-    @property
-    def n_ghost(self) -> int:
-        return len(self.positions) - self.n_real
 
     @property
     def block(self) -> np.ndarray:
@@ -83,7 +73,6 @@ def build_scene(
     fixed = np.tile(atom_fixed, n_copies)
     refs = tuple(AtomRef(i, as_shift(c)) for c in copies for i in range(n))
     n_real = n * n_copies
-    original = np.repeat(original_mask(copies), n)
 
     bond_a = np.zeros(0, dtype=int)
     bond_b = np.zeros(0, dtype=int)
@@ -91,25 +80,31 @@ def build_scene(
     ghost_species = np.zeros(0, dtype=int)
     ghost_fixed = np.zeros(0, dtype=bool)
     if len(bonds):
-        pad = np.abs(bonds.shift).max(axis=0)
-        ranges = [range(-int(p), int(r) + int(p)) for p, r in zip(pad, reps_arr, strict=True)]
-        t = np.array(list(itertools.product(*ranges)), dtype=int)  # candidate translations
+
+        def in_block(cells: np.ndarray) -> np.ndarray:
+            return np.all((cells >= 0) & (cells < reps_arr), axis=1)
+
+        # A bond is drawn when one end is in the block: its first end in a copy, or its second
+        # end in a copy and the first outside. Coordinates far from the cell cost nothing here.
         s = bonds.shift
-        in_a = np.all((t >= 0) & (t < reps_arr), axis=1)  # (t,)
-        end_b = t[:, None, :] + s[None, :, :]  # (t, m, 3)
-        in_b = np.all((end_b >= 0) & (end_b < reps_arr), axis=2)  # (t, m)
-        keep = np.logical_or(in_a[:, None], in_b)
-        ti, bi = np.nonzero(keep)
-        a_cell, b_cell = t[ti], end_b[ti, bi]
-        a_in, b_in = in_a[ti], in_b[ti, bi]
+        bi = np.tile(np.arange(len(s)), n_copies)
+        first_inside = np.repeat(copies, len(s), axis=0)
+        second_inside = first_inside - s[bi]
+        only_second = ~in_block(second_inside)
+        t = np.concatenate([first_inside, second_inside[only_second]])
+        bi = np.concatenate([bi, bi[only_second]])
+        order = np.lexsort((bi, t[:, 2], t[:, 1], t[:, 0]))
+        t, bi = t[order], bi[order]
+        a_cell, b_cell = t, t + s[bi]
+        a_in, b_in = in_block(a_cell), in_block(b_cell)
         atom_a, atom_b = bonds.i[bi], bonds.j[bi]
 
         def real_index(cell_t: np.ndarray, atom: np.ndarray) -> np.ndarray:
             linear = (cell_t[:, 0] * reps_arr[1] + cell_t[:, 1]) * reps_arr[2] + cell_t[:, 2]
             return linear * n + atom
 
-        index_a = np.full(len(ti), -1, dtype=int)
-        index_b = np.full(len(ti), -1, dtype=int)
+        index_a = np.full(len(bi), -1, dtype=int)
+        index_b = np.full(len(bi), -1, dtype=int)
         index_a[a_in] = real_index(a_cell[a_in], atom_a[a_in])
         index_b[b_in] = real_index(b_cell[b_in], atom_b[b_in])
 
@@ -138,7 +133,6 @@ def build_scene(
         fixed=np.concatenate([fixed, ghost_fixed]),
         refs=refs,
         n_real=n_real,
-        original=original,
         bond_a=bond_a,
         bond_b=bond_b,
         cell=cell,

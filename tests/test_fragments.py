@@ -9,6 +9,7 @@ from qe_studio.core.calc_create.fragments import (
     atom_rows,
     split_input,
 )
+from qe_studio.core.calc_create.species_keys import _species_of
 from qe_studio.core.qe.input_edit import InputEditor
 
 
@@ -139,6 +140,35 @@ def test_hubbard_follows_species_and_atoms():
     isolated = split_input(SMALL, {5, 6})  # Fe and O are gone: no line is left
     assert editor_of(isolated.isolated).card("HUBBARD") is None
     assert (ISOLATED, "HUBBARD sem linhas neste fragmento: o card foi removido") in isolated.notes
+
+
+@pytest.mark.parametrize(
+    ("label", "species"),
+    [("Fe-3d", "Fe"), ("O-2p-3s", "O"), ("Fe-up-3d", "Fe-up"), ("Fe", "Fe")],
+)
+def test_the_species_of_a_hubbard_label(label, species):
+    assert _species_of(label) == species
+
+
+def test_a_label_with_two_manifolds_goes_with_its_species():
+    text = SMALL.replace("U O-2p 1.0", "U O-2p-3s 1.0")
+    assert rows_of(split_input(text, {1, 2}).isolated, "HUBBARD") == [
+        "U Fe-3d 5.0",
+        "V Fe-3d Fe-3d 1 2 0.2",
+    ]
+
+
+def test_hubbard_occ_follows_the_species_of_its_first_index():
+    text = SMALL.replace(
+        "  lda_plus_u = .true.\n",
+        "  lda_plus_u = .true.\n  Hubbard_occ(1,1) = 6.0\n  Hubbard_occ(2,1) = 4.5\n",
+    )
+    only_oxygen = editor_of(split_input(text, {3, 4}).isolated)
+    assert only_oxygen.get("system", "hubbard_occ(1,1)") == "4.5"
+    assert only_oxygen.get("system", "hubbard_occ(2,1)") is None
+    only_iron = editor_of(split_input(text, {1, 2}).isolated)
+    assert only_iron.get("system", "hubbard_occ(1,1)") == "6.0"
+    assert only_iron.get("system", "hubbard_occ(2,1)") is None
 
 
 def test_a_card_per_atom_follows_the_atoms():

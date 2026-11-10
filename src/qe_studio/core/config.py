@@ -133,6 +133,11 @@ class ClusterConfig(_Section):
     def configured(self) -> bool:
         return bool(self.host.strip() and self.user.strip())
 
+    @property
+    def account(self) -> str:
+        """``user@host``, as ssh and the log of submitted jobs write it."""
+        return f"{self.user}@{self.host}"
+
     def resolve_password(self, environ: Mapping[str, str] | None = None) -> str | None:
         """Password from ``password_env`` (preferred) or the inline ``password``."""
         environ = os.environ if environ is None else environ
@@ -153,6 +158,9 @@ class SyncConfig(_Section):
     checksum: bool = True
     # Never sent to the cluster, on top of ``exclude`` (spec 27 R5): figures and plot settings.
     push_exclude: list[str] = Field(default_factory=lambda: list(DEFAULT_PUSH_EXCLUDES))
+    # Windows only: what comes before the drive letter in rsync's paths (``/cygdrive/c/Users``);
+    # cwRsync's default, "" for the ``/c/Users`` of MSYS2.
+    cygdrive_prefix: str = "/cygdrive"
 
 
 class ExportConfig(_Section):

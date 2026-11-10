@@ -4,6 +4,7 @@ into a temporary folder of the cache, read and removed. rsync's codes 23 and 24 
 The end-to-end tests talk only to the local ``tests/ssh_server.py``."""
 
 import shutil
+from fnmatch import fnmatch
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,7 @@ import pytest
 from qe_studio.core.appdirs import cache_dir
 from qe_studio.core.config import parse_config
 from qe_studio.core.remote import inputs
-from qe_studio.core.remote.actions import ActionFailure
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.remote.inputs import (
     StopSource,
     fetch_job_name,
@@ -19,6 +20,7 @@ from qe_studio.core.remote.inputs import (
     stop_sources,
 )
 from qe_studio.core.remote.listing import NOT_FOUND
+from qe_studio.core.sniff import looks_like_input
 from qe_studio.core.sync.command import CommandResult
 from qe_studio.core.sync.rsync import small_files_command
 
@@ -167,14 +169,14 @@ def test_through_ssh_only_the_small_top_files_come(ssh_server, monkeypatch):
     assert all(command.startswith("rsync --server --sender") for command in server.commands())
 
     missing = fetch_stop_sources(config, str(remote / "nada"))
-    assert missing == ActionFailure(NOT_FOUND, missing=True)
+    assert missing == RemoteFailure(NOT_FOUND, missing=True)
     assert scratch_folders() == []
 
 
 def test_a_prefix_that_cannot_enter_a_command_is_refused(monkeypatch):
     fake_rsync(monkeypatch, 0, files={"scf.in": pw_input("'a b'")})
     failure = fetch_stop_sources(parse_config(CONFIG), "/home/u/runs/Al")
-    assert failure == ActionFailure("prefix não suportado para o arquivo de parada: a b.")
+    assert failure == RemoteFailure("prefix não suportado para o arquivo de parada: a b.")
     assert scratch_folders() == []
 
 
@@ -189,14 +191,14 @@ def test_a_partial_copy_that_brought_an_input_is_read(monkeypatch, code):
 def test_a_partial_copy_without_an_input_still_fails(monkeypatch):
     fake_rsync(monkeypatch, 24, VANISHED, files={"nscf.in": pw_input("'al'", "'nscf'")})
     failure = fetch_stop_sources(parse_config(CONFIG), "/home/u/runs/Al")
-    assert isinstance(failure, ActionFailure) and "24" in failure.message
+    assert isinstance(failure, RemoteFailure) and "24" in failure.message
 
 
 def test_a_missing_folder_with_code_23_is_still_not_found(monkeypatch):
     stderr = 'rsync: [sender] change_dir "/home/u/runs/Al" failed: No such file or directory (2)\n'
     fake_rsync(monkeypatch, 23, stderr)
     failure = fetch_stop_sources(parse_config(CONFIG), "/home/u/runs/Al")
-    assert failure == ActionFailure(NOT_FOUND, missing=True)
+    assert failure == RemoteFailure(NOT_FOUND, missing=True)
 
 
 def test_other_codes_fail_even_with_an_input(monkeypatch):
@@ -207,7 +209,7 @@ def test_other_codes_fail_even_with_an_input(monkeypatch):
         {"scf.in": pw_input("'al'")},
     )
     failure = fetch_stop_sources(parse_config(CONFIG), "/home/u/runs/Al")
-    assert isinstance(failure, ActionFailure) and "12" in failure.message
+    assert isinstance(failure, RemoteFailure) and "12" in failure.message
 
 
 # -- the job name of a script (R3) ---------------------------------------------------------------
@@ -222,7 +224,7 @@ def test_the_job_name_comes_from_the_script(monkeypatch):
 def test_a_script_that_did_not_come_is_a_failure(monkeypatch):
     fake_rsync(monkeypatch, 0)
     failure = fetch_job_name(parse_config(CONFIG), "/home/u/runs/Al", "big.qsub")
-    assert failure == ActionFailure(
+    assert failure == RemoteFailure(
         "O script big.qsub não foi encontrado na pasta, ou passa de 1 MB."
     )
 
@@ -236,3 +238,66 @@ def test_through_ssh_only_the_script_comes(ssh_server):
     config = parse_config(server.config_data())
     assert fetch_job_name(config, str(folder), "bands.qsub") == "BD010o1"
     assert scratch_folders() == []
+
+
+# -- a stop file for only some of the prefixes -----------------------------------------------------
+UNREADABLE = (
+    'rsync: [sender] send_files failed to open "/home/u/runs/Al/relax.in": Permission denied (13)\n'
+)
+
+
+def test_a_file_that_could_not_be_read_refuses_the_stop(monkeypatch):
+    """It could be the input of the running job, and its ``prefix`` would be left out."""
+    fake_rsync(monkeypatch, 23, UNREADABLE, files={"scf.in": pw_input("'al'")})
+    failure = fetch_stop_sources(parse_config(CONFIG), "/home/u/runs/Al")
+    assert isinstance(failure, RemoteFailure) and "relax.in" in failure.message
+    assert scratch_folders() == []
+
+
+def test_a_line_of_rsync_that_cannot_be_understood_refuses_the_stop(monkeypatch):
+    odd = "rsync: something new went wrong\n"
+    fake_rsync(monkeypatch, 23, odd, files={"scf.in": pw_input("'al'")})
+    failure = fetch_stop_sources(parse_config(CONFIG), "/home/u/runs/Al")
+    assert isinstance(failure, RemoteFailure) and "something new" in failure.message
+
+
+def test_a_file_that_vanished_as_it_was_opened_does_not_refuse_the_stop(monkeypatch):
+    gone = (
+        'rsync: send_files failed to open "/home/u/runs/Al/a.mix1": No such file or directory (2)\n'
+    )
+    fake_rsync(monkeypatch, 23, gone, files={"scf.in": pw_input("'al'")})
+    assert fetch_stop_sources(parse_config(CONFIG), "/home/u/runs/Al") == (source("al", "scf.in"),)
+
+
+def test_the_job_name_needs_only_its_script(monkeypatch):
+    fake_rsync(monkeypatch, 23, UNREADABLE, files={"run.qsub": SCRIPT})
+    assert fetch_job_name(parse_config(CONFIG), "/home/u/runs/Al", "run.qsub") == "BD010o1"
+
+
+# -- what is never an input stays on the cluster ---------------------------------------------------
+def test_the_copy_leaves_behind_what_is_never_an_input(monkeypatch, tmp_path):
+    monkeypatch.setattr(inputs, "local_version", lambda *_args: (3, 2, 7))
+    seen: list[list[str]] = []
+
+    def run(argv, _env, _timeout_s):
+        seen.append(argv)
+        return CommandResult(0, "", "")
+
+    monkeypatch.setattr(inputs, "run_command", run)
+    inputs.copy_small_files(parse_config(CONFIG), "/home/u/runs/Al", tmp_path)
+    inputs.copy_small_files(parse_config(CONFIG), "/home/u/runs/Al", tmp_path, only="run.qsub")
+    every, one = seen
+    for pattern in ("*.png", "*.qsub", "*pdos_atm#*_wfc#*", "*pdos_tot"):
+        assert f"--exclude={pattern}" in every and f"--exclude={pattern}" not in one
+
+
+@pytest.mark.parametrize("name", ["a.png", "al.pdos_tot", "pdos_tot", "al.pdos_atm#1(Al)_wfc#1(s)"])
+def test_the_filter_only_drops_what_is_refused_anyway(tmp_path, name):
+    path = tmp_path / name
+    path.write_text(pw_input("'al'"))
+    assert any(fnmatch(name, pattern) for pattern in inputs.NEVER_INPUTS)
+    assert not looks_like_input(path)
+
+
+def test_the_filter_keeps_an_input():
+    assert not any(fnmatch("scf.in", pattern) for pattern in inputs.NEVER_INPUTS)

@@ -213,6 +213,23 @@ def test_display_fields_edit_the_options(windows):
     assert window.canvas.stats.atoms == 4
 
 
+def test_typing_a_value_rebuilds_the_scene_once_not_per_key(qtbot, windows):
+    """Keyboard tracking is off: ``0.85`` changes the options when entered, not at ``0.8`` on the way
+    (each change rebuilds the bonds and the scene)."""
+    window = windows.open(SI_SCF)
+    panel = window.panel
+    fields = ((panel.bond_factor, "0.85"), (panel.radius, "1.25"), (panel.reps[0], "4"))
+    for spin, typed in (*fields, (panel.label_size, "18")):
+        seen = []
+        spin.valueChanged.connect(seen.append)
+        spin.selectAll()  # the number, not its prefix or suffix
+        qtbot.keyClicks(spin.lineEdit(), typed)
+        assert seen == [], spin  # nothing yet: the value is not entered
+        spin.interpretText()
+        assert len(seen) == 1, spin
+        spin.valueChanged.disconnect(seen.append)
+
+
 # -- spec 46 R2: the rows of "Exibição", two axis boxes, widths and the label size -------------------
 
 DISPLAY_ROWS = [

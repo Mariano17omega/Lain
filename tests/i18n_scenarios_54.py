@@ -43,7 +43,7 @@ INPUTS = (
 SCRIPTS = (
     b"echo hi\n#$ -N\n#$ -pe physica\n#$ -zz\necho a \\ \nfi\nif true; then\necho b\r\n",
     b'#!/bin/bash\necho "abc\n',
-    b"#!/bin/bash\necho ${x\ndone\nesac\ndo\ncase x in\nwhile true; do\n",
+    b"#!/bin/bash\ndone\nesac\ndo\nwhile true; do\ncase x in\necho ${x\n",
 )
 # The script of the ``qsub`` scenario: the five problems of ``qsub_lint`` and three more.
 SCRIPT = SCRIPTS[0]

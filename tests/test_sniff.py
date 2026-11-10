@@ -4,10 +4,24 @@ import numpy as np
 import pytest
 
 from qe_studio.core import sniff as sniff_module
+from qe_studio.core.qe.summary.scan import Scanner
 from qe_studio.core.sniff import FileKind, SniffCache, looks_like_input
 from synthetic import make_gnu, make_long_header_pw
 
 from conftest import FIXTURES, copy_fixture
+
+# pp.x's stdout as QE 7.3 writes it (``postproc.f90:299`` names the program ``POST-PROC``, with a
+# hyphen). There is no real 7.x pp.x output among the fixtures, so the lines are written by hand.
+PP_BANNER = "\n     Program POST-PROC v.7.3 starts on  9Nov2026 at 10: 2:31 \n\n"
+PP_BODY = "     Calling punch_plot, plot_num =   0\n     Writing data to be plotted to file si.rho.dat\n\n"
+PP_CLOCK = "     POST-PROC    :      0.15s CPU      0.15s WALL\n\n\n"
+PP_END = (
+    "   This run was terminated on:  10: 2:32   9Nov2026            \n\n"
+    "=------------------------------------------------------------------------------=\n"
+    "   JOB DONE.\n"
+    "=------------------------------------------------------------------------------=\n"
+)
+PP_OUTPUT = PP_BANNER + PP_BODY + PP_CLOCK + PP_END
 
 
 @pytest.mark.parametrize(
@@ -176,7 +190,38 @@ def test_looks_like_input_accepts_a_pp_input_and_refuses_a_filband(tmp_path):
     filband.write_text(" &plot nbnd=   8, nks=  60 /\n  0.0 0.0 0.0\n")
     assert looks_like_input(pp)
     assert not looks_like_input(filband)
-    assert SniffCache().sniff(pp).kind is FileKind.UNKNOWN  # no detection of pp.x inputs
+    # L-01: pp.x inputs have a kind (spec 29 R5.3 left them UNKNOWN). Only `&INPUTPP` decides: a
+    # bare `&PLOT` is also what a chdens-only input looks like, and stays unrecognised.
+    sniffed = SniffCache().sniff(pp)
+    assert (sniffed.kind, sniffed.program, sniffed.calculation) == (FileKind.PP_IN, "pp", None)
+    plot_only = tmp_path / "plot_only.in"
+    plot_only.write_text("&PLOT\nnfile = 1,\niflag = 3\n/\n")
+    assert SniffCache().sniff(plot_only).kind is FileKind.UNKNOWN
+
+
+def test_a_pp_output_is_recognised(tmp_path):
+    """L-01: the banner's ``POST-PROC`` has a hyphen, which the program regex used to refuse."""
+    done = tmp_path / "pp_Si_charge.out"
+    done.write_text(PP_OUTPUT)
+    sniffed = SniffCache().sniff(done)
+    assert (sniffed.kind, sniffed.program, sniffed.job_done) == (FileKind.PP_OUT, "POST-PROC", True)
+    assert sniffed.is_output and sniffed.warnings == () and sniffed.pw is None
+    cut = tmp_path / "cut.out"
+    cut.write_text(PP_BANNER + PP_BODY)
+    unfinished = SniffCache().sniff(cut)
+    assert (unfinished.kind, unfinished.job_done) == (FileKind.PP_OUT, False)
+    assert unfinished.warnings
+
+
+@pytest.mark.parametrize("program", ["PWSCF", "BANDS", "PROJWFC", "DOS", "POST-PROC"])
+def test_the_banner_regexes_of_sniff_and_summary_agree(program):
+    """The program name is read twice (``sniff`` and the summary scanner): one class of characters."""
+    line = f"     Program {program} v.7.3.1 starts on  3Jan2025 at  9:46:28 \n"
+    match = sniff_module._PROGRAM.search(line)
+    assert match is not None and match.group(1) == program
+    scanner = Scanner()
+    scanner.feed(1, line)
+    assert scanner.facts.program == program
 
 
 def test_looks_like_input_rescues_what_sniff_gives_up_on(tmp_path):

@@ -6,6 +6,7 @@
 ## Features
 
 - **Fermi source** (SCF or NSCF), shift to E_F, `E mín`/`E máx` window, `dos_max`, **orientation** (energy on x or y).
+  In insulators, E_F is the middle of the gap: see [Fermi level in insulators](index.md#fermi-in-insulators).
 - **Grouping**: *Species + orbital*, *Species* or *Orbital*; total DOS (own color); fill occupied states.
 - **Átomos…** (atoms): chooses which atoms are included; the selection is remembered per compound (formula + species
   order) in `.lain/compounds.json`.

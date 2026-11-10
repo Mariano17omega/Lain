@@ -54,6 +54,9 @@ class PaletteController(QObject):
         self.palette.activated.connect(self.execute)
         self.palette.query_changed.connect(self._refresh)
         self._folders: list[Path] | None = None  # the index; None until built
+        # The index as rows and candidates (thousands), built once per index and view root, not per key.
+        self._folder_cache: tuple[list[Path] | None, Path, dict[str, PaletteRow], list[Candidate]]
+        self._folder_cache = (None, Path(), {}, [])
         self._task: TaskHandle | None = None
         self._stop: threading.Event | None = None
         self._recency: dict[str, int] = {}
@@ -141,12 +144,15 @@ class PaletteController(QObject):
             rows.setdefault(row.key, row)
         for row in self._action_rows():
             rows.setdefault(row.key, row)
-        if not browsing:
-            for row in self._folder_rows():
-                rows.setdefault(row.key, row)
         candidates = [Candidate(row.key, self._scope_of(row), row.label) for row in rows.values()]
+        folders: dict[str, PaletteRow] = {}
+        if not browsing:
+            folders, folder_candidates = self._folder_rows()
+            candidates += [
+                c for c in folder_candidates if c.key not in rows
+            ]  # the first source wins
         ranked = rank(query, candidates, self._recency, MAX_ROWS)
-        out = [rows[c.key] for c in ranked]
+        out = [rows[c.key] if c.key in rows else folders[c.key] for c in ranked]
         if self._folders is None and scope in (None, FOLDERS) and not browsing:
             out.append(INDEXING)
         return out
@@ -172,9 +178,10 @@ class PaletteController(QObject):
 
     def _label(self, folder: Path) -> str:
         try:
-            return folder.relative_to(self._view_root()).as_posix() or folder.name
+            relative = folder.relative_to(self._view_root()).as_posix()
         except ValueError:
             return str(folder)
+        return folder.name if relative == "." else relative  # the view root itself
 
     def _folder_row(self, folder: Path, section: str, icon: str) -> PaletteRow:
         return PaletteRow(f"folder:{folder}", section, self._label(folder), icon)
@@ -197,10 +204,16 @@ class PaletteController(QObject):
             for f in self._inside(self._store.recents())
         ]
 
-    def _folder_rows(self) -> list[PaletteRow]:
-        return [
-            self._folder_row(f, _("Pasta"), "folder") for f in self._inside(self._folders or [])
-        ]
+    def _folder_rows(self) -> tuple[dict[str, PaletteRow], list[Candidate]]:
+        """The rows of the index by key, and their candidates, in index order."""
+        index, top = self._folders, self._view_root()
+        cached_index, cached_top, by_key, candidates = self._folder_cache
+        if cached_index is not index or cached_top != top:  # a new index or a new project
+            rows = [self._folder_row(f, _("Pasta"), "folder") for f in self._inside(index or [])]
+            by_key = {row.key: row for row in rows}
+            candidates = [Candidate(row.key, FOLDERS, row.label) for row in rows]
+            self._folder_cache = (index, top, by_key, candidates)
+        return by_key, candidates
 
     def _tab_rows(self) -> list[PaletteRow]:
         keys = {widget: key for key, widget in self._workspace.items()}

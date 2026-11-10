@@ -21,8 +21,9 @@ from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox, QWidget
 
-from ...core.config import AppConfig
+from ...core.config import AppConfig, ClusterConfig
 from ...core.remote.download import only_file_rules
+from ...core.remote.failure import RemoteFailure
 from ...core.sync._process import RsyncRun
 from ...core.sync.controller import SyncController, SyncReport, SyncStatus
 from ...core.sync.monitor import ConnectionMonitor
@@ -137,6 +138,8 @@ class SyncCoordinator(QObject):
         old.state_changed.disconnect(self._on_state)
         old.deleteLater()
         self.monitor = self._new_monitor()
+        if self.running:  # the old one knew: the LED says "sincronizando", no probe meanwhile
+            self.monitor.set_syncing(True)
         self.start_monitor()
         self.show_scope(self._scope_folder)
 
@@ -194,9 +197,7 @@ class SyncCoordinator(QObject):
 
     def _on_state(self, state: str) -> None:
         cluster = self.config.cluster
-        label = (
-            f"{cluster.user}@{cluster.host}" if cluster.configured else _("cluster não configurado")
-        )
+        label = cluster.account if cluster.configured else _("cluster não configurado")
         self.cluster_changed.emit(label, state)
 
     # -- a pull or a push -------------------------------------------------------------------------
@@ -267,7 +268,7 @@ class SyncCoordinator(QObject):
         text, ok = QInputDialog.getText(
             self._dialog_parent,
             _("Senha do cluster"),
-            _("Senha de {account} (não é salva):").format(account=f"{cluster.user}@{cluster.host}"),
+            _("Senha de {account} (não é salva):").format(account=cluster.account),
             QLineEdit.EchoMode.Password,
         )
         if not ok or not text:
@@ -278,6 +279,27 @@ class SyncCoordinator(QObject):
     def forget_password(self) -> None:
         """The cluster refused it: the next run asks again."""
         self._session_password = None
+
+    @staticmethod
+    def needs_password(cluster: ClusterConfig) -> bool:
+        """``auth: password`` without one in the config or the environment: the session's is used."""
+        return cluster.auth == "password" and cluster.resolve_password() is None
+
+    def typed_password(self, cluster: ClusterConfig) -> str | None:
+        """The one typed in this session, when ``cluster`` needs it (``child_env`` reads the
+        config's itself); never asks."""
+        return self.session_password(ask=False) if self.needs_password(cluster) else None
+
+    def report_remote(self, failure: RemoteFailure | None) -> None:
+        """What an answer of the cluster (a listing, the queue, an action) tells the LED: None is
+        an answer; a failure only when it says the cluster was or was not reached. A refused login
+        forgets the password."""
+        if failure is None or failure.answered:
+            self.monitor.report(True)
+        elif failure.connection:
+            self.monitor.report(False)
+        if failure is not None and failure.auth:
+            self.forget_password()
 
     def run(
         self, folder: Path, endpoint: Endpoint, password: str | None = None, only: str | None = None
@@ -366,9 +388,9 @@ class SyncCoordinator(QObject):
             self.message.emit(report.message, "warning", 5000)
         elif report.status in (SyncStatus.DONE, SyncStatus.UP_TO_DATE):
             headline = report.headline
-            self.message.emit(headline, "warning" if report.changed_locally else "info", 6000)
+            self.message.emit(headline, "warning" if report.left_out else "info", 6000)
             level = "success" if report.status is SyncStatus.DONE else "info"
-            if report.changed_locally:
+            if report.left_out:
                 level = "warning"  # files were left out: the toast says so
             self.notice.emit(headline, level, report.details)
         self.finished.emit(report)

@@ -44,12 +44,15 @@ def heading_slug(title: str) -> str:
 
 
 def heading_slugs(titles: Iterable[str]) -> list[str]:
-    """The slug of each heading in document order; a repeated one gets ``-1``, ``-2``… as on GitHub."""
+    """The slug of each heading in document order; a repeated one gets ``-1``, ``-2``… as on GitHub,
+    never a slug that is already taken."""
     seen: dict[str, int] = {}
     slugs = []
     for title in titles:
-        base = heading_slug(title)
-        count = seen.get(base, 0)
-        seen[base] = count + 1
-        slugs.append(base if count == 0 else f"{base}-{count}")
+        base = slug = heading_slug(title)
+        while slug in seen:
+            seen[base] += 1
+            slug = f"{base}-{seen[base]}"
+        seen[slug] = 0
+        slugs.append(slug)
     return slugs

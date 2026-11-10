@@ -9,8 +9,9 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from ....i18n import _
-from ..edits import ensure_smearing, put_number, put_path, put_string
-from ..kpath import KPath, collapse_note, collapsed_segments
+from ...qe.pw_input import fortran_float
+from ..edits import ensure_disk_io, ensure_smearing, put_number, put_path, put_string
+from ..kpath import KPath, collapse_note, collapsed_segments, repeat_note, repeated_points
 from ..render import render
 from ..scf_info import ScfInfo
 from ..unit import UNIT_OUTDIR
@@ -25,6 +26,10 @@ BANDS = "bands.in"
 BANDS_X = "qe/bandas/bands_pp.in.j2"
 DEFAULT_FILBAND = "./band"
 CHANNELS = (("up", 1), ("dw", 2))  # the ↑/↓ names spec 13 pairs (band_up, band_dw)
+UNSET_MAGNETIZATION = -9999  # pw.x's "no tot_magnetization" is -10000 (QE:PW/src/input.f90:758)
+CONSTRAINED_NOTE = _(
+    "tot_magnetization no SCF: o bands.x do QE aborta com magnetização restrita ('The bands code with constrained magnetization has not been tested'). Os pw.x rodam, e as bandas só saem da saída do pw.x (até 100 k-points, 50 por spin)"
+)
 
 
 def bands_x_keys(scf: ScfInfo) -> list[str]:
@@ -41,6 +46,15 @@ def channel_filband(filband: str, tag: str) -> str:
     if not stem:  # no suffix, or a name that starts with its only dot
         stem, dot, suffix = tail, "", ""
     return f"{head}{sep}{stem}_{tag}{dot}{suffix}"
+
+
+def constrained_magnetization(scf: ScfInfo) -> bool:
+    """Whether the SCF sets ``tot_magnetization`` (L-04): its XML then holds two Fermi energies, which
+    the ``bands`` run of pw.x carries on (``QE:PW/src/setup.f90:188``) and bands.x refuses
+    (``QE:PP/src/bands.f90:114-116``). ``occupations = 'fixed'`` with ``nspin = 2`` needs the key too."""
+    text = scf.value("system", "tot_magnetization")
+    value = fortran_float(text) if text is not None else None
+    return value is not None and value > UNSET_MAGNETIZATION
 
 
 class BandasType(CalcType):
@@ -104,6 +118,9 @@ class BandasType(CalcType):
                 collapse_note(path, segment)
                 for segment in collapsed_segments(path, scf.crystal.cell)
             )
+        if constrained_magnetization(scf):
+            work.notes.append(CONSTRAINED_NOTE)
+        work.notes.extend(repeat_note(path, index) for index in repeated_points(path))
         editor = work.editor()
         put_string(editor, "control", "calculation", "bands")
         if values["nbnd"] is not None:
@@ -113,7 +130,11 @@ class BandasType(CalcType):
         put_path(editor, path)
         bands = work.name(BANDS_KEY)
         work.notes.extend(f"{bands}: {note}" for note in ensure_smearing(editor))
-        files = [work.pw_file(SCF_KEY, work.editor()), work.pw_file(BANDS_KEY, editor)]
+        work.notes.extend(f"{bands}: {note}" for note in ensure_disk_io(editor, "bands.x"))
+        scf_editor = work.editor()
+        scf_name = work.name(SCF_KEY)
+        work.notes.extend(f"{scf_name}: {note}" for note in ensure_disk_io(scf_editor))
+        files = [work.pw_file(SCF_KEY, scf_editor), work.pw_file(BANDS_KEY, editor)]
         filband = values["filband"] or DEFAULT_FILBAND
         if scf.spin:
             work.notes.append(

@@ -237,17 +237,19 @@ PLACEHOLDERS = (
 
 
 def test_the_catalog_header_has_no_placeholder():
-    text = tool.po_path("en").read_text(encoding="utf-8")
-    assert [mark for mark in PLACEHOLDERS if mark in text] == []
+    for domain in tool.domains_on_disk("en"):
+        text = tool.po_path("en", domain).read_text(encoding="utf-8")
+        assert [mark for mark in PLACEHOLDERS if mark in text] == [], domain
 
 
 def test_the_catalog_header_carries_the_project_version():
-    po = tool.read_catalog(tool.po_path("en"), "en")
-    assert po.version == tool.project_version()
-    assert f"Project-Id-Version: Lain: QE Studio {tool.project_version()}" in tool.po_path(
-        "en"
-    ).read_text(encoding="utf-8")
-    assert po.last_translator and "@" in po.last_translator and po.language_team
+    for domain in tool.domains_on_disk("en"):
+        path = tool.po_path("en", domain)
+        po = tool.read_catalog(path, "en")
+        assert po.version == tool.project_version(), domain
+        header = f"Project-Id-Version: Lain: QE Studio {tool.project_version()}"
+        assert header in path.read_text(encoding="utf-8"), domain
+        assert po.last_translator and "@" in po.last_translator and po.language_team
 
 
 def test_update_keeps_the_header_filled():

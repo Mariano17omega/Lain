@@ -3,7 +3,7 @@
     background: ${panel};
     border-bottom: 1px solid ${border};
 }
-QToolButton[variant="sectionHeader"] {
+#navSection QToolButton[variant="sectionHeader"] {
     font-family: "JetBrains Mono";
     font-size: 11px;
     font-weight: 600;
@@ -13,7 +13,7 @@ QToolButton[variant="sectionHeader"] {
     padding: 3px 7px;
     text-align: left;
 }
-QToolButton[variant="sectionHeader"]:hover {
+#navSection QToolButton[variant="sectionHeader"]:hover {
     background: ${hover};
 }
 QListWidget#navList {

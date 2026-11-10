@@ -20,16 +20,14 @@ from ....core.tasks import TaskGroup
 from ....i18n import _
 from ...widgets.common import set_variant
 from . import setup_page
-from .labels import message_label, show_message
+from .labels import NO_FILE, READING, message_label, show_message
 
 log = logging.getLogger(__name__)
-
-READING = _("Lendo SCF…")
-EMPTY = _("Nenhum arquivo escolhido")
 
 
 class ScfFileField(QWidget):
     changed = pyqtSignal()  # a reading ended or the field was cleared
+    started = pyqtSignal()  # a file was picked: the field holds no SCF until its reading ends
 
     def __init__(
         self,
@@ -47,7 +45,7 @@ class ScfFileField(QWidget):
         self._tasks = TaskGroup()
         self.edit = set_variant(QLineEdit(), "mono")
         self.edit.setReadOnly(True)
-        self.edit.setPlaceholderText(EMPTY)
+        self.edit.setPlaceholderText(NO_FILE)
         self.edit.setAccessibleName(label)
         self.choose_button = QPushButton(_("Escolher…"))
         self.choose_button.clicked.connect(self._pick)
@@ -99,6 +97,7 @@ class ScfFileField(QWidget):
         self._tasks.submit(
             "scf", read_other_scf, path, on_done=self._on_read, on_error=self._on_failed
         )
+        self.started.emit()
 
     def _on_read(self, _key: str, info: ScfInfo) -> None:
         self._value = info

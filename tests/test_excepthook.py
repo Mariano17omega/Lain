@@ -118,7 +118,10 @@ def test_the_same_error_twice_is_one_toast_and_a_count(qtbot, boxes, reporter, w
             reporter(*boom())  # one call site: the same ``file:line``
     assert len(window.toast.shown) == 1
     messages = [r.getMessage() for r in caplog.records]
-    assert messages == ["unexpected error", "unexpected error (x2)"]  # every one is in the log
+    assert messages == [
+        "session: unexpected error",
+        "session: unexpected error (x2)",
+    ]  # every one is in the log
 
 
 def test_another_error_is_another_toast(qtbot, boxes, reporter, window):
@@ -140,7 +143,7 @@ def test_after_the_window_the_same_error_shows_again(qtbot, boxes, reporter, win
     with caplog.at_level(logging.ERROR, logger="qe_studio"):
         again()
     assert len(window.toast.shown) == 2
-    assert caplog.records[-1].getMessage() == "unexpected error"  # the count starts over
+    assert caplog.records[-1].getMessage() == "session: unexpected error"  # the count starts over
 
 
 def test_an_error_while_reporting_goes_to_the_log_only(qtbot, boxes, reporter, window, caplog):

@@ -7,7 +7,8 @@ from collections.abc import Callable
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
-from .common import set_variant
+from ..theme.scale import scaled
+from .common import clear_layout, set_variant
 
 Button = tuple[str, str, Callable[[], None]]  # label, variant ("primary" or ""), slot
 
@@ -23,7 +24,7 @@ class EmptyState(QWidget):
         self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.text.setWordWrap(True)
         self.text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.text.setMaximumWidth(520)
+        self.text.setMaximumWidth(scaled(520))
         self.row = QHBoxLayout()
         self.row.setSpacing(8)
         self.buttons: dict[str, QPushButton] = {}
@@ -41,11 +42,7 @@ class EmptyState(QWidget):
         """Replace the title, the text and the buttons (the previous ones are discarded)."""
         self.title.setText(title)
         self.text.setText(text)
-        while self.row.count():
-            item = self.row.takeAt(0)
-            widget = item.widget() if item is not None else None
-            if widget is not None:
-                widget.deleteLater()
+        clear_layout(self.row)
         self.buttons = {}
         self.row.addStretch(1)
         for label, variant, slot in buttons:

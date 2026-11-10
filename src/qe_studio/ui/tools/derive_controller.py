@@ -101,7 +101,7 @@ class DeriveController(QObject):
         if isinstance(exc, ScfError):
             reason = str(exc)
         else:
-            log.error("generating the converged SCF failed", exc_info=exc)
+            log.error("action: generating the converged SCF failed", exc_info=exc)
             reason = _("Erro inesperado: {error}").format(error=exc)
         QMessageBox.warning(self.dialog_parent, TITLE, reason)
         self.failed.emit(reason)
@@ -129,7 +129,7 @@ class DeriveController(QObject):
         if isinstance(exc, CifError):
             reason = str(exc)
         else:
-            log.error("generating the CIF failed", exc_info=exc)
+            log.error("action: generating the CIF failed", exc_info=exc)
             reason = _("Erro inesperado: {error}").format(error=exc)
         QMessageBox.warning(self.dialog_parent, CIF_TITLE, reason)
         self.failed.emit(reason)

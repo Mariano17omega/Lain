@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from PyQt6.QtGui import QTextDocument
 
 from qe_studio.core.viewer import textfile
 from qe_studio.core.viewer.textfile import LineMap, read_slice
@@ -77,6 +78,55 @@ def test_omitted_newlines_are_counted_in_streaming(small_limits, monkeypatch, tm
     head_lines = data[: textfile.HEAD_BYTES].count(b"\n")
     omitted = data[textfile.HEAD_BYTES : len(data) - textfile.TAIL_BYTES].count(b"\n")
     assert piece.line_map.tail_first_line == head_lines + omitted + 1
+
+
+def editor_blocks(text: str) -> list[str]:
+    """The blocks a real ``QPlainTextEdit`` makes of ``text``: it also splits on a lone ``\\r``."""
+    document = QTextDocument()
+    document.setPlainText(text)
+    return [document.findBlockByNumber(i).text() for i in range(document.blockCount())]
+
+
+def assert_numbers_match_the_editor(line_map: LineMap, blocks: list[str], rows: list[str]) -> None:
+    """Head and tail blocks carry their real line, and the marker sits where the map says."""
+    assert line_map.tail_block is not None and line_map.marker_start is not None
+    assert "trecho omitido" in "".join(blocks[line_map.marker_start : line_map.tail_block])
+    for block in range(line_map.marker_start - 1):  # the last head line may be cut
+        assert blocks[block] == rows[block]
+    for block in range(line_map.tail_block + 1, len(blocks) - 1):  # the first tail line may be cut
+        assert blocks[block] == rows[(line_map.number(block) or 0) - 1]
+
+
+@pytest.mark.parametrize("end", [b"\n", b"\r", b"\r\n"], ids=["lf", "cr", "crlf"])
+def test_the_numbers_are_those_the_editor_counts(qapp, small_limits, tmp_path, end):
+    rows = [f"L{i:05d}" for i in range(1, 121)]
+    path = tmp_path / "big.out"
+    path.write_bytes(b"".join(row.encode() + end for row in rows))
+    piece = read_slice(path)
+    assert_numbers_match_the_editor(piece.line_map, editor_blocks(piece.text), rows)
+
+
+def test_lone_carriage_returns_in_the_head_move_the_marker(qapp, small_limits, tmp_path):
+    rows = [f"L{i:05d}" for i in range(1, 121)]
+    data = "\r".join(rows[:5]) + "\n" + "\n".join(rows[5:]) + "\n"
+    path = tmp_path / "big.out"
+    path.write_bytes(data.encode())
+    piece = read_slice(path)
+    assert_numbers_match_the_editor(piece.line_map, editor_blocks(piece.text), rows)
+
+
+def test_a_crlf_cut_at_each_boundary_is_one_line_break(qapp, monkeypatch, tmp_path):
+    """Lines of 6 bytes: 101 and 1601 fall between a ``\\r`` and its ``\\n``; so do some chunks."""
+    monkeypatch.setattr(textfile, "LARGE_FILE", 400)
+    monkeypatch.setattr(textfile, "HEAD_BYTES", 101)
+    monkeypatch.setattr(textfile, "TAIL_BYTES", 199)
+    monkeypatch.setattr(textfile, "_CHUNK", 7)
+    rows = [f"{i:04d}" for i in range(1, 301)]
+    path = tmp_path / "big.out"
+    path.write_bytes(b"".join(row.encode() + b"\r\n" for row in rows))
+    piece = read_slice(path)
+    assert_numbers_match_the_editor(piece.line_map, editor_blocks(piece.text), rows)
+    assert piece.line_map.tail_first_line == 267  # the \n opening the tail ends the line of 0267
 
 
 def test_full_reads_everything(small_limits, tmp_path):

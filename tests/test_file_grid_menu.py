@@ -79,6 +79,27 @@ def test_up_entry_is_first_in_any_order(qtbot, main_window, demo_project):
     assert files.header.count.text() == f"({len(rows(files))})"
 
 
+@pytest.mark.parametrize("column", [SORT_NAME, SORT_SIZE, SORT_DATE])
+def test_folders_and_equal_files_stay_in_name_order_whatever_the_sort(
+    qtbot, main_window, demo_project, column
+):
+    """Size and date sort descending, which Qt applies by inverting ``lessThan``: what ties (folders,
+    files of one size) must still read A to Z, as they do when sorting by name."""
+    folder = demo_project / "05_sort"
+    for name in ("gamma", "alpha", "beta"):
+        (folder / name).mkdir(parents=True)
+    for name in ("c.txt", "a.txt", "b.txt"):  # one size each, one second apart is not needed
+        (folder / name).write_text("same")
+    window = main_window
+    show_folder(qtbot, window, folder)
+    window.files.set_sort(column)
+    names = [window.files.proxy.path(i).name for i in rows(window.files)[1:]]
+    folders, files = names[:3], names[3:]
+    assert folders == ["alpha", "beta", "gamma"]
+    if column == SORT_SIZE:  # the same size: the name decides
+        assert files == ["a.txt", "b.txt", "c.txt"]
+
+
 def test_up_entry_goes_to_the_parent(qtbot, main_window, demo_project):
     window = main_window
     files = window.files
@@ -291,6 +312,102 @@ def test_open_with(main_window, demo_project, fake_apps, launched, monkeypatch):
     assert first.text() == "Nenhum programa encontrado" and not first.isEnabled()
 
 
+@pytest.fixture
+def slow_catalog(tmp_path, monkeypatch):
+    """A catalog not built yet: reading it waits for ``release`` (a worker, never the GUI thread)."""
+    import threading
+
+    from qe_studio.core.files.desktop_apps import AppCatalog
+
+    data = tmp_path / "slow-data"
+    (data / "applications").mkdir(parents=True)
+    (data / "applications" / "slow.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Slow\nExec=slow %f\nMimeType=text/plain;\n"
+    )
+    release, threads = threading.Event(), []
+
+    def build():
+        threads.append(threading.current_thread())
+        assert release.wait(10)
+        return AppCatalog([data], [], [])
+
+    monkeypatch.setattr(context_menu, "catalog", build)
+    monkeypatch.setattr(context_menu, "catalog_ready", lambda: False)
+    yield release, threads
+    release.set()
+
+
+def test_the_first_open_with_lists_the_programs_in_a_worker(
+    qtbot, main_window, demo_project, slow_catalog
+):
+    import threading
+
+    release, threads = slow_catalog
+    path = demo_project / "03_bands" / "bands.in"
+    _menu, submenu = open_with_menu(main_window, path)
+    assert [a.text() for a in submenu.actions()] == ["Carregando…"]
+    assert not submenu.actions()[0].isEnabled()
+    submenu.aboutToShow.emit()  # opened again meanwhile: nothing is added
+    assert [a.text() for a in submenu.actions()] == ["Carregando…"]
+    release.set()
+    qtbot.waitUntil(lambda: submenu.actions()[0].text() != "Carregando…", timeout=5000)
+    assert [a.text() for a in submenu.actions()] == ["Slow (padrão)", "", "Outro programa…"]
+    assert threads and threads[0] is not threading.main_thread()  # the catalog was read off the GUI
+
+
+def test_a_menu_closed_before_the_programs_arrive_is_left_alone(
+    qtbot, main_window, demo_project, slow_catalog
+):
+    release, _threads = slow_catalog
+    path = demo_project / "03_bands" / "bands.in"
+    menu, submenu = open_with_menu(main_window, path)
+    menu.deleteLater()
+    qtbot.wait(50)  # the menu and its submenu are gone
+    release.set()
+    qtbot.wait(300)  # the answer arrives: nothing to fill, nothing raised
+    assert main_window.item_actions._pending_open_with is None
+
+
+def test_an_answer_for_an_earlier_menu_does_not_fill_the_new_one(
+    qtbot, main_window, demo_project, slow_catalog
+):
+    release, _threads = slow_catalog
+    first = demo_project / "03_bands" / "bands.in"
+    second = demo_project / "03_bands" / "other.in"
+    second.write_text("&control\n/\n")
+    _menu, old = open_with_menu(main_window, first)
+    _menu, new = open_with_menu(main_window, second)
+    release.set()
+    qtbot.waitUntil(lambda: new.actions()[0].text() != "Carregando…", timeout=5000)
+    assert [a.text() for a in new.actions()] == ["Slow (padrão)", "", "Outro programa…"]
+    assert [a.text() for a in old.actions()] == ["Carregando…"]  # its answer was dropped
+
+
+def test_open_default_resolves_the_program_in_a_worker(
+    qtbot, main_window, demo_project, fake_apps, launched
+):
+    path = demo_project / "03_bands" / "bands.in"
+    main_window.item_actions.open_default(path)
+    assert launched == []  # nothing yet: the list of programs is read off the GUI thread
+    qtbot.waitUntil(lambda: bool(launched), timeout=5000)
+    assert launched == [("other", ["--open", path.as_uri()], str(path.parent))]
+
+
+def test_open_default_falls_back_to_the_desktop_when_the_catalog_cannot_be_read(
+    qtbot, main_window, demo_project, monkeypatch
+):
+    def broken():
+        raise OSError("unreadable")
+
+    monkeypatch.setattr(context_menu, "catalog", broken)
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(opened.append))
+    path = demo_project / "03_bands" / "bands.in"
+    main_window.item_actions.open_default(path)
+    qtbot.waitUntil(lambda: bool(opened), timeout=5000)
+    assert opened == [QUrl.fromLocalFile(str(path))]
+
+
 def test_windows_variants(main_window, demo_project, launched, monkeypatch):
     monkeypatch.setattr(context_menu, "IS_WINDOWS", True)
     path = demo_project / "03_bands" / "bands.in"
@@ -300,7 +417,7 @@ def test_windows_variants(main_window, demo_project, launched, monkeypatch):
     main_window.item_actions.reveal(path)
     assert launched == [
         ("rundll32", ["shell32.dll,OpenAs_RunDLL", str(path)], str(path.parent)),
-        ("explorer", [f"/select,{path}"], ""),
+        ("explorer", ["/select,", str(path)], ""),  # two arguments: a space in the path is safe
     ]
 
 

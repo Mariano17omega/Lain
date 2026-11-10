@@ -204,7 +204,14 @@ class FileFilterProxy(QSortFilterProxyModel):
         if left_dir != right_dir:
             return left_dir if ascending else right_dir
         if self.sort_column == SORT_SIZE and not left_dir:
-            return fs.size(left) < fs.size(right)
-        if self.sort_column == SORT_DATE:
-            return fs.lastModified(left) < fs.lastModified(right)
-        return natural_key(fs.fileName(left)) < natural_key(fs.fileName(right))
+            small, big = fs.size(left), fs.size(right)
+            if small != big:
+                return small < big
+        elif self.sort_column == SORT_DATE:
+            older, newer = fs.lastModified(left), fs.lastModified(right)
+            if older != newer:
+                return older < newer
+        # What ties (folders, files of one size or date) reads A to Z in either order: Qt asks the
+        # descending sorts the other way round, so the comparison is turned over for them.
+        names = natural_key(fs.fileName(left)), natural_key(fs.fileName(right))
+        return names[0] < names[1] if ascending else names[0] > names[1]

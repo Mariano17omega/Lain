@@ -64,12 +64,13 @@ def test_the_probe_never_connects_to_another_host(_cluster_guard, monkeypatch):
     _cluster_guard.violations.clear()
 
 
-def test_rsync_never_starts_for_another_host(_cluster_guard, monkeypatch, tmp_path):
+def test_rsync_never_starts_for_another_host(_cluster_guard, monkeypatch, tmp_path, qtbot):
     starts = []
     monkeypatch.setattr(QProcess, "start", lambda self, *args: starts.append(args))
     run = SyncController(config())
     run.start(tmp_path, Endpoint("/scratch/usuario/run", REAL, "usuario"))
-    assert starts == [] and not run.running  # the stage failed before the QProcess
+    qtbot.waitUntil(lambda: not run.running)  # the first process waits for its environment
+    assert starts == []  # the stage failed before the QProcess
     assert len(_cluster_guard.violations) == 1 and REAL in _cluster_guard.violations[0]
     _cluster_guard.violations.clear()
 

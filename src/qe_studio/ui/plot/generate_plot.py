@@ -63,5 +63,7 @@ class GeneratePlot(QObject):
             self.workflow.plot_pair(target.bands, target.dos, auto_export=True)
 
     def _on_failed(self, key: str, error: Exception) -> None:
-        log.warning("bands + DOS of the selection: %s", error)  # the folder is plotted instead
+        log.warning(
+            "plot: bands + DOS of the selection: %s", error
+        )  # the folder is plotted instead
         self._on_pair(key, None)

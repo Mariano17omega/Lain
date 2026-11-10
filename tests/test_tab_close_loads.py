@@ -109,3 +109,41 @@ def test_generating_again_keeps_the_dataset_of_the_tab_it_replaces(
     assert len(CACHE) >= 1  # the new tab shows it: the replaced one did not drop it
     window.workspace.close_key(key)
     assert len(CACHE) == 0
+
+
+def test_a_late_plot_file_read_of_a_closed_tab_does_not_end_the_next_load(
+    qtbot, main_window, demo_project, monkeypatch, no_dialogs
+):
+    """Stage 2 of a regenerate (the ``.plot`` read) is still queued when its tab closes; the plot is
+    generated again at once. The old read, delivered later, must not pop the new load."""
+    from qe_studio.ui.plot import plot_settings
+
+    window = main_window
+    key = open_bands(qtbot, window, demo_project)
+    workflow = window.plot_workflow
+    read_gate = threading.Event()
+    real_read = plot_settings.read_plot_file
+
+    def slow_read(*args, **kwargs):
+        read_gate.wait(5)
+        return real_read(*args, **kwargs)
+
+    monkeypatch.setattr(plot_settings, "read_plot_file", slow_read)
+    window.generate_plot_for(demo_project / "03_bands", auto_export=False)
+    qtbot.waitUntil(lambda: workflow.settings._reads.active(key) is not None, timeout=5000)
+    stale = workflow.settings._reads.active(key)
+    assert stale is not None and workflow._loads.active(key) is None  # stage 1 is over
+
+    window.workspace.close_key(key)
+    assert stale.cancelled
+    load_gate = slow_loads(monkeypatch)
+    window.generate_plot_for(demo_project / "03_bands", auto_export=False)
+    qtbot.waitUntil(lambda: key in workflow._loading, timeout=5000)  # detection, then the load
+
+    read_gate.set()
+    assert stale.wait(5)
+    qtbot.wait(100)
+    assert key in workflow._loading  # the new load is still pending: the old read did not end it
+    with qtbot.waitSignal(window.plot_ready, timeout=10_000):
+        load_gate.set()
+    assert window.workspace.widget_for(key) is not None

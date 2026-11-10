@@ -14,6 +14,8 @@ from qe_studio.ui.shell.focus_controller import (
 )
 from test_plot_workflow import generate
 
+from remote_helpers import REMOTE, FakeListing, entries, remote_window, turn_on
+
 
 @pytest.fixture(autouse=True)
 def no_dialogs(monkeypatch):
@@ -154,6 +156,23 @@ def test_ctrl_2_focuses_the_grid_and_its_current_item_shows_the_ring(
     qtbot.waitUntil(lambda: not view.hasFocus(), timeout=3000)
     unfocused = ring_pixels(view.viewport(), rect, ring)  # the icon is the same color: a baseline
     assert focused - unfocused > 100  # a 2 px ring around a 142 x 80 card
+
+
+def test_ctrl_1_and_ctrl_2_follow_the_cluster_mode(
+    qtbot, window_factory, demo_project, monkeypatch
+):
+    """The cluster mode shows its own tree and grid: the keys go there, not to the hidden local ones."""
+    browse = FakeListing({REMOTE: entries("03_bands", files=("a.in",))})
+    window = remote_window(window_factory, demo_project, monkeypatch, browse)
+    activate(qtbot, window)
+    turn_on(qtbot, window)
+    tree, grid = window.remote.tree_panel.tree, window.remote.file_panel.view
+    window.explorer.tree.setFocus()
+    window._actions["focus.grid"].trigger()
+    qtbot.waitUntil(grid.hasFocus, timeout=3000)
+    assert not window.files.view.hasFocus()
+    window._actions["focus.tree"].trigger()
+    qtbot.waitUntil(tree.hasFocus, timeout=3000)
 
 
 def test_the_ring_does_not_select_anything(qtbot, main_window):

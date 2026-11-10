@@ -144,6 +144,41 @@ def test_noncollinear_magnetization_is_the_norm_of_the_vector():
     assert parse_scf(text.splitlines()).iterations[0].total_mag == 5.0
 
 
+def test_collinear_magnetization_keeps_its_sign():
+    text = synthetic(2).replace(
+        "     total energy ",
+        "     total magnetization       =    -2.00 Bohr mag/cell\n     total energy ",
+    )
+    assert parse_scf(text.splitlines()).iterations[0].total_mag == -2.0
+
+
+EXX_LOOP = """
+     EXX: now go back to refine exchange calculation
+
+     iteration #  1     ecut=    30.00 Ry     beta= 0.70
+!    total energy              =     -11.40000000 Ry
+     convergence has been achieved in   1 iterations
+"""
+EXX_END = """
+!!   total energy              =     -11.50000000 Ry
+     Harris-Foulkes estimate   =     -11.50000000 Ry
+     est. exchange err (dexx)  =       0.00000001 Ry
+
+     EXX self-consistency reached
+"""
+
+
+def test_final_energy_of_a_hybrid_run_is_the_double_bang_one():
+    data = parse_scf((synthetic(2) + EXX_LOOP + EXX_END).splitlines())
+    assert data.final_energy_ry == -11.5
+    assert len(data.iterations) == 2 and data.status == "converged"  # the first cycle, as before
+
+
+def test_hybrid_run_that_never_finished_has_no_final_energy():
+    """The "!" energies are of another functional, or of an unconverged exchange loop."""
+    assert parse_scf((synthetic(2) + EXX_LOOP).splitlines()).final_energy_ry is None
+
+
 def test_truncated_output(tmp_path):
     folder = copy_fixture("al_bands", tmp_path)
     out = folder / "al.scf.out"
@@ -264,9 +299,9 @@ def test_plot_file_round_trip_validates_the_hidden_color(tmp_path):
 
 def test_apply_limits_keeps_the_iteration_range_only():
     params = ScfParams()
-    SCF.apply_limits(params, [((1.0, 4.0), (1e-9, 1e-2)), ((1.0, 4.0), (0.0, 1.0))])
+    SCF.apply_limits(None, params, [((1.0, 4.0), (1e-9, 1e-2)), ((1.0, 4.0), (0.0, 1.0))])
     assert (params.xmin, params.xmax) == (1.0, 4.0)
-    SCF.apply_limits(params, [])  # an empty figure has nothing to store
+    SCF.apply_limits(None, params, [])  # an empty figure has nothing to store
     assert (params.xmin, params.xmax) == (1.0, 4.0)
 
 

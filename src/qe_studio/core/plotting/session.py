@@ -156,7 +156,7 @@ class PlotSession(Generic[D, P]):
         floats: AxesLimits = [  # Python floats, not numpy scalars
             ((float(x0), float(x1)), (float(y0), float(y1))) for (x0, x1), (y0, y1) in axes_limits
         ]
-        self.module.apply_limits(self.params, floats)
+        self.module.apply_limits(self.dataset, self.params, floats)
 
 
 def plot_key(target: Path | str, kind: str) -> str:
@@ -214,7 +214,7 @@ def build_session(
         module.legacy_params(params, result.folder, memory)
     session = PlotSession(result, dataset, params)  # defaults: without the stored settings
     if values is not None:
-        ignored = apply_stored(params, values, module.param_schema(dataset))
+        ignored = apply_stored(params, values, module.param_schema(dataset), module.view_fields)
         if ignored:
             log.warning("%s.plot: ignored %s", result.kind, ", ".join(ignored))
     return session, list(warnings)

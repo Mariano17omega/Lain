@@ -12,13 +12,12 @@ and "Célula"; the fields of "Exibição" stay.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QLocale, QSettings, Qt
+from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox,
     QHBoxLayout,
     QLabel,
-    QLayout,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -46,7 +45,7 @@ from ....core.structure3d.options import (
 )
 from ....i18n import N_, _
 from ...theme.manager import ThemeManager
-from ..common import PanelHeader, set_variant
+from ..common import PanelHeader, clear_layout, set_variant
 from ..no_wheel import NoWheelComboBox, NoWheelDoubleSpinBox, NoWheelSpinBox
 from ..plot.param_widgets import ColorButton, Section, remembered_section
 from .canvas import StructureCanvas
@@ -103,8 +102,8 @@ def _combo(choices: dict[str, str]) -> NoWheelComboBox:
 
 
 def _decimal(low: float, high: float, step: float, suffix: str = "") -> NoWheelDoubleSpinBox:
-    spin = NoWheelDoubleSpinBox()
-    spin.setLocale(QLocale.c())  # a decimal point, like the rest of the interface
+    spin = NoWheelDoubleSpinBox()  # a decimal point, like the rest of the interface
+    spin.setKeyboardTracking(False)  # one rebuild of the scene per entered value, not per key
     spin.setRange(low, high)
     spin.setSingleStep(step)
     spin.setDecimals(2)
@@ -202,6 +201,7 @@ class StructurePanel(QWidget):
         row.setSpacing(4)
         for name in "abc":
             spin = NoWheelSpinBox()
+            spin.setKeyboardTracking(False)  # typing 12 must not build the 1x scene first
             spin.setRange(MIN_REPEAT, MAX_REPEAT)
             spin.setPrefix(f"{name} ")
             spin.setAccessibleName(_("Repetição ao longo de {name}").format(name=name))
@@ -209,6 +209,7 @@ class StructurePanel(QWidget):
             row.addWidget(spin)
         self.labels = _combo(LABEL_MODES)
         self.label_size = NoWheelSpinBox()
+        self.label_size.setKeyboardTracking(False)
         self.label_size.setRange(MIN_LABEL_SIZE, MAX_LABEL_SIZE)
         self.label_size.setSuffix(" px")
         self.background = _combo(BACKGROUNDS)
@@ -327,7 +328,7 @@ class StructurePanel(QWidget):
         """A row per species of the structure: swatch, name and "Visível"."""
         layout = self.species_host.layout()
         assert layout is not None
-        _clear(layout)
+        clear_layout(layout)
         self.swatches, self.visible = [], []
         for index, species in enumerate(self.structure.species):
             element = element_for_label(species.label)
@@ -418,7 +419,7 @@ class StructurePanel(QWidget):
             self.cell_values[row_id].setText(text)
         layout = self.warnings_host.layout()
         assert layout is not None
-        _clear(layout)
+        clear_layout(layout)
         self.warnings = []
         for warning in source.warnings:
             line = set_variant(QLabel(f"⚠ {warning}"), "warning")
@@ -436,12 +437,3 @@ class StructurePanel(QWidget):
         self._fill_species()
         self._fill_cell()
         self.sync()
-
-
-def _clear(layout: QLayout) -> None:
-    """Remove and delete the widgets of ``layout``."""
-    while (item := layout.takeAt(0)) is not None:
-        widget = item.widget()
-        if widget is not None:
-            widget.hide()  # deleteLater waits for the event loop; do not show meanwhile
-            widget.deleteLater()

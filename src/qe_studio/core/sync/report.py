@@ -36,6 +36,8 @@ class SyncReport:
     auth_failed: bool = False  # the cluster refused the credentials
     # Edited, created or removed locally between the preview and the transfer: left alone (R3.1).
     changed_locally: tuple[str, ...] = ()
+    # What rsync could not read (a folder without permission, a file that vanished): left out.
+    not_read: tuple[str, ...] = ()
 
     @property
     def changes_local(self) -> bool:
@@ -43,13 +45,40 @@ class SyncReport:
         return True
 
     @property
+    def left_out(self) -> bool:
+        """Something the sync covers did not come through: the toast warns."""
+        return bool(self.changed_locally or self.not_read)
+
+    @property
+    def _arrived_note(self) -> str:
+        return ngettext(
+            "{count} arquivo baixado antes da falha.",
+            "{count} arquivos baixados antes da falha.",
+            len(self.transferred),
+        ).format(count=len(self.transferred))
+
+    def _failure_lines(self, first: str) -> str:
+        return "\n".join([first, *([self._arrived_note] if self.transferred else [])])
+
+    @property
+    def not_read_note(self) -> str:
+        return ngettext(
+            "{count} item não pôde ser lido e ficou de fora.",
+            "{count} itens não puderam ser lidos e ficaram de fora.",
+            len(self.not_read),
+        ).format(count=len(self.not_read))
+
+    @property
     def message(self) -> str:
         if self.status is SyncStatus.FAILED:
-            return _("Falha na sincronização: {error}").format(error=self.error)
+            return self._failure_lines(
+                _("Falha na sincronização: {error}").format(error=self.error)
+            )
         if self.status is SyncStatus.CANCELLED:
             return _("Sincronização cancelada.")
         if self.status is SyncStatus.UP_TO_DATE:
-            return _("Pasta já sincronizada: nada a transferir.")
+            first = _("Pasta já sincronizada: nada a transferir.")
+            return "\n".join([first, *([self.not_read_note] if self.not_read else [])])
         lines = []
         if self.status is SyncStatus.LOCAL_NEWER:
             lines.append(
@@ -79,6 +108,8 @@ class SyncReport:
             )
         if self.changed_locally:
             lines.append(self.changed_note)
+        if self.not_read:
+            lines.append(self.not_read_note)
         return "\n".join(lines)
 
     @property
@@ -93,8 +124,12 @@ class SyncReport:
     def headline(self) -> str:
         """What the footer and the toast say: the first line, plus the files left alone (they
         show only this; "Detalhes" has the rest)."""
-        first = self.message.splitlines()[0]
-        return f"{first} {self.changed_note}" if self.changed_locally else first
+        notes = [self.message.splitlines()[0]]
+        if self.changed_locally:
+            notes.append(self.changed_note)
+        if self.not_read:
+            notes.append(self.not_read_note)
+        return " ".join(notes)
 
     @property
     def details(self) -> str:
@@ -110,6 +145,7 @@ class SyncReport:
             (_("Mantidos na versão local"), self.skipped),
             (_("Mais recentes no computador"), self.local_newer),
             (_("Mudaram localmente (não baixados)"), list(self.changed_locally)),
+            (_("Não lidos (ficaram de fora)"), list(self.not_read)),
         ):
             if paths:
                 lines += ["", f"{title} ({len(paths)}):", *_listed(paths)]
@@ -128,9 +164,17 @@ class PushReport(SyncReport):
         return False
 
     @property
+    def _arrived_note(self) -> str:
+        return ngettext(
+            "{count} arquivo enviado antes da falha.",
+            "{count} arquivos enviados antes da falha.",
+            len(self.transferred),
+        ).format(count=len(self.transferred))
+
+    @property
     def message(self) -> str:
         if self.status is SyncStatus.FAILED:
-            return _("Falha no envio: {error}").format(error=self.error)
+            return self._failure_lines(_("Falha no envio: {error}").format(error=self.error))
         if self.status is SyncStatus.CANCELLED:
             return _("Envio cancelado.")
         if self.status is SyncStatus.UP_TO_DATE:
@@ -149,6 +193,8 @@ class PushReport(SyncReport):
                     len(self.existing),
                 ).format(count=len(self.existing))
             )
+        if self.not_read:
+            lines.append(self.not_read_note)
         return "\n".join(lines)
 
     @property
@@ -162,6 +208,7 @@ class PushReport(SyncReport):
         for title, paths in (
             (_("Enviados"), self.transferred),
             (_("Já existiam no cluster (não alterados)"), self.existing),
+            (_("Não lidos (ficaram de fora)"), list(self.not_read)),
         ):
             if paths:
                 lines += ["", f"{title} ({len(paths)}):", *_listed(paths)]

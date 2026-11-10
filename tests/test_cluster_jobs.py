@@ -6,15 +6,15 @@ import pytest
 from qe_studio.core.config import parse_config
 from qe_studio.core.remote import cluster_jobs
 from qe_studio.core.remote.cluster_jobs import (
-    JobsFailure,
     JobsSnapshot,
     classify,
     fetch_jobs,
     parse_qstatus,
     running_in,
 )
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.sync.command import CommandResult
-from qe_studio.core.sync.rsync import FAILURE_HINTS
+from qe_studio.core.sync.rsync_errors import FAILURE_HINTS
 
 from jobs_helpers import EMPTY, QSTATUS_ALL, QSTATUS_MINE, USER, with_mine
 
@@ -107,9 +107,9 @@ def test_mine_is_the_running_jobs_of_the_user_in_order():
 
 
 # -- failures (R2.4) --------------------------------------------------------------------------
-def failure(code, stderr="", stdout="", timed_out=False) -> JobsFailure:
+def failure(code, stderr="", stdout="", timed_out=False) -> RemoteFailure:
     result = classify(CommandResult(code, stdout, stderr, timed_out), "qstatus -a")
-    assert isinstance(result, JobsFailure)
+    assert isinstance(result, RemoteFailure)
     return result
 
 
@@ -169,7 +169,7 @@ def test_ssh_that_cannot_be_run_is_a_local_failure():
         {"cluster": {"host": "hpc.example", "user": USER}, "sync": {"ssh_binary": "/no/such/ssh"}}
     )
     found = fetch_jobs(config)
-    assert isinstance(found, JobsFailure) and found.local and not found.connection
+    assert isinstance(found, RemoteFailure) and found.local and not found.connection
 
 
 def test_fetch_runs_the_configured_command_with_the_time_limit(monkeypatch):
@@ -218,3 +218,67 @@ def test_a_job_of_another_user_or_waiting_does_not_count():
     others = ["Nd2Fe14B-4f-129.o23538", "Queued-0.o25000"]  # usuario_a's running, ours waiting
     assert running_in(others, jobs, USER) == ()
     assert [j.job_id for j in running_in(others, jobs, "usuario_a")] == ["23538"]
+
+
+# -- a queue with a job missing is no queue: every guard reads it ----------------------------------
+@pytest.mark.parametrize(
+    "row",
+    [
+        "  23999 32-64 odd  me  10/15/2026 17:53:02 q",  # a range in the "#" column
+        "  23999 32 odd  me  2026-10-15 17:53:02 q",  # another date format
+        "  23999 32 odd  me  10/15/2026 17:53:02 q extra",  # one more column
+    ],
+)
+def test_a_job_line_that_cannot_be_read_is_no_listing(row):
+    text = f"Running jobs:\n{row}\n"
+    with pytest.raises(ValueError, match="não reconhecida"):
+        parse_qstatus(text)
+    assert isinstance(classify(CommandResult(0, text, ""), "qstatus -a"), RemoteFailure)
+
+
+def test_a_number_before_the_first_title_is_no_job():
+    assert len(parse_qstatus("2026 maintenance on Friday\n" + QSTATUS_ALL).running) == 3
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        'error: unable to contact qmaster using port 6444 on host "hpc"',
+        "critical error: cannot read the spool",
+        "error: commlib error: got select error (Connection refused)",
+        "/usr/local/bin/qstatus: line 3: qstat: command not found",
+    ],
+)
+@pytest.mark.parametrize("stdout", ["", EMPTY])
+def test_a_scheduler_that_failed_is_no_empty_queue(stdout, stderr):
+    """``qstatus`` is a script: it can end with 0 after the ``qstat`` inside it failed."""
+    found = classify(CommandResult(0, stdout, stderr + "\n"), "qstatus -a")
+    assert isinstance(found, RemoteFailure) and stderr in found.message
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    ["Welcome to the cluster\n", "bash: module: command not found\n", "Error: no project\n"],
+)
+def test_other_noise_on_stderr_leaves_the_queue_alone(stderr):
+    found = classify(CommandResult(0, QSTATUS_ALL, stderr), "qstatus -a")
+    assert isinstance(found, JobsSnapshot) and len(found.running) == 3
+
+
+# -- the link between a job and its folder ---------------------------------------------------------
+LONG_NAME = "Nd2Fe14B-4f-129-with-a-name-longer-than-the-column"
+
+
+def test_a_long_name_the_queue_cut_is_still_the_job():
+    jobs = parse_qstatus(with_mine(LONG_NAME[:25]))
+    assert [job.job_id for job in running_in([f"{LONG_NAME}.o24000"], jobs, USER)] == ["24000"]
+    assert running_in([f"{LONG_NAME}.o23000"], jobs, USER) == ()  # another ID
+
+
+def test_a_short_name_cannot_have_been_cut():
+    assert running_in(["Bands-kao-b.o24000"], parse_qstatus(with_mine("Bands")), USER) == ()
+
+
+def test_a_task_of_an_array_job_is_in_the_folder_of_its_output():
+    jobs = parse_qstatus(with_mine("Bands-kao-b"))
+    assert [job.job_id for job in running_in(["Bands-kao-b.o24000.3"], jobs, USER)] == ["24000"]

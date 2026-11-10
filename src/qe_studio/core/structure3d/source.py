@@ -1,8 +1,8 @@
 """The ``Structure`` of a pw.x input (spec 43 R1): any ``calculation`` (scf, nscf, bands, relax, vc-relax…).
 
 Read with what Lain already has, never ASE: ``InputEditor`` (the viewer's lexer), ``crystal_from_editor``
-(QE 7.1's ``latgen``: every ``ibrav``) and the ``if_pos`` flags of ``surface/model.flags_of``. A relax input
-shows its *input* geometry. Errors are ``StructureReadError`` with a Portuguese sentence.
+(QE 7.1's ``latgen``: every ``ibrav``) and its ``if_pos`` flags (``position_flags``). A relax input shows its
+*input* geometry. Errors are ``StructureReadError`` with a Portuguese sentence.
 """
 
 from __future__ import annotations
@@ -11,10 +11,9 @@ import re
 from pathlib import Path
 
 from ...i18n import _
-from ..calc_create.surface.model import flags_of
 from ..qe.input_edit import InputEditor, read_input_text
-from ..qe.lattice import StructureError, crystal_from_editor
-from ..qe.pw_input import fortran_float
+from ..qe.lattice import StructureError, crystal_from_editor, position_flags
+from ..qe.pw_input import fortran_float, fortran_int, fortran_list
 from ..sniff import INPUT_READ_LIMIT
 from .elements import UNKNOWN_RADIUS, element_for_label
 from .model import SourceInfo, SpeciesInfo, Structure
@@ -23,7 +22,7 @@ __all__ = ["StructureReadError", "read_structure", "structure_of_text"]
 
 DEFAULT_PREFIX = "pwscf"
 DEFAULT_CALCULATION = "scf"
-_MAGNETIZATION = re.compile(r"starting_magnetization\((\d+)\)")
+_MAGNETIZATION = re.compile(r"starting_magnetization(?:\((\d+)\))?")
 
 
 class StructureReadError(Exception):
@@ -56,32 +55,26 @@ def structure_of_text(text: str, path: Path | None = None) -> Structure:
         raise StructureReadError(_("{name} não é um input do pw.x (sem &SYSTEM)").format(name=name))
     try:
         crystal = crystal_from_editor(editor)
-    except StructureError as exc:
+    except (StructureError, ValueError) as exc:  # numpy's LinAlgError is a ValueError
         raise StructureReadError(
             _("Estrutura de {name} ilegível: {exc}").format(name=name, exc=exc)
         ) from exc
     count = len(crystal.labels)
-    flags = (flags_of(text) + (None,) * count)[:count]
-    ntyp = _integer(editor, "system", "ntyp")
+    flags = (position_flags(editor) + (None,) * count)[:count]
+    ntyp = fortran_int(editor.get("system", "ntyp"))
     species, warnings = _species(editor, ntyp, crystal.labels)
     source = SourceInfo(
         path=str(path) if path is not None else None,
-        ibrav=_integer(editor, "system", "ibrav") or 0,
+        ibrav=fortran_int(editor.get("system", "ibrav")) or 0,
         nat=count,
         ntyp=ntyp,
         prefix=editor.get("control", "prefix") or DEFAULT_PREFIX,
         calculation=(editor.get("control", "calculation") or DEFAULT_CALCULATION).lower(),
-        nspin=_integer(editor, "system", "nspin") or 1,
+        nspin=fortran_int(editor.get("system", "nspin")) or 1,
         starting_magnetization=_magnetization(editor),
         warnings=tuple(warnings),
     )
     return Structure(crystal.cell, crystal.labels, crystal.frac, flags, species, source)
-
-
-def _integer(editor: InputEditor, namelist: str, key: str) -> int | None:
-    text = editor.get(namelist, key)
-    value = fortran_float(text) if text is not None else None
-    return int(value) if value is not None and value == int(value) else None
 
 
 def _species(
@@ -125,12 +118,15 @@ def _species(
 
 
 def _magnetization(editor: InputEditor) -> dict[int, float]:
-    """``starting_magnetization(i)`` by species number."""
+    """``starting_magnetization`` by species number. The value is a Fortran list that starts at the
+    key's index (at 1 for the bare key): ``starting_magnetization(1) = 0.5, 0.3`` sets species 1 and 2."""
     found: dict[int, float] = {}
     for key in editor.keys("system"):
         match = _MAGNETIZATION.fullmatch(key)
         text = editor.get("system", key) if match else None
-        value = fortran_float(text) if text is not None else None
-        if match and value is not None:
-            found[int(match.group(1))] = value
+        if match is None or text is None:
+            continue
+        for number, value in enumerate(fortran_list(text), start=int(match.group(1) or 1)):
+            if value is not None:
+                found[number] = value
     return found

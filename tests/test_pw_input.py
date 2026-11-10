@@ -5,6 +5,7 @@ from qe_studio.core.qe.pw_input import (
     deduce_program,
     format_kpoint_label,
     fortran_float,
+    fortran_list,
     parse_input,
     parse_kpoints,
 )
@@ -70,6 +71,17 @@ def test_label_comment_styles():
     assert kp.mode == "tpiba_b"
     assert kp.labels == ("Y", "Gamma", "X", "")
     assert kp.vertex_indices() == [0, 20, 40, 41]
+
+
+def test_a_zero_weight_is_a_jump_of_one_point():
+    """``generate_k_along_lines``: weight 0 adds the next vertex, and pw.x counts that point."""
+    kp = parse_kpoints(["K_POINTS tpiba_b", "3", "0 0 0 20", "0.5 0 0 0", "0 0.5 0 20"])
+    assert kp.vertex_indices() == [0, 20, 21] and kp.path_length == 22
+
+
+def test_a_card_name_glued_to_its_option_is_no_card():
+    """pw.x reads the first word whole: ``K_POINTS{CRYSTAL_B}`` matches no card and is ignored."""
+    assert parse_kpoints(["K_POINTS{crystal_b}", "1", "0 0 0 1"]) is None
 
 
 def test_other_modes():
@@ -140,3 +152,25 @@ def test_deduce_program(names, program):
 )
 def test_fortran_float(text, value):
     assert fortran_float(text) == value
+
+
+@pytest.mark.parametrize(
+    ("text", "values"),
+    [
+        ("0.5", [0.5]),
+        ("0.5, 0.3", [0.5, 0.3]),
+        (" 0.5   0.3 ", [0.5, 0.3]),
+        ("1d-1,2.E0", [0.1, 2.0]),
+        ("2*0.5, 0.1", [0.5, 0.5, 0.1]),
+        ("0.5,,0.3", [0.5, None, 0.3]),
+        ("2*, 0.1", [None, None, 0.1]),
+        ("x, 0.1", [None, 0.1]),
+    ],
+)
+def test_fortran_list(text, values):
+    assert fortran_list(text) == values
+
+
+def test_fortran_list_bounds_a_repeat():
+    assert len(fortran_list("999999999*0.5")) == 1024
+    assert fortran_list("9" * 5000 + "*0.5") == [None]  # beyond what int() accepts: unreadable

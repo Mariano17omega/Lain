@@ -5,8 +5,8 @@ from __future__ import annotations
 from ...plotting.table import Column, PlotTable
 from ...qe import projwfc
 from .data import PdosDataset
-from .params import PdosParams
-from .render import reference, series_label, spin_mode, total_curve
+from .params import PdosParams, is_shifted, reference
+from .render import series_label, spin_mode, total_curve
 
 # File data, not interface: a CSV column name does not follow the language, so a script that reads
 # the columns of an old file still finds them (spec 55 R2).
@@ -28,7 +28,7 @@ def pdos_table(
     if ref is None:
         ref = reference(dataset, params)
     if energy_name is None:
-        energy_name = "E − E_F" if ref else "E"
+        energy_name = "E − E_F" if is_shifted(dataset, params) else "E"
     columns = [Column(f"{energy_name} (eV)", data.energy - ref)]
     mode = spin_mode(dataset, params)
     spin = data.spin_polarized

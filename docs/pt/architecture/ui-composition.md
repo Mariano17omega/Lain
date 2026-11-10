@@ -24,4 +24,4 @@ flowchart TB
 - **Sinais de longa vida** ligam a métodos, não a *lambdas*.
 - **Tema**: QSS modular em `ui/resources/styles/<domínio>/*.qss` com `${token}` de `ui/resources/themes/{dark,light}.yaml`.
 - **Tamanhos** que contêm texto vêm da escala de fonte (`core/app/fontscale.py`, `ui/theme/scale.py`).
-- **Idioma**: textos em português dentro de `_()`; o inglês vem de `locale/en/LC_MESSAGES/lain.po`.
+- **Idioma**: textos em português dentro de `_()`; o inglês vem de `locale/en/LC_MESSAGES/lain_<domain>.po`.

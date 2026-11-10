@@ -6,7 +6,8 @@ other line stay the surface's. ``ATOMIC_SPECIES`` keeps the surface's rows and a
 species it lacks (a species in both keeps the surface's pseudopotential, with a note when they differ).
 The namelists become a relax of the whole system: no ``&CELL``, no ``nbnd`` (pw.x's default counts the
 molecule's electrons), the molecule's occupations (it may close the gap) and the smaller
-``mixing_beta``. Other differences between the two SCFs are only noted. Qt-free.
+``mixing_beta`` (one left out counts as pw.x's default). Other differences between the two SCFs are
+only noted. Qt-free.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ __all__ = [
 
 NBND_NOTE = _("nbnd removido: o pw.x calcula o padrão para o sistema com a molécula")
 SMEARING_KEYS = ("smearing", "degauss")
+PW_MIXING_BETA = 0.7  # pw.x's default: an SCF that does not write it still mixes at this
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,12 @@ class SpeciesMerge:
 
 def _number(text: str) -> float | None:
     return fortran_float(text)
+
+
+def _mixing_beta(text: str | None) -> float:
+    """The ``mixing_beta`` a run uses: the one written, or pw.x's default."""
+    number = _number(text or "")
+    return number if number is not None else PW_MIXING_BETA
 
 
 def merge_species(surface_rows: Sequence[str], molecule_rows: Sequence[str]) -> SpeciesMerge:
@@ -102,9 +110,9 @@ def merge_namelists(editor: InputEditor, molecule: ScfInfo | None) -> list[str]:
         degauss = _number(molecule.value("system", "degauss") or "")
         if degauss is not None:
             put_number(editor, "system", "degauss", degauss)
-    mine = _number(editor.get("electrons", "mixing_beta") or "")
-    theirs = _number(molecule.value("electrons", "mixing_beta") or "")
-    if mine is not None and theirs is not None and theirs < mine:
+    mine = _mixing_beta(editor.get("electrons", "mixing_beta"))
+    theirs = _mixing_beta(molecule.value("electrons", "mixing_beta"))
+    if theirs < mine:
         put_number(editor, "electrons", "mixing_beta", theirs)
     return notes
 

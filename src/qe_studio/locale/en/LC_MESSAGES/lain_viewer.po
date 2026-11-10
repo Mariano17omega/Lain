@@ -1,0 +1,407 @@
+# English translations for Lain: QE Studio.
+# Copyright (C) 2026 Mariano Sobrinho
+# This file is distributed under the same license as the Lain: QE Studio project.
+# Mariano Sobrinho <onairam17@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Report-Msgid-Bugs-To: onairam17@gmail.com\n"
+"POT-Creation-Date: 2026-11-10 01:41-0400\n"
+"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
+"Language: en\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: core/viewer/textfile.py
+msgid ""
+"\n"
+"\n"
+"    [ … trecho omitido pelo visualizador … ]\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"    [ … section omitted by the viewer … ]\n"
+"\n"
+
+#: ui/widgets/viewer/search_bar.py
+msgid " (no trecho carregado)"
+msgstr " (in the loaded excerpt)"
+
+#: core/viewer/qsub_lint.py
+#, python-brace-format
+msgid "${ sem } correspondente"
+msgstr "${ without a matching }"
+
+#: core/viewer/qsub_lint.py
+msgid "-N pede o nome do job"
+msgstr "-N needs the job name"
+
+#: core/viewer/qsub_lint.py
+msgid "-pe pede o ambiente paralelo e o número de slots (por exemplo: -pe physica 64)"
+msgstr "-pe needs the parallel environment and the number of slots (for example: -pe physica 64)"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "A"
+msgstr "A"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Abrir no editor externo"
+msgstr "Open in external editor"
+
+#: ui/widgets/viewer/summary_view.py
+msgid "Abrir o arquivo no visualizador de texto"
+msgstr "Open the file in the text viewer"
+
+#: ui/widgets/viewer/summary_view.py
+msgid "Abrir saída"
+msgstr "Open output"
+
+#: ui/widgets/viewer/search_bar.py
+msgid "Anterior"
+msgstr "Previous"
+
+#: ui/widgets/viewer/search_bar.py
+msgid "Anterior (Shift+Enter, Shift+F3)"
+msgstr "Previous (Shift+Enter, Shift+F3)"
+
+#: core/viewer/text_preview.py
+#, python-brace-format
+msgid "Arquivo completo ({human_size})."
+msgstr "Complete file ({human_size})."
+
+#: core/viewer/text_preview.py
+#, python-brace-format
+msgid "Arquivo grande ({human_size}): exibindo o primeiro {human_size_2} e os últimos {human_size_3}."
+msgstr "Large file ({human_size}): showing the first {human_size_2} and the last {human_size_3}."
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Arquivo grande demais para o visualizador: use o editor externo"
+msgstr "File too large for the viewer: use the external editor"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Arquivo grande demais para renderizar (mais de 1 MB): mostrado como texto"
+msgstr "File too large to render (over 1 MB): shown as text"
+
+#: core/viewer/text_preview.py
+msgid "Arquivo vazio: o job não registrou erros."
+msgstr "Empty file: the job logged no errors."
+
+#: core/viewer/qsub_lint.py
+#, python-brace-format
+msgid "Aspas {quote} abertas e não fechadas até o fim do arquivo"
+msgstr "Quote {quote} opened and not closed until the end of the file"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "B"
+msgstr "B"
+
+#: ui/widgets/viewer/search_bar.py ui/widgets/viewer/text_viewer.py
+msgid "Buscar no texto"
+msgstr "Search in text"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Carregar tudo"
+msgstr "Load everything"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "Comparando…"
+msgstr "Comparing…"
+
+#: ui/widgets/viewer/input_view.py
+msgid "Comparar este input com outro"
+msgstr "Compare this input with another"
+
+#: ui/widgets/viewer/summary_view.py
+msgid "Copiar o resumo como texto"
+msgstr "Copy the summary as text"
+
+#: ui/widgets/viewer/search_bar.py
+msgid "Diferenciar maiúsculas"
+msgstr "Match case"
+
+#: ui/widgets/viewer/diff_view.py
+#, python-brace-format
+msgid "Diff · {left} ↔ {right}"
+msgstr "Diff · {left} ↔ {right}"
+
+#: ui/widgets/viewer/summary_widgets.py
+#, python-brace-format
+msgid "Duplo clique: abrir a saída na linha {line}"
+msgstr "Double click: open the output at line {line}"
+
+#: ui/widgets/viewer/input_view.py
+msgid "Extrato"
+msgstr "Extract"
+
+#: core/viewer/qsub_lint.py
+msgid "Falta o #! na primeira linha (por exemplo: #!/usr/bin/env bash)"
+msgstr "Missing #! on the first line (for example: #!/usr/bin/env bash)"
+
+#: ui/widgets/viewer/search_bar.py
+msgid "Fechar (Esc)"
+msgstr "Close (Esc)"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Fechar a busca"
+msgstr "Close the search"
+
+#: core/viewer/qsub_lint.py
+msgid "Fim de linha CRLF: o bash do cluster lê o \\r como parte do comando"
+msgstr "CRLF line ending: the cluster's bash reads the \\r as part of the command"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "Ignorar espaços e comentários"
+msgstr "Ignore whitespace and comments"
+
+#: core/viewer/text_preview.py
+#, python-brace-format
+msgid "Input grande ({human_size}): a escrita não foi verificada, só o realce."
+msgstr "Large input ({human_size}): syntax was not checked, only highlighted."
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Ir ao fim"
+msgstr "Go to end"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Ir ao fim (Ctrl+End)"
+msgstr "Go to end (Ctrl+End)"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Ir ao início"
+msgstr "Go to start"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Ir ao início (Ctrl+Home)"
+msgstr "Go to start (Ctrl+Home)"
+
+#: ui/widgets/viewer/input_view.py
+msgid "Ir ao primeiro"
+msgstr "Go to first"
+
+#: ui/widgets/viewer/input_view.py
+msgid "Ir ao primeiro problema (F8: próximo, Shift+F8: anterior)"
+msgstr "Go to the first problem (F8: next, Shift+F8: previous)"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Ir à linha"
+msgstr "Go to line"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Ir à linha (Ctrl+L)"
+msgstr "Go to line (Ctrl+L)"
+
+#: ui/widgets/viewer/input_view.py
+#, python-brace-format
+msgid "Ir à linha {line}"
+msgstr "Go to line {line}"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Ir à linha…"
+msgstr "Go to line…"
+
+#: ui/widgets/viewer/summary_view.py
+#, python-brace-format
+msgid "Lendo {name}…"
+msgstr "Reading {name}…"
+
+#: ui/widgets/viewer/summary_view.py
+msgid "Ler o arquivo de novo (o job pode estar rodando)"
+msgstr "Read the file again (the job may be running)"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Linha:"
+msgstr "Line:"
+
+#: ui/widgets/viewer/markdown_view.py
+#, python-brace-format
+msgid "Link não aberto: {target}"
+msgstr "Link not opened: {target}"
+
+#: core/viewer/text_preview.py
+#, python-brace-format
+msgid "Markdown grande ({human_size}): exibido como texto, sem renderizar."
+msgstr "Large Markdown ({human_size}): shown as text, not rendered."
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Mostrar o Markdown renderizado"
+msgstr "Show the rendered Markdown"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Mostrar o texto do arquivo"
+msgstr "Show the file text"
+
+#: ui/widgets/viewer/input_view.py
+msgid "Mostrar ou ocultar o extrato do input"
+msgstr "Show or hide the input extract"
+
+#: ui/widgets/viewer/summary_widgets.py
+msgid "Mostrar ou ocultar os detalhes"
+msgstr "Show or hide the details"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "Namelist"
+msgstr "Namelist"
+
+#: ui/widgets/viewer/search_bar.py
+msgid "Nenhum resultado"
+msgstr "No results"
+
+#: ui/widgets/viewer/text_viewer.py
+#, python-brace-format
+msgid "Não foi possível abrir o arquivo: {error}"
+msgstr "Could not open the file: {error}"
+
+#: ui/widgets/viewer/diff_view.py
+#, python-brace-format
+msgid "Não foi possível comparar: {error}"
+msgstr "Could not compare: {error}"
+
+#: ui/widgets/viewer/summary_view.py
+#, python-brace-format
+msgid "Não foi possível ler o arquivo: {error}"
+msgstr "Could not read the file: {error}"
+
+#: core/viewer/text_preview.py
+msgid "O job não registrou erros: o arquivo lista só as máquinas dele."
+msgstr "The job logged no errors: the file only lists its machines."
+
+#: core/viewer/text_preview.py
+msgid "O job registrou mensagens de erro."
+msgstr "The job logged error messages."
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Ocorrência anterior"
+msgstr "Previous occurrence"
+
+#: core/viewer/qsub_lint.py
+#, python-brace-format
+msgid "Opção desconhecida do qsub: {token}"
+msgstr "Unknown qsub option: {token}"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "Os dois arquivos lado a lado"
+msgstr "Both files side by side"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "Os inputs são equivalentes: nenhum parâmetro nem card difere."
+msgstr "The inputs are equivalent: no parameter or card differs."
+
+#: ui/widgets/viewer/diff_view.py
+msgid "Parâmetro"
+msgstr "Parameter"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Problema anterior de escrita"
+msgstr "Previous syntax problem"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Próxima ocorrência"
+msgstr "Next occurrence"
+
+#: ui/widgets/viewer/search_bar.py
+msgid "Próximo"
+msgstr "Next"
+
+#: ui/widgets/viewer/search_bar.py
+msgid "Próximo (Enter, F3)"
+msgstr "Next (Enter, F3)"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Próximo problema de escrita"
+msgstr "Next syntax problem"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Renderizado"
+msgstr "Rendered"
+
+#: core/viewer/text_preview.py
+#, python-brace-format
+msgid "Script grande ({human_size}): a escrita não foi verificada, só o realce."
+msgstr "Large script ({human_size}): syntax was not checked, only highlighted."
+
+#: ui/widgets/viewer/diff_view.py
+msgid "Só o que difere, parâmetro por parâmetro"
+msgstr "Only what differs, parameter by parameter"
+
+#: ui/widgets/viewer/diff_view.py ui/widgets/viewer/text_viewer.py
+msgid "Texto"
+msgstr "Text"
+
+#: ui/widgets/viewer/text_viewer.py
+msgid "Visualizador de texto"
+msgstr "Text viewer"
+
+#: core/viewer/qsub_lint.py
+msgid "\\ no fim da linha seguido de espaço: a continuação de linha não funciona"
+msgstr "\\ at the end of the line followed by a space: the line continuation does not work"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "card"
+msgstr "card"
+
+#: core/viewer/qsub_lint.py
+msgid "case sem esac"
+msgstr "case without esac"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "diferente"
+msgstr "different"
+
+#: core/viewer/qsub_lint.py
+msgid "do fora de um laço for/while/until"
+msgstr "do outside a for/while/until loop"
+
+#: core/viewer/qsub_lint.py
+msgid "done sem for/while/until correspondente"
+msgstr "done without a matching for/while/until"
+
+#: core/viewer/qsub_lint.py
+msgid "esac sem case correspondente"
+msgstr "esac without a matching case"
+
+#: core/viewer/qsub_lint.py
+msgid "fi sem if correspondente"
+msgstr "fi without a matching if"
+
+#: core/viewer/qsub_lint.py
+msgid "if sem fi"
+msgstr "if without fi"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "linha"
+msgstr "line"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "só em A"
+msgstr "only in A"
+
+#: ui/widgets/viewer/diff_view.py
+msgid "só em B"
+msgstr "only in B"
+
+#: ui/widgets/viewer/input_view.py
+#, python-brace-format
+msgid "{n} problema de escrita no input"
+msgid_plural "{n} problemas de escrita no input"
+msgstr[0] "{n} syntax problem in the input"
+msgstr[1] "{n} syntax problems in the input"
+
+#: ui/widgets/viewer/input_view.py
+#, python-brace-format
+msgid "{n} problema de escrita no script"
+msgid_plural "{n} problemas de escrita no script"
+msgstr[0] "{n} syntax problem in the script"
+msgstr[1] "{n} syntax problems in the script"
+
+#: core/viewer/qsub_lint.py
+#, python-brace-format
+msgid "{word} sem done"
+msgstr "{word} without done"
+

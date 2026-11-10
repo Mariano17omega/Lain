@@ -55,8 +55,9 @@ class KPointsCard:
     def vertex_indices(self) -> list[int]:
         """Index of each path vertex in the generated k-point list (``*_b`` modes).
 
-        pw.x puts ``weights[i]`` points on segment i and the last vertex's weight is ignored,
-        so the list holds ``sum(weights[:-1]) + 1`` points.
+        pw.x puts ``weights[i]`` points on segment i and the last vertex's weight is ignored, so
+        the list holds ``sum(weights[:-1]) + 1`` points. A weight of 0 is a jump, and still one
+        point: the next vertex (``generate_k_along_lines``).
         """
         counts = [max(int(round(w)), 1) for w in self.weights[:-1]]
         return [0, *np.cumsum(counts).tolist()]
@@ -108,6 +109,24 @@ def fortran_int(text: str | None) -> int | None:
     """The integer a Fortran namelist number means (``8``, ``8.0``, ``8d0``), else None."""
     value = fortran_float(text) if text is not None else None
     return int(value) if value is not None and value == int(value) else None
+
+
+_LIST_SEPARATOR = re.compile(r"\s*,\s*|\s+")
+_REPEATED = re.compile(r"(\d{1,9})\*(.*)")
+_MAX_REPEAT = 1024  # no list of an input is longer: a typo must not fill the memory
+
+
+def fortran_list(text: str) -> list[float | None]:
+    """The values of a namelist list by position (``0.5, 0.3``, ``0.5 0.3``, ``2*0.5, 0.1``); None for
+    a slot left empty (``0.5,,0.3``) or unreadable."""
+    values: list[float | None] = []
+    for token in _LIST_SEPARATOR.split(text.strip()):
+        repeated = _REPEATED.fullmatch(token)
+        if repeated:
+            values += [fortran_float(repeated[2])] * min(int(repeated[1]), _MAX_REPEAT)
+        else:
+            values.append(fortran_float(token))
+    return values
 
 
 def _floats(text: str) -> list[float]:

@@ -14,7 +14,7 @@ QDoubleSpinBox, QSpinBox {
 QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus {
     border: 1px solid ${focus_ring};
 }
-QLineEdit:disabled, QDoubleSpinBox:disabled, QComboBox:disabled {
+QLineEdit:disabled, QDoubleSpinBox:disabled, QSpinBox:disabled, QComboBox:disabled {
     color: ${text_dim};
 }
 QLineEdit[variant="mono"] {

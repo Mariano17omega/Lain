@@ -161,7 +161,8 @@ def report_facts(name: str, report, project: Path) -> list[str]:
 
 def sync_report(window, project: Path) -> list[str]:
     from qe_studio.core.sync.report import PushReport, SyncReport, SyncStatus
-    from qe_studio.core.sync.rsync import Endpoint, explain_failure, is_auth_failure
+    from qe_studio.core.sync.rsync import Endpoint
+    from qe_studio.core.sync.rsync_errors import explain_failure, is_auth_failure
 
     local = project / "03_bands"
     remote = Endpoint(CLUSTER_DIR, "cluster.example.org", "usuario")
@@ -195,7 +196,7 @@ def sync_report(window, project: Path) -> list[str]:
     denied = pull(
         SyncStatus.FAILED,
         error=explain_failure(255, stderr),
-        auth_failed=is_auth_failure(stderr),
+        auth_failed=is_auth_failure(255, stderr),
     )
     reports = {
         "pull done 1": pull(SyncStatus.DONE, 1),
@@ -318,9 +319,9 @@ def sync_failures(window, project: Path) -> list[str]:
     from qe_studio.core.config import parse_config
     from qe_studio.core.sync._process import RSYNC_MISSING
     from qe_studio.core.sync.controller import SyncController
-    from qe_studio.core.sync.rsync import (
+    from qe_studio.core.sync.rsync import Endpoint
+    from qe_studio.core.sync.rsync_errors import (
         FAILURE_HINTS,
-        Endpoint,
         explain_failure,
         is_auth_failure,
         is_connection_failure,
@@ -328,14 +329,18 @@ def sync_failures(window, project: Path) -> list[str]:
 
     def line(stderr: str, exit_code: int = 255) -> str:
         message = explain_failure(exit_code, stderr).replace("\n", " ")
-        auth, connection = is_auth_failure(stderr), is_connection_failure(exit_code, stderr)
+        auth = is_auth_failure(exit_code, stderr)
+        connection = is_connection_failure(exit_code, stderr)
         return f"{message} | auth={auth} | connection={connection}"
 
     facts = [
         f"hint {index} {needle}: {line(STDERR_FOR.format(needle=needle))}"
         for index, (needle, _hint) in enumerate(FAILURE_HINTS)
     ]
-    facts += [f"other {index}: {line(text, 23)}" for index, text in enumerate(PRECEDENCE)]
+    facts += [  # a refused login is ssh's own code; the others are rsync's
+        f"other {index}: {line(text, 255 if text.startswith('Permission') else 23)}"
+        for index, text in enumerate(PRECEDENCE)
+    ]
     facts.append(f"missing: {RSYNC_MISSING}")
     # The errors of a run that cannot go on (no process: a binary that does not exist).
     broken = parse_config({"sync": {"rsync_binary": "/nonexistent/rsync"}})

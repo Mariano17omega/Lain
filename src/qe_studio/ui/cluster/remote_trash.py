@@ -22,8 +22,9 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QMenu, QWidget
 
 from ...core.config import AppConfig
-from ...core.remote.actions import ActionFailure
+from ...core.remote.failure import RemoteFailure
 from ...core.remote.trash import (
+    Move,
     TrashBlocked,
     TrashDone,
     TrashPlan,
@@ -118,7 +119,7 @@ class RemoteTrashController(QObject):
         plain = [(item.path, item.is_dir) for item in items]
         self.actions.run(CHECKING, plan_trash, config, plain, password, on_done=self._on_planned)
 
-    def _on_planned(self, result: TrashPlan | TrashBlocked | ActionFailure) -> None:
+    def _on_planned(self, result: TrashPlan | TrashBlocked | RemoteFailure) -> None:
         pending, self._pending = self._pending, None
         if pending is None:
             return
@@ -128,44 +129,44 @@ class RemoteTrashController(QObject):
             return
         self.actions.report(None)
         config, password = pending
-        account = f"{config.cluster.user}@{config.cluster.host}"
+        account = config.cluster.account
         if not ask_trash(self._dialog_parent, result, account):
             self.done.emit(None)
             return
         self._plan = result
         self.actions.run(MOVING, run_trash, config, result, password, on_done=self._on_moved)
 
-    def _on_moved(self, result: TrashDone | TrashBlocked | ActionFailure) -> None:
+    def _on_moved(self, result: TrashDone | TrashBlocked | RemoteFailure) -> None:
         plan, self._plan = self._plan, None
         self._tell(result)
-        reached = not isinstance(result, ActionFailure) or not (
-            result.connection or result.auth or result.local
-        )
+        reached = not isinstance(result, RemoteFailure) or result.answered
         if plan is not None and reached:
-            self._list_again(plan)
+            moved = result.moved if isinstance(result, TrashDone) else ()
+            self._list_again(plan, moved)
         self.done.emit(result)
 
-    def _list_again(self, plan: TrashPlan) -> None:
+    def _list_again(self, plan: TrashPlan, moved: tuple[Move, ...]) -> None:
         """The folder of the items listed again, the trash's folders out of the cache; the folder
-        above when the one shown went to the trash (deleted from the tree)."""
+        above when the one shown went to the trash (deleted from the tree). ``moved``: what really
+        left its folder, which is less than the plan when a step stopped the others."""
         remote, root = self.remote, self._config().paths.remote_root
         browser = remote.browser
         if browser is not None:
             browser.invalidate(plan.remote_dir)
-            for _item, target in plan.moves:
+            for _item, target in moved:
                 folder = PurePosixPath(root, target).parent
                 while folder.is_relative_to(trash_of(root)):
                     browser.invalidate(str(folder))
                     folder = folder.parent
-        sources = [PurePosixPath(root, item) for item, _target in plan.moves]
+        sources = [PurePosixPath(root, item) for item, _target in moved]
         if remote.active and any(PurePosixPath(remote.current).is_relative_to(s) for s in sources):
             remote.open(plan.remote_dir)
         else:
             self.actions.list_again(plan.remote_dir)
 
-    def _tell(self, result: TrashDone | TrashBlocked | ActionFailure) -> None:
+    def _tell(self, result: TrashDone | TrashBlocked | RemoteFailure) -> None:
         """The toast, and what the answer tells the LED."""
-        if isinstance(result, ActionFailure):
+        if isinstance(result, RemoteFailure):
             text = _("Nada foi movido para trash: {message}").format(message=result.message)
             self.toast.show_message(text, "error")
             self.actions.report(result)

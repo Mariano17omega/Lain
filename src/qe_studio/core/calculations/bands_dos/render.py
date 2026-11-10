@@ -43,7 +43,9 @@ def render_bands_dos(
     ax_bands, ax_dos = bands_dos_axes(figure, style, (1.0, params.dos_width_ratio))
     ref = bands.reference(params.reference)
     band_handles = bands_render.draw_bands(ax_bands, bands, bands_params, style, ref)
-    pdos_render.draw_pdos(ax_dos, dos, dos_params, style, ref, bands.fermi, bands.fermi_up_down)
+    pdos_render.draw_pdos(
+        ax_dos, dos, dos_params, style, ref, bands.fermi_level, bands.fermi_up_down
+    )
     ax_dos.set_ylabel("")  # the energy is labelled once, on the bands
     ax_dos.xaxis.set_major_locator(ClearOfJoin(nbins="auto"))
 

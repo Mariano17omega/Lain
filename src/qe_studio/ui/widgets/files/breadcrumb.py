@@ -11,7 +11,6 @@ from pathlib import Path
 
 from PyQt6.QtCore import QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QApplication,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -23,7 +22,7 @@ from PyQt6.QtWidgets import (
 from ....core.files.navigation import Segment, breadcrumb_segments, collapse_count
 from ....i18n import _
 from ...theme.scale import scaled
-from ..common import set_variant
+from ..common import clear_layout, copy_text, set_variant
 from ..shell.workspace_tabs import add_action
 
 SEPARATOR = "›"
@@ -97,11 +96,7 @@ class Breadcrumb(QWidget):
         return label
 
     def _rebuild(self) -> None:
-        while (item := self._layout.takeAt(0)) is not None:
-            widget = item.widget()
-            if widget is not None and widget not in (self.more, self._more_separator):
-                widget.hide()  # deleteLater waits for the event loop; do not show meanwhile
-                widget.deleteLater()
+        clear_layout(self._layout, keep=(self.more, self._more_separator))
         self._buttons, self._separators = [], []
         last = len(self._segments) - 1
         for position, segment in enumerate(self._segments):
@@ -178,7 +173,5 @@ class Breadcrumb(QWidget):
         """The absolute path of the current folder on the clipboard."""
         if self._folder is None:
             return
-        clipboard = QApplication.clipboard()
-        if clipboard is not None:
-            clipboard.setText(str(self._folder))
+        copy_text(str(self._folder))
         self.path_copied.emit(str(self._folder))

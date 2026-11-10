@@ -329,7 +329,7 @@ class PlotWorkflow(QObject):
         if isinstance(error, LoadError):
             text = str(error)
         else:  # parsing errors must reach the user, not kill the worker
-            log.error("load failed", exc_info=error)
+            log.error("plot: load failed", exc_info=error)
             text = f"{type(error).__name__}: {error}"
         self.message.emit(_("Falha ao carregar os dados do gráfico."), "error", 8000)
         QMessageBox.warning(self._dialog_parent, _("Não foi possível gerar o gráfico"), text)
@@ -406,6 +406,7 @@ class PlotWorkflow(QObject):
             self._previews.discard(key)
             # Closing the tab ends a load of it still pending (a regenerate): nothing opens later.
             self._loads.cancel(key)
+            self.settings.cancel_read(key)  # stage 2: a late read must not pop a newer load
             self._finish_load(key)
             if key != self._replacing:  # big datasets go with their tab (spec 27-4 R2.4)
                 for path in widget.session.paths:

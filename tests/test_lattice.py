@@ -174,6 +174,22 @@ def test_ibrav_0_cells_and_alat_positions(cell, alat):
     np.testing.assert_allclose(crystal.frac, [[0.5, 0.5, 0.5]])  # alat = |a1| without celldm
 
 
+@pytest.mark.parametrize(
+    ("header", "lattice", "side"),
+    [
+        ("CELL_PARAMETERS", "", 5.0),  # no unit, no lattice parameter: Bohr (cell_base_init)
+        ("CELL_PARAMETERS", ", celldm(1) = 2.0", 10.0),  # no unit, with one: alat
+        ("CELL_PARAMETERS (alat= 99.9)", ", celldm(1) = 2.0", 10.0),  # pw.x ignores the 99.9
+    ],
+)
+def test_the_unit_of_a_cell_card_is_read_as_pw_x_does(header, lattice, side):
+    rows = "5 0 0\n 0 5 0\n 0 0 5\n"
+    crystal = crystal_of(
+        system(f"ibrav = 0{lattice}", f"{header}\n {rows}ATOMIC_POSITIONS crystal\n Si 0 0 0\n")
+    )
+    np.testing.assert_allclose(crystal.cell, np.eye(3) * side * BOHR_ANGSTROM)
+
+
 def test_kaolinite_ibrav_0_matches_ase():
     from ase.io.espresso import read_espresso_in
 

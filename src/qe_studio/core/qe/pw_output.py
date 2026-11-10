@@ -42,12 +42,15 @@ _ALAT = re.compile(r"lattice parameter \(alat\)\s*=\s*(-?\d+\.\d+)")
 # One component when collinear, three (a vector) when noncollinear.
 _TOTAL_MAG = re.compile(r"total magnetization\s*=\s*((?:-?\d+\.\d+\s+){1,3})Bohr mag/cell")
 _ABS_MAG = re.compile(r"absolute magnetization\s*=\s*(-?\d+\.\d+)\s*Bohr mag/cell")
+# What pw.x prints with noncolin set: a non-magnetic spin-orbit run has two-component spinors too.
+_NONCOLLINEAR = ("Noncollinear calculation", "Non magnetic calculation with spin-orbit")
 
 
 @dataclass(frozen=True)
 class PwOutput:
     version: str | None = None
-    calculation: str | None = None  # scf | nscf | bands | relax | vc-relax | None
+    # scf | nscf | bands | relax | vc-relax | md | vc-md | None
+    calculation: str | None = None
     fermi: float | None = None  # reference energy in eV (E_F, or HOMO for fixed occupations)
     fermi_kind: FermiKind | None = None
     lumo: float | None = None
@@ -100,8 +103,57 @@ def _has(texts: tuple[str, ...], marker: str) -> bool:
     return any(marker in text for text in texts)
 
 
+def _has_any(texts: tuple[str, ...], markers: tuple[str, ...]) -> bool:
+    return any(_has(texts, marker) for marker in markers)
+
+
+# What pw.x prints for the dynamics that BFGS does not run (``QE:PW/src/dynamics_module.f90`` and
+# ``vcsmd.f90``). The banners come at the first step only: a dynamics restarted from its ``.md`` file
+# does not print them, so it still gets the label that ``new unit-cell volume`` or ``scf`` gave it.
+_DAMPED_IONS = (  # calculation = 'relax' with ion_dynamics = 'damp' or 'fire'
+    "Damped Dynamics Calculation",  # dynamics_module.f90:916
+    "End of damped dynamics calculation",  # :958
+    "Minimization using the FIRE algorithm",  # :1171
+    "Entering FIRE :",  # :1235, every step
+    "End of FIRE minimization",  # :1224
+)
+# vc-relax with cell_dynamics = 'none', 'damp-pr' or 'damp-w': the ``calc_long`` of vcsmd.f90:180-184
+# ("Parrinello-Rahman Damped Cell Dynamics Minimization: " and the like), at step 1 and on convergence.
+_CELL_MINIMIZATION = ("Dynamics Minimization:",)
+# vc-md, every step (vcsmd.f90:245). The other dynamics print "Entering Dynamics:", with a colon.
+_CELL_DYNAMICS = ("Entering Dynamics;",)
+_MOLECULAR_DYNAMICS = (  # calculation = 'md'
+    "Molecular Dynamics Calculation",  # dynamics_module.f90:463 (verlet)
+    "Over-damped Langevin Dynamics Calculation",  # :1400
+)
+
+
 def _calculation(texts: tuple[str, ...], has_fermi: bool) -> str | None:
-    if _has(texts, "Final enthalpy") or _has(texts, "new unit-cell volume"):
+    """The pw.x ``calculation`` the output came from, deduced from what it printed (L-02, L-03).
+
+    ``new unit-cell volume`` is no proof of a variable cell: damped and FIRE relaxations of a fixed
+    cell print it too (``output_tau(.TRUE., .TRUE.)``), and so does vc-md. Only BFGS with a cell
+    prints ``Final enthalpy``; the dynamics are told apart by their own banners first.
+
+    nscf × bands: ``lbands`` decides whether pw.x prints the Fermi energy or HOMO/LUMO line
+    (``print_ks_energies.f90:24,39``); with the default verbosity nothing else in the text tells
+    them apart (``verbosity = 'high'`` also prints ``occupation numbers`` after each k point of an
+    nscf, ``:127-129``, never of a bands run: not read here). So a non-SCF run with that line is
+    ``nscf`` and one without it is ``bands``. Two nscf runs look like ``bands``: one cut before
+    that line (still running) and one with ``one_atom_occupations``, which never prints it
+    (``:192``). Accepted limits, not told apart by design.
+    """
+    if _has(texts, "Final enthalpy"):
+        return "vc-relax"
+    if _has_any(texts, _DAMPED_IONS):
+        return "relax"
+    if _has_any(texts, _CELL_MINIMIZATION):
+        return "vc-relax"
+    if _has_any(texts, _CELL_DYNAMICS):
+        return "vc-md"
+    if _has_any(texts, _MOLECULAR_DYNAMICS):
+        return "md"
+    if _has(texts, "new unit-cell volume"):
         return "vc-relax"
     if _has(texts, "number of bfgs steps") or _has(texts, "Begin final coordinates"):
         return "relax"
@@ -129,7 +181,7 @@ def _magnetization(text: str) -> tuple[float | None, float | None]:
 
 
 def _spin_polarized(texts: tuple[str, ...]) -> bool:
-    if _has(texts, "Noncollinear calculation"):
+    if any(_has(texts, marker) for marker in _NONCOLLINEAR):
         return False
     markers = ("Starting magnetic structure", "SPIN UP", "total magnetization")
     return any(_has(texts, marker) for marker in markers)
@@ -204,7 +256,7 @@ def parse_pw_output(head: str, tail: str | None = None) -> PwOutput:
         n_bands=first_int(_NBND),
         alat_bohr=float(alat.group(1)) if alat else None,
         spin_polarized=_spin_polarized(texts),
-        noncollinear="Noncollinear calculation" in head,
+        noncollinear=any(marker in head for marker in _NONCOLLINEAR),
         total_magnetization=total_mag,
         absolute_magnetization=abs_mag,
         job_done="JOB DONE" in tail,

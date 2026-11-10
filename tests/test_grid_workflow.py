@@ -179,3 +179,22 @@ def test_closing_the_window_while_a_grid_is_drawn_is_not_late(qtbot, main_window
     )  # the worker stops between cells; nobody waits for it all
     assert main_window.shutdown_report is not None and main_window.shutdown_report.late == []
     assert not view.drawing
+
+
+def test_a_cell_whose_session_cannot_be_built_is_unavailable_not_loading_forever(
+    qtbot, main_window, demo_project, monkeypatch
+):
+    plot(qtbot, main_window, demo_project / "03_bands")
+    plot(qtbot, main_window, demo_project / "01_relax")
+    generate(qtbot, main_window)
+    main_window.workspace.close_all()
+
+    def broken(*args, **kwargs):
+        raise ValueError("a .plot this build cannot read")
+
+    monkeypatch.setattr("qe_studio.ui.plot.grid_loader.build_session", broken)
+    view = generate(qtbot, main_window, saved=True)  # still arrives: the cells are errors
+    cells = view.session.dataset.cells
+    assert all(cell.session is None for cell in cells)
+    assert all("a .plot this build cannot read" in cell.error for cell in cells)
+    assert main_window.status.spinner.isHidden()

@@ -144,20 +144,24 @@ class Camera:
         margin: float = 0.9,
         pad: float = 0.0,
     ) -> None:
-        """Choose zoom and pan so that ``points`` fill the viewport with the current rotation.
+        """Choose zoom, pan and focal so that ``points`` fill the viewport as they are projected.
 
-        ``pad`` (Å) grows the framed region on every side, e.g. by the largest atom radius.
+        ``pad`` (Å) grows the framed region on every side, e.g. by the largest atom radius. The
+        perspective scale of a point depends on the focal and its depth, never on the zoom, so the
+        projected bounds are exact.
         """
         points = np.asarray(points, dtype=float)
+        radius = float(np.linalg.norm(points - self.center, axis=1).max())
+        self.focal = max(PERSPECTIVE_RATIO * radius, 1.0)  # first: the scale below depends on it
         v = self.camera_coords(points)
-        lo, hi = v[:, :2].min(axis=0) - pad, v[:, :2].max(axis=0) + pad
+        scale = self.focal / (self.focal - v[:, 2]) if self.perspective else np.ones(len(v))
+        xy, grown = v[:, :2] * scale[:, None], pad * scale[:, None]
+        lo, hi = (xy - grown).min(axis=0), (xy + grown).max(axis=0)
         extent = np.maximum(hi - lo, 1e-6)
         w, h = viewport
         self.zoom = margin * min(w / extent[0], h / extent[1])
         mid = (lo + hi) / 2
         self.pan = np.array([-mid[0] * self.zoom, mid[1] * self.zoom])
-        radius = float(np.linalg.norm(points - self.center, axis=1).max())
-        self.focal = max(PERSPECTIVE_RATIO * radius, 1.0)
 
     def reset(
         self,

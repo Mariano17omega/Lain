@@ -13,13 +13,12 @@ import numpy as np
 
 from ....i18n import _
 from ...qe.input_edit import InputEditor
-from ...qe.pw_input import fortran_float, fortran_int
+from ...qe.lattice import Flags, position_flags
+from ...qe.pw_input import fortran_float
 from ..scf_info import ScfInfo
 from . import SurfaceError
 
-__all__ = ["Flags", "Model", "flags_of", "model_of", "species_rows"]
-
-Flags = tuple[int, int, int]
+__all__ = ["Flags", "Model", "flags_of", "model_of", "partly_fixed", "species_rows"]
 
 
 @dataclass(frozen=True, eq=False)
@@ -44,27 +43,15 @@ class Model:
         return dataclasses.replace(self, **changes)
 
 
-def _nat(editor: InputEditor) -> int | None:
-    return fortran_int(editor.get("system", "nat"))
-
-
-def _flags(words: list[str]) -> Flags | None:
-    try:
-        values = [int(word) for word in words[4:7]]
-    except ValueError:
-        return None
-    return (values[0], values[1], values[2]) if len(values) == 3 else None
-
-
 def flags_of(text: str) -> tuple[Flags | None, ...]:
-    """The ``if_pos`` of each atom of ``ATOMIC_POSITIONS`` (up to ``nat``), None where none is written."""
-    editor = InputEditor.from_text(text)
-    card = editor.card("ATOMIC_POSITIONS")
-    if card is None:
-        return ()
-    nat = _nat(editor)
-    lines = card.lines if nat is None else card.lines[:nat]
-    return tuple(_flags(line.split()) for line in lines)
+    """``position_flags`` of the input ``text``."""
+    return position_flags(InputEditor.from_text(text))
+
+
+def partly_fixed(text: str) -> bool:
+    """Whether the input fixes some atoms but not all: all of them would leave a relax nothing to move."""
+    fixed = [flag is not None and 0 in flag for flag in flags_of(text)]
+    return any(fixed) and not all(fixed)
 
 
 def model_of(scf: ScfInfo) -> Model:

@@ -182,7 +182,10 @@ def test_confirming_creates_the_stop_file(qtbot, window, monkeypatch, cluster):
         window.remote.open(BANDS)
     listed, queries = window.browse.calls.count(BANDS), len(cluster.queue.calls)
     result = cancel_item(qtbot, window, monkeypatch)
-    assert result == Done("Pedido de parada criado: al.EXIT. O pw.x para na próxima verificação.")
+    assert isinstance(result, Done)
+    assert result.message.startswith(
+        "Pedido de parada criado: al.EXIT. O pw.x para na próxima verificação."
+    )
     assert cluster.run.argvs == [remote_command(window.config, TOUCH)]
     assert (result.message, "info") in toasts(window)
     assert len(cluster.jobs.calls) == 2  # the queue asked again right before the touch
@@ -329,9 +332,21 @@ def test_the_dialog_shows_the_job_the_method_and_the_command(qtbot):
         dialog.method.text() == "arquivo de parada do pw.x (al.EXIT)"
         and dialog.method.font().bold()
     )
-    assert dialog.command.text() == TOUCH and dialog.note.text() == NOTE_EXIT
+    assert dialog.command.toPlainText() == TOUCH and dialog.note.text() == NOTE_EXIT
+    assert dialog.command.isReadOnly()
     assert dialog.back_button.isDefault() and not dialog.cancel_button.isDefault()
     assert not dialog.cancel_button.autoDefault()
+
+
+def test_a_very_long_remote_path_does_not_stretch_the_dialog(qtbot):
+    """The command scrolls and the paths wrap: the buttons stay on a small screen."""
+    long = f"{REMOTE}/" + "/".join(["pasta_com_um_nome_bem_longo"] * 10)
+    assert len(long) > 270
+    rows = [[("Job", "Bands-kao-b"), ("Pasta", f"{ACCOUNT}:{long}")]]
+    dialog = CancelDialog(rows, "arquivo de parada do pw.x", NOTE_EXIT, f"touch {long}/al.EXIT")
+    qtbot.addWidget(dialog)
+    assert dialog.command.toPlainText() == f"touch {long}/al.EXIT"
+    assert dialog.sizeHint().width() < 900
 
 
 def test_back_and_enter_decline_only_the_button_confirms(qtbot):

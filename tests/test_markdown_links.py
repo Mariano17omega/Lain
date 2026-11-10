@@ -48,3 +48,8 @@ def test_repeated_headings_get_a_number():
         "notas-2",
     ]
     assert heading_slugs([]) == []
+
+
+def test_a_numbered_slug_never_repeats_one_already_taken():
+    assert heading_slugs(["foo", "foo", "foo-1"]) == ["foo", "foo-1", "foo-1-1"]
+    assert heading_slugs(["foo-1", "foo", "foo"]) == ["foo-1", "foo", "foo-2"]

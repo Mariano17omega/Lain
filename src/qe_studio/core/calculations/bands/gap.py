@@ -139,7 +139,7 @@ def legend_gap_notes(dataset: BandsDataset, params: BandsParams) -> tuple[str, .
         return method_note(method, dataset.homo_lumo)
     if dataset.gap_note:
         return ()
-    return (NO_GAP_NOTE if dataset.fermi is not None else NO_COUNT_NOTE,)
+    return (NO_GAP_NOTE if dataset.metallic else NO_COUNT_NOTE,)
 
 
 def gap_handles(dataset: BandsDataset, params: BandsParams) -> list[Line2D]:

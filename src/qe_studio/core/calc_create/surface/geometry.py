@@ -2,7 +2,8 @@
 
 Minimum images search the images −1…1 of each axis, in ``itertools.product`` order, keeping the first
 on a tie, as the user's scripts do: whether a bond *crosses* an axis (its image along it is not 0) is
-what the slab reads, so the image is relative to the fractions as written (never wrapped).
+what the slab reads, so the image is relative to the fractions as written (never wrapped). Two atoms
+written more than a cell apart first lose the whole cells between them, and the image counts those too.
 """
 
 from __future__ import annotations
@@ -35,11 +36,18 @@ MIN_SURFACE_GAP = 5.0  # Å: an empty gap shorter than this is no surface's vacu
 IMAGES = np.array(list(itertools.product((-1, 0, 1), repeat=3)), dtype=int)
 
 
+def _whole_cells(delta: np.ndarray) -> np.ndarray:
+    """The whole cells to add to ``delta`` before the search: none for atoms within a cell."""
+    return -np.trunc(delta).astype(int)
+
+
 def min_image(delta_frac: np.ndarray, cell: np.ndarray) -> tuple[float, np.ndarray]:
     """The shortest length of ``delta_frac`` plus an image, and that image."""
-    lengths = np.linalg.norm((np.asarray(delta_frac, float) + IMAGES) @ cell, axis=1)
+    delta = np.asarray(delta_frac, float)
+    whole = _whole_cells(delta)
+    lengths = np.linalg.norm((delta + whole + IMAGES) @ cell, axis=1)
     best = int(np.argmin(lengths))  # the first on a tie
-    return float(lengths[best]), IMAGES[best].copy()
+    return float(lengths[best]), whole + IMAGES[best]
 
 
 def pair_images(
@@ -49,13 +57,15 @@ def pair_images(
     frac[row]`` and its image, as ``(len(rows), len(cols))`` and ``(…, 3)`` arrays."""
     frac = np.asarray(frac, float)
     delta = frac[list(cols)][None, :, :] - frac[list(rows)][:, None, :]
+    whole = _whole_cells(delta)
+    near = delta + whole
     best = np.full(delta.shape[:2], np.inf)
     image = np.zeros((*delta.shape[:2], 3), dtype=int)
     for shift in IMAGES:  # one image at a time: memory stays that of one distance matrix
-        lengths = np.linalg.norm((delta + shift) @ cell, axis=-1)
+        lengths = np.linalg.norm((near + shift) @ cell, axis=-1)
         better = lengths < best
         best[better] = lengths[better]
-        image[better] = shift
+        image[better] = whole[better] + shift
     return best, image
 
 

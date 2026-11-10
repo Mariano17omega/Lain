@@ -7,14 +7,15 @@ import shutil
 import pytest
 from PyQt6.QtCore import Qt
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QDialog, QMessageBox, QWidget
+from PyQt6.QtWidgets import QDialog, QMessageBox, QPushButton, QWidget
 
 from qe_studio.core.config import parse_config
 from qe_studio.core.sync.controller import SyncStatus
-from qe_studio.core.sync.planner import LARGE_FILE_BYTES, Action, PlanItem, SyncPlan
+from qe_studio.core.sync.planner import LARGE_FILE_BYTES, Action, Decision, PlanItem, SyncPlan
 from qe_studio.core.sync.preview import LARGE_TIP
 from qe_studio.core.sync.rsync import Endpoint
 from qe_studio.ui.cluster.sync_coordinator import SyncCoordinator
+from qe_studio.ui.dialogs.sync_dialog import ConflictDialog
 from qe_studio.ui.dialogs.sync_pages import PreviewPage
 from qe_studio.ui.theme.manager import ThemeManager
 
@@ -116,6 +117,45 @@ def tree_preview(qtbot, plan):
     qtbot.addWidget(page)
     page.set_plan(plan)
     return page
+
+
+def conflict(qtbot) -> ConflictDialog:
+    item = PlanItem("relax.out", Action.UPDATE, 2048, T0, T0 - 60, 1)
+    dialog = ConflictDialog(item)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    return dialog
+
+
+def test_enter_on_a_conflict_keeps_the_local_file(qtbot):
+    """The Enter that confirmed the preview, or one that repeats, never cancels the pull nor
+    overwrites anything: the default button is "Manter local", like Esc."""
+    dialog = conflict(qtbot)
+    buttons = dialog.findChildren(QPushButton)
+    assert [button for button in buttons if button.isDefault()] == [dialog.keep_button]
+    assert dialog.keep_button.text() == "Manter local"
+    assert dialog.focusWidget() is dialog.keep_button  # the window is not active offscreen
+    assert not any(button.autoDefault() for button in buttons)
+    with qtbot.waitSignal(dialog.decided) as blocker:
+        QTest.keyClick(dialog, Qt.Key.Key_Return)
+    assert blocker.args == [Decision.SKIP]
+
+
+def test_a_conflict_is_decided_only_by_its_buttons_or_escape(qtbot):
+    for text, decision in (
+        ("Cancelar sincronização", Decision.CANCEL),
+        ("Sobrescrever este", Decision.OVERWRITE),
+        ("Sobrescrever todos nesta pasta", Decision.OVERWRITE_FOLDER),
+    ):
+        dialog = conflict(qtbot)
+        button = next(b for b in dialog.findChildren(QPushButton) if b.text() == text)
+        with qtbot.waitSignal(dialog.decided) as blocker:
+            button.click()
+        assert blocker.args == [decision]
+    dialog = conflict(qtbot)
+    with qtbot.waitSignal(dialog.decided) as blocker:
+        QTest.keyClick(dialog, Qt.Key.Key_Escape)
+    assert blocker.args == [Decision.SKIP]
 
 
 def test_large_files_stand_out(qtbot):

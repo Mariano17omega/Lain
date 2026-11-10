@@ -32,9 +32,6 @@ QTabBar::tab:selected {
     color: ${accent_text};
     border-top: 2px solid ${accent};
 }
-QTabBar::close-button {
-    subcontrol-position: right;
-}
 #emptyWorkspace {
     background: ${workspace};
 }

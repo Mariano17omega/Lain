@@ -5,6 +5,13 @@ from __future__ import annotations
 import re
 
 _SUBSCRIPT = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+_GREEK = {
+    "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε", "zeta": "ζ",
+    "eta": "η", "theta": "θ", "iota": "ι", "kappa": "κ", "lambda": "λ", "mu": "μ",
+    "nu": "ν", "xi": "ξ", "omicron": "ο", "pi": "π", "rho": "ρ", "sigma": "σ",
+    "tau": "τ", "upsilon": "υ", "phi": "φ", "chi": "χ", "psi": "ψ", "omega": "ω",
+}  # fmt: skip
+_GREEK.update({name.capitalize(): letter.upper() for name, letter in _GREEK.items()})
 
 
 def signed(value: float, spec: str) -> str:
@@ -14,7 +21,7 @@ def signed(value: float, spec: str) -> str:
 
 def plain_kpoint_label(label: str) -> str:
     """Plain text of a matplotlib k-point label: ``$\\Gamma$`` → Γ, ``Y$_2$`` → Y₂."""
-    text = label.replace(r"\Gamma", "Γ").replace(r"\gamma", "γ")
+    text = re.sub(r"\\([A-Za-z]+)", lambda m: _GREEK.get(m.group(1), m.group(0)), label)
     text = re.sub(r"_\{?(\d+)\}?", lambda m: m.group(1).translate(_SUBSCRIPT), text)
     return text.replace("$", "")
 

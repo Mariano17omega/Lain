@@ -7,7 +7,12 @@ colors with :meth:`ThemeManager.color` and refresh on ``theme_changed``.
 
 from __future__ import annotations
 
+import logging
+import os
+import tempfile
+import zlib
 from importlib.resources import as_file, files
+from pathlib import Path
 from string import Template
 
 import yaml
@@ -21,6 +26,8 @@ from ...core.app.fontscale import clamp_scale, scale_qss, size_tokens
 from ...core.appdirs import cache_dir
 from ...i18n import _
 from . import scale as font_scale_state
+
+log = logging.getLogger(__name__)
 
 THEMES = ("dark", "light")  # the concrete themes: a token file each
 MODES = (*THEMES, "system")  # what the user picks; "system" follows the OS color scheme
@@ -94,6 +101,15 @@ def parse_color(value: str) -> QColor:
     return QColor(value)
 
 
+def save_png(pixmap: QPixmap, target: Path) -> None:
+    """Written whole and then renamed: another Lain process never reads half a file."""
+    partial = target.with_name(f"{target.name}.{os.getpid()}.tmp")
+    if not pixmap.save(str(partial), "PNG"):
+        partial.unlink(missing_ok=True)
+        raise OSError(f"cannot write {target}")
+    os.replace(partial, target)
+
+
 def tinted_pixmap(svg: bytes, color: QColor, size: int, ratio: float = 1.0) -> QPixmap:
     px = max(1, round(size * ratio))
     pixmap = QPixmap(px, px)
@@ -122,6 +138,9 @@ class ThemeManager(QObject):
         super().__init__(parent)
         self._svgs: dict[str, bytes] = {}
         self._icons: dict[tuple, QIcon] = {}
+        self._icon_dir: Path | None = (
+            None  # a folder of this run, once the cache could not be written
+        )
         self.mode = theme if theme in MODES else "dark"
         self.name = self._resolve(self.mode)
         self.tokens = load_tokens(self.name)
@@ -150,15 +169,38 @@ class ThemeManager(QObject):
         return build_stylesheet({**self.tokens, **self.asset_tokens()}, self.font_scale)
 
     def asset_tokens(self) -> dict[str, str]:
-        """Render the QSS icons as PNG (1x and @2x) into the cache dir; token → file path."""
+        """Render the QSS icons as PNG (1x and @2x) into the cache dir; token → file path. The files
+        are named by colour and drawing, so a release that changes either meets no stale PNG. A cache
+        that cannot be written (read-only, full) moves the icons to a folder of this run: the window
+        still opens."""
+        try:
+            return self._render_icons(self._icon_dir or self._cache_folder())
+        except OSError as exc:
+            log.warning("file: cannot write the QSS icons into the cache: %s", exc)
+        try:
+            self._icon_dir = Path(tempfile.mkdtemp(prefix="lain-qss-"))
+            return self._render_icons(self._icon_dir)
+        except OSError as exc:
+            log.error("file: cannot write the QSS icons anywhere: %s", exc)
+            return self._render_icons(
+                Path(tempfile.gettempdir()), write=False
+            )  # no arrows, no crash
+
+    def _cache_folder(self) -> Path:
         folder = cache_dir() / "qss" / self.name
         folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    def _render_icons(self, folder: Path, write: bool = True) -> dict[str, str]:
         out = {}
         for token, icon, color, size in QSS_ICONS:
-            path = folder / f"{icon}-{color}.png"
+            svg, tint = self._svg(icon), self.color(color)
+            drawing = zlib.crc32(svg + str(size).encode())
+            hexa = tint.name(QColor.NameFormat.HexArgb)[1:]
+            path = folder / f"{icon}-{hexa}-{drawing:08x}.png"
             for ratio, target in ((1.0, path), (2.0, path.with_name(f"{path.stem}@2x.png"))):
-                if not target.exists():
-                    tinted_pixmap(self._svg(icon), self.color(color), size, ratio).save(str(target))
+                if write and not target.exists():
+                    save_png(tinted_pixmap(svg, tint, size, ratio), target)
             out[token] = path.as_posix()
         return out
 

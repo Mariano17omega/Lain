@@ -14,7 +14,6 @@ tree, so it has much longer, and a subfolder it could not read does not throw aw
 from __future__ import annotations
 
 import calendar
-import errno
 import logging
 import re
 import shlex
@@ -27,35 +26,34 @@ from ..config import AppConfig
 from ..files.paths import is_hidden, natural_key, normalize_patterns
 from ..sync.command import CommandResult, run_command
 from ..sync.rsync import (
-    AUTH_DENIED,
     child_env,
     decode_rsync_name,
-    explain_failure,
-    is_auth_failure,
-    is_connection_failure,
     list_command,
     outputs_command,
     parse_version,
     version_command,
 )
+from ..sync.rsync_errors import (
+    AUTH_DENIED,
+    PARTIAL,
+    VANISHED,
+    explain_failure,
+    is_auth_failure,
+    is_connection_failure,
+    unread_paths,
+)
+from .failure import EXTRA_SECONDS, RemoteFailure
 
 log = logging.getLogger(__name__)
 
-EXTRA_SECONDS = 30  # on top of ``cluster.connect_timeout``: what the listing itself may take
 OUTPUTS_SECONDS = 300  # the same for a whole tree; a dead connection is ssh's keepalive, code 255
 VERSION_SECONDS = 10
-SSH_FAILED = 255  # rsync's code when the remote shell failed (a refused login among others)
-PARTIAL = 23  # rsync's code when the source could not be read
-VANISHED = 24  # rsync's code when some files vanished while they were copied
-RSYNC_MISSING = _("rsync não encontrado (sync.rsync_binary).")
 NOT_FOUND = _("Pasta não encontrada no cluster.")
 NO_ACCESS = _("Sem permissão para ler esta pasta no cluster.")
 TIMED_OUT = _("O cluster não respondeu a tempo.")
 TOO_LONG = _("A pasta é grande demais para conferir a tempo se roda um job nas subpastas.")
 
 _LINE = re.compile(r"^(\S+)\s+(\d+)\s+(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) (.*)$")
-# rsync's ``opendir "<path>" failed: <why> (<errno>)``, ``readlink_stat("<path>") failed: …`` and the like
-_FAILED = re.compile(r'"(.+)"\)? failed: .*\((\d+)\)\s*$')
 _versions: dict[str, tuple[int, ...]] = {}  # the local rsync's, by ``sync.rsync_binary``
 
 
@@ -66,15 +64,6 @@ class RemoteEntry:
     size: int
     mtime: float  # epoch seconds
     link: bool = False  # a symbolic link: never entered (``is_dir`` is false)
-
-
-@dataclass(frozen=True)
-class RemoteFailure:
-    message: str
-    connection: bool = False  # the cluster was not reached, or stopped answering
-    auth: bool = False  # it refused the login
-    missing: bool = False  # the folder does not exist there
-    local: bool = False  # rsync could not be run here
 
 
 @dataclass(frozen=True)
@@ -135,8 +124,17 @@ def parse_outputs(stdout: str) -> list[str]:
     return found
 
 
+def _read_the_folder(stdout: str) -> bool:
+    """Whether a listing reached the folder itself: it prints its ``.`` line first, whatever matches."""
+    matches = map(_LINE.match, stdout.splitlines())
+    return any(match is not None and match.group(4) == "." for match in matches)
+
+
 def classify(result: CommandResult, hidden_dirs: list[str]) -> list[RemoteEntry] | RemoteFailure:
-    """The entries of a run of ``list_command``, or why there are none."""
+    """The entries of a run of ``list_command``, or why there are none. A file that vanished while
+    it ran (code 24, normal where pw.x runs) is just not listed, once the folder itself was read."""
+    if result.code == VANISHED and _read_the_folder(result.stdout):
+        return parse_listing(result.stdout, hidden_dirs)
     failure = failed(result)
     return parse_listing(result.stdout, hidden_dirs) if failure is None else failure
 
@@ -151,7 +149,7 @@ def failed(result: CommandResult) -> RemoteFailure | None:
         return None
     stderr = result.stderr
     code = result.code if result.code is not None else -1
-    if code == SSH_FAILED and is_auth_failure(stderr):
+    if is_auth_failure(code, stderr):
         return RemoteFailure(explain_failure(code, stderr), auth=True)
     if code == PARTIAL and "No such file or directory" in stderr:
         return RemoteFailure(NOT_FOUND, missing=True)
@@ -163,12 +161,16 @@ def failed(result: CommandResult) -> RemoteFailure | None:
 
 
 def local_version(rsync_binary: str, env: dict[str, str]) -> tuple[int, ...] | None:
-    """The local rsync's version, asked once per binary in the session; None when it cannot run."""
+    """The local rsync's version, asked once per binary in the session. None when its banner does
+    not say one: every command takes that as a new client (``core/sync/remote_path.py``). ``OSError``
+    when it cannot be run or does not answer."""
     known = _versions.get(rsync_binary)
     if known is not None:
         return known
     result = run_command(version_command(rsync_binary), env, VERSION_SECONDS)
-    version = parse_version(result.stdout) if result.code == 0 else None
+    if result.timed_out or result.code != 0:
+        raise OSError(_("--version não respondeu"))
+    version = parse_version(result.stdout)
     if version is not None:
         _versions[rsync_binary] = version
     return version
@@ -176,7 +178,7 @@ def local_version(rsync_binary: str, env: dict[str, str]) -> tuple[int, ...] | N
 
 def _run(
     config: AppConfig,
-    build: Callable[[tuple[int, ...]], list[str]],
+    build: Callable[[tuple[int, ...] | None], list[str]],
     password: str | None,
     seconds: int = EXTRA_SECONDS,
 ) -> CommandResult | RemoteFailure:
@@ -185,11 +187,8 @@ def _run(
     cluster = config.cluster
     try:
         env = child_env(cluster, password=password)  # writes the askpass helper once
-        version = local_version(config.sync.rsync_binary, env)
-        if version is None:
-            return RemoteFailure(RSYNC_MISSING, local=True)
-        argv = build(version)
-        log.debug("remote: %s", shlex.join(argv))
+        argv = build(local_version(config.sync.rsync_binary, env))
+        log.debug("command: %s", shlex.join(argv))
         return run_command(argv, env, cluster.connect_timeout + seconds)
     except OSError as exc:
         message = _("Não foi possível executar o rsync ({error}).").format(error=exc)
@@ -210,17 +209,10 @@ def list_remote(
 def _unread(result: CommandResult) -> tuple[str, ...] | None:
     """The folders a partial listing could not read; one that vanished during the walk is not among
     them, since no job runs in it. None when what arrived cannot be used: the folder itself was not
-    read (it prints its ``.`` line first, whatever matches), or nothing says what failed. Failures
-    count by their number: the cluster's rsync may speak another language."""
-    if result.code not in (PARTIAL, VANISHED):
+    read, nothing says what failed, or a failure could not be understood."""
+    if not _read_the_folder(result.stdout):
         return None
-    matches = map(_LINE.match, result.stdout.splitlines())
-    if not any(match is not None and match.group(4) == "." for match in matches):
-        return None
-    failures = [m.groups() for m in map(_FAILED.search, result.stderr.splitlines()) if m]
-    if result.code == PARTIAL and not failures:
-        return None
-    return tuple(dict.fromkeys(path for path, number in failures if int(number) != errno.ENOENT))
+    return unread_paths(result.code, result.stderr)
 
 
 def list_outputs(

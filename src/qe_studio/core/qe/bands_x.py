@@ -63,11 +63,13 @@ def read_gnu_text(text: str) -> BandData:
 
 def _assemble_gnu(data: np.ndarray) -> BandData:
     """Bands from the (x, E) table. Block separators differ between QE versions (empty line in
-    7.3, a single space in 7.1), so bands are split where x decreases instead of on blank lines."""
+    7.3, a single space in 7.1), so bands are split where x decreases instead of on blank lines.
+    An x that never changes is a single k-point: each row is a band."""
     cancel.check()
     if data.size == 0 or data.shape[1] != 2:
         raise BandsFormatError(_("esperadas 2 colunas (x, E)"))
-    starts = np.flatnonzero(np.diff(data[:, 0]) < 0) + 1
+    xs = data[:, 0]
+    starts = np.arange(1, len(data)) if np.ptp(xs) == 0 else np.flatnonzero(np.diff(xs) < 0) + 1
     blocks = np.split(data, starts)
     nks = len(blocks[0])
     if any(len(block) != nks for block in blocks):
@@ -98,10 +100,12 @@ def gnu_shape(handle: BinaryIO, chunk_size: int = GNU_CHUNK_BYTES) -> tuple[int,
     """``(n_bands, n_kpoints)`` of a ``.gnu``, streamed in chunks (the sniff; ``read_gnu`` loads).
 
     Counts the (x, E) lines and the places where x goes back, which start a new band as in
-    ``read_gnu``. Only the first and last lines are checked for exactly two numbers; every x
-    must be a number. Memory stays at one chunk whatever the file size.
+    ``read_gnu`` (an x that never changes is a single k-point, each line a band). Only the first
+    and last lines are checked for exactly two numbers; every x must be a number. Memory stays at
+    one chunk whatever the file size.
     """
     lines = restarts = 0
+    lowest, highest = float("inf"), float("-inf")
     last_x: float | None = None
     first: bytes | None = None
     last = b""
@@ -129,6 +133,7 @@ def gnu_shape(handle: BinaryIO, chunk_size: int = GNU_CHUNK_BYTES) -> tuple[int,
             if last_x is not None and xs[0] < last_x:
                 restarts += 1
             last_x = float(xs[-1])
+            lowest, highest = min(lowest, float(xs.min())), max(highest, float(xs.max()))
             lines += len(xs)
         if not data:
             break
@@ -136,6 +141,8 @@ def gnu_shape(handle: BinaryIO, chunk_size: int = GNU_CHUNK_BYTES) -> tuple[int,
         raise BandsFormatError(_("arquivo sem dados"))
     if not (_two_floats(first) and _two_floats(last)):
         raise BandsFormatError(_("esperadas 2 colunas (x, E)"))
+    if lowest == highest:
+        return lines, 1
     bands = restarts + 1
     if lines % bands:
         raise BandsFormatError(_("bandas com números diferentes de pontos k"))
@@ -193,14 +200,18 @@ def path_coordinates(kpoints: np.ndarray) -> np.ndarray:
     """Cumulative path length exactly as bands.x computes it (PP/src/bands.f90).
 
     A step more than 5× the previous regular step is a jump between disconnected segments
-    and does not advance x.
+    and does not advance x. The first regular step is the first one above ``1e-4``: bands.x takes
+    the very first step, but it stops before computing x when two consecutive k-points coincide
+    (``QE:PP/src/bands.f90:537-541``), so a zero there is a file bands.x never wrote (L-05) and
+    would make every later step look like a jump.
     """
     nks = len(kpoints)
     x = np.zeros(nks)
     if nks < 2:
         return x
     steps = np.linalg.norm(np.diff(kpoints, axis=0), axis=1)
-    typical = steps[0]
+    regular = steps[steps > 1e-4]
+    typical = regular[0] if len(regular) else steps[0]
     for n in range(1, nks):
         step = steps[n - 1]
         if step > 5 * typical:
@@ -214,6 +225,7 @@ def path_coordinates(kpoints: np.ndarray) -> np.ndarray:
 
 _HS_LINE = re.compile(r"high-symmetry point:(.*?)x coordinate\s+(-?\d+\.\d+)")
 _GNU_FILE = re.compile(r"Plottable bands \(eV\) written to file\s+(\S+)")
+_SAME_K = "two consecutive same k"  # infomsg of punch_plottable_bands (bands.f90:541)
 _FILBAND_FILE = re.compile(r"Bands written to file\s+(\S+)")
 
 
@@ -224,6 +236,9 @@ class BandsXOutput:
     gnu_name: str | None = None
     filband_name: str | None = None
     job_done: bool = False
+    # bands.x wrote ``filband`` but no ``.gnu``: it stopped at two equal consecutive k-points (or could
+    # not open the file) with status 0 and an empty ``.gnu`` (L-05).
+    gnu_skipped: bool = False
 
 
 def _clean_name(name: str) -> str:
@@ -238,10 +253,12 @@ def parse_bandsx_output(text: str) -> BandsXOutput:
         hs_k.append(tuple(float(v) for v in _FLOATS.findall(match.group(1))))
     gnu = _GNU_FILE.search(text)
     filband = _FILBAND_FILE.search(text)
+    job_done = "JOB DONE" in text
     return BandsXOutput(
         tuple(hs_x),
         tuple(hs_k),
         _clean_name(gnu.group(1)) if gnu else None,
         _clean_name(filband.group(1)) if filband else None,
-        "JOB DONE" in text,
+        job_done,
+        _SAME_K in text or (job_done and filband is not None and gnu is None),
     )

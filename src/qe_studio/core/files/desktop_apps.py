@@ -194,8 +194,14 @@ class AppCatalog:
 
 @functools.cache
 def catalog() -> AppCatalog:
-    """The session's catalog, built on first use."""
+    """The session's catalog, built on first use: it reads every ``.desktop`` file and
+    ``mimeapps.list``, so a caller on the GUI thread asks :func:`catalog_ready` first."""
     return AppCatalog()
+
+
+def catalog_ready() -> bool:
+    """Whether :func:`catalog` has been built: a call then costs nothing."""
+    return catalog.cache_info().currsize > 0
 
 
 def split_exec(line: str) -> list[str]:

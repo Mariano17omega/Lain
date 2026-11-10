@@ -25,12 +25,19 @@ from .report import DETAILS_MAX_FILES, SyncReport, SyncStatus
 from .rsync import (
     Endpoint,
     child_env,
-    explain_failure,
-    is_auth_failure,
-    is_connection_failure,
+    parse_delivered,
     parse_progress,
     parse_version,
     version_command,
+)
+from .rsync_errors import (
+    PARTIAL,
+    cause_line,
+    dry_run_gaps,
+    explain_failure,
+    is_auth_failure,
+    is_connection_failure,
+    only_vanished,
 )
 
 log = logging.getLogger(__name__)
@@ -65,6 +72,10 @@ class RsyncRun(QObject):
         self._local_dir = Path()
         self._remote = Endpoint("")
         self._transfer: list[str] = []
+        self._transfer_began = 0.0  # epoch seconds
+        self._delivered: list[str] = []  # the files of ``_transfer`` that arrived
+        self._not_read: tuple[str, ...] = ()  # what rsync could not read: left out of the sync
+        self._env: dict[str, str] = {}  # of every child of this run (``_prepare_env``)
         self._stderr = ""
         self._version: tuple[int, ...] | None = None
         self._running = False
@@ -86,12 +97,15 @@ class RsyncRun(QObject):
         self._local_dir = Path(local_dir)
         self._remote = remote
         self._transfer = []
+        self._delivered = []
+        self._not_read = ()
+        self._env = {}
         self._version = None
         self._awaiting_plan = False
         self._reset()
         self.stage_changed.emit(self.LISTING)
         self.progress_changed.emit(-1, remote.spec())
-        self._step(self._check_version)
+        self._step(self._prepare_env)
 
     def confirm_plan(self, accepted: bool) -> None:
         """Answer to ``plan_ready``: go on with the plan, or end the run as CANCELLED."""
@@ -176,6 +190,23 @@ class RsyncRun(QObject):
     def _planning_stage(self) -> str:
         return self.PLANNING
 
+    def _prepare_env(self) -> None:
+        """The children's environment, in a worker: with a password it reads the askpass wrapper
+        from the disk, and writes it the first time."""
+        self._plan_task = run_task(
+            child_env,
+            self.config.cluster,
+            None,
+            self.password,
+            on_done=self._on_env_ready,
+            on_error=self._on_plan_failed,
+        )
+
+    def _on_env_ready(self, env: dict[str, str]) -> None:
+        if self._running:  # a cancelled run's environment never arrives: cancel() dropped it
+            self._env = env
+            self._step(self._check_version)
+
     def _check_version(self) -> None:
         argv = version_command(self.config.sync.rsync_binary)
         self._launch(argv, self._on_version, start_error=RSYNC_MISSING)
@@ -195,8 +226,12 @@ class RsyncRun(QObject):
             self._finish(SyncStatus.CANCELLED)
             return
         if code != 0:
-            self._fail(code)
-            return
+            gaps = dry_run_gaps(code, self._stderr)
+            if gaps is None:
+                self._fail(code)
+                return
+            log.warning("sync: the listing left some out (code %d): %s", code, tail(self._stderr))
+            self._not_read = gaps
         self.stage_changed.emit(self._planning_stage())
         self._plan_task = run_task(
             self._build_plan,
@@ -234,24 +269,27 @@ class RsyncRun(QObject):
     def _send(self, files: list[str], argv: list[str]) -> None:
         """Transfer ``files`` (relative to the synced folder, on rsync's stdin) with ``argv``."""
         self._transfer = files
+        self._transfer_began = time.time()
         self.transfer_started.emit(len(files))
         self.stage_changed.emit(self._sending(len(files)))
         self.progress_changed.emit(0, self._files_done(0, len(files)))
-        stdin = ("\0".join(files) + "\0").encode("utf-8")
+        stdin = ("\0".join(files) + "\0").encode("utf-8", "surrogateescape")
         self._launch(argv, self._on_transfer_finished, stdin=stdin, progress=True)
 
-    def _on_transfer_finished(self, code: int, _stdout: str) -> None:
+    def _on_transfer_finished(self, code: int, stdout: str) -> None:
+        self._delivered = self._transfer if code == 0 else parse_delivered(stdout, self._transfer)
         if self._cancelled:
             self._discard_partial()
             self._finish(SyncStatus.CANCELLED)
-        elif code != 0:
+        elif code == 0 or (self._delivered and only_vanished(code, self._stderr)):
+            arrived = set(self._delivered)
+            self._not_read += tuple(path for path in self._transfer if path not in arrived)
+            total = len(self._delivered)
+            self.progress_changed.emit(100, self._files_done(total, total))
+            self._finish(SyncStatus.DONE)
+        else:
             self._discard_partial()
             self._fail(code)
-        else:
-            self.progress_changed.emit(
-                100, self._files_done(len(self._transfer), len(self._transfer))
-            )
-            self._finish(SyncStatus.DONE)
 
     # -- helpers ----------------------------------------------------------------------------------
     def _launch(
@@ -264,7 +302,7 @@ class RsyncRun(QObject):
     ):
         process = QProcess(self)
         env = QProcessEnvironment()
-        for key, value in child_env(self.config.cluster, password=self.password).items():
+        for key, value in self._env.items():
             env.insert(key, value)
         process.setProcessEnvironment(env)
         chunks: list[bytes] = []
@@ -325,8 +363,20 @@ class RsyncRun(QObject):
 
     def _fail(self, code: int) -> None:
         connection = is_connection_failure(code, self._stderr)
-        auth = is_auth_failure(self._stderr)
-        self._finish(SyncStatus.FAILED, explain_failure(code, self._stderr), connection, auth)
+        auth = is_auth_failure(code, self._stderr)
+        self._finish(SyncStatus.FAILED, self._failure_text(code), connection, auth)
+
+    def _failure_text(self, code: int) -> str:
+        """Why the run failed; a transfer that went on after a file it could not read says how many
+        did not arrive."""
+        if code != PARTIAL or not self._delivered:
+            return explain_failure(code, self._stderr)
+        missing = len(self._transfer) - len(self._delivered)
+        return ngettext(
+            "{missing} de {total} arquivos não foi transferido: {cause}",
+            "{missing} de {total} arquivos não foram transferidos: {cause}",
+            missing,
+        ).format(missing=missing, total=len(self._transfer), cause=cause_line(self._stderr))
 
     def _finish(
         self,

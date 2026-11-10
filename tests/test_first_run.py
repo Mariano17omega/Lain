@@ -123,7 +123,10 @@ def test_create_config_writes_the_template_and_opens_it(
     assert asked == [path]
     assert path.read_text(encoding="utf-8") == template_text()
     assert window.workspace.widget_for(str(path)) is not None  # the viewer tab
-    assert any(path.as_uri() in args for _program, args, _cwd in launched)  # the external editor
+    # the external editor: its program is looked up in a worker
+    qtbot.waitUntil(
+        lambda: any(path.as_uri() in args for _program, args, _cwd in launched), timeout=5000
+    )
     assert window.status.message.text() == AFTER_EDIT
     assert window.first_run.overlay.isVisible()  # until the user reloads
 
@@ -202,12 +205,14 @@ def test_choosing_a_folder_there_is_temporary_and_leaves_the_config_alone(
 
 
 def test_open_config_opens_it_in_the_viewer_and_the_editor(
-    missing_root_window, fake_apps, launched
+    qtbot, missing_root_window, fake_apps, launched
 ):
     window, config = missing_root_window
     click(window, "Abrir config")
     assert window.workspace.widget_for(str(config)) is not None
-    assert any(config.as_uri() in args for _program, args, _cwd in launched)
+    qtbot.waitUntil(  # its program is looked up in a worker
+        lambda: any(config.as_uri() in args for _program, args, _cwd in launched), timeout=5000
+    )
 
 
 def test_session_root_does_not_break_a_config_with_a_valid_root(main_window, demo_project):

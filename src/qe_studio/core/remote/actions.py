@@ -16,49 +16,18 @@ from __future__ import annotations
 import logging
 import re
 import shlex
-from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from ...i18n import _
 from ..config import AppConfig
 from ..sync.command import CommandResult, remote_command, run_command, tail
 from ..sync.remote_path import shell_path
-from ..sync.rsync import (
-    child_env,
-    is_auth_failure,
-    is_connection_failure,
-    known_cause,
-)
-from .cluster_jobs import JobsFailure
-from .listing import SSH_FAILED, RemoteFailure
+from ..sync.rsync import child_env
+from .failure import EXTRA_SECONDS, RemoteFailure
 
 log = logging.getLogger(__name__)
 
-EXTRA_SECONDS = 30  # on top of ``cluster.connect_timeout``: what the command itself may take
 SAFE_NAME = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._+-]*$")
-
-
-@dataclass(frozen=True)
-class ActionFailure:
-    message: str
-    connection: bool = False  # the cluster was not reached, or stopped answering
-    auth: bool = False  # it refused the login
-    missing: bool = False  # the command (or the folder) does not exist there
-    local: bool = False  # ssh itself could not be run, or nothing was sent
-
-
-def failure_of(listing: RemoteFailure) -> ActionFailure:
-    """A listing (or a copy) of the cluster that failed, as the failure of the action it serves."""
-    return ActionFailure(
-        listing.message, listing.connection, listing.auth, listing.missing, listing.local
-    )
-
-
-def failure_of_jobs(jobs: JobsFailure, message: str) -> ActionFailure:
-    """A queue that could not be read (``cluster.jobs_command``) as the failure of the action that
-    needed it, which nothing ran: ``message`` gets the queue's own as ``{message}`` (spec 71 R4)."""
-    text = message.format(message=jobs.message.rstrip("."))
-    return ActionFailure(text, jobs.connection, jobs.auth, jobs.missing, jobs.local)
 
 
 def checked_name(name: str) -> str:
@@ -85,36 +54,9 @@ def checked_dir(config: AppConfig, remote_dir: str) -> str:
     return shell_path(root) + "".join("/" + shlex.quote(checked_name(part)) for part in parts)
 
 
-def classify_failure(
-    result: CommandResult, command: str, setting: str | None = None
-) -> ActionFailure:
-    """Why a run of ``command`` (the program of ``setting`` in ``config.yaml``; None for a fixed
-    word such as ``touch``) did not succeed."""
-    if result.timed_out:
-        message = _("O cluster não respondeu a {command} a tempo.").format(command=command)
-        return ActionFailure(message, connection=True)
-    stderr = result.stderr
-    code = result.code if result.code is not None else -1
-    # ssh's own code: a command that fails on the cluster may also say "Permission denied".
-    if code == SSH_FAILED and is_auth_failure(stderr):
-        return ActionFailure(known_cause(stderr) or "", auth=True)
-    if code == 127 or "command not found" in stderr:
-        if setting is None:
-            message = _("O comando {command} não foi encontrado no cluster.")
-        else:
-            message = _("O comando {command} não foi encontrado no cluster ({setting}).")
-        return ActionFailure(message.format(command=command, setting=setting), missing=True)
-    if is_connection_failure(code, stderr):
-        fallback = _("Cluster inacessível (ssh terminou com código {code}).").format(code=code)
-        return ActionFailure(known_cause(stderr) or fallback, connection=True)
-    last = next((ln.strip() for ln in reversed(stderr.splitlines()) if ln.strip()), "")
-    message = _("{command} terminou com código {code}").format(command=command, code=code)
-    return ActionFailure(message + (f": {last}" if last else "."))
-
-
 def run_action(
     config: AppConfig, command: str, password: str | None = None
-) -> CommandResult | ActionFailure:
+) -> CommandResult | RemoteFailure:
     """Run ``command`` on the cluster. ``password``: the one typed in this session (``auth:
     password``); it reaches ssh through ``SSH_ASKPASS`` only."""
     cluster = config.cluster
@@ -125,7 +67,7 @@ def run_action(
         result = run_command(argv, env, cluster.connect_timeout + EXTRA_SECONDS)
     except OSError as exc:
         message = _("Não foi possível executar o ssh ({error}).").format(error=exc)
-        return ActionFailure(message, local=True)
+        return RemoteFailure(message, local=True)
     # What the cluster answered: the job ID of a ``qsub`` is only here.
     outcome = "timeout" if result.timed_out else result.code
     log.info("cluster: action -> %s: %s", outcome, tail(result.stdout))

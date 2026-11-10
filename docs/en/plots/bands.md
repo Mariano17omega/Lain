@@ -7,8 +7,9 @@ missing roles can be mapped by hand.
 ## Features
 
 - High-symmetry path with Γ labels (`labels` overrides; **Linhas de alta simetria** toggles the lines).
-- Energy **reference**: `E_F (SCF)`, `Topo da valência (VBM)`, `Meio do gap` (mid-gap) or `Absoluta`; `E mín`/`E máx`
-  window; x-axis window (`x mín`/`x máx`); Fermi line.
+- Energy **reference**: `E_F (SCF)` (`E_F (meio do gap)` in insulators), `Topo da valência (VBM)`, `Meio do gap` (mid-gap) or `Absoluta`; `E mín`/`E máx`
+  window; x-axis window (`x mín`/`x máx`); Fermi line. In insulators, E_F is the middle of the gap: see
+  [Fermi level in insulators](index.md#fermi-in-insulators).
 - Colors: valence, conduction, Fermi.
 - **Energy gap in the legend** (`legend_gap`): gap = CBM − VBM (not the Fermi energy), with **Método do gap**:
   *Automático* (electron count), *HOMO/LUMO do SCF* or *Maior intervalo na janela* (largest gap in the window).

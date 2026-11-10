@@ -213,6 +213,19 @@ def test_key_auth_push_makes_the_nested_remote_folder(qtbot, tmp_path, ssh_serve
     assert {r.method for r in server.log} == {"publickey"}
 
 
+def test_push_into_a_remote_root_starting_with_a_tilde(qtbot, tmp_path, ssh_server):
+    """``mkdir -p`` and rsync name the same home-relative folder, not one called ``~``."""
+    server, root = ssh_server
+    local = tmp_path / "local" / "bandas Al_1"
+    write(local, "bands.in", "bands")
+    controller = PushController(parse_config(server.config_data()))
+    endpoint = Endpoint("~/proj/bandas Al_1", HOST_ALIAS, USER)
+    report = run_push(qtbot, controller, local, endpoint)
+    assert report.status is SyncStatus.DONE, report.error
+    assert (root / "proj" / "bandas Al_1" / "bands.in").read_text() == "bands"
+    assert not (root / "~").exists()
+
+
 def test_password_push_through_askpass(qtbot, tmp_path, ssh_server):
     server, _root = ssh_server
     report, remote, _plans = ssh_push(

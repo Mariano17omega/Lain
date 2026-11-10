@@ -8,10 +8,9 @@ from pathlib import Path
 
 from PyQt6 import sip
 from PyQt6.QtCore import QPoint, QRectF, QSettings, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QIcon, QImage, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
-    QApplication,
     QFileDialog,
     QLabel,
     QMenu,
@@ -22,9 +21,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ....core.files.image_file import read_image
 from ....core.sniff import looks_like_input
+from ....core.tasks import TaskHandle, run_task
 from ....i18n import _
 from ...theme.manager import ThemeManager
+from ..common import copy_text
 from ..files.file_types import file_visual
 from ..spinner import CircularProgress
 from ..viewer.diff_view import DiffView, diff_key, diff_title
@@ -37,28 +39,73 @@ log = logging.getLogger(__name__)
 INPUT_FILTER = _("Inputs do QE (*.in *.inp *.pw*);;Todos os arquivos (*)")
 
 
-def copy_text(text: str) -> None:
-    clipboard = QApplication.clipboard()
-    if clipboard is not None:
-        clipboard.setText(text)
+def _decode(path: Path) -> QImage | bytes:
+    """The worker's half of opening an image: the file is read here, and a raster is decoded here
+    (a ``QImage`` may be made off the GUI thread, a ``QPixmap`` may not). An SVG stays bytes: its
+    renderer is a ``QObject`` that the GUI thread makes."""
+    data = read_image(path)
+    return data if path.suffix.lower() == ".svg" else QImage.fromData(data)
 
 
 class ImageViewer(QWidget):
-    """PNG/JPG/SVG preview, centered with preserved aspect ratio."""
+    """PNG/JPG/SVG preview, centered with preserved aspect ratio. The file is read and decoded in
+    a worker (blank until then, and when it cannot be read); the picture is scaled when its size
+    changes, not at every paint."""
+
+    loaded = pyqtSignal()  # the picture is ready, or it could not be read
 
     def __init__(self, path: Path, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("imageViewer")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.path = path
-        self.svg = QSvgRenderer(str(path)) if path.suffix.lower() == ".svg" else None
-        self.pixmap = None if self.svg else QPixmap(str(path))
+        self.svg: QSvgRenderer | None = None
+        self.image: QImage | None = None
+        self._scaled: tuple[QSize, QPixmap] | None = None  # the picture at the last size drawn
+        self._task: TaskHandle | None = run_task(
+            _decode, path, on_done=self._on_decoded, on_error=self._on_failed
+        )
+
+    def cancel_load(self) -> None:
+        """Window close: the read in progress is not wanted any more."""
+        if self._task is not None:
+            self._task.cancel()
+
+    def _on_decoded(self, result: QImage | bytes) -> None:
+        self._task = None
+        if isinstance(result, QImage):
+            self.image = None if result.isNull() else result
+        else:
+            renderer = QSvgRenderer(result)
+            self.svg = renderer if renderer.isValid() else None
+        self.update()
+        self.loaded.emit()
+
+    def _on_failed(self, error: Exception) -> None:
+        self._task = None
+        log.warning("file: cannot show the image %s: %s", self.path, error)
+        self.loaded.emit()
 
     @property
     def natural_size(self) -> QSize:
         if self.svg is not None:
             return self.svg.defaultSize()
-        return self.pixmap.size() if self.pixmap is not None else QSize()
+        return self.image.size() if self.image is not None else QSize()
+
+    def _pixmap_at(self, size: QSize) -> QPixmap | None:
+        """The raster scaled to ``size`` (kept while the size stays the same)."""
+        if self.image is None:
+            return None
+        if self._scaled is None or self._scaled[0] != size:
+            image = self.image
+            if size != image.size():
+                image = image.scaled(
+                    size,
+                    Qt.AspectRatioMode.IgnoreAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            self._scaled = (size, QPixmap.fromImage(image))
+        return self._scaled[1]
 
     def paintEvent(self, event) -> None:
         super().paintEvent(event)
@@ -67,7 +114,7 @@ class ImageViewer(QWidget):
             return
         area = self.rect().adjusted(16, 16, -16, -16)
         scaled = size.scaled(area.size(), Qt.AspectRatioMode.KeepAspectRatio)
-        if self.pixmap is not None and scaled.width() > size.width():
+        if self.image is not None and scaled.width() > size.width():
             scaled = size  # never upscale raster images
         target = QRectF(
             area.center().x() - scaled.width() / 2,
@@ -79,8 +126,8 @@ class ImageViewer(QWidget):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if self.svg is not None:
             self.svg.render(painter, target)
-        elif self.pixmap is not None:
-            painter.drawPixmap(target.toRect(), self.pixmap)
+        elif (pixmap := self._pixmap_at(scaled)) is not None:
+            painter.drawPixmap(target.toRect().topLeft(), pixmap)  # already the drawn size
         painter.end()
 
 
@@ -251,9 +298,6 @@ class Workspace(QStackedWidget):
                 del self._keys[key]
         self._icons.pop(widget, None)
         widget.deleteLater()
-        if self.tabs.count() == 0:
-            self.setCurrentWidget(self.empty)
-            self.current_changed.emit(None)
 
     # Every way of closing goes through close_tab: tab_closing flushes the plot settings.
     def close_current(self) -> None:
@@ -349,4 +393,8 @@ class Workspace(QStackedWidget):
             spinner.deleteLater()
 
     def _on_current(self, _index: int) -> None:
+        """The one place ``current_changed`` is emitted: removing the last tab also gets here (the
+        bar's ``currentChanged(-1)``), so the empty state is shown first and the news comes once."""
+        if self.tabs.count() == 0:
+            self.setCurrentWidget(self.empty)
         self.current_changed.emit(self.current())

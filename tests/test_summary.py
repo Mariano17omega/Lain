@@ -135,6 +135,24 @@ def test_bands_x_output_has_only_general_and_messages():
     assert rows(summary, "Avisos e erros")["Mensagens"].value == "Nenhum aviso ou erro"
 
 
+def test_a_pp_output_has_only_general_and_messages():
+    """L-01: ``Program POST-PROC`` and its ``POST-PROC : … CPU … WALL`` clock line both have a hyphen."""
+    text = (
+        "\n     Program POST-PROC v.7.3 starts on  9Nov2026 at 10: 2:31 \n\n"
+        "     Calling punch_plot, plot_num =   0\n\n"
+        "     POST-PROC    :      0.15s CPU      0.15s WALL\n\n\n"
+        "   This run was terminated on:  10: 2:32   9Nov2026            \n\n"
+        "   JOB DONE.\n"
+    )
+    summary = summarize_lines(text.splitlines(keepends=True))
+    assert summary.program == "POST-PROC"
+    assert titles(summary) == ["Geral", "Avisos e erros"]
+    general = rows(summary, "Geral")
+    assert general["Programa"].value == "POST-PROC 7.3"
+    assert general["Estado"].value == "Concluído"
+    assert general["Tempo (WALL)"].value == duration_text("0.15s")
+
+
 def test_spin_polarized_output_reports_the_last_magnetization():
     results = rows(summarize(NI_SCF), "Resultados")
     assert results["Magnetização total"].value == "0.71 Bohr mag/cell"
@@ -210,6 +228,27 @@ def test_spin_kinds(extra, expected):
 def test_noncollinear_magnetization_keeps_the_three_components():
     text = HEAD + "     total magnetization       =     0.00     0.00     1.50 Bohr mag/cell\n"
     assert rows(from_text(text), "Resultados")["Magnetização total"].value.startswith("0.00")
+
+
+def test_non_magnetic_spin_orbit_is_shown_as_spin_orbit():
+    text = HEAD + "     Non magnetic calculation with spin-orbit\n"
+    assert rows(from_text(text), "Sistema")["Spin"].value == "spin-órbita"
+
+
+def etot(mark: str, value: float) -> str:
+    return f"{mark:<5}total energy              =     {value:.8f} Ry\n"
+
+
+def test_energy_of_a_hybrid_run_is_the_double_bang_one():
+    text = HEAD + etot("!", -11.0) + etot("!", -11.4) + etot("!!", -11.5)
+    assert rows(from_text(text), "Resultados")["Energia total"].value == "-11.50000000 Ry"
+
+
+def test_a_hybrid_relax_compares_energies_of_one_functional():
+    text = HEAD + etot("!", -11.0) + etot("!!", -11.5) + "     number of bfgs steps    =   1\n"
+    results = rows(from_text(text + etot("!", -11.1) + etot("!!", -11.6)), "Resultados")
+    assert results["E inicial"].value == "-11.50000000 Ry"
+    assert results["E final"].value == "-11.60000000 Ry"
 
 
 def test_parallel_and_gpu_lines_of_recent_versions():
@@ -333,6 +372,8 @@ def test_to_text_has_one_block_per_section():
         ("3h 4m", 11040),
         ("38m32.15s", 2312.15),
         ("40m 7.94s", 2407.94),
+        (" 1d 3h54m", 100440),
+        (" 3d23h54m", 345240),
     ],
 )
 def test_parse_qe_time(field, seconds):

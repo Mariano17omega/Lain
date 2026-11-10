@@ -137,7 +137,9 @@ class BandsModule(CalculationModule[BandsDataset, BandsParams]):
     ) -> None:
         params_mod.param_changed(dataset, params, name, old)
 
-    def apply_limits(self, params: BandsParams, axes_limits: AxesLimits) -> None:
+    def apply_limits(
+        self, dataset: BandsDataset, params: BandsParams, axes_limits: AxesLimits
+    ) -> None:
         xlim, ylim = axes_limits[0]
         params.emin, params.emax = ylim
         params.xmin, params.xmax = xlim

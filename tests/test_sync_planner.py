@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+from qe_studio.core import cancel
 from qe_studio.core.sync.planner import (
     LARGE_FILE_BYTES,
     Action,
@@ -29,6 +30,18 @@ def local_file(root, rel, mtime, content="local"):
 
 def record(rel, mtime, size=5, code=">f.st......"):
     return DryRunItem(code, size, mtime, rel)
+
+
+class CancelledToken:
+    cancelled = True
+
+
+def test_a_cancelled_task_stops_the_plan_and_the_recheck(tmp_path):
+    with cancel.bind(CancelledToken()), pytest.raises(cancel.Cancelled):
+        build_plan([record("a.out", T0)], tmp_path)
+    item = PlanItem("a.out", Action.NEW, 1, T0)
+    with cancel.bind(CancelledToken()), pytest.raises(cancel.Cancelled):
+        recheck_local([item], tmp_path)
 
 
 def test_actions(tmp_path):

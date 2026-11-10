@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from ...core.files.file_ops import rename_error
 from ...i18n import _
+from ..theme.scale import scaled
 from ..widgets.common import set_variant
 
 SYNC_NOTE = _(
@@ -36,7 +37,7 @@ class RenameDialog(QDialog):
             set_variant(QLabel(_("Renomear {name}").format(name=path.name)), "dialogTitle")
         )
         self.edit = QLineEdit(path.name)
-        self.edit.setMinimumWidth(380)
+        self.edit.setMinimumWidth(scaled(380))
         # Select the stem, like file managers do, so typing keeps the extension.
         stem = len(path.stem) if path.suffix and not path.is_dir() else len(path.name)
         self.edit.setSelection(0, stem)

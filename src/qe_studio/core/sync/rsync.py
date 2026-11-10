@@ -15,21 +15,24 @@ import shlex
 import stat
 import sys
 import time
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
 
 from ...i18n import _
-from ..appdirs import cache_dir
+from .. import cancel
+from ..appdirs import atomic_write_text, cache_dir
 from ..config import AppConfig, ClusterConfig
 from ..project.project_data import PROJECT_DATA_EXCLUDE
 from ..remote.scratch import SCRATCH_EXCLUDE
 from ..remote.trash_dir import TRASH_EXCLUDE
 from . import mux
 from .askpass import SECRET_ENV
-from .remote_path import Endpoint, protect_args, remote_arg, shell_path
+from .remote_path import Endpoint, local_arg, old_args, remote_arg, shell_path
 
 OUT_FORMAT = "%i|%l|%M|%n"
+DELIVERED = "sent|"  # how a transfer's stdout starts the name of each file that arrived
 
 TIMEOUT_SECONDS = 60
 
@@ -94,11 +97,17 @@ def askpass_program() -> str:
         return str(exe if exe.exists() else scripts)
     wrapper = cache_dir() / "askpass.sh"
     content = f'#!/bin/sh\nexec {shlex.quote(sys.executable)} -m qe_studio.core.sync.askpass "$@"\n'
-    if not wrapper.exists() or wrapper.read_text() != content:
-        wrapper.parent.mkdir(parents=True, exist_ok=True)
-        wrapper.write_text(content)
-        wrapper.chmod(stat.S_IRWXU)
+    if not _wrapper_ready(wrapper, content):
+        atomic_write_text(wrapper, content, mode=stat.S_IRWXU)
     return str(wrapper)
+
+
+def _wrapper_ready(wrapper: Path, content: str) -> bool:
+    """The askpass wrapper exists, says ``content`` and can run."""
+    try:
+        return wrapper.read_text(encoding="utf-8") == content and os.access(wrapper, os.X_OK)
+    except (OSError, ValueError):
+        return False
 
 
 def child_env(
@@ -124,7 +133,7 @@ def version_command(rsync_binary: str = "rsync") -> list[str]:
 
 def parse_version(output: str) -> tuple[int, ...] | None:
     """``rsync --version`` output → (major, minor, patch), None if it is not rsync's."""
-    match = re.search(r"version\s+(\d+)\.(\d+)\.(\d+)", output)
+    match = re.search(r"version\s+v?(\d+)\.(\d+)\.(\d+)", output)
     return tuple(int(part) for part in match.groups()) if match else None
 
 
@@ -135,8 +144,8 @@ def _common(
     timeout: int = TIMEOUT_SECONDS,
 ) -> list[str]:
     args = ["--no-h", f"--timeout={timeout}"]
-    if protect_args(remote, version):
-        args.append("--protect-args")  # newer clients protect remote args by default
+    if old_args(remote, version):
+        args.append("--old-args")  # ``remote_arg`` quotes the path for the cluster's shell
     if remote.host is not None:
         args += ["-e", shlex.join(ssh_command(config.cluster, config.sync.ssh_binary))]
     return args
@@ -163,9 +172,14 @@ def dry_run_command(
     extra: list[str] | None = None,
 ) -> list[str]:
     """List files that differ (new, size, time or, with ``sync.checksum``, content) without
-    transferring anything. ``fixed_excludes`` are never listed, whatever ``sync.exclude`` says."""
-    patterns = [*fixed_excludes(config, remote), *config.sync.exclude]
-    excludes = [f"--exclude={pattern}" for pattern in patterns]
+    transferring anything. ``fixed_excludes`` are never listed, whatever ``sync.exclude`` says.
+    ``extra`` comes before ``sync.exclude`` because rsync's first match wins: a file the user asked
+    for by name (``core/remote/download.py``) is downloaded even if that list covers it. With
+    ``sync.checksum`` no ``--timeout``: nothing arrives while the cluster hashes a large file, and
+    ssh's keepalive watches the connection."""
+    fixed = [f"--exclude={pattern}" for pattern in fixed_excludes(config, remote)]
+    excludes = [f"--exclude={pattern}" for pattern in config.sync.exclude]
+    timeout = 0 if config.sync.checksum else TIMEOUT_SECONDS
     return [
         *shlex.split(config.sync.rsync_binary),
         "-n",
@@ -174,11 +188,12 @@ def dry_run_command(
         "-i",
         "--modify-window=1",
         f"--out-format={OUT_FORMAT}",
-        *_common(config, remote, version),
-        *excludes,
+        *_common(config, remote, version, timeout),
+        *fixed,
         *(extra or []),
+        *excludes,
         remote_arg(remote, version),
-        str(local_dir).rstrip("/\\") + "/",
+        local_arg(local_dir, config.sync.cygdrive_prefix),
     ]
 
 
@@ -192,18 +207,19 @@ def transfer_command(
     """Pull exactly the files listed on stdin (NUL separated, relative to the remote dir). With
     ``sync.checksum`` they are sent whatever their date and size say (``--ignore-times``): the
     plan found the content different, and rsync's quick check would skip a same-date, same-size
-    file."""
+    file. Each file that arrives is named on stdout (``parse_delivered``)."""
     return [
         *shlex.split(config.sync.rsync_binary),
         "-t",
         *(["--ignore-times"] if config.sync.checksum else []),
         "--info=progress2",
+        f"--out-format={DELIVERED}%n",
         "--files-from=-",
         "--from0",
         *_common(config, remote, version),
         *(extra or []),
         remote_arg(remote, version),
-        str(local_dir).rstrip("/\\") + "/",
+        local_arg(local_dir, config.sync.cygdrive_prefix),
     ]
 
 
@@ -231,7 +247,7 @@ def push_dry_run_command(
         *_common(config, remote, version),
         *(f"--exclude={pattern}" for pattern in patterns),
         *(extra or []),
-        str(local_dir).rstrip("/\\") + "/",
+        local_arg(local_dir, config.sync.cygdrive_prefix),
         remote_arg(remote, version),
     ]
 
@@ -256,6 +272,7 @@ def push_transfer_command(
         *shlex.split(config.sync.rsync_binary),
         "-t",
         "--info=progress2",
+        f"--out-format={DELIVERED}%n",
         "--files-from=-",
         "--from0",
         "--ignore-existing",
@@ -263,7 +280,7 @@ def push_transfer_command(
         *_common(config, remote, version),
         *mkdir,
         *(extra or []),
-        str(local_dir).rstrip("/\\") + "/",
+        local_arg(local_dir, config.sync.cygdrive_prefix),
         remote_arg(remote, version),
     ]
 
@@ -273,8 +290,8 @@ def list_command(
 ) -> list[str]:
     """List one folder of the cluster, its subfolders not (spec 65 R1): a line per entry,
     ``permissions size YYYY/MM/DD HH:MM:SS name``, and ``.`` for the folder itself. Its path may
-    hold names read from the cluster: ``version`` (the local rsync's) adds ``--protect-args`` on
-    the clients that do not protect remote arguments by themselves."""
+    hold names read from the cluster, quoted for its shell: ``version`` (the local rsync's) says
+    how to send them (``core/sync/remote_path.py``)."""
     cluster = config.cluster
     remote = Endpoint(remote_dir, cluster.host, cluster.user)
     return [
@@ -315,11 +332,12 @@ def small_files_command(
     dest: Path,
     version: tuple[int, ...] | None = None,
     only: str | None = None,
+    skip: Sequence[str] = (),
 ) -> list[str]:
     """Copy the files at the top of one folder of the cluster, up to 1 MB each, into ``dest``; no
     subfolder (spec 70 R1: the inputs a cancellation reads the ``prefix`` from). ``only``: just that
     file, a name without wildcards (spec 71 R3: the script a submission reads the job name from).
-    ``version`` as in ``list_command``."""
+    ``skip``: patterns of files not worth copying. ``version`` as in ``list_command``."""
     cluster = config.cluster
     remote = Endpoint(remote_dir, cluster.host, cluster.user)
     return [
@@ -327,10 +345,11 @@ def small_files_command(
         "-r",
         "--max-size=1M",
         "--exclude=*/",
+        *(f"--exclude={pattern}" for pattern in skip),
         *([f"--include={only}", "--exclude=*"] if only is not None else []),
         *_common(config, remote, version),
         remote_arg(remote, version),
-        str(dest).rstrip("/\\") + "/",
+        local_arg(dest, config.sync.cygdrive_prefix),
     ]
 
 
@@ -350,10 +369,11 @@ _ESCAPE = re.compile(rb"\\#([0-7]{3})")
 
 
 def decode_rsync_name(text: str) -> str:
-    """Undo rsync's ``\\#ooo`` escaping of non-printable bytes."""
+    """Undo rsync's ``\\#ooo`` escaping of non-printable bytes. A name that is not UTF-8 keeps its
+    bytes as surrogates, so it still names the same file on the disk and on rsync's stdin."""
     raw = text.encode("utf-8", "surrogateescape")
     raw = _ESCAPE.sub(lambda m: bytes([int(m.group(1), 8)]), raw)
-    return raw.decode("utf-8", "replace")
+    return raw.decode("utf-8", "surrogateescape")
 
 
 def parse_itemize_line(line: str) -> DryRunItem | None:
@@ -369,11 +389,20 @@ def parse_itemize_line(line: str) -> DryRunItem | None:
 
 
 def parse_dry_run(output: str) -> list[DryRunItem]:
-    items = (parse_itemize_line(line) for line in output.splitlines())
+    items = (parse_itemize_line(line) for line in cancel.checked(output.splitlines()))
     return [item for item in items if item is not None and item.is_file]
 
 
-_PERCENT = re.compile(r"(\d{1,3})%")
+def parse_delivered(output: str, files: Collection[str]) -> list[str]:
+    """Which of ``files`` a transfer's stdout says arrived, in that order. Others it may name (a
+    folder it created) are left out."""
+    wanted = set(files)
+    lines = (line for line in re.split(r"[\r\n]+", output) if line.startswith(DELIVERED))
+    names = (decode_rsync_name(line.removeprefix(DELIVERED)) for line in lines)
+    return [name for name in dict.fromkeys(names) if name in wanted]
+
+
+_PERCENT = re.compile(r"(?<!\S)(\d{1,3})%(?=\s|$)")  # a word of its own: names can hold a ``%``
 _TO_CHECK = re.compile(r"to-chk=(\d+)/(\d+)")
 _XFER = re.compile(r"xfr#(\d+)")
 
@@ -388,7 +417,7 @@ class Progress:
 def parse_progress(chunk: str) -> Progress | None:
     """Last progress2 update in ``chunk`` (lines are separated by ``\\r``)."""
     for line in reversed(re.split(r"[\r\n]+", chunk)):
-        percent = _PERCENT.search(line)
+        percent = None if line.startswith(DELIVERED) else _PERCENT.search(line)
         if not percent:
             continue
         check = _TO_CHECK.search(line)
@@ -400,73 +429,3 @@ def parse_progress(chunk: str) -> Progress | None:
             done = int(xfer.group(1))
         return Progress(min(int(percent.group(1)), 100), done, total)
     return None
-
-
-AUTH_DENIED = "Permission denied"
-
-FAILURE_HINTS = (
-    ("Host key verification failed", _("Chave do host desconhecida. Conecte-se uma vez pelo "
-     "terminal (ssh usuario@host) para confirmar a identidade do cluster.")),
-    (AUTH_DENIED, _("Autenticação recusada pelo cluster (verifique usuário, chave ou senha).")),
-    ("Could not resolve hostname", _("Endereço do cluster não encontrado (verifique cluster.host).")),
-    ("Connection timed out", _("Cluster inacessível (tempo de conexão esgotado).")),
-    ("Connection refused", _("Conexão recusada pelo cluster (verifique a porta SSH).")),
-    ("No route to host", _("Cluster inacessível (sem rota; verifique a rede/VPN).")),
-    ("Network is unreachable", _("Rede indisponível.")),
-    ("No such file or directory", _("Pasta não encontrada no cluster.")),
-    ("timeout in data send/receive", _("Conexão interrompida (sem resposta do cluster).")),
-    ("command not found", _("rsync não está instalado no cluster.")),
-)  # fmt: skip
-
-
-# rsync's last words when the stream ends early. It also trails real causes (host key refused,
-# authentication, rsync missing on the cluster), so it only counts when nothing explains the failure.
-INTERRUPTED = "connection unexpectedly closed"
-
-CONNECTION_NEEDLES = (
-    "Connection timed out",
-    "Connection refused",
-    "No route to host",
-    "Network is unreachable",
-    "Could not resolve hostname",
-    "timeout in data send/receive",
-    "Connection closed",
-)
-
-
-def _first_cause(stderr: str) -> tuple[str, str] | None:
-    """The first known cause (its needle and hint) found in ``stderr``."""
-    return next(((needle, hint) for needle, hint in FAILURE_HINTS if needle in stderr), None)
-
-
-def known_cause(stderr: str) -> str | None:
-    """The explanation of the first known cause found in ``stderr`` (ssh's, or rsync's), if any."""
-    cause = _first_cause(stderr)
-    return cause[1] if cause is not None else None
-
-
-def is_auth_failure(stderr: str) -> bool:
-    """The cluster refused the credentials (the remembered password is then wrong): the first known
-    cause in ``stderr`` is the authentication one."""
-    cause = _first_cause(stderr)
-    return cause is not None and cause[0] == AUTH_DENIED
-
-
-def is_connection_failure(exit_code: int, stderr: str) -> bool:
-    """ssh could not reach/keep the cluster (as opposed to a remote error)."""
-    return (
-        any(needle in stderr for needle in CONNECTION_NEEDLES)
-        or (exit_code == 255 and AUTH_DENIED not in stderr)
-        or (INTERRUPTED in stderr and _first_cause(stderr) is None)
-    )
-
-
-def explain_failure(exit_code: int, stderr: str) -> str:
-    if cause := _first_cause(stderr):
-        return cause[1]
-    if INTERRUPTED in stderr:
-        return _("Conexão interrompida (o cluster encerrou a conexão durante a transferência).")
-    last = next((ln.strip() for ln in reversed(stderr.splitlines()) if ln.strip()), "")
-    return _("rsync terminou com código {exit_code}").format(exit_code=exit_code) + (
-        f": {last}" if last else "."
-    )

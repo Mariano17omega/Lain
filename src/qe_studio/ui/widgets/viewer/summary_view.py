@@ -11,12 +11,10 @@ from pathlib import Path
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QApplication,
     QHBoxLayout,
     QLabel,
     QScrollArea,
     QStackedWidget,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -25,6 +23,7 @@ from ....core.qe.summary import OutputSummary, summarize, to_text
 from ....core.tasks import TaskHandle, run_task
 from ....i18n import _
 from ...theme.manager import ThemeManager
+from ..common import copy_text, tool_button
 from .summary_widgets import SummarySectionWidget
 
 log = logging.getLogger(__name__)
@@ -35,14 +34,6 @@ MESSAGE, CONTENT = 0, 1  # pages of the stack
 def summary_key(path: Path) -> str:
     """Key of the workspace tab that summarizes ``path``."""
     return f"summary:{path}"
-
-
-def _tool(text: str, tip: str) -> QToolButton:
-    button = QToolButton()
-    button.setProperty("variant", "viewerTool")
-    button.setText(text)
-    button.setToolTip(tip)
-    return button
 
 
 class SummaryView(QWidget):
@@ -68,9 +59,11 @@ class SummaryView(QWidget):
         row = QHBoxLayout(self.bar)
         row.setContentsMargins(8, 3, 8, 3)
         row.setSpacing(4)
-        self.copy_button = _tool(_("Copiar"), _("Copiar o resumo como texto"))
-        self.open_button = _tool(_("Abrir saída"), _("Abrir o arquivo no visualizador de texto"))
-        self.refresh_button = _tool(
+        self.copy_button = tool_button(_("Copiar"), _("Copiar o resumo como texto"))
+        self.open_button = tool_button(
+            _("Abrir saída"), _("Abrir o arquivo no visualizador de texto")
+        )
+        self.refresh_button = tool_button(
             _("Atualizar"), _("Ler o arquivo de novo (o job pode estar rodando)")
         )
         for button in (self.copy_button, self.open_button, self.refresh_button):
@@ -136,7 +129,7 @@ class SummaryView(QWidget):
 
     def _on_failed(self, error: Exception) -> None:
         if not isinstance(error, OSError):  # a parser bug must not leave the tab on "Lendo…"
-            log.error("summary of %s failed", self.path, exc_info=error)
+            log.error("tab: summary of %s failed", self.path, exc_info=error)
         self.summary = None
         self._show_message(_("Não foi possível ler o arquivo: {error}").format(error=error))
         self.refresh_button.setEnabled(True)
@@ -150,9 +143,7 @@ class SummaryView(QWidget):
     def copy_summary(self) -> None:
         if self.summary is None:
             return
-        clipboard = QApplication.clipboard()
-        if clipboard is not None:
-            clipboard.setText(to_text(self.summary))
+        copy_text(to_text(self.summary))
 
     def _open_output(self) -> None:
         self.open_output_requested.emit(self.path, 0)

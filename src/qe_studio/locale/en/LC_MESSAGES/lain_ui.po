@@ -1,0 +1,1534 @@
+# English translations for Lain: QE Studio.
+# Copyright (C) 2026 Mariano Sobrinho
+# This file is distributed under the same license as the Lain: QE Studio project.
+# Mariano Sobrinho <onairam17@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Report-Msgid-Bugs-To: onairam17@gmail.com\n"
+"POT-Creation-Date: 2026-11-10 01:41-0400\n"
+"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
+"Language: en\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ui/dialogs/grid_cells.py
+msgid " (pasta não encontrada)"
+msgstr " (folder not found)"
+
+#: ui/widgets/plot/params_body.py
+#, python-brace-format
+msgid "(detectado por {method})"
+msgstr "(detected by {method})"
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "1 · Configuração"
+msgstr "1 · Setup"
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "2 · Arquivos"
+msgstr "2 · Files"
+
+#: ui/shell/restart_notice.py
+msgid "A pasta de dados muda ao reiniciar o Lain."
+msgstr "The data folder changes when Lain restarts."
+
+#: ui/shell/first_run.py
+#, python-brace-format
+msgid "A pasta raiz não foi encontrada: {root}"
+msgstr "The root folder was not found: {root}"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid ""
+"A pasta tem {name}: o pw.x vai parar na primeira verificação. Apague o arquivo no cluster antes "
+"de submeter."
+msgstr ""
+"The folder has {name}: pw.x will stop at its first check. Delete the file on the cluster before "
+"submitting."
+
+#: ui/dialogs/atoms.py
+msgid "A seleção vale para todo gráfico deste composto (mesma sequência de espécies), em qualquer pasta."
+msgstr "The selection applies to every plot of this compound (same sequence of species), in any folder."
+
+#: ui/shell/palette_controller.py
+msgid "Aba"
+msgstr "Tab"
+
+#: ui/dialogs/open_with.py
+msgid "Abrir"
+msgstr "Open"
+
+#: ui/dialogs/open_many.py
+msgid "Abrir arquivos"
+msgstr "Open files"
+
+#: ui/shell/first_run.py
+msgid "Abrir config"
+msgstr "Open config"
+
+#: ui/actions.py
+msgid "Abrir config.yaml"
+msgstr "Open config.yaml"
+
+#: ui/actions.py
+msgid "Abrir log"
+msgstr "Open log"
+
+#: ui/actions.py
+msgid "Abrir pasta de dados"
+msgstr "Open data folder"
+
+#: ui/actions.py
+msgid "Abrir pasta no gerenciador de arquivos"
+msgstr "Open folder in file manager"
+
+#: ui/dialogs/open_with.py
+#, python-brace-format
+msgid "Abrir {name} com"
+msgstr "Open {name} with"
+
+#: ui/dialogs/open_many.py
+#, python-brace-format
+msgid "Abrir {n} arquivos?"
+msgstr "Open {n} files?"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Abrir…"
+msgstr "Open…"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Adicionar"
+msgstr "Add"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Adicionar célula"
+msgstr "Add cell"
+
+#: ui/dialogs/calc_create/scf_list.py
+msgid "Adicionar…"
+msgstr "Add…"
+
+#: ui/shell/help_controller.py
+#, python-brace-format
+msgid "Ainda não há arquivo de log: {path}"
+msgstr "There is no log file yet: {path}"
+
+#: ui/actions.py
+msgid "Ajuda"
+msgstr "Help"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Ajusta a coluna Pontos ao comprimento de cada segmento (pontos por Å⁻¹)"
+msgstr "Fits the Points column to the length of each segment (points per Å⁻¹)"
+
+#: ui/widgets/plot/plot_params.py
+msgid "Ajuste do gráfico"
+msgstr "Plot settings"
+
+#: ui/actions.py
+msgid "Alternar tema"
+msgstr "Toggle theme"
+
+#: ui/widgets/shell/bars.py
+msgid "Alternar tema (Ctrl+T)"
+msgstr "Toggle theme (Ctrl+T)"
+
+#: ui/dialogs/calc_create/tabs_page.py
+msgid "Anotações sobre este cálculo (opcional)"
+msgstr "Notes about this calculation (optional)"
+
+#: ui/dialogs/cluster_action.py
+msgid "Apagar no cluster"
+msgstr "Delete on the cluster"
+
+#: ui/dialogs/overwrite.py
+msgid "Arquivos com este nome já existem em plots/"
+msgstr "Files with this name already exist in plots/"
+
+#: ui/dialogs/overwrite.py
+msgid "Arquivos já existem"
+msgstr "Files already exist"
+
+#: ui/dialogs/shortcuts.py
+msgid "Atalho"
+msgstr "Shortcut"
+
+#: ui/actions.py ui/dialogs/shortcuts.py
+msgid "Atalhos de teclado"
+msgstr "Keyboard shortcuts"
+
+#: ui/main_window.py
+msgid "Atualizado."
+msgstr "Refreshed."
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Avançado"
+msgstr "Advanced"
+
+#: ui/actions.py
+msgid "Avançar"
+msgstr "Forward"
+
+#: ui/widgets/shell/bars.py
+msgid "Avançar (Alt+→)"
+msgstr "Forward (Alt+→)"
+
+#: ui/dialogs/shortcuts.py ui/shell/palette_controller.py
+msgid "Ação"
+msgstr "Action"
+
+#: ui/shell/first_run.py
+msgid "Bem-vindo ao Lain"
+msgstr "Welcome to Lain"
+
+#: ui/widgets/shell/workspace.py
+msgid "Botão do meio"
+msgstr "Middle button"
+
+#: ui/dialogs/shortcuts.py
+msgid "Buscar ação, atalho ou lugar…"
+msgstr "Search action, shortcut or place…"
+
+#: ui/dialogs/grid_dialog.py
+msgid ""
+"Cada célula mostra um gráfico aberto, com os ajustes que ele tem agora. A grade é salva por nome "
+"e pode ser gerada de novo depois."
+msgstr ""
+"Each cell shows an open plot, with the settings it has now. The grid is saved by name and can be "
+"generated again later."
+
+#: ui/dialogs/atoms.py ui/dialogs/calc_create/dialog.py ui/dialogs/cluster_action.py
+#: ui/dialogs/mapping.py ui/dialogs/new_project.py ui/dialogs/open_with.py ui/dialogs/overwrite.py
+#: ui/dialogs/rename.py ui/dialogs/sync_dialog.py
+msgid "Cancelar"
+msgstr "Cancel"
+
+#: ui/dialogs/cluster_action.py
+msgid "Cancelar esta simulação?"
+msgstr "Cancel this simulation?"
+
+#: ui/dialogs/cluster_action.py
+msgid "Cancelar simulação"
+msgstr "Cancel simulation"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Cancelar sincronização"
+msgstr "Cancel sync"
+
+#: ui/plot/grid_loader.py
+msgid "Carregando grid…"
+msgstr "Loading grid…"
+
+#: ui/plot/plot_workflow.py
+#, python-brace-format
+msgid "Carregando {name}…"
+msgstr "Loading {name}…"
+
+#: ui/widgets/shell/bars.py
+msgid "Cluster acessível"
+msgstr "Cluster reachable"
+
+#: ui/widgets/shell/bars.py
+msgid "Cluster inacessível"
+msgstr "Cluster unreachable"
+
+#: ui/widgets/shell/bars.py
+msgid "Cluster não configurado (config.yaml)"
+msgstr "Cluster not configured (config.yaml)"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Cluster:"
+msgstr "Cluster:"
+
+#: ui/dialogs/grid_cells.py
+msgid "Coluna"
+msgstr "Column"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Colunas"
+msgstr "Columns"
+
+#: ui/dialogs/open_with.py
+msgid "Comando inválido (confira as aspas)."
+msgstr "Invalid command (check the quotes)."
+
+#: ui/dialogs/cluster_action.py
+msgid "Comando que vai rodar no cluster:"
+msgstr "Command that will run on the cluster:"
+
+#: ui/dialogs/open_with.py
+msgid "Comando, ex.: gedit ou /opt/app/bin/app --flag"
+msgstr "Command, e.g.: gedit or /opt/app/bin/app --flag"
+
+#: ui/dialogs/cluster_action.py
+msgid "Comandos que vão rodar no cluster:"
+msgstr "Commands that will run on the cluster:"
+
+#: ui/widgets/shell/workspace.py
+msgid "Comparar inputs"
+msgstr "Compare inputs"
+
+#: ui/shell/help_controller.py
+msgid "Config"
+msgstr "Config"
+
+#: ui/shell/help_controller.py
+msgid "Configurações da interface"
+msgstr "Interface settings"
+
+#: ui/shell/help_controller.py
+msgid "Configurações do projeto"
+msgstr "Project settings"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Conflito de sincronização"
+msgstr "Sync conflict"
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "Continuar"
+msgstr "Continue"
+
+#: ui/dialogs/about.py
+msgid "Copiar informações"
+msgstr "Copy information"
+
+#: ui/widgets/plot/param_widgets.py
+#, python-brace-format
+msgid "Cor: {color}"
+msgstr "Color: {color}"
+
+#: ui/tools/calc_create_controller.py
+#, python-brace-format
+msgid "Criando {name}…"
+msgstr "Creating {name}…"
+
+#: ui/dialogs/calc_create/dialog.py ui/dialogs/new_project.py ui/widgets/shell/bars.py
+msgid "Criar"
+msgstr "Create"
+
+#: ui/dialogs/first_run.py
+msgid "Criar config.yaml"
+msgstr "Create config.yaml"
+
+#: ui/dialogs/first_run.py
+#, python-brace-format
+msgid ""
+"Criar config.yaml com esta pasta como raiz?\n"
+"\n"
+"{folder}"
+msgstr ""
+"Create config.yaml with this folder as the root?\n"
+"\n"
+"{folder}"
+
+#: ui/shell/first_run.py
+msgid "Criar config…"
+msgstr "Create config…"
+
+#: ui/dialogs/calc_create/dialog.py ui/tools/calc_create_controller.py
+msgid "Criar cálculo"
+msgstr "Create calculation"
+
+#: ui/tools/calc_create_controller.py ui/widgets/shell/bars.py
+msgid "Criar cálculo (scripts e inputs)"
+msgstr "Create calculation (scripts and inputs)"
+
+#: ui/actions.py
+msgid "Criar cálculo…"
+msgstr "Create calculation…"
+
+#: ui/dialogs/first_run.py
+#, python-brace-format
+msgid ""
+"Criar o arquivo de configuração?\n"
+"\n"
+"{path}"
+msgstr ""
+"Create the configuration file?\n"
+"\n"
+"{path}"
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Célula {n}"
+msgstr "Cell {n}"
+
+#: ui/shell/help_controller.py
+msgid "Dados"
+msgstr "Data"
+
+#: ui/tools/calc_create_controller.py
+msgid "Defina paths.local_root para criar cálculos"
+msgstr "Set paths.local_root to create calculations"
+
+#: ui/shell/first_run.py
+msgid "Depois de editar, use Ferramentas ▸ Recarregar config.yaml"
+msgstr "After editing, use Tools ▸ Reload config.yaml"
+
+#: ui/dialogs/calc_create/edit_bar.py
+msgid "Descarta a edição e volta ao texto que os campos geram"
+msgstr "Discards the edit and goes back to the text the fields generate"
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "Descartar o que foi preenchido?"
+msgstr "Discard what was filled in?"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Descer"
+msgstr "Move down"
+
+#: ui/plot/plot_workflow.py
+msgid "Desenhando…"
+msgstr "Drawing…"
+
+#: ui/widgets/plot/atom_table.py
+msgid "Desmarcar todos"
+msgstr "Unmark all"
+
+#: ui/widgets/toast.py
+msgid "Detalhes"
+msgstr "Details"
+
+#: ui/plot/generate_plot.py ui/plot/plot_button.py ui/plot/plot_workflow.py
+msgid "Detectando cálculo…"
+msgstr "Detecting calculation…"
+
+#: ui/widgets/plot/plot_params.py
+msgid ""
+"Detectar o tipo de cálculo, plotar a pasta selecionada e salvar em plots/ (Ctrl+G).\n"
+"Com uma pasta de bandas e uma de PDOS selecionadas na grade: Bandas com DOS."
+msgstr ""
+"Detect the calculation type, plot the selected folder and save it to plots/ (Ctrl+G).\n"
+"With a bands folder and a PDOS folder selected in the grid: Bands with DOS."
+
+#: ui/widgets/shell/command_palette.py
+msgid "Digite um comando…   > ações   / pastas   @ abas"
+msgstr "Type a command…   > actions   / folders   @ tabs"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Distribuir pelo comprimento"
+msgstr "Distribute by length"
+
+#: ui/actions.py
+msgid "Documentação do bands.x (INPUT_BANDS)"
+msgstr "bands.x documentation (INPUT_BANDS)"
+
+#: ui/actions.py
+msgid "Documentação do projwfc.x (INPUT_PROJWFC)"
+msgstr "projwfc.x documentation (INPUT_PROJWFC)"
+
+#: ui/actions.py
+msgid "Documentação do pw.x (INPUT_PW)"
+msgstr "pw.x documentation (INPUT_PW)"
+
+#: ui/dialogs/adsorption_energy.py
+msgid "E_ads = E(complexo) - E(substrato) - E(adsorvato)"
+msgstr "E_ads = E(complex) - E(substrate) - E(adsorbate)"
+
+#: ui/dialogs/calc_create/edit_bar.py
+msgid "Editado manualmente. Os campos deste arquivo não o alteram mais."
+msgstr "Edited by hand. The fields no longer change this file."
+
+#: ui/shell/excepthook.py
+msgid "Erro inesperado"
+msgstr "Unexpected error"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Escolha o input de SCF"
+msgstr "Choose the SCF input"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Escolha o tipo de cálculo"
+msgstr "Choose the calculation type"
+
+#: ui/dialogs/calc_create/scf_list.py
+msgid "Escolha pelo menos dois inputs de SCF"
+msgstr "Choose at least two SCF inputs"
+
+#: ui/dialogs/first_run.py
+msgid "Escolher a pasta raiz"
+msgstr "Choose the root folder"
+
+#: ui/widgets/plot/param_widgets.py
+msgid "Escolher cor"
+msgstr "Choose color"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Escolher input de SCF"
+msgstr "Choose SCF input"
+
+#: ui/dialogs/calc_create/scf_list.py
+msgid "Escolher inputs de SCF"
+msgstr "Choose SCF inputs"
+
+#: ui/widgets/plot/params_body.py
+msgid "Escolher os átomos cujos orbitais são plotados"
+msgstr "Choose the atoms whose orbitals are plotted"
+
+#: ui/shell/first_run.py
+msgid "Escolher pasta…"
+msgstr "Choose folder…"
+
+#: ui/dialogs/open_with.py
+msgid "Escolher programa"
+msgstr "Choose program"
+
+#: ui/dialogs/calc_create/scf_field.py ui/dialogs/calc_create/setup_page.py
+msgid "Escolher…"
+msgstr "Choose…"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Esta mudança refaz a próxima etapa: os campos voltam aos padrões"
+msgstr "This change redoes the next step: the fields go back to their defaults"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Estrutura do SCF não legível"
+msgstr "SCF structure not readable"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Excluir"
+msgstr "Delete"
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Excluir a grade salva “{name}”?"
+msgstr "Delete the saved grid “{name}”?"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Excluir grade"
+msgstr "Delete grid"
+
+#: ui/plot/plot_export.py
+msgid "Exportando…"
+msgstr "Exporting…"
+
+#: ui/actions.py
+msgid "Exportar gráfico"
+msgstr "Export plot"
+
+#: ui/plot/plot_export.py
+msgid "Exportação cancelada."
+msgstr "Export cancelled."
+
+#: ui/plot/plot_workflow.py
+msgid "Falha ao carregar os dados do gráfico."
+msgstr "Failed to load the plot data."
+
+#: ui/plot/plot_export.py
+msgid "Falha ao exportar"
+msgstr "Export failed"
+
+#: ui/shell/palette_controller.py
+msgid "Favorito"
+msgstr "Favorite"
+
+#: ui/widgets/shell/workspace.py
+msgid "Fechar a aba"
+msgstr "Close tab"
+
+#: ui/actions.py
+msgid "Fechar aba"
+msgstr "Close tab"
+
+#: ui/widgets/shell/workspace.py
+msgid "Fechar outras"
+msgstr "Close others"
+
+#: ui/widgets/shell/workspace.py
+msgid "Fechar todas"
+msgstr "Close all"
+
+#: ui/widgets/shell/workspace.py
+msgid "Fechar à direita"
+msgstr "Close to the right"
+
+#: ui/actions.py
+msgid "Ferramentas"
+msgstr "Tools"
+
+#: ui/tools/derive_controller.py
+msgid "Gerando CIF…"
+msgstr "Generating CIF…"
+
+#: ui/tools/derive_controller.py
+msgid "Gerando SCF convergido…"
+msgstr "Generating converged SCF…"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Gerar"
+msgstr "Generate"
+
+#: ui/widgets/plot/plot_params.py
+msgid "Gerar Plot"
+msgstr "Generate Plot"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Gerar fingerprint.md"
+msgstr "Generate fingerprint.md"
+
+#: ui/actions.py ui/plot/plot_workflow.py
+msgid "Gerar gráfico"
+msgstr "Generate plot"
+
+#: ui/widgets/plot/plot_params.py
+msgid ""
+"Gere um gráfico (botão “Gerar Plot”)\n"
+"para ajustar os parâmetros."
+msgstr ""
+"Generate a plot (“Generate Plot” button)\n"
+"to adjust the parameters."
+
+#: ui/dialogs/grid_dialog.py
+msgid "Grade de gráficos"
+msgstr "Plot grid"
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Grade “{name}” aberta."
+msgstr "Grid “{name}” opened."
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Grade “{name}” excluída."
+msgstr "Grid “{name}” deleted."
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Grade “{name}” salva."
+msgstr "Grid “{name}” saved."
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Grava na pasta nova um fingerprint.md com o tipo de cálculo e de onde vieram os SCFs"
+msgstr "Writes a fingerprint.md into the new folder with the calculation type and where the SCFs came from"
+
+#: ui/dialogs/grid_dialog.py ui/widgets/shell/bars.py
+msgid "Grids"
+msgstr "Grids"
+
+#: ui/actions.py
+msgid "Grids…"
+msgstr "Grids…"
+
+#: ui/dialogs/grid_cells.py
+msgid "Gráfico"
+msgstr "Plot"
+
+#: ui/actions.py ui/widgets/shell/bars.py
+msgid "Gráficos"
+msgstr "Plots"
+
+#: ui/dialogs/calc_create/setup_page.py
+#, python-brace-format
+msgid "Herdar sufixo do SCF ({suffix})"
+msgstr "Inherit the SCF's suffix ({suffix})"
+
+#: ui/shell/palette_controller.py
+msgid "Indexando pastas…"
+msgstr "Indexing folders…"
+
+#: ui/dialogs/mapping.py
+msgid "Indique o tipo de cálculo e os arquivos de cada papel. Campos marcados com * são obrigatórios."
+msgstr "Specify the calculation type and the files for each role. Fields marked with * are required."
+
+#: ui/widgets/shell/workspace.py
+msgid "Inputs do QE (*.in *.inp *.pw*);;Todos os arquivos (*)"
+msgstr "QE inputs (*.in *.inp *.pw*);;All files (*)"
+
+#: ui/dialogs/calc_create/scf_list.py
+msgid "Inputs do QE (*.in *.pwi *.inp);;Todos os arquivos (*)"
+msgstr "QE inputs (*.in *.pwi *.inp);;All files (*)"
+
+#: ui/dialogs/adsorption_energy.py
+msgid "Inserir na equação"
+msgstr "Insert into the equation"
+
+#: ui/widgets/plot/atom_table.py
+msgid "Inverter"
+msgstr "Invert"
+
+#: ui/actions.py
+msgid "Ir para a grade"
+msgstr "Go to the grid"
+
+#: ui/actions.py
+msgid "Ir para a árvore"
+msgstr "Go to the tree"
+
+#: ui/actions.py
+msgid "Ir para o workspace"
+msgstr "Go to the workspace"
+
+#: ui/actions.py
+msgid "Ir para os ajustes"
+msgstr "Go to the plot settings"
+
+#: ui/dialogs/cluster_action.py
+msgid "Job com o mesmo nome"
+msgstr "Job with the same name"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Job {job_id}"
+msgstr "Job {job_id}"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Job: {name}"
+msgstr "Job: {name}"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Já existe um job seu chamado {name} no cluster"
+msgstr "A job of yours called {name} is already on the cluster"
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Já existe uma grade “{name}”. Substituir?"
+msgstr "A grid “{name}” already exists. Replace it?"
+
+#: ui/dialogs/calc_create/preview.py
+#, python-brace-format
+msgid "Já existe {asked}: a nova pasta será {name}"
+msgstr "{asked} already exists: the new folder will be {name}"
+
+#: ui/plot/plot_export.py
+msgid "Já há uma exportação deste gráfico em andamento."
+msgstr "An export of this plot is already in progress."
+
+#: ui/dialogs/mapping.py
+msgid "Lembrar este mapeamento para esta pasta"
+msgstr "Remember this mapping for this folder"
+
+#: ui/dialogs/calc_create/labels.py
+msgid "Lendo SCF…"
+msgstr "Reading SCF…"
+
+#: ui/tools/adsorption_energy_controller.py
+msgid "Lendo energias…"
+msgstr "Reading energies…"
+
+#: ui/tools/structure3d_controller.py
+msgid "Lendo estrutura…"
+msgstr "Reading structure…"
+
+#: ui/widgets/plot/params_body.py
+#, python-brace-format
+msgid "Ligue “{name}” para usar este campo."
+msgstr "Turn on “{name}” to use this field."
+
+#: ui/dialogs/grid_cells.py
+msgid "Linha"
+msgstr "Row"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Linhas"
+msgstr "Rows"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Local"
+msgstr "Location"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Local:"
+msgstr "Local:"
+
+#: ui/dialogs/sync_dialog.py
+#, python-brace-format
+msgid ""
+"Local: {local}\n"
+"Cluster: {remote}"
+msgstr ""
+"Local: {local}\n"
+"Cluster: {remote}"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Manter local"
+msgstr "Keep local"
+
+#: ui/dialogs/mapping.py
+msgid "Mapear arquivos manualmente"
+msgstr "Map files manually"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Marcar quebra de segmento"
+msgstr "Mark segment break"
+
+#: ui/widgets/plot/atom_table.py
+msgid "Marcar todos"
+msgstr "Mark all"
+
+#: ui/dialogs/atoms.py
+msgid "Marque ao menos um átomo"
+msgstr "Mark at least one atom"
+
+#: ui/shell/help_controller.py
+#, python-brace-format
+msgid "Menu {menu}"
+msgstr "{menu} menu"
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Modo dos campos"
+msgstr "Fields mode"
+
+#: ui/widgets/plot/atom_table.py
+msgid "Mostrar só os átomos de uma espécie; as marcas não mudam"
+msgstr "Show only the atoms of one species; the marks stay"
+
+#: ui/widgets/shell/bars.py
+msgid "Mostrar/ocultar a árvore de pastas"
+msgstr "Show/hide the folder tree"
+
+#: ui/widgets/shell/bars.py
+msgid "Mostrar/ocultar arquivos"
+msgstr "Show/hide files"
+
+#: ui/widgets/shell/bars.py
+#, python-brace-format
+msgid "Mostrar/ocultar {name}"
+msgstr "Show/hide {name}"
+
+#: ui/widgets/plot/plot_view.py
+msgid "Mover (arrastar)"
+msgstr "Pan (drag)"
+
+#: ui/dialogs/cluster_action.py
+msgid "Mover para trash"
+msgstr "Move to trash"
+
+#: ui/dialogs/cluster_action.py
+msgid "Mover para trash?"
+msgstr "Move to trash?"
+
+#: ui/dialogs/cluster_action.py
+msgid "Método:"
+msgstr "Method:"
+
+#: ui/actions.py
+msgid "Navegar"
+msgstr "Navigate"
+
+#: ui/dialogs/calc_create/labels.py
+msgid "Nenhum arquivo escolhido"
+msgstr "No file chosen"
+
+#: ui/shell/first_run.py
+msgid ""
+"Nenhum config.yaml encontrado. O Lain usa um arquivo de configuração (não há janela de "
+"configurações)."
+msgstr "No config.yaml found. Lain uses a configuration file (there is no settings window)."
+
+#: ui/plot/plot_workflow.py
+msgid "Nenhum gráfico aberto."
+msgstr "No plot open."
+
+#: ui/shell/focus_controller.py
+msgid "Nenhum gráfico aberto: os ajustes aparecem junto com o gráfico."
+msgstr "No plot open: the settings appear together with the plot."
+
+#: ui/dialogs/calc_create/structure_preview.py
+msgid "Nenhuma estrutura para mostrar: o SCF não tem uma estrutura legível"
+msgstr "No structure to show: the SCF has no readable structure"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Nenhuma grade salva"
+msgstr "No saved grid"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Nome da pasta"
+msgstr "Folder name"
+
+#: ui/dialogs/new_project.py
+msgid "Nome do projeto"
+msgstr "Project name"
+
+#: ui/dialogs/sync_pages.py
+msgid "Nota"
+msgstr "Note"
+
+#: ui/dialogs/overwrite.py
+msgid "Nova versão"
+msgstr "New version"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Numerar"
+msgstr "Number"
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Não foi possível abrir a grade “{name}”."
+msgstr "Could not open the grid “{name}”."
+
+#: ui/shell/help_controller.py
+#, python-brace-format
+msgid "Não foi possível abrir {folder}: {error}"
+msgstr "Could not open {folder}: {error}"
+
+#: ui/shell/help_controller.py
+#, python-brace-format
+msgid "Não foi possível abrir {url}: nenhum navegador configurado no sistema."
+msgstr "Could not open {url}: no web browser is configured on the system."
+
+#: ui/plot/plot_settings.py
+#, python-brace-format
+msgid "Não foi possível apagar {name}: {error}"
+msgstr "Could not delete {name}: {error}"
+
+#: ui/shell/first_run.py
+#, python-brace-format
+msgid "Não foi possível criar {path}: {error}"
+msgstr "Could not create {path}: {error}"
+
+#: ui/plot/plot_workflow.py
+msgid "Não foi possível gerar o gráfico"
+msgstr "Could not generate the plot"
+
+#: ui/dialogs/mapping.py
+msgid "Não foi possível identificar todos os arquivos"
+msgstr "Could not identify all the files"
+
+#: ui/dialogs/calc_create/scf_field.py ui/dialogs/calc_create/scf_list.py
+#: ui/dialogs/calc_create/setup_page.py
+#, python-brace-format
+msgid "Não foi possível ler o SCF: {error}"
+msgstr "Could not read the SCF: {error}"
+
+#: ui/widgets/plot/params_body.py
+msgid "Não foi possível ler os átomos da saída do SCF"
+msgstr "Could not read the atoms from the SCF output"
+
+#: ui/dialogs/calc_create/structure_preview.py
+#, python-brace-format
+msgid "Não foi possível montar a estrutura: {error}"
+msgstr "Could not build the structure: {error}"
+
+#: ui/dialogs/calc_create/dialog.py
+#, python-brace-format
+msgid ""
+"Não foi possível montar os arquivos deste cálculo: {error}. O log tem o detalhe (Ajuda ▸ Abrir "
+"log)."
+msgstr "Could not build the files of this calculation: {error}. The log has the details (Help ▸ Open log)."
+
+#: ui/plot/plot_settings.py
+#, python-brace-format
+msgid "Não foi possível salvar {kind}.plot em {folder}: {error}"
+msgstr "Could not save {kind}.plot in {folder}: {error}"
+
+#: ui/dialogs/grid_dialog.py
+#, python-brace-format
+msgid "Não há grade salva com o nome “{name}”."
+msgstr "There is no saved grid named “{name}”."
+
+#: ui/dialogs/overwrite.py
+msgid "Não perguntar novamente nesta sessão (sobrescrever)"
+msgstr "Don't ask again this session (overwrite)"
+
+#: ui/app.py
+msgid "O Lain já está aberto com esta configuração. Abrir mesmo assim?"
+msgstr "Lain is already open with this configuration. Open anyway?"
+
+#: ui/dialogs/sync_dialog.py
+msgid "O arquivo local seria sobrescrito"
+msgstr "The local file would be overwritten"
+
+#: ui/dialogs/open_with.py
+msgid "O arquivo é passado como último argumento; nenhum shell é usado."
+msgstr "The file is passed as the last argument; no shell is used."
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "O caminho salta deste ponto para o próximo (peso 1)"
+msgstr "The path jumps from this point to the next one (weight 1)"
+
+#: ui/shell/language_install.py
+msgid "O idioma muda ao reiniciar o Lain."
+msgstr "The language changes when Lain restarts."
+
+#: ui/shell/help_controller.py
+msgid "O log está desligado (log.enabled no config.yaml)."
+msgstr "The log is off (log.enabled in config.yaml)."
+
+#: ui/dialogs/new_project.py
+msgid "O nome será o nome da pasta, criada na pasta raiz."
+msgstr "The name will be the name of the folder, created in the root folder."
+
+#: ui/dialogs/shortcuts.py
+msgid "Onde"
+msgstr "Where"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Onde criar a pasta"
+msgstr "Where to create the folder"
+
+#: ui/dialogs/cluster_action.py
+msgid ""
+"Os itens vão para a pasta trash na raiz do cluster. O Lain nunca apaga de vez: para isso, entre "
+"em trash pelo terminal."
+msgstr ""
+"The items go to the trash folder at the cluster's root. Lain never deletes for good: for that, go"
+" into trash from a terminal."
+
+#: ui/actions.py
+msgid "Paleta de comandos"
+msgstr "Command palette"
+
+#: ui/dialogs/adsorption_energy.py
+msgid "Papel"
+msgstr "Role"
+
+#: ui/shell/first_run.py
+msgid "Pasta raiz não encontrada"
+msgstr "Root folder not found"
+
+#: ui/shell/first_run.py
+msgid "Pasta temporária: para fixar, edite paths.local_root no config.yaml"
+msgstr "Temporary folder: to make it permanent, edit paths.local_root in config.yaml"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Pasta: {account}:{folder}"
+msgstr "Folder: {account}:{folder}"
+
+#: ui/dialogs/calc_create/preview.py
+#, python-brace-format
+msgid "Pasta: {folder}"
+msgstr "Folder: {folder}"
+
+#: ui/widgets/shell/bars.py
+msgid "Plot"
+msgstr "Plot"
+
+#: ui/widgets/shell/bars.py
+msgid ""
+"Plotar a pasta selecionada (com uma pasta de bandas e uma de PDOS selecionadas na grade: Bandas "
+"com DOS); com a geração automática desligada (ui.auto_generate_plot) só abre os ajustes"
+msgstr ""
+"Plot the selected folder (with a bands folder and a PDOS folder selected in the grid: Bands with "
+"DOS); with automatic generation off (ui.auto_generate_plot) it only opens the settings"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Pontos"
+msgstr "Points"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Pontos até o próximo ponto do caminho"
+msgstr "Points up to the next point of the path"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Pontos por Å⁻¹"
+msgstr "Points per Å⁻¹"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Pontos por Å⁻¹ de comprimento do segmento"
+msgstr "Points per Å⁻¹ of segment length"
+
+#: ui/dialogs/sync_dialog.py ui/dialogs/sync_pages.py
+msgid "Preparando transferência…"
+msgstr "Preparing transfer…"
+
+#: ui/dialogs/sync_pages.py
+msgid "Preparando…"
+msgstr "Preparing…"
+
+#: ui/dialogs/open_with.py
+msgid "Procurar…"
+msgstr "Browse…"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Pré-visualizar"
+msgstr "Preview"
+
+#: ui/widgets/plot/plot_view.py
+msgid "Próxima vista"
+msgstr "Next view"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Põe no fim do nome da pasta o átomo do sítio escolhido na aba Sítio (O11, ou O43-O46 no bidentado)"
+msgstr ""
+"Puts the site atom chosen in the Site tab at the end of the folder name (O11, or O43-O46 for "
+"bidentate)"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Põe um número antes do nome da pasta, seguindo as pastas que já existem aqui (0_Relax, 1_Bands…)"
+msgstr ""
+"Puts a number before the folder name, following the folders that already exist here (0_Relax, "
+"1_Bands…)"
+
+#: ui/actions.py
+msgid "Recarregar config.yaml"
+msgstr "Reload config.yaml"
+
+#: ui/shell/palette_controller.py
+msgid "Recente"
+msgstr "Recent"
+
+#: ui/widgets/plot/params_body.py
+msgid "Remapear arquivos…"
+msgstr "Remap files…"
+
+#: ui/dialogs/calc_create/kpath_editor.py ui/dialogs/calc_create/scf_list.py ui/dialogs/grid_dialog.py
+msgid "Remover"
+msgstr "Remove"
+
+#: ui/dialogs/rename.py
+#, python-brace-format
+msgid "Renomear {name}"
+msgstr "Rename {name}"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Repete no nome da pasta o que vem depois do tipo no nome da pasta do SCF"
+msgstr "Repeats in the folder name what follows the type in the SCF folder's name"
+
+#: ui/widgets/plot/plot_view.py
+msgid "Reset"
+msgstr "Reset"
+
+#: ui/dialogs/calc_create/edit_bar.py
+msgid "Restaurar do formulário"
+msgstr "Restore from the form"
+
+#: ui/widgets/plot/plot_view.py
+msgid "Restaurar limites iniciais"
+msgstr "Restore initial limits"
+
+#: ui/widgets/shell/workspace.py
+#, python-brace-format
+msgid "Resumo · {name}"
+msgstr "Summary · {name}"
+
+#: ui/widgets/shell/workspace.py
+msgid "Revelar no explorador"
+msgstr "Reveal in explorer"
+
+#: ui/widgets/shell/bars.py
+msgid "Rsync"
+msgstr "Rsync"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Rótulo"
+msgstr "Label"
+
+#: ui/actions.py
+msgid "Sair"
+msgstr "Quit"
+
+#: ui/dialogs/atoms.py ui/dialogs/grid_dialog.py
+msgid "Salvar"
+msgstr "Save"
+
+#: ui/widgets/plot/plot_view.py
+msgid "Salvar em plots/ (Ctrl+E)"
+msgstr "Save to plots/ (Ctrl+E)"
+
+#: ui/dialogs/adsorption_energy.py
+msgid "Salvar resultado"
+msgstr "Save result"
+
+#: ui/plot/plot_export.py
+#, python-brace-format
+msgid "Salvo em plots/: {names}"
+msgstr "Saved to plots/: {names}"
+
+#: ui/dialogs/rename.py
+msgid "Se esta pasta também existe no cluster, a próxima sincronização trará de volta o nome original."
+msgstr "If this folder also exists on the cluster, the next sync will bring back the original name."
+
+#: ui/dialogs/calc_create/preview.py
+#, python-brace-format
+msgid "Se {name} já existir ao criar, a nova pasta será {name}_1 (nada é sobrescrito)"
+msgstr "If {name} already exists when creating, the new folder will be {name}_1 (nothing is overwritten)"
+
+#: ui/widgets/shell/workspace.py
+msgid ""
+"Selecione um arquivo para visualizar\n"
+"ou use “Gerar Gráfico” em uma pasta de simulação."
+msgstr ""
+"Select a file to view\n"
+"or use “Generate plot” on a simulation folder."
+
+#: ui/dialogs/calc_create/tabs_page.py
+msgid "Sem sítio: o nome fica sem a marca"
+msgstr "No site: the name stays without the tag"
+
+#: ui/widgets/shell/bars.py
+msgid "Sincronizando…"
+msgstr "Syncing…"
+
+#: ui/widgets/shell/bars.py
+msgid "Sincronizar com o cluster"
+msgstr "Sync with the cluster"
+
+#: ui/actions.py
+msgid "Sincronizar pasta selecionada"
+msgstr "Sync selected folder"
+
+#: ui/theme/manager.py
+msgid "Sistema (claro agora)"
+msgstr "System (light now)"
+
+#: ui/theme/manager.py
+msgid "Sistema (escuro agora)"
+msgstr "System (dark now)"
+
+#: ui/actions.py ui/dialogs/about.py
+msgid "Sobre o Lain"
+msgstr "About Lain"
+
+#: ui/dialogs/overwrite.py
+msgid "Sobrescrever"
+msgstr "Overwrite"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Sobrescrever este"
+msgstr "Overwrite this one"
+
+#: ui/dialogs/overwrite.py
+#, python-brace-format
+msgid "Sobrescrever ou salvar como nova versão ({stem})?"
+msgstr "Overwrite or save as a new version ({stem})?"
+
+#: ui/dialogs/sync_dialog.py
+msgid "Sobrescrever todos nesta pasta"
+msgstr "Overwrite all in this folder"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "Subir"
+msgstr "Move up"
+
+#: ui/dialogs/cluster_action.py
+msgid "Submeter"
+msgstr "Submit"
+
+#: ui/dialogs/cluster_action.py
+msgid "Submeter mesmo assim"
+msgstr "Submit anyway"
+
+#: ui/dialogs/cluster_action.py
+msgid "Submeter no cluster"
+msgstr "Submit to the cluster"
+
+#: ui/dialogs/cluster_action.py
+msgid "Submeter outro job com o mesmo nome?"
+msgstr "Submit another job with the same name?"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "Submeter {script}?"
+msgstr "Submit {script}?"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Substituir grade"
+msgstr "Replace grid"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "Sítio no nome"
+msgstr "Site in the name"
+
+#: ui/widgets/plot/atom_table.py
+msgid "Só espécie ▸"
+msgstr "Species only ▸"
+
+#: ui/widgets/plot/atom_table.py
+#, python-brace-format
+msgid "Só espécie: {species} ▸"
+msgstr "Species only: {species} ▸"
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Só os campos do padrão do tipo; o resto segue o SCF e o config.yaml"
+msgstr "Only the type's standard fields; the rest follows the SCF and config.yaml"
+
+#: ui/widgets/shell/bars.py
+msgid "Tema"
+msgstr "Theme"
+
+#: ui/widgets/shell/bars.py
+#, python-brace-format
+msgid "Tema: {theme} · Ctrl+T"
+msgstr "Theme: {theme} · Ctrl+T"
+
+#: ui/main_window.py
+#, python-brace-format
+msgid "Tema: {theme}."
+msgstr "Theme: {theme}."
+
+#: ui/actions.py
+msgid "Testar conexão"
+msgstr "Test connection"
+
+#: ui/dialogs/calc_create/preview.py
+msgid "Tipo"
+msgstr "Type"
+
+#: ui/dialogs/mapping.py ui/plot/plot_workflow.py
+msgid "Tipo de cálculo:"
+msgstr "Calculation type:"
+
+#: ui/widgets/plot/atom_table.py
+msgid "Todas"
+msgstr "All"
+
+#: ui/dialogs/grid_dialog.py
+msgid "Todas as posições da grade estão ocupadas"
+msgstr "Every position of the grid is taken"
+
+#: ui/dialogs/calc_create/mode_switch.py
+msgid "Todos os campos, os nomes dos arquivos e a prévia editável"
+msgstr "All fields, the file names and the editable preview"
+
+#: ui/widgets/shell/bars.py
+msgid "Unir gráficos abertos numa grade N×M (uma só figura)"
+msgstr "Combine open plots in an N×M grid (a single figure)"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+#, python-brace-format
+msgid "Valor inválido: {value}"
+msgstr "Invalid value: {value}"
+
+#: ui/dialogs/calc_create/kmesh.py
+#, python-brace-format
+msgid "Vazio = padrão: {value}"
+msgstr "Empty = default: {value}"
+
+#: ui/actions.py
+msgid "Ver arquivos do cluster"
+msgstr "Browse cluster files"
+
+#: ui/dialogs/calc_create/dialog.py
+msgid "Ver em 3D a estrutura do cálculo: a do SCF e a de cada input gerado com outra"
+msgstr ""
+"View the structure of the calculation in 3D: the SCF's and that of each generated input with "
+"another one"
+
+#: ui/widgets/shell/bars.py
+msgid "Ver os arquivos do cluster (clique de novo para voltar aos locais)"
+msgstr "Browse the cluster's files (click again to go back to the local ones)"
+
+#: ui/widgets/shell/bars.py
+msgid "Verificando conexão…"
+msgstr "Checking connection…"
+
+#: ui/widgets/plot/plot_view.py
+msgid "Vista anterior"
+msgstr "Previous view"
+
+#: ui/dialogs/calc_create/dialog.py ui/dialogs/calc_create/structure_preview.py
+msgid "Visualizar 3D"
+msgstr "View 3D"
+
+#: ui/tools/structure3d_controller.py
+#, python-brace-format
+msgid "Visualização 3D de {name}: {reason}"
+msgstr "3D view of {name}: {reason}"
+
+#: ui/actions.py ui/dialogs/calc_create/dialog.py ui/dialogs/cluster_action.py
+msgid "Voltar"
+msgstr "Back"
+
+#: ui/widgets/shell/bars.py
+msgid "Voltar (Alt+←)"
+msgstr "Back (Alt+←)"
+
+#: ui/widgets/plot/params_body.py
+#, python-brace-format
+msgid "Voltar todos os ajustes ao padrão e apagar {name}.plot"
+msgstr "Reset all settings to the defaults and delete {name}.plot"
+
+#: ui/plot/plot_workflow.py
+#, python-brace-format
+msgid "Voltar todos os ajustes deste gráfico ao padrão e apagar {name}?"
+msgstr "Reset all settings of this plot to the defaults and delete {name}?"
+
+#: ui/widgets/plot/plot_params.py
+msgid "Voltar à árvore"
+msgstr "Back to the tree"
+
+#: ui/widgets/plot/plot_view.py
+msgid "Zoom (retângulo)"
+msgstr "Zoom (rectangle)"
+
+#: ui/app.py
+msgid "caminho do config.yaml"
+msgstr "path to config.yaml"
+
+#: ui/app.py ui/main_window.py
+msgid "config.yaml inválido"
+msgstr "Invalid config.yaml"
+
+#: ui/main_window.py
+msgid "config.yaml recarregado."
+msgstr "config.yaml reloaded."
+
+#: ui/shell/help_controller.py
+msgid "desligado"
+msgstr "off"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "em execução desde {date}"
+msgstr "running since {date}"
+
+#: ui/widgets/plot/params_body.py
+msgid "ex.: G, X, W, L, G"
+msgstr "e.g. G, X, W, L, G"
+
+#: ui/app.py
+msgid "log detalhado"
+msgstr "detailed log"
+
+#: ui/dialogs/cluster_action.py
+#, python-brace-format
+msgid "na fila desde {date}"
+msgstr "queued since {date}"
+
+#: ui/dialogs/grid_dialog.py
+msgid "nome da grade"
+msgstr "grid name"
+
+#: ui/dialogs/calc_create/kmesh.py
+#, python-brace-format
+msgid "n{n}: pontos na direção do vetor recíproco b{n}"
+msgstr "n{n}: points along the reciprocal vector b{n}"
+
+#: ui/dialogs/grid_cells.py
+msgid "o do gráfico"
+msgstr "the plot's own"
+
+#: ui/dialogs/calc_create/form.py
+msgid "obrigatório"
+msgstr "required"
+
+#: ui/dialogs/calc_create/setup_page.py
+msgid "opcional, ex.: Al, Fe_teste"
+msgstr "optional, e.g.: Al, Fe_test"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "quebra"
+msgstr "break"
+
+#: ui/dialogs/calc_create/kmesh.py
+#, python-brace-format
+msgid "s{n}: desloca a rede meio passo na direção b{n}"
+msgstr "s{n}: shifts the mesh half a step along b{n}"
+
+#: ui/dialogs/calc_create/kpath_editor.py
+msgid "vazio"
+msgstr "empty"
+
+#: ui/dialogs/calc_create/form.py
+msgid "vazio = não escrever"
+msgstr "empty = do not write"
+
+#: ui/dialogs/calc_create/form.py
+#, python-brace-format
+msgid "vazio = {default}"
+msgstr "empty = {default}"
+
+#: ui/dialogs/mapping.py
+msgid "vários arquivos separados por ;"
+msgstr "several files separated by ;"
+
+#: ui/shell/excepthook.py
+#, python-brace-format
+msgid ""
+"{kind}: {value}\n"
+"\n"
+"Detalhes no log ({path})."
+msgstr ""
+"{kind}: {value}\n"
+"\n"
+"Details in the log ({path})."
+
+#: ui/tools/adsorption_energy_controller.py ui/tools/derive_controller.py
+#, python-brace-format
+msgid "{name} criado"
+msgstr "{name} created"
+
+#: ui/dialogs/calc_create/scf_list.py
+#, python-brace-format
+msgid "{name} já está na lista"
+msgstr "{name} is already in the list"
+
+#: ui/widgets/shell/workspace.py
+#, python-brace-format
+msgid "{name} não parece um input do Quantum ESPRESSO."
+msgstr "{name} does not look like a Quantum ESPRESSO input."
+
+#: ui/dialogs/calc_create/setup_page.py
+#, python-brace-format
+msgid "{note} e as edições dos arquivos se perdem"
+msgstr "{note} and the file edits are lost"
+
+#: ui/widgets/plot/params_body.py
+#, python-brace-format
+msgid "{n} arquivos"
+msgstr "{n} files"
+
+#: ui/dialogs/atoms.py
+#, python-brace-format
+msgid "{n} de {m} marcados"
+msgstr "{n} of {m} marked"
+
+#: ui/widgets/plot/atom_table.py
+#, python-brace-format
+msgid "{n} de {m} átomos"
+msgstr "{n} of {m} atoms"
+
+#: ui/shell/footer_path.py
+#, python-brace-format
+msgid "{n} itens selecionados"
+msgstr "{n} items selected"
+
+#: ui/widgets/plot/atom_table.py
+#, python-brace-format
+msgid "{n} marcado fora do filtro"
+msgid_plural "{n} marcados fora do filtro"
+msgstr[0] "{n} marked atom outside the filter"
+msgstr[1] "{n} marked atoms outside the filter"
+
+#: ui/dialogs/calc_create/scf_list.py
+#, python-brace-format
+msgid "{path} · prefix {prefix}, {atoms} átomos"
+msgstr "{path} · prefix {prefix}, {atoms} atoms"
+
+#: ui/dialogs/calc_create/scf_list.py
+#, python-brace-format
+msgid "{path}: lendo…"
+msgstr "{path}: reading…"
+
+#: ui/shell/excepthook.py
+#, python-brace-format
+msgid "{title}: {kind}{short}"
+msgstr "{title}: {kind}{short}"
+
+#: ui/shell/excepthook.py
+#, python-brace-format
+msgid "{title}: {kind}{short} (ver o log)"
+msgstr "{title}: {kind}{short} (see the log)"
+
+#: ui/widgets/shell/bars.py
+msgid "Árvore"
+msgstr "Tree"
+
+#: ui/widgets/plot/atom_table.py
+#, python-brace-format
+msgid "Átomo {index} {species}"
+msgstr "Atom {index} {species}"
+
+#: ui/dialogs/atoms.py
+msgid "Átomos da PDOS"
+msgstr "PDOS atoms"
+
+#: ui/dialogs/atoms.py
+#, python-brace-format
+msgid "Átomos de {formula}"
+msgstr "Atoms of {formula}"
+
+#: ui/widgets/plot/params_body.py
+msgid "Átomos…"
+msgstr "Atoms…"
+

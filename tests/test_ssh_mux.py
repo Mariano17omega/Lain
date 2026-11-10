@@ -24,8 +24,8 @@ from pathlib import Path
 import pytest
 
 from qe_studio.core.config import parse_config
-from qe_studio.core.remote.actions import classify_failure
 from qe_studio.core.remote.cluster_jobs import JobsSnapshot, fetch_jobs
+from qe_studio.core.remote.failure import classify_failure
 from qe_studio.core.remote.listing import list_remote
 from qe_studio.core.sync import mux
 from qe_studio.core.sync.command import remote_command, run_command

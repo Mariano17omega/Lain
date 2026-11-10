@@ -1,10 +1,12 @@
 """Spec 23 R3.3, R4: the "Grids" window."""
 
 import pytest
-from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtCore import QEvent, QPoint, QPointF, Qt
+from PyQt6.QtGui import QColor, QWheelEvent
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from qe_studio.core.plotting.grid import GridCell, GridSpec, PlotRef
+from qe_studio.ui.dialogs.grid_dialog import GRID_FULL
 
 
 def plot(qtbot, window, folder):
@@ -81,6 +83,73 @@ def test_add_and_remove_cells(qtbot, two_plots):
     dialog.table.selectRow(0)
     dialog.remove_button.click()
     assert len(dialog.spec().cells) == 2
+
+
+def test_a_full_grid_has_no_room_for_a_new_cell(qtbot, two_plots):
+    """1 x 2 with two cells: no free position, so no cell is made on top of another."""
+    dialog = open_dialog(qtbot, two_plots[0])
+    assert not dialog.add_button.isEnabled() and dialog.add_button.toolTip() == GRID_FULL
+    dialog.table.add_cell()  # what the button would do: nothing
+    assert len(dialog.spec().cells) == 2 and dialog.spec().validate() == []
+    dialog.rows.setValue(2)
+    assert dialog.add_button.isEnabled() and dialog.add_button.toolTip() == ""
+    dialog.add_button.click()
+    cells = dialog.spec().cells
+    assert len(cells) == 3 and (cells[2].row, cells[2].col) == (1, 0)
+    dialog.rows.setValue(2)
+    dialog.cols.setValue(2)
+    dialog.add_button.click()  # the last free position, (2, 2) in the table's numbering
+    assert len(dialog.spec().cells) == 4 and not dialog.add_button.isEnabled()
+    dialog.table.spin(3, 2).setValue(1)  # a cell moved away (it now overlaps another)
+    assert dialog.table.has_free_position() and dialog.add_button.isEnabled()
+
+
+def test_the_wheel_never_changes_a_cell(qtbot, two_plots):
+    """The wheel over the table scrolls it: the spin boxes and the plot combo ignore it."""
+    dialog = open_dialog(qtbot, two_plots[0])
+    dialog.rows.setValue(3)
+    spin, combo = dialog.table.spin(1, 1), dialog.table.combo(1)
+    before = (spin.value(), combo.currentIndex())
+    assert before == (1, 1) and spin.maximum() == 3 and combo.count() == 2
+    for widget in (spin, combo):
+        wheel = QWheelEvent(
+            QPointF(4, 4),
+            QPointF(4, 4),
+            QPoint(0, 0),
+            QPoint(0, 120),  # up: a spin box would take it to 2, the combo to its first plot
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+            Qt.ScrollPhase.NoScrollPhase,
+            False,
+        )
+        QApplication.sendEvent(widget, wheel)
+        assert not wheel.isAccepted()
+    assert (spin.value(), combo.currentIndex()) == before
+
+
+def test_loading_cells_validates_once(qtbot, two_plots):
+    window, bands, _relax = two_plots
+    dialog = open_dialog(qtbot, window)
+    dialog.rows.setValue(3)
+    changes = []
+    dialog.table.changed.connect(lambda: changes.append(1))
+    cells = [GridCell(r, c, bands.ref) for r, c in ((0, 0), (0, 1), (1, 0), (1, 1), (2, 0))]
+    dialog.table.set_cells(cells)
+    assert len(changes) == 1 and len(dialog.spec().cells) == 5
+
+
+def test_a_plot_opened_meanwhile_clears_the_stale_error(qtbot, main_window, demo_project):
+    """No plot is open: a new cell has none to show, and the window says so. Opening one and
+    coming back to the window fills the cell, and the message, Gerar and Salvar follow."""
+    dialog = open_dialog(qtbot, main_window)
+    dialog.add_button.click()
+    assert "escolha um gráfico" in dialog.problem.text()
+    assert not dialog.generate_button.isEnabled() and not dialog.save_button.isEnabled()
+    plot(qtbot, main_window, demo_project / "03_bands")
+    QApplication.sendEvent(dialog, QEvent(QEvent.Type.WindowActivate))
+    assert dialog.table.combo(0).count() == 1 and dialog.table.cells()[0].ref is not None
+    assert dialog.problem.isHidden() and dialog.problem.text() == ""
+    assert dialog.generate_button.isEnabled() and dialog.save_button.isEnabled()
 
 
 def test_save_and_open_round_trip(qtbot, two_plots, demo_project):

@@ -19,8 +19,9 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QMenu, QWidget
 
 from ...core.config import AppConfig
-from ...core.remote.actions import ActionFailure, checked_dir
+from ...core.remote.actions import checked_dir
 from ...core.remote.cluster_jobs import Job
+from ...core.remote.failure import RemoteFailure
 from ...core.remote.job_cancel import (
     Done,
     NotRunning,
@@ -97,9 +98,6 @@ class JobCancelController(QObject):
         popup.cancel_reason = controller.waiting_blocked
         return controller
 
-    def _account(self, config: AppConfig) -> str:
-        return f"{config.cluster.user}@{config.cluster.host}"
-
     # -- a running job: the menu of a folder -----------------------------------------------------
     def add_to_menu(self, menu: QMenu, items: list[RemotePath]) -> None:
         """ "Cancelar simulação…" for one folder or one ``.qsub`` (its folder)."""
@@ -141,7 +139,7 @@ class JobCancelController(QObject):
             CHECKING, plan_stop, config, folder, password, on_done=self._on_stop_planned
         )
 
-    def _on_stop_planned(self, result: StopPlan | NotRunning | ActionFailure) -> None:
+    def _on_stop_planned(self, result: StopPlan | NotRunning | RemoteFailure) -> None:
         pending, self._pending = self._pending, None
         if pending is None:
             return
@@ -151,7 +149,7 @@ class JobCancelController(QObject):
             return
         self.actions.report(None)
         config, password = pending
-        account, folder = self._account(config), result.remote_dir
+        account, folder = config.cluster.account, result.remote_dir
         rows: Rows = [
             [
                 (_("Job"), job.name),
@@ -191,7 +189,7 @@ class JobCancelController(QObject):
         try:
             line = delete_line(config, job)
         except ValueError as exc:
-            failure = ActionFailure(str(exc), local=True)
+            failure = RemoteFailure(str(exc), local=True)
             self._tell(failure)
             self.done.emit(failure)
             return
@@ -216,21 +214,18 @@ class JobCancelController(QObject):
         self.actions.run(DELETING, delete_waiting, config, job, password, on_done=self._on_answer)
 
     # -- the answer ------------------------------------------------------------------------------
-    def _on_answer(self, result: Done | Refused | ActionFailure) -> None:
+    def _on_answer(self, result: Done | Refused | RemoteFailure) -> None:
         folder, self._folder = self._folder, None
         self._tell(result)
-        reached = not isinstance(result, ActionFailure) or not (
-            result.connection or result.auth or result.local
-        )
-        if reached:
+        if not isinstance(result, RemoteFailure) or result.answered:
             self.jobs.refresh()  # the job leaves the queue, now or at pw.x's next check
             if folder is not None:
                 self.actions.list_again(folder)  # the new <prefix>.EXIT
         self.done.emit(result)
 
-    def _tell(self, result: Done | Refused | NotRunning | ActionFailure) -> None:
+    def _tell(self, result: Done | Refused | NotRunning | RemoteFailure) -> None:
         """The toast, and what the answer tells the LED."""
-        if isinstance(result, ActionFailure):
+        if isinstance(result, RemoteFailure):
             text = _("O cancelamento falhou: {message}").format(message=result.message)
             self.toast.show_message(text, "error")
             self.actions.report(result)

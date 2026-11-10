@@ -8,13 +8,8 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from qe_studio.core.config import parse_config
-from qe_studio.core.remote.actions import (
-    SAFE_NAME,
-    ActionFailure,
-    checked_dir,
-    checked_name,
-    classify_failure,
-)
+from qe_studio.core.remote.actions import SAFE_NAME, checked_dir, checked_name
+from qe_studio.core.remote.failure import RemoteFailure, classify_failure
 from qe_studio.core.remote.submit import SubmitPlan, submit_steps
 from qe_studio.core.sync.command import CommandResult
 
@@ -102,7 +97,7 @@ def test_failures_are_classified():
     auth = classify_failure(result(255, "u@h: Permission denied (publickey)."), "qsub", setting)
     assert auth.auth and not auth.connection
     missing = classify_failure(result(127, "bash: qsub: command not found"), "qsub", setting)
-    assert missing == ActionFailure(
+    assert missing == RemoteFailure(
         "O comando qsub não foi encontrado no cluster (cluster.submit_command).", missing=True
     )
     gone = classify_failure(
@@ -110,13 +105,44 @@ def test_failures_are_classified():
     )
     assert gone.connection
     other = classify_failure(result(1, "warning\nUnable to read script file\n"), "qsub", setting)
-    assert other == ActionFailure("qsub terminou com código 1: Unable to read script file")
+    assert other == RemoteFailure("qsub terminou com código 1: Unable to read script file")
     assert classify_failure(result(2), "qsub", setting).message == "qsub terminou com código 2."
     # The command's own "Permission denied" (spec 70: a folder the user cannot write) is no login
     # refused: the password stays.
     denied = classify_failure(
         result(1, "touch: cannot touch 'a/x.EXIT': Permission denied"), "touch"
     )
-    assert denied == ActionFailure(
+    assert denied == RemoteFailure(
         "touch terminou com código 1: touch: cannot touch 'a/x.EXIT': Permission denied"
     )
+
+
+# -- what is missing, and which step failed --------------------------------------------------------
+SETTING = "cluster.submit_command"
+
+
+def test_another_program_missing_is_no_missing_command():
+    """A login script of the cluster, before the command that really failed."""
+    found = classify_failure(
+        result(1, "bash: module: command not found\nqsub: refused\n"), "qsub", SETTING
+    )
+    assert not found.missing and found.message == "qsub terminou com código 1: qsub: refused"
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    ["bash: qsub: command not found", "sh: 1: qsub: not found", "qsub: Command not found."],
+)
+def test_each_shell_s_way_of_saying_it_counts(stderr):
+    assert classify_failure(result(1, stderr), "/opt/sge/bin/qsub -V", SETTING).missing
+
+
+def test_a_chain_names_the_step_that_failed():
+    earlier = ("cd", "chmod")
+    failed_cd = result(1, "bash: line 1: cd: /x: No such file or directory\n")
+    found = classify_failure(failed_cd, "qsub", SETTING, earlier)
+    assert not found.missing and found.message.startswith("cd terminou com código 1")
+    absent = classify_failure(
+        result(127, "bash: chmod: command not found"), "qsub", SETTING, earlier
+    )
+    assert absent == RemoteFailure("O comando chmod não foi encontrado no cluster.", missing=True)

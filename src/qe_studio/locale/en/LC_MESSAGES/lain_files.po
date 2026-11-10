@@ -1,0 +1,526 @@
+# English translations for Lain: QE Studio.
+# Copyright (C) 2026 Mariano Sobrinho
+# This file is distributed under the same license as the Lain: QE Studio project.
+# Mariano Sobrinho <onairam17@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Report-Msgid-Bugs-To: onairam17@gmail.com\n"
+"POT-Creation-Date: 2026-11-10 01:41-0400\n"
+"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
+"Language: en\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ui/widgets/files/file_grid.py
+#, python-brace-format
+msgid "({rows} de {total})"
+msgstr "({rows} of {total})"
+
+#: core/files/file_kinds.py core/files/filtering.py
+msgid "AVISO"
+msgstr "WARNING"
+
+#: ui/widgets/files/context_menu.py
+msgid "Abrir com XCrysDen"
+msgstr "Open with XCrysDen"
+
+#: ui/widgets/files/context_menu.py
+msgid "Abrir local de origem"
+msgstr "Show in file manager"
+
+#: ui/widgets/files/file_grid.py
+msgid "Abrir os arquivos selecionados"
+msgstr "Open the selected files"
+
+#: ui/files/navigation_controller.py
+#, python-brace-format
+msgid "Adicionado aos favoritos: {name}"
+msgstr "Added to favorites: {name}"
+
+#: ui/widgets/files/context_menu.py
+msgid "Adicionar aos favoritos"
+msgstr "Add to favorites"
+
+#: ui/files/navigation_controller.py
+msgid "Avançar no histórico"
+msgstr "Forward in history"
+
+#: core/search/fuzzy.py
+msgid "Ações"
+msgstr "Actions"
+
+#: ui/widgets/files/context_menu.py
+msgid "Bandas com DOS"
+msgstr "Bands with DOS"
+
+#: ui/files/navigation_controller.py
+msgid "Botão lateral (avançar)"
+msgstr "Side button (forward)"
+
+#: ui/files/navigation_controller.py
+msgid "Botão lateral (voltar)"
+msgstr "Side button (back)"
+
+#: ui/widgets/files/context_menu.py
+msgid "Calcular adsorção…"
+msgstr "Calculate adsorption…"
+
+#: ui/widgets/files/context_menu.py
+msgid "Comparar"
+msgstr "Compare"
+
+#: ui/files/navigation_controller.py
+#, python-brace-format
+msgid "Copiado: {path}"
+msgstr "Copied: {path}"
+
+#: ui/files/project_controller.py
+msgid "Criando projeto…"
+msgstr "Creating project…"
+
+#: ui/widgets/files/view_controls.py
+msgid "Data"
+msgstr "Date"
+
+#: core/files/xcrysden.py
+msgid "Defina paths.xcrysden_path no config.yaml para abrir com o XCrysDen."
+msgstr "Set paths.xcrysden_path in config.yaml to open with XCrysDen."
+
+#: core/project/projects.py
+msgid "Digite um nome para o projeto"
+msgstr "Type a name for the project"
+
+#: core/files/file_ops.py
+msgid "Digite um nome."
+msgstr "Type a name."
+
+#: core/files/file_kinds.py core/files/filtering.py ui/widgets/files/explorer.py
+msgid "ERRO"
+msgstr "ERROR"
+
+#: ui/widgets/files/context_menu.py
+msgid "Enviar ao cluster"
+msgstr "Upload to cluster"
+
+#: core/files/run_errors.py
+#, python-brace-format
+msgid "Erro de simulação: arquivo {name}"
+msgstr "Simulation error: file {name}"
+
+#: core/files/run_errors.py
+#, python-brace-format
+msgid "Erro de simulação: {name} não corresponde às máquinas do job"
+msgstr "Simulation error: {name} does not match the job's machines"
+
+#: ui/widgets/files/context_menu.py
+msgid "Escolher programa…"
+msgstr "Choose program…"
+
+#: ui/widgets/files/file_grid.py
+msgid "Estado do arquivo"
+msgstr "File status"
+
+#: core/project/projects.py
+msgid "Este nome é reservado: a pasta não apareceria como projeto"
+msgstr "This name is reserved: the folder would not show up as a project"
+
+#: core/project/projects.py
+msgid "Este nome é reservado: é a lixeira do cluster"
+msgstr "This name is reserved: it is the cluster's trash"
+
+#: core/files/file_kinds.py
+msgid "Execução concluída (JOB DONE)"
+msgstr "Run finished (JOB DONE)"
+
+#: core/files/file_kinds.py
+msgid "Execução concluída com avisos"
+msgstr "Run finished with warnings"
+
+#: ui/widgets/files/explorer.py
+msgid "Explorador"
+msgstr "Explorer"
+
+#: ui/files/detection_service.py
+#, python-brace-format
+msgid "Falha ao detectar {name}"
+msgstr "Failed to detect {name}"
+
+#: ui/files/detection_service.py
+#, python-brace-format
+msgid "Falha ao detectar {name} (veja o log)"
+msgstr "Failed to detect {name} (see the log)"
+
+#: ui/widgets/files/explorer.py
+msgid "Favoritos"
+msgstr "Favorites"
+
+#: ui/widgets/files/file_grid.py
+msgid "Filtrar a grade"
+msgstr "Filter the grid"
+
+#: ui/widgets/files/explorer.py
+msgid "Filtrar a árvore"
+msgstr "Filter the tree"
+
+#: ui/widgets/files/file_grid.py
+msgid "Filtrar por nome (* e ?)"
+msgstr "Filter by name (* and ?)"
+
+#: ui/widgets/files/explorer.py
+msgid "Filtrar por nome (pastas já abertas)"
+msgstr "Filter by name (folders already opened)"
+
+#: ui/widgets/files/filter_bar.py
+msgid "Filtrar por tipo ou estado"
+msgstr "Filter by type or status"
+
+#: ui/widgets/files/filter_bar.py
+msgid "Filtrar ▾"
+msgstr "Filter ▾"
+
+#: ui/widgets/files/file_grid.py
+msgid "Grade de arquivos"
+msgstr "File grid"
+
+#: ui/files/rename_controller.py
+#, python-brace-format
+msgid "Há um SCF convergido sendo gerado a partir de {name}. Espere terminar."
+msgstr "A converged SCF is being generated from {name}. Wait for it to finish."
+
+#: ui/files/rename_controller.py
+#, python-brace-format
+msgid "Há um cálculo sendo criado em {name}. Espere terminar."
+msgstr "A calculation is being created in {name}. Wait for it to finish."
+
+#: ui/files/rename_controller.py
+#, python-brace-format
+msgid "Há um envio ao cluster em andamento em {where}. Espere terminar ou cancele."
+msgstr "An upload to the cluster is in progress in {where}. Wait for it to finish or cancel it."
+
+#: ui/files/rename_controller.py
+msgid "Há uma exportação de figura em andamento. Espere terminar e tente de novo."
+msgstr "A figure export is in progress. Wait for it to finish and try again."
+
+#: ui/files/rename_controller.py
+#, python-brace-format
+msgid "Há uma sincronização em andamento em {where}. Espere terminar ou cancele."
+msgstr "A sync is in progress in {where}. Wait for it to finish or cancel it."
+
+#: core/files/file_kinds.py core/files/filtering.py
+msgid "INCOMPLETO"
+msgstr "INCOMPLETE"
+
+#: core/project/projects.py
+msgid "Já existe um projeto com esse nome"
+msgstr "A project with this name already exists"
+
+#: core/project/projects.py
+msgid "Já existe uma pasta com esse nome"
+msgstr "A folder with this name already exists"
+
+#: core/files/file_ops.py
+#, python-brace-format
+msgid "Já existe “{name}” nesta pasta."
+msgstr "“{name}” already exists in this folder."
+
+#: ui/widgets/files/view_controls.py
+msgid "Lista"
+msgstr "List"
+
+#: ui/widgets/files/project_combo.py
+msgid "Mostra só as pastas de um projeto (uma pasta da raiz)"
+msgstr "Shows only the folders of one project (a folder of the root)"
+
+#: ui/widgets/files/explorer.py
+msgid "Mostrar arquivos na árvore"
+msgstr "Show files in the tree"
+
+#: ui/files/navigation_controller.py
+msgid "Navegação"
+msgstr "Navigation"
+
+#: ui/widgets/files/context_menu.py
+msgid "Nenhum programa encontrado"
+msgstr "No program found"
+
+#: core/files/file_ops.py
+msgid "Nome inválido."
+msgstr "Invalid name."
+
+#: ui/widgets/files/context_menu.py
+#, python-brace-format
+msgid "Não foi possível abrir {file} com {program}."
+msgstr "Could not open {file} with {program}."
+
+#: core/project/projects.py
+#, python-brace-format
+msgid "Não foi possível criar a pasta {path}: {value}"
+msgstr "Could not create the folder {path}: {value}"
+
+#: ui/files/rename_controller.py
+#, python-brace-format
+msgid "Não foi possível renomear {name}: {error}"
+msgstr "Could not rename {name}: {error}"
+
+#: core/files/xcrysden.py
+#, python-brace-format
+msgid "Não há o executável {EXECUTABLE} em {target}."
+msgstr "There is no {EXECUTABLE} executable in {target}."
+
+#: ui/widgets/files/breadcrumb.py
+msgid "Níveis ocultos"
+msgstr "Hidden levels"
+
+#: core/files/file_kinds.py
+msgid "O job não registrou erros (arquivo vazio ou só com as máquinas do job)"
+msgstr "The job logged no errors (the file is empty or only lists its machines)"
+
+#: core/files/file_kinds.py
+msgid "O job registrou mensagens de erro (o arquivo não é só a lista das máquinas do job)"
+msgstr "The job logged error messages (the file is not just the list of its machines)"
+
+#: core/project/projects.py
+msgid "O nome não pode começar com ponto"
+msgstr "The name cannot start with a dot"
+
+#: core/files/file_ops.py
+msgid "O nome não pode conter “/” nem “\\”."
+msgstr "The name cannot contain “/” or “\\”."
+
+#: core/files/file_kinds.py core/files/filtering.py
+msgid "OK"
+msgstr "OK"
+
+#: ui/widgets/files/explorer.py
+msgid "Ocultar arquivos da árvore"
+msgstr "Hide files from the tree"
+
+#: ui/widgets/files/view_controls.py
+msgid "Ordenar"
+msgstr "Sort"
+
+#: ui/widgets/files/context_menu.py
+msgid "Outro programa…"
+msgstr "Other program…"
+
+#: ui/files/navigation_controller.py
+#, python-brace-format
+msgid "Pasta não existe mais: {names}"
+msgstr "Folder no longer exists: {names}"
+
+#: core/search/fuzzy.py ui/widgets/files/explorer.py ui/widgets/files/file_grid.py
+msgid "Pastas"
+msgstr "Folders"
+
+#: ui/widgets/files/project_combo.py
+msgid "Projeto"
+msgstr "Project"
+
+#: ui/files/project_controller.py
+#, python-brace-format
+msgid "Projeto {name} criado"
+msgstr "Project {name} created"
+
+#: ui/files/project_controller.py
+#, python-brace-format
+msgid "Projeto {name} não encontrado"
+msgstr "Project {name} not found"
+
+#: ui/files/project_controller.py
+#, python-brace-format
+msgid "Projeto: {name}"
+msgstr "Project: {name}"
+
+#: ui/files/project_controller.py
+#, python-brace-format
+msgid "Raiz: {path}"
+msgstr "Root: {path}"
+
+#: ui/widgets/files/explorer.py
+msgid "Recolher tudo"
+msgstr "Collapse all"
+
+#: ui/widgets/files/context_menu.py
+msgid "Remover dos favoritos"
+msgstr "Remove from favorites"
+
+#: ui/widgets/files/filter_bar.py
+msgid "Remover filtro"
+msgstr "Remove filter"
+
+#: ui/files/navigation_controller.py
+#, python-brace-format
+msgid "Removido dos favoritos: {name}"
+msgstr "Removed from favorites: {name}"
+
+#: ui/files/rename_controller.py
+#, python-brace-format
+msgid "Renomeado: {old} → {new}"
+msgstr "Renamed: {old} → {new}"
+
+#: ui/widgets/files/context_menu.py
+msgid "Resumo"
+msgstr "Summary"
+
+#: core/files/file_kinds.py core/files/filtering.py
+msgid "SEM ERROS"
+msgstr "NO ERRORS"
+
+#: core/files/file_kinds.py
+msgid "Sem JOB DONE: job rodando ou interrompido"
+msgstr "No JOB DONE: job running or interrupted"
+
+#: ui/widgets/files/file_grid.py
+msgid "Subir uma pasta"
+msgstr "Go up one folder"
+
+#: ui/widgets/files/file_grid.py
+msgid "Tipo do arquivo"
+msgstr "File type"
+
+#: ui/widgets/files/project_combo.py
+msgid "Todos os projetos"
+msgstr "All projects"
+
+#: ui/files/navigation_controller.py
+msgid "Voltar no histórico"
+msgstr "Back in history"
+
+#: core/files/xcrysden.py
+#, python-brace-format
+msgid "XCrysDen não encontrado: {target}."
+msgstr "XCrysDen not found: {target}."
+
+#: core/files/filtering.py
+msgid "dados"
+msgstr "data"
+
+#: ui/widgets/files/explorer.py ui/widgets/files/file_card.py
+msgid "detectando…"
+msgstr "detecting…"
+
+#: core/files/filtering.py
+msgid "imagens"
+msgstr "images"
+
+#: core/files/filtering.py
+msgid "inputs"
+msgstr "inputs"
+
+#: core/project/project_data.py
+msgid "nenhuma"
+msgstr "none"
+
+#: ui/widgets/files/nav_sections.py
+msgid "não encontrada"
+msgstr "not found"
+
+#: core/project/compounds.py core/project/folder_memory.py core/project/grid_store.py
+#: core/project/nav_store.py
+msgid "o conteúdo não é um objeto JSON"
+msgstr "the content is not a JSON object"
+
+#: core/files/filtering.py
+msgid "outros"
+msgstr "other"
+
+#: core/files/filtering.py
+msgid "saídas"
+msgstr "outputs"
+
+#: core/files/filtering.py
+msgid "sem estado"
+msgstr "no state"
+
+#: core/files/filtering.py
+msgid "sem tipo"
+msgstr "no type"
+
+#: ui/files/rename_controller.py
+msgid "toda a pasta raiz"
+msgstr "the whole root folder"
+
+#: core/project/compounds.py
+msgid "todos"
+msgstr "all"
+
+#: core/project/compounds.py core/project/folder_memory.py core/project/grid_store.py
+#: core/project/nav_store.py
+#, python-brace-format
+msgid "versão de formato desconhecida: {data!r}"
+msgstr "unknown format version: {data!r}"
+
+#: core/files/xcrysden.py
+#, python-brace-format
+msgid "{candidate} não é executável."
+msgstr "{candidate} is not executable."
+
+#: core/project/project_data.py
+#, python-brace-format
+msgid "{folder} não é gravável: as configurações do projeto ficam em {fallback}."
+msgstr "{folder} is not writable: the project settings are kept in {fallback}."
+
+#: core/project/project_data.py
+#, python-brace-format
+msgid "{folder} não é uma pasta: as configurações do projeto ficam em {fallback}."
+msgstr "{folder} is not a folder: the project settings are kept in {fallback}."
+
+#: ui/widgets/files/context_menu.py
+#, python-brace-format
+msgid "{name} (padrão)"
+msgstr "{name} (default)"
+
+#: core/project/compounds.py core/project/folder_memory.py core/project/grid_store.py
+#: core/project/nav_store.py
+#, python-brace-format
+msgid "{name} estava corrompido; cópia salva em {copy}"
+msgstr "{name} was corrupted; copy saved at {copy}"
+
+#: core/project/compounds.py
+#, python-brace-format
+msgid "{name} ilegível e não pôde ser copiado ({value}): a seleção de átomos desta sessão não será salva"
+msgstr ""
+"{name} is unreadable and could not be copied ({value}): this session's atom selection will not be"
+" saved"
+
+#: core/project/grid_store.py
+#, python-brace-format
+msgid "{name} ilegível e não pôde ser copiado ({value}): as grades desta sessão não serão salvas"
+msgstr "{name} is unreadable and could not be copied ({value}): this session's grids will not be saved"
+
+#: core/project/nav_store.py
+#, python-brace-format
+msgid ""
+"{name} ilegível e não pôde ser copiado ({value}): favoritos e recentes desta sessão não serão "
+"salvos"
+msgstr ""
+"{name} is unreadable and could not be copied ({value}): favorites and recents of this session "
+"will not be saved"
+
+#: core/project/folder_memory.py
+#, python-brace-format
+msgid ""
+"{name} ilegível e não pôde ser copiado ({value}): mapeamentos e rótulos desta sessão não serão "
+"salvos"
+msgstr ""
+"{name} is unreadable and could not be copied ({value}): mappings and labels of this session will "
+"not be saved"
+
+#: ui/widgets/files/context_menu.py ui/widgets/files/file_card.py
+#, python-brace-format
+msgid "{n} item"
+msgid_plural "{n} itens"
+msgstr[0] "{n} item"
+msgstr[1] "{n} items"
+
+#: ui/widgets/files/explorer.py
+msgid "Árvore de pastas"
+msgstr "Folder tree"
+

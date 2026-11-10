@@ -4,9 +4,12 @@ whole, read back line by line; in the test's own data folder (``XDG_DATA_HOME``)
 import pytest
 
 from qe_studio.core.appdirs import data_dir
+from qe_studio.core.remote import submit_log
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.remote.submit_log import (
     HEADER,
     Logged,
+    log_for_check,
     log_path,
     logged_here,
     logged_under,
@@ -64,10 +67,28 @@ def test_a_file_without_the_header_gets_it(tmp_path):
     assert path.read_text(encoding="utf-8").startswith(HEADER + "\n2026-10-26T14:03:12Z")
 
 
-def test_a_log_that_cannot_be_read_counts_as_empty(tmp_path):
+def test_a_log_that_cannot_be_read_is_an_error(tmp_path):
     folder = tmp_path / "log"
     folder.mkdir()  # reading a folder fails with an OSError
-    assert read_log(folder) == []
+    with pytest.raises(OSError):
+        read_log(folder)
+
+
+def test_a_check_cannot_go_on_without_the_log(monkeypatch, tmp_path):
+    monkeypatch.setattr(submit_log, "log_path", lambda: tmp_path)
+    failure = log_for_check("Nada foi feito.")
+    assert isinstance(failure, RemoteFailure) and failure.local
+    assert failure.message.endswith("Nada foi feito.")
+
+
+def test_a_log_that_does_not_exist_has_no_jobs():
+    assert log_for_check("Nada foi feito.") == []
+
+
+def test_the_refusal_of_a_field_says_which_job(tmp_path):
+    with pytest.raises(ValueError, match="1") as caught:
+        record(ACCOUNT, "1", "a\tb", BANDS, "bands.qsub", tmp_path / "log")
+    assert "Logged(" not in str(caught.value)
 
 
 @pytest.mark.parametrize("field", ["a\tb", "a\nb", ""])

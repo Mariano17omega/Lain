@@ -124,6 +124,7 @@ class CardHeader:
     option: str = ""
     option_start: int = 0
     option_end: int = 0
+    joined: bool = False  # ``K_POINTS{crystal}``: no blank after the name, which pw.x needs
 
 
 @dataclass
@@ -143,6 +144,8 @@ _WORD = re.compile(r"[A-Za-z][A-Za-z_]*")
 _UNKNOWN_CARD = re.compile(r"[A-Z][A-Z_]{3,}")
 _OPTION_REST = re.compile(r"\s*(?:\{[^}]*\}|\([^)]*\)|[\w-]+)?\s*")
 _OPTION = re.compile(r"[^\s{}()]+")
+# As pw.x prints a vc-relax's cell. It reads only the word: the value comes from celldm(1) or A.
+_CELL_ALAT = re.compile(r"alat\s*=\s*" + NUMBER.pattern, re.I)
 _IDENT = re.compile(r"[A-Za-z_]\w*")
 _REPEAT = re.compile(r"\d+\*")
 _LOGICAL_OK = {".true.", ".false.", ".t.", ".f.", "t", "f"}
@@ -352,18 +355,21 @@ def _card_header(code: str, first: int, in_namelist: bool, continuing: bool) -> 
         continuing or not _UNKNOWN_CARD.fullmatch(match.group()) or not _OPTION_REST.fullmatch(rest)
     ):
         return None
-    option = _OPTION.search(rest)
+    joined = rest.startswith(("{", "("))
+    alat = _CELL_ALAT.search(rest) if name == "CELL_PARAMETERS" else None
+    option = alat or _OPTION.search(rest)
     if option is None:
-        return CardHeader(name, known, first, match.end())
+        return CardHeader(name, known, first, match.end(), joined=joined)
     shift = match.end()
     return CardHeader(
         name,
         known,
         first,
         match.end(),
-        option.group(),
+        "alat" if alat else option.group(),
         shift + option.start(),
         shift + option.end(),
+        joined,
     )
 
 

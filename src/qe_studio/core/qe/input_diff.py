@@ -3,9 +3,10 @@
 Both work on text or on the tolerant reader's ``InputDoc``, so inputs with write errors compare too.
 
 ``compare_params`` says what *means* something different: ``1d-8``, ``1.0e-8`` and ``1.E-8`` are
-the same number, ``.t.`` is ``.true.``, strings differ by neither case nor outer blanks (QE
-normalizes most of its string parameters). ``text_rows`` aligns the two files line by line for a
-side-by-side view; it ignores nothing unless asked to ignore blanks and comments.
+the same number, ``.t.`` is ``.true.``, strings differ by neither their quotes nor outer blanks. Case
+counts: pw.x compares its strings as written, and a ``prefix`` or a pseudopotential is a name on a
+case-sensitive disk. ``text_rows`` aligns the two files line by line for a side-by-side view; it
+ignores nothing unless asked to ignore blanks and comments.
 """
 
 from __future__ import annotations
@@ -98,13 +99,13 @@ class TextRow:
 # -- by parameter ------------------------------------------------------------------------------
 def _element(token: str) -> Hashable:
     if token[0] in "'\"":
-        return ("s", token.strip("'\"").strip().casefold())
+        return ("s", token.strip("'\"").strip())
     if token.lower() in _LOGICALS:
         return ("b", _LOGICALS[token.lower()])
     number = fortran_float(token)
     if number is not None:
         return ("n", number)
-    return ("s", token.casefold())
+    return ("s", token)
 
 
 def normalize_value(text: str) -> tuple[Hashable, ...]:

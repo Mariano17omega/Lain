@@ -5,6 +5,7 @@ saves it there, a section per file, only when the user changed something. Every 
 import os
 import shutil
 import threading
+import time
 
 import numpy as np
 import pytest
@@ -301,6 +302,25 @@ def test_the_view_is_written_off_the_gui_thread(qtbot, window, si_folder, monkey
     assert saved.args == [si_folder / NAME]
     assert len(threads) == 1 and threads[0] is not threading.main_thread()
     assert sections_of(si_folder)[NAME]["options"]["radius_scale"] == 1.75
+
+
+def test_a_file_reopened_at_once_shows_the_view_just_closed(qtbot, window, si_folder, monkeypatch):
+    """The save of the closed window is still queued (a slow disk) when the file is asked again:
+    the reading waits for it instead of opening the older view."""
+    from qe_studio.ui.tools import structure3d_controller
+
+    real = structure3d_controller.write_session
+
+    def slow(*args):
+        time.sleep(0.5)
+        return real(*args)
+
+    monkeypatch.setattr(structure3d_controller, "write_session", slow)
+    view = open_view(qtbot, window, si_folder / NAME)
+    view.panel.radius.setValue(1.75)
+    view.close()  # queued: not written yet
+    again = open_view(qtbot, window, si_folder / NAME)
+    assert again.canvas.options.radius_scale == 1.75
 
 
 def test_closing_the_main_window_saves_a_changed_view(qtbot, main_window, si_folder):

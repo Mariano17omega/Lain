@@ -30,19 +30,11 @@ from pathlib import PurePosixPath
 
 from ...i18n import _
 from ..config import AppConfig
-from .actions import (
-    ActionFailure,
-    checked_dir,
-    checked_name,
-    classify_failure,
-    failure_of,
-    failure_of_jobs,
-    run_action,
-)
-from .cluster_jobs import Job, JobsFailure, JobsSnapshot, fetch_jobs, running_in
-from .listing import RemoteEntry, RemoteFailure, list_outputs, list_remote
-from .submit import account
-from .submit_log import logged_here, logged_under, read_log
+from .actions import checked_dir, checked_name, run_action
+from .cluster_jobs import Job, JobsSnapshot, fetch_jobs, running_in, same_job_name
+from .failure import RemoteFailure, classify_failure, explained
+from .listing import RemoteEntry, list_outputs, list_remote
+from .submit_log import Logged, log_for_check, logged_here, logged_under
 from .trash_dir import TRASH_DIR, in_trash
 
 STAMP = "%Y-%m-%d_%H-%M-%S"
@@ -77,7 +69,7 @@ class TrashBlocked:
 @dataclass(frozen=True)
 class TrashDone:
     moved: tuple[Move, ...]  # what left its folder
-    failure: ActionFailure | None = None  # the step that stopped the others, when one did
+    failure: RemoteFailure | None = None  # the step that stopped the others, when one did
 
 
 # -- the names -------------------------------------------------------------------------------------
@@ -184,13 +176,13 @@ def _running(
 
 def _running_below(
     config: AppConfig, folder: str, jobs: JobsSnapshot, password: str | None
-) -> TrashBlocked | ActionFailure | None:
+) -> TrashBlocked | RemoteFailure | None:
     """Why a running job of the user with its ``<name>.o<id>`` anywhere in ``folder`` (a folder
     deleted, its subfolders included) blocks, or a subfolder that could not be read, where one could
     be; None when there is none. A job found in what could be read comes first: it says more."""
     outputs = list_outputs(config, folder, password)
     if isinstance(outputs, RemoteFailure):
-        return failure_of(outputs)
+        return outputs
     for relative in map(PurePosixPath, outputs.found):
         running = running_in([relative.name], jobs, config.cluster.user)
         if running:
@@ -205,11 +197,15 @@ def _running_below(
 
 
 def _logged(
-    config: AppConfig, remote_dir: str, items: Sequence[Item], jobs: JobsSnapshot
+    config: AppConfig,
+    remote_dir: str,
+    items: Sequence[Item],
+    jobs: JobsSnapshot,
+    entries: list[Logged],
 ) -> TrashBlocked | None:
     """Why a job Lain submitted from ``remote_dir``, or from a deleted folder or below it, still in
     the queue blocks; None when there is none."""
-    entries, who, user = read_log(), account(config), config.cluster.user
+    who, user = config.cluster.account, config.cluster.user
     folders = {key: remote_dir for key in logged_here(entries, who, remote_dir)}
     for path, is_dir in items:
         if is_dir:
@@ -217,7 +213,14 @@ def _logged(
                 {(e.job_id, e.name): e.remote_dir for e in logged_under(entries, who, path)}
             )
     for job in (*jobs.mine(user), *jobs.queued(user)):
-        folder = folders.get((job.job_id, job.name))
+        folder = next(
+            (
+                where
+                for (job_id, name), where in folders.items()
+                if job_id == job.job_id and same_job_name(job.name, name)
+            ),
+            None,
+        )
         if folder is None:
             continue
         if job.running:
@@ -237,12 +240,12 @@ def _logged(
 
 def trash_check(
     config: AppConfig, remote_dir: str, items: Sequence[Item], password: str | None = None
-) -> TrashBlocked | ActionFailure | None:
+) -> TrashBlocked | RemoteFailure | None:
     """Why nothing may move now (an item no longer there, the queue unreadable, a job of the user in
     the folder of the items or anywhere in a deleted folder); None when nothing blocks."""
     listing = list_remote(config, remote_dir, password)
     if isinstance(listing, RemoteFailure):
-        return failure_of(listing)
+        return listing
     present = {(entry.name, entry.is_dir) for entry in listing}
     for path, is_dir in items:
         name = PurePosixPath(path).name
@@ -250,13 +253,16 @@ def trash_check(
             message = _("{name} não está mais nesta pasta do cluster: nada foi movido.")
             return TrashBlocked(message.format(name=name))
     jobs = fetch_jobs(config, password)
-    if isinstance(jobs, JobsFailure):
+    if isinstance(jobs, RemoteFailure):
         message = _("Não foi possível conferir se roda um job aqui: {message}. Nada foi movido.")
-        return failure_of_jobs(jobs, message)
+        return explained(jobs, message)
     # The folder of the items and the log first: they need no other login.
-    blocked = _running(config, remote_dir, listing, jobs) or _logged(
-        config, remote_dir, items, jobs
-    )
+    if (blocked := _running(config, remote_dir, listing, jobs)) is not None:
+        return blocked
+    entries = log_for_check(_("Nada foi movido."))
+    if isinstance(entries, RemoteFailure):
+        return entries
+    blocked = _logged(config, remote_dir, items, jobs, entries)
     if blocked is not None or not jobs.mine(config.cluster.user):
         return blocked  # with no job of the user running, nothing below can be one
     for path, is_dir in items:
@@ -271,7 +277,7 @@ def plan_trash(
     items: Sequence[Item],
     password: str | None = None,
     now: datetime | None = None,
-) -> TrashPlan | TrashBlocked | ActionFailure:
+) -> TrashPlan | TrashBlocked | RemoteFailure:
     """What "Apagar…" will run for ``items`` (of one folder), after ``trash_check``; nothing runs
     that changes the cluster. ``now``: the date of the names (the local time by default)."""
     plain = tuple((path, bool(is_dir)) for path, is_dir in items)
@@ -281,7 +287,7 @@ def plan_trash(
     try:
         steps = trash_steps(config, plain, when)
     except ValueError as exc:
-        return ActionFailure(str(exc), local=True)
+        return RemoteFailure(str(exc), local=True)
     remote_dir = str(PurePosixPath(plain[0][0]).parent)
     checked = trash_check(config, remote_dir, plain, password)
     if checked is not None:
@@ -299,18 +305,18 @@ def _exists(config: AppConfig, target: str, password: str | None) -> bool:
 
 def run_trash(
     config: AppConfig, plan: TrashPlan, password: str | None = None
-) -> TrashDone | TrashBlocked | ActionFailure:
+) -> TrashDone | TrashBlocked | RemoteFailure:
     """Check again, then run ``plan.line``: what moved, and the step that stopped the others (the
     folder is listed again to tell); why nothing moved otherwise."""
     checked = trash_check(config, plan.remote_dir, plan.items, password)
     if checked is not None:
         return checked
     result = run_action(config, plan.line, password)
-    if isinstance(result, ActionFailure):
+    if isinstance(result, RemoteFailure):
         return result
     if result.code == 0:
         return TrashDone(plan.moves)
-    failure = classify_failure(result, MOVE)
+    failure = classify_failure(result, MOVE, others=("cd", "mkdir"))
     listing = list_remote(config, plan.remote_dir, password)
     if isinstance(listing, RemoteFailure):
         return failure
@@ -319,5 +325,5 @@ def run_trash(
     stuck = next((move for move in plan.moves if move not in moved), None)
     if stuck is not None and _exists(config, stuck[1], password):
         message = _("Já existe {target} no cluster: nada foi sobrescrito.")
-        failure = ActionFailure(message.format(target=stuck[1]))
+        failure = RemoteFailure(message.format(target=stuck[1]))
     return TrashDone(moved, failure) if moved else failure

@@ -30,7 +30,7 @@ from ..plotting.draw import (
 )
 from ..plotting.style import PlotStyle
 from ..qe.pairing import same_name_input
-from ..qe.pw_input import parse_input
+from ..qe.pw_input import read_input
 from ..qe.relax import RelaxData, read_relax
 from ..sniff import FileKind, FileSniff
 from .base import (
@@ -109,11 +109,8 @@ class InputSettings(NamedTuple):
 
 def input_settings(path: Path | None) -> InputSettings:
     """The thresholds of ``&CONTROL`` and the pressure settings of ``&CELL``, if any."""
-    if path is None:
-        return InputSettings()
-    try:
-        parsed = parse_input(path.read_text(encoding="utf-8", errors="replace"))
-    except Exception:
+    parsed = read_input(path) if path is not None else None
+    if parsed is None:
         return InputSettings()
 
     def number(namelist: str, key: str) -> float | None:
@@ -259,7 +256,9 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
             *COMMON_FIELDS,
         ]
 
-    def apply_limits(self, params: RelaxParams, axes_limits: AxesLimits) -> None:
+    def apply_limits(
+        self, dataset: RelaxDataset, params: RelaxParams, axes_limits: AxesLimits
+    ) -> None:
         """The step range only: Y stays automatic in each panel."""
         params.xmin, params.xmax = axes_limits[0][0]
 

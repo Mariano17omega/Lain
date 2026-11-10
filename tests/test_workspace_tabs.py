@@ -110,6 +110,21 @@ def test_close_all_and_close_one(qtbot, three_tabs, menu_choice):
     assert window.workspace.keys() == []
 
 
+def test_closing_the_last_tab_tells_the_subscribers_once_with_the_empty_state_showing(
+    qtbot, main_window, tmp_path
+):
+    path = tmp_path / "only.txt"
+    path.write_text("x\n")
+    workspace = main_window.workspace
+    main_window.open_file(path)
+    assert workspace.keys() == [str(path)]
+    told = []
+    workspace.current_changed.connect(lambda tab: told.append((tab, workspace.currentWidget())))
+    workspace.close_current()
+    assert told == [(None, workspace.empty)]  # once, and the empty state is already on show
+    assert workspace.current() is None and workspace.keys() == []
+
+
 def test_copy_path_and_reveal(qtbot, three_tabs, menu_choice):
     window, paths = three_tabs
     choice, _shown = menu_choice

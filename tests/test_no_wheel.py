@@ -96,6 +96,20 @@ def test_the_keyboard_and_the_mouse_still_edit_the_value(qtbot, spin, double_spi
     assert spin.value() == 7
 
 
+@pytest.mark.parametrize(
+    ("typed", "value"), [("1.5", 1.5), ("1,5", 1.5), ("0,25", 0.25), ("12,5", 12.5), ("-3,5", -3.5)]
+)
+def test_a_comma_typed_is_a_decimal_point_not_a_group_separator(qtbot, double_spin, typed, value):
+    """CLAUDE.md "Numbers": the C locale alone reads ``1,5`` as 15; the box maps it to a point."""
+    double_spin.setRange(-100.0, 100.0)
+    double_spin.setDecimals(2)
+    double_spin.lineEdit().selectAll()
+    qtbot.keyClicks(double_spin.lineEdit(), typed)
+    double_spin.interpretText()
+    assert double_spin.value() == pytest.approx(value)
+    assert "," not in double_spin.text()  # a point is shown, whatever the system locale
+
+
 # -- the settings panel ------------------------------------------------------------------------
 def plot(qtbot, window, folder):
     with qtbot.waitSignal(window.plot_ready, timeout=10_000):

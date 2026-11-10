@@ -10,6 +10,8 @@ from ..params import (
     COMMON_FIELDS,
     GAP_METHOD_FIELD,
     LEGEND_GAP_FIELD,
+    MID_GAP,
+    MID_GAP_TOOLTIP,
     CommonParams,
     ParamField,
     apply_common_config,
@@ -84,16 +86,19 @@ def default_params(config: AppConfig, dataset: BandsDataset) -> BandsParams:
         emin=plot.energy_min,
         emax=plot.energy_max,
     )
-    if params.reference == "absolute" and dataset.fermi is not None:
-        params.emin += dataset.fermi
-        params.emax += dataset.fermi
+    if params.reference == "absolute" and (level := dataset.fermi_level) is not None:
+        params.emin += level
+        params.emax += level
     apply_common_config(params, config)
     return params
 
 
 def param_schema(dataset: BandsDataset) -> list[ParamField]:
+    fermi_label = dict(REFERENCES)["fermi"]
+    if dataset.fermi_level != dataset.fermi:  # the reference is no longer a number of the SCF
+        fermi_label = f"E_F {MID_GAP}"
     references = [
-        (value, label)
+        (value, fermi_label if value == "fermi" else label)
         for value, label in REFERENCES
         if value == "absolute"
         or (value == "fermi" and dataset.fermi is not None)
@@ -107,6 +112,7 @@ def param_schema(dataset: BandsDataset) -> list[ParamField]:
             "choice",
             choices=tuple(references),
             refreshes=True,
+            tooltip=MID_GAP_TOOLTIP,
         ),
         ParamField(
             "emin",

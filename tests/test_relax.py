@@ -32,6 +32,9 @@ from qe_studio.core.qe.relax import (
     HEADER,
     INPUT,
     QE_DEFAULT,
+    RelaxData,
+    RelaxStep,
+    is_relaxed,
     parse_relax,
     read_relax,
 )
@@ -483,6 +486,46 @@ def vc_synthetic(
 
 def vc_steps(**kwargs):
     return parse_relax(vc_synthetic(**kwargs).splitlines()).steps
+
+
+def run_without_verdict(
+    pressure: float | None = 0.1,
+    enthalpies: tuple[float, float] = (-10.0, -10.0),
+    calculation: str = "vc-relax",
+    target: float = 0.0,
+) -> RelaxData:
+    """Two steps with flat energies and small forces, and no ``bfgs converged`` from pw.x."""
+    steps = [
+        RelaxStep(i, i, -10.0, 1e-4, enthalpy_ry=enthalpy, pressure_kbar=pressure)
+        for i, enthalpy in enumerate(enthalpies)
+    ]
+    return RelaxData(
+        calculation, steps, 1e-4, 1e-3, HEADER, HEADER, False, False, target_pressure_kbar=target
+    )
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "relaxed"),
+    [
+        ({}, True),
+        ({"pressure": 24.0}, False),  # the cell has not converged (press_conv_thr = 0.5)
+        ({"pressure": -24.0}, False),
+        ({"pressure": 24.0, "target": 24.2}, True),  # within press_conv_thr of ``press``
+        ({"pressure": None}, False),  # nothing says the cell converged
+        ({"enthalpies": (-10.0, -10.001)}, False),  # |ΔE| = 0 but |ΔH| is what BFGS compares
+        ({"pressure": 24.0, "calculation": "relax"}, True),  # a relax has no cell to converge
+    ],
+)
+def test_is_relaxed_without_the_bfgs_verdict(kwargs, relaxed):
+    assert is_relaxed(run_without_verdict(**kwargs)) is relaxed
+
+
+def test_the_formula_counts_a_second_site_list_once():
+    """With ``verbosity = 'high'`` pw.x prints the sites again in crystal coordinates."""
+    site = "        {0}           Si  tau(   {0}) = (   0.0000000   0.0000000   0.0000000  )"
+    sites = [site.format(1), site.format(2)]
+    lines = [*sites, "", "   Crystallographic axes", "", *sites]
+    assert parse_relax(lines).formula == "Si2"
 
 
 def test_vc_relax_fixture_has_the_lines_the_parser_reads():

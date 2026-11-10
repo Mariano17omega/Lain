@@ -3,13 +3,21 @@ errors and ``geracao.md``."""
 
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pytest
 
 from qe_studio.core.calc_create.scf_info import ScfInfo
 from qe_studio.core.calc_create.surface.report import REPORT_KEY, REPORT_NAME
 from qe_studio.core.calc_create.types import by_id, visible_fields
-from qe_studio.core.calc_create.types.slab import GAMMA_NOTE, NO_MESH, NO_MOLECULE_NOTE
+from qe_studio.core.calc_create.types.slab import (
+    GAMMA_NOTE,
+    NBND_ADDED_NOTE,
+    NO_MESH,
+    NO_MOLECULE_NOTE,
+    ODD_ELECTRONS_NOTE,
+)
 from qe_studio.core.calc_create.types.slab_fields import GROUP
 from qe_studio.core.calc_create.writer import create_folder
 from qe_studio.core.config import JobsConfig
@@ -152,9 +160,40 @@ def test_another_card_needs_a_mesh():
     )
     result = plan(scf)
     assert result.problems["kmesh"] == NO_MESH
+    assert "kmesh" in [f.id for f in visible_fields(SLAB.fields(scf, JOBS), "padrao")]
     typed = plan(scf, kmesh="3 2 1 0 0 0")
     assert not typed.errors
     assert InputEditor.from_text(input_text(typed)).card("K_POINTS").lines == ("3 2 1 0 0 0",)
+
+
+def with_nbnd(occupations: str = "fixed") -> ScfInfo:
+    editor = InputEditor.from_text(BULK_TEXT)
+    editor.set("system", "nbnd", "90")
+    editor.set("system", "occupations", f"'{occupations}'")
+    return from_text(editor.text())
+
+
+def test_atoms_added_take_nbnd_with_them():
+    complete = plan(with_nbnd(), **SCRIPT_FIELDS["slab_010"])
+    assert InputEditor.from_text(input_text(complete)).get("system", "nbnd") is None
+    assert NBND_ADDED_NOTE in complete.notes
+    plain = plan(with_nbnd())  # nothing added: the SCF's stays
+    assert InputEditor.from_text(input_text(plain)).get("system", "nbnd") == "90"
+    assert NBND_ADDED_NOTE not in plain.notes
+
+
+def test_an_odd_number_of_pairs_under_fixed_occupations_is_a_note():
+    note = ODD_ELECTRONS_NOTE.format(pairs=3)
+    assert note in plan(with_nbnd(), **SCRIPT_FIELDS["slab_010"]).notes
+    assert note not in plan(with_nbnd("smearing"), **SCRIPT_FIELDS["slab_010"]).notes
+
+
+def test_a_dynamics_pair_pw_refuses_is_marked():
+    assert "cell_dynamics" in plan(cell_dynamics="damp-w").problems
+
+
+def test_no_atoms_is_an_error_not_a_crash():
+    assert not plan(from_text(re.sub(r"\bnat\s*=\s*\d+", "nat = 0", BULK_TEXT))).ok
 
 
 def test_constraints_are_an_error_and_the_files_stay():

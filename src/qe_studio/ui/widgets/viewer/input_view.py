@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 from ....core.qe.input_extract import Chip
 from ....core.qe.input_lint import InputDoc, LintIssue, neighbour_issue
 from ....i18n import _, ngettext
+from ..common import clear_layout
 from ..flow_layout import FlowLayout
 from .code_view import CodeView
 
@@ -165,10 +166,7 @@ class InputView(QWidget):
         return [w for w in widgets if isinstance(w, QToolButton)]
 
     def _set_chips(self, chips: Sequence[Chip]) -> None:
-        while (item := self.chips_layout.takeAt(0)) is not None:
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
+        clear_layout(self.chips_layout)
         for chip in chips:
             button = QToolButton()
             button.setProperty("variant", "chip")

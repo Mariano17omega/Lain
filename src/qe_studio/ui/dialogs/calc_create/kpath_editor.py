@@ -40,7 +40,8 @@ from ....core.calc_create.kpath import (
 )
 from ....i18n import _
 from ...theme.manager import ThemeManager
-from ...widgets.common import set_variant
+from ...theme.scale import scaled
+from ...widgets.common import hide_vertical_header, set_variant
 from ...widgets.no_wheel import NoWheelSpinBox
 
 COLUMNS = (_("Rótulo"), "k1", "k2", "k3", _("Pontos"))
@@ -97,12 +98,9 @@ class KPathEditor(QWidget):
         points = self.table.horizontalHeaderItem(NPTS)
         if points is not None:
             points.setToolTip(_("Pontos até o próximo ponto do caminho"))
-        self.table.setMinimumHeight(
-            260
-        )  # a whole fcc path (about 12 points) without scrolling much
-        vertical = self.table.verticalHeader()
-        assert vertical is not None
-        vertical.setVisible(False)
+        # a whole fcc path (about 12 points) without scrolling much
+        self.table.setMinimumHeight(scaled(260))
+        hide_vertical_header(self.table)
         self.table.itemChanged.connect(self._on_item_changed)
         self.table.currentCellChanged.connect(self._update_buttons)
 
@@ -317,6 +315,9 @@ class KPathEditor(QWidget):
             if not (0 <= current < len(rows) and 0 <= target < len(rows)):
                 return current
             rows[current], rows[target] = rows[target], rows[current]
+            if rows[-1].jump:  # nothing follows the last point: the break stays one point back,
+                rows[-1] = replace(rows[-1], jump=False)  # between the same two positions
+                rows[-2] = replace(rows[-2], jump=True)
             return target
 
         self._mutate(move)

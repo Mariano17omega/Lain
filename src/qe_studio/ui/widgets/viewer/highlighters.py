@@ -155,17 +155,42 @@ SHELL_KEYWORDS = (
     "if then else elif fi for in do done case esac while until function select export source "
     "local return exit set unset"
 )
-# Later rules win where they overlap: a variable inside a string keeps its color, anything inside a
-# comment is the comment's, and a ``#$`` scheduler directive is not a comment.
+# A keyword is a whole word of its own: ``in`` in ``-in`` (an option) or ``scf.in`` (a file name)
+# is not one.
+KEYWORD = r"(?<![\w.\-])(?:" + "|".join(SHELL_KEYWORDS.split()) + r")(?![\w.\-])"
+# Later rules win where they overlap: a variable inside a string keeps its color, and a ``#$``
+# scheduler directive is not a comment. A comment is not a rule: where it starts depends on the
+# quotes before it (``shell_comment_start``).
 SHELL_RULES = (
-    _rule(rf"\b(?:{'|'.join(SHELL_KEYWORDS.split())})\b", "syn_namelist"),
+    _rule(KEYWORD, "syn_namelist"),
     _rule(r"(?:^|(?<=[\s;]))\.(?=\s)", "syn_namelist"),  # ". script": source
     _rule(r'"(?:[^"\\]|\\.)*"|\'[^\']*\'', "syn_string"),
     _rule(r"\$\{[^}]*\}|\$[A-Za-z_]\w*|\$[0-9@#?*$!-]", "syn_logical"),
-    _rule(r"(?:^|(?<=\s))#.*", "syn_comment"),
     _rule(r"^#\$.*", "syn_card"),
     _rule(r"(?<=^#\$)\s*-\w+", "syn_card_option", bold=True),
 )
+
+
+def shell_comment_start(text: str) -> int | None:
+    """Where the comment of the line starts: the first ``#`` outside quotes that begins a word.
+    Quotes are read as the shell does on one line: ``'…'`` is literal, ``"…"`` takes backslashes."""
+    quote = ""
+    column = 0
+    while column < len(text):
+        char = text[column]
+        if quote:
+            if char == "\\" and quote == '"':
+                column += 1  # the escaped character cannot close the string
+            elif char == quote:
+                quote = ""
+        elif char in "\"'":
+            quote = char
+        elif char == "\\":
+            column += 1
+        elif char == "#" and (column == 0 or text[column - 1].isspace()):
+            return column
+        column += 1
+    return None
 
 
 class ShellHighlighter(ThemedHighlighter):
@@ -175,8 +200,13 @@ class ShellHighlighter(ThemedHighlighter):
 
     def highlightBlock(self, text: str | None) -> None:
         text = text or ""
+        comment = None if text.startswith("#$") else shell_comment_start(text)
+        limit = len(text) if comment is None else comment  # what the comment starts is its own
         for rule in SHELL_RULES:
             for match in rule.pattern.finditer(text):
-                start, end = match.span()
-                self.setFormat(start, end - start, self.fmt(rule.token, rule.bold))
+                start, end = match.start(), min(match.end(), limit)
+                if end > start:
+                    self.setFormat(start, end - start, self.fmt(rule.token, rule.bold))
+        if comment is not None:
+            self.setFormat(comment, len(text) - comment, self.fmt("syn_comment"))
         self.underline_issues(text, self.currentBlock().blockNumber())

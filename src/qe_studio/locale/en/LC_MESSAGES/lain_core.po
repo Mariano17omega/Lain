@@ -1,0 +1,180 @@
+# English translations for Lain: QE Studio.
+# Copyright (C) 2026 Mariano Sobrinho
+# This file is distributed under the same license as the Lain: QE Studio project.
+# Mariano Sobrinho <onairam17@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Report-Msgid-Bugs-To: onairam17@gmail.com\n"
+"POT-Creation-Date: 2026-11-10 01:41-0400\n"
+"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
+"Language: en\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: core/config.py
+msgid "(raiz)"
+msgstr "(root)"
+
+#: core/appdirs.py
+#, python-brace-format
+msgid "A pasta de dados {folder} não pode ser usada ({error}); usando {default}."
+msgstr "The data folder {folder} cannot be used ({error}); using {default}."
+
+#: core/detection.py
+#, python-brace-format
+msgid "Arquivo não encontrado: {path}"
+msgstr "File not found: {path}"
+
+#: core/config.py
+#, python-brace-format
+msgid "Chave SSH não encontrada: {key_path}"
+msgstr "SSH key not found: {key_path}"
+
+#: core/config.py
+msgid "Cluster não configurado (host/user/remote_root): sincronização desativada."
+msgstr "Cluster not configured (host/user/remote_root): sync disabled."
+
+#: core/config.py
+#, python-brace-format
+msgid "Configuração inválida{where}:\n"
+msgstr "Invalid configuration{where}:\n"
+
+#: core/detection.py
+#, python-brace-format
+msgid ""
+"Esta pasta foi identificada como {join}, que não tem gráfico próprio. Para plotar "
+"{describe_plottable}, indique os arquivos."
+msgstr ""
+"This folder was identified as {join}, which has no plot of its own. To plot {describe_plottable},"
+" specify the files."
+
+#: core/detection.py
+#, python-brace-format
+msgid "Nenhum cálculo de {name} completo em {name_2}."
+msgstr "No complete {name} calculation in {name_2}."
+
+#: core/detection.py
+msgid ""
+"Nenhum cálculo reconhecido nesta pasta (nomes e conteúdo). Indique o tipo de cálculo e os "
+"arquivos manualmente."
+msgstr ""
+"No calculation recognized in this folder (names and content). Specify the calculation type and "
+"the files manually."
+
+#: core/app/logs.py
+#, python-brace-format
+msgid "Não foi possível gravar o log em {path} ({error}); esta sessão não tem arquivo de log."
+msgstr "Could not write the log to {path} ({error}); this session has no log file."
+
+#: core/detection.py
+#, python-brace-format
+msgid "Pasta da DOS não encontrada: {folder}"
+msgstr "DOS folder not found: {folder}"
+
+#: core/detection.py
+#, python-brace-format
+msgid "Pasta das bandas não encontrada: {folder}"
+msgstr "Bands folder not found: {folder}"
+
+#: core/config.py
+#, python-brace-format
+msgid "Pasta local não encontrada: {local_root}"
+msgstr "Local folder not found: {local_root}"
+
+#: core/detection.py
+#, python-brace-format
+msgid "Pasta não encontrada: {folder}"
+msgstr "Folder not found: {folder}"
+
+#: core/config.py
+msgid "Senha em texto puro no config.yaml; prefira password_env ou autenticação por chave."
+msgstr "Plain-text password in config.yaml; prefer password_env or key authentication."
+
+#: core/config.py
+#, python-brace-format
+msgid "YAML inválido: {exc}"
+msgstr "invalid YAML: {exc}"
+
+#: core/config.py
+#, python-brace-format
+msgid "arquivo indicado por {origin} não encontrado"
+msgstr "file given by {origin} not found"
+
+#: core/config.py
+#, python-brace-format
+msgid "auth: password, mas a variável {value} não está definida."
+msgstr "auth: password, but the variable {value} is not set."
+
+#: core/config.py
+msgid "chave desconhecida"
+msgstr "unknown key"
+
+#: core/config.py
+msgid "config.yaml não encontrado; usando valores padrão."
+msgstr "config.yaml not found; using default values."
+
+#: core/config.py
+#, python-brace-format
+msgid "e-mail inválido: {value}"
+msgstr "invalid e-mail: {value}"
+
+#: core/config.py
+msgid "energy_min deve ser menor que energy_max"
+msgstr "energy_min must be less than energy_max"
+
+#: core/config.py
+msgid "informe ao menos um formato"
+msgstr "give at least one format"
+
+#: core/config.py
+#, python-brace-format
+msgid "não foi possível ler o arquivo: {exc}"
+msgstr "could not read the file: {exc}"
+
+#: core/app/about.py
+msgid "não instalado"
+msgstr "not installed"
+
+#: core/appdirs.py
+msgid "não é gravável"
+msgstr "not writable"
+
+#: core/appdirs.py
+msgid "não é uma pasta"
+msgstr "not a folder"
+
+#: core/config.py
+msgid "o arquivo deve conter um mapeamento YAML (chave: valor)"
+msgstr "the file must contain a YAML mapping (key: value)"
+
+#: i18n.py
+#, python-brace-format
+msgid "{items} ou {last}"
+msgstr "{items} or {last}"
+
+#: core/detection.py
+#, python-brace-format
+msgid "{name} e {name_2} não formam um par de bandas e DOS completos."
+msgstr "{name} and {name_2} do not form a complete bands and DOS pair."
+
+#: core/config.py
+#, python-brace-format
+msgid "{name} foi removido e é ignorado: apague a linha do config.yaml."
+msgstr "{name} was removed and is ignored: delete the line from config.yaml."
+
+#: core/config.py
+#, python-brace-format
+msgid ""
+"{name} passou para os estilos de gráfico (resources/templates/plot_styles/padrao.yaml) e é "
+"ignorado: apague a linha do config.yaml."
+msgstr ""
+"{name} moved to the plot styles (resources/templates/plot_styles/padrao.yaml) and is ignored: "
+"delete the line from config.yaml."
+

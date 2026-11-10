@@ -185,6 +185,16 @@ def _frame(v0: np.ndarray, v1: np.ndarray) -> np.ndarray:
     return np.column_stack([e0, np.cross(e2, e0), e2])
 
 
+def _centred(z: np.ndarray) -> np.ndarray:
+    """The fractions along the vacuum axis with their mean on 0.5, as the scripts do. A layer so uneven
+    that this pushes atoms across the box is centred by its extent, which fits: it is thinner than the
+    box."""
+    shifted = z - z.mean() + 0.5
+    if shifted.min() < 0.0 or shifted.max() >= 1.0:
+        return z - 0.5 * (z.min() + z.max()) + 0.5
+    return shifted
+
+
 def make_slab(
     bulk: Model, options: SlabOptions, species: Sequence[str] | None = None
 ) -> SlabResult:
@@ -231,7 +241,7 @@ def make_slab(
     if np.linalg.det(cell) <= 0:
         raise SurfaceError(_("A célula do slab ficou com volume ≤ 0"))
     frac = (cart @ frame) @ np.linalg.inv(cell)
-    frac[:, 2] = (frac[:, 2] - frac[:, 2].mean() + 0.5) % 1.0  # the slab in the middle of the box
+    frac[:, 2] = _centred(frac[:, 2])  # the slab in the middle of the box
     flags = tuple(bulk.flag(i) if i < len(bulk) else None for i in range(len(labels)))
     model = Model(cell, tuple(labels), frac, flags)
     return SlabResult(

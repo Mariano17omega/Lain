@@ -2,6 +2,7 @@
 fixtures of Lain."""
 
 import itertools
+import tracemalloc
 
 import numpy as np
 import pytest
@@ -13,8 +14,8 @@ from qe_studio.core.structure3d.bonds import BondGraph, bonds_for, compute_bonds
 from qe_studio.core.structure3d.camera import Camera, frame_from
 from qe_studio.core.structure3d.elements import element_for_label, symbol_from_label
 from qe_studio.core.structure3d.model import AtomRef
-from qe_studio.core.structure3d.pick import hit_test, pick
-from qe_studio.core.structure3d.replicate import build_scene, original_mask, shifts
+from qe_studio.core.structure3d.pick import hit_test
+from qe_studio.core.structure3d.replicate import build_scene, shifts
 from qe_studio.core.structure3d.source import read_structure
 from structure3d_helpers import (
     BULK,
@@ -61,6 +62,20 @@ def molecule():
 def test_label_rule(label, symbol):
     assert symbol_from_label(label) == symbol
     assert element_for_label(label).known
+
+
+@pytest.mark.parametrize("label", ["D", "T", "D1", "T_2", "d_up"])
+def test_deuterium_and_tritium_are_hydrogen(label):
+    assert symbol_from_label(label) == "H"
+    assert element_for_label(label).r_cov == pytest.approx(0.31)
+
+
+@pytest.mark.parametrize(
+    ("label", "symbol"),
+    [("Dy", "Dy"), ("Ta", "Ta"), ("Te1", "Te"), ("Du", None), ("Tx", None)],
+)
+def test_other_labels_with_d_or_t_are_not_isotopes(label, symbol):
+    assert symbol_from_label(label) == symbol
 
 
 @pytest.mark.parametrize("label", ["X", "1Fe", "", "_", "Xx9"])
@@ -134,7 +149,7 @@ def test_silicon_has_four_neighbours_at_a_quarter_of_the_diagonal():
     assert len(bonds) == 4
     for index in range(2):
         near = graph.neighbors(AtomRef(index))
-        assert len(near) == 4 == graph.coordination(AtomRef(index))
+        assert len(near) == 4
         assert all(d == pytest.approx(SI_BOND) for _, d in near)
     assert pytest.approx(2.33, abs=0.01) == SI_BOND
 
@@ -156,7 +171,7 @@ def test_kaolinite_coordination(bulk):
     graph = BondGraph(bonds_for(bulk), len(bulk))
     coordination: dict[str, set[int]] = {}
     for index, symbol in enumerate(bulk.symbols):
-        coordination.setdefault(symbol, set()).add(graph.coordination(AtomRef(index)))
+        coordination.setdefault(symbol, set()).add(len(graph.neighbors(AtomRef(index))))
     assert coordination["Si"] == {4}
     assert coordination["Al"] == {6}
     assert coordination["H"] == {1}
@@ -193,6 +208,16 @@ def test_self_bond_is_listed_once():
     bonds = bonds_for(make_structure(1.3 * np.eye(3), [[0.0, 0.0, 0.0]], ["C"]))
     assert len(bonds) == 3  # +a, +b, +c
     assert np.all(bonds.i == bonds.j)
+
+
+def test_a_strongly_sheared_cell_keeps_its_bonds():
+    """The neighbour is 10 cells away along a: past the search limit, unless the cell is reduced."""
+    origin = [[0.0, 0.0, 0.0]]
+    sheared = compute_bonds(np.array([[3.0, 0, 0], [30.0, 1.5, 0], [0, 0, 10.0]]), origin, [0.76])
+    clean = compute_bonds(np.array([[3.0, 0, 0], [0, 1.5, 0], [0, 0, 10.0]]), origin, [0.76])
+    assert len(sheared) == len(clean) == 1
+    assert sheared.shift.tolist() == [[10, -1, 0]]  # listed once, with the shift positive
+    assert sheared.dist == pytest.approx(clean.dist)
 
 
 def test_bond_set_is_invariant_to_wrapping_atoms():
@@ -260,13 +285,11 @@ def expected_segments(structure, reps):
     return out
 
 
-def test_shifts_order_and_original_mask():
+def test_shifts_order():
     copies = shifts(2, 1, 3)
     assert copies.shape == (6, 3)
     assert copies[0].tolist() == [0, 0, 0] and copies[1].tolist() == [0, 0, 1]
     assert copies[-1].tolist() == [1, 0, 2]
-    mask = original_mask(copies)
-    assert mask.sum() == 1 and mask[0]
 
 
 @pytest.mark.parametrize("reps", [(1, 1, 1), (2, 1, 1), (2, 2, 1), (1, 3, 2)])
@@ -288,7 +311,6 @@ def test_atom_count_doubles_and_refs_are_exact():
     two = build_scene(structure, bonds_for(structure), (2, 1, 1))
     assert two.n_real == 2 * one.n_real
     assert two.refs[0].shift == (0, 0, 0) and two.refs[2].shift == (1, 0, 0)
-    assert two.original.sum() == one.n_real
     for k in range(4):
         assert np.allclose(two.positions[k], structure.position(two.refs[k]))
 
@@ -296,7 +318,7 @@ def test_atom_count_doubles_and_refs_are_exact():
 def test_ghosts_are_unique_outside_the_block_and_not_real():
     structure = si()
     scene = build_scene(structure, bonds_for(structure), (1, 1, 1))
-    assert scene.n_ghost > 0
+    assert len(scene.positions) > scene.n_real
     ghosts = np.round(scene.positions[scene.n_real :], 5)
     assert len(np.unique(ghosts, axis=0)) == len(ghosts)
     real = np.round(scene.positions[: scene.n_real], 5)
@@ -306,7 +328,33 @@ def test_ghosts_are_unique_outside_the_block_and_not_real():
 
 def test_molecule_has_no_ghosts(molecule):
     scene = build_scene(molecule, bonds_for(molecule), (1, 1, 1))
-    assert scene.n_ghost == 0 and len(scene.bond_a) == 4
+    assert len(scene.positions) == scene.n_real and len(scene.bond_a) == 4
+
+
+def test_atoms_far_from_the_cell_cost_nothing():
+    """Unwrapped coordinates make the shifts large: the work must follow the bonds, not the shifts."""
+    structure = si()
+    far = make_structure(
+        structure.cell, structure.frac + [[0, 0, 0], [61, 61, 61]], list(structure.labels)
+    )
+    bonds = bonds_for(far)
+    assert np.abs(bonds.shift).min() >= 60
+    reps = (2, 2, 1)
+    tracemalloc.start()
+    try:
+        scene = build_scene(far, bonds, reps)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < 5_000_000
+    copies = {tuple(c) for c in shifts(*reps).tolist()}
+    expected = sum(
+        len(copies | {(c[0] - s[0], c[1] - s[1], c[2] - s[2]) for c in copies})
+        for s in bonds.shift.tolist()
+    )
+    assert len(scene.bond_a) == expected
+    lengths = np.linalg.norm(scene.positions[scene.bond_a] - scene.positions[scene.bond_b], axis=1)
+    assert lengths == pytest.approx(np.full(expected, SI_BOND))
 
 
 def test_bounds_points_include_block_corners():
@@ -396,6 +444,23 @@ def test_fit_frames_all_points():
     assert xy[:, 1].min() >= 0 and xy[:, 1].max() <= VIEW[1]
     span = max(np.ptp(xy[:, 0]) / VIEW[0], np.ptp(xy[:, 1]) / VIEW[1])
     assert span == pytest.approx(0.9, abs=1e-6)
+
+
+@pytest.mark.parametrize("axis", ["a", "b", "c"])
+def test_fit_in_perspective_keeps_the_nearest_atoms_inside_the_view(axis):
+    cell = np.diag([20.0, 20.0, 30.0])
+    corners = np.array(list(itertools.product((0, 1), repeat=3)), dtype=float) @ cell
+    view = (800.0, 800.0)
+    cam = Camera()
+    cam.center = corners.mean(axis=0)
+    cam.view_axis(axis, cell)
+    cam.fit(corners, view, pad=2.0)
+    xy, _, scale = cam.project(corners, view)
+    reach = 2.0 * cam.zoom * scale[:, None]  # the atom's radius as it is drawn
+    low, high = (xy - reach).min(axis=0), (xy + reach).max(axis=0)
+    assert low.min() >= 0 and high.max() <= 800.0
+    assert np.max((high - low) / 800.0) == pytest.approx(0.9, abs=1e-6)
+    assert (low + high) / 2 == pytest.approx([400.0, 400.0])
 
 
 def test_isometric_view_has_z_up_and_collapses_the_diagonal():
@@ -509,10 +574,9 @@ def test_pick_chooses_front_atom_of_an_overlap():
     xy = np.array([[100.0, 100.0], [102.0, 101.0], [300.0, 300.0]])
     radii = np.array([10.0, 10.0, 10.0])
     order = np.argsort(np.array([5.0, 1.0, 0.0]))  # atom 1 is nearer than atom 0
-    refs = [AtomRef(0), AtomRef(1), AtomRef(2)]
-    assert pick((101.0, 100.0), xy, radii, order, refs) == AtomRef(1)
-    assert pick((88.0, 100.0), xy, radii, order, refs) == AtomRef(0)
-    assert pick((200.0, 200.0), xy, radii, order, refs) is None
+    assert hit_test((101.0, 100.0), xy, radii, order) == 1
+    assert hit_test((88.0, 100.0), xy, radii, order) == 0
+    assert hit_test((200.0, 200.0), xy, radii, order) is None
 
 
 def test_pick_tolerance_and_nan():
@@ -551,7 +615,7 @@ def test_the_scene_knows_the_fixed_copies_and_ghosts():
         np.eye(3) * 15, [[0.05, 0.5, 0.5], [0.95, 0.5, 0.5]], ["C", "C"], ((0, 0, 0), (1, 1, 1))
     )
     scene = build_scene(structure, bonds_for(structure), (2, 1, 1))
-    assert (scene.n_real, scene.n_ghost) == (4, 2)
+    assert (scene.n_real, len(scene.positions)) == (4, 6)  # two ghosts
     assert len(scene.fixed) == len(scene.positions)
     assert scene.fixed[: scene.n_real].tolist() == [True, False, True, False]
     # left of the block, atom 1 of the cell before; right of it, atom 0 of the cell after
@@ -562,4 +626,4 @@ def test_the_scene_knows_the_fixed_copies_and_ghosts():
 def test_a_scene_without_if_pos_fixes_nothing():
     structure = si()
     scene = build_scene(structure, bonds_for(structure), (2, 1, 1))
-    assert scene.n_ghost > 0 and not scene.fixed.any()
+    assert len(scene.positions) > scene.n_real and not scene.fixed.any()

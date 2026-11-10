@@ -15,7 +15,7 @@ from qe_studio.core.calc_create.kpath import KMesh
 from qe_studio.core.calc_create.scf_info import ScfInfo
 from qe_studio.core.calc_create.surface.adsorb import SURFACE
 from qe_studio.core.calc_create.surface.fixing import ALL_FIXED
-from qe_studio.core.calc_create.surface.merge import NBND_NOTE, merge_species
+from qe_studio.core.calc_create.surface.merge import NBND_NOTE, merge_namelists, merge_species
 from qe_studio.core.calc_create.surface.report import REPORT_KEY, REPORT_NAME
 from qe_studio.core.calc_create.types import by_id, shown_fields, visible_fields
 from qe_studio.core.calc_create.writer import create_folder
@@ -116,6 +116,32 @@ def test_species_and_namelists_of_the_two_scfs():
     assert VDW_NOTE in result.notes
     assert editor.get("control", "prefix") == "kaolinite-slab-001-2x1x1-HgCH3-O43"
     assert editor.get("control", "outdir") == "./tmp/"
+
+
+def with_beta(text: str, beta: float | None) -> InputEditor:
+    editor = InputEditor.from_text(text)
+    editor.remove("electrons", "mixing_beta")
+    if beta is not None:
+        editor.set("electrons", "mixing_beta", repr(beta))
+    return editor
+
+
+@pytest.mark.parametrize(
+    ("surface", "molecule", "expected"),
+    [
+        (0.4, 0.3, 0.3),
+        (0.3, 0.4, 0.3),
+        (None, 0.2, 0.2),  # the surface's is pw.x's 0.7
+        (0.4, None, 0.4),
+        (0.8, None, 0.7),
+        (None, None, None),
+    ],
+)
+def test_the_smaller_mixing_beta_counts_the_default_of_pw(surface, molecule, expected):
+    editor = with_beta(SUPERCELL_001.read_text(), surface)
+    merge_namelists(editor, from_text(with_beta(MOLECULE.read_text(), molecule).text()))
+    written = editor.get("electrons", "mixing_beta")
+    assert (fortran_float(written) if written is not None else None) == expected
 
 
 def test_the_prefix_of_a_pair_is_ascending():

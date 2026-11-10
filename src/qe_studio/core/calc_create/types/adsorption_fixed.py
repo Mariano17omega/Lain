@@ -31,7 +31,7 @@ from ..surface.fixing import (
     FixResult,
     apply_fix,
 )
-from ..surface.model import Flags, Model, flags_of, model_of
+from ..surface.model import Flags, Model, flags_of, model_of, partly_fixed
 from .base import Work, resolve
 from .surface_fields import (
     BOND_SCALE,
@@ -77,10 +77,8 @@ def _fixes(flag: Flags | None) -> bool:
 
 
 def default_rule(scf: ScfInfo) -> str:
-    """ "do SCF" when the surface fixes some atom but not all (that would leave the relax nothing to
-    move), else the bottom half."""
-    fixed = [_fixes(flag) for flag in flags_of(scf.text)]
-    return FROM_SCF if any(fixed) and not all(fixed) else BOTTOM
+    """ "do SCF" when the surface fixes some atom but not all, else the bottom half."""
+    return FROM_SCF if partly_fixed(scf.text) else BOTTOM
 
 
 @functools.lru_cache(maxsize=16)  # the window plans on every edit; the text rarely changes

@@ -9,8 +9,8 @@ from hypothesis import strategies as st
 
 from qe_studio.core.config import parse_config
 from qe_studio.core.remote import job_cancel
-from qe_studio.core.remote.actions import ActionFailure
-from qe_studio.core.remote.cluster_jobs import Job, JobsFailure, JobsSnapshot
+from qe_studio.core.remote.cluster_jobs import Job, JobsSnapshot
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.remote.inputs import StopSource
 from qe_studio.core.remote.job_cancel import (
     Done,
@@ -82,9 +82,12 @@ def test_a_running_job_of_the_folder_gets_its_stop_file(fakes):
     assert listing.calls == [BANDS] and fetch.calls == ["pw"] and prefixes.calls == [BANDS]
     assert run.commands == []  # planning changes nothing
 
-    assert stop(config(), plan, "pw") == Done(
+    done = stop(config(), plan, "pw")
+    assert isinstance(done, Done)
+    assert done.message.startswith(
         "Pedido de parada criado: al.EXIT. O pw.x para na próxima verificação."
     )
+    assert "Submeter" in done.message  # L-09: a job that ends first leaves the file behind
     assert run.commands == [TOUCH] and fetch.calls == ["pw", "pw"]  # the queue asked again
 
 
@@ -139,18 +142,18 @@ def test_one_stop_file_per_prefix_of_the_sources(fakes):
 
 def test_failures_before_the_plan(fakes):
     listing, fetch, prefixes, _run = fakes
-    prefixes.result = ActionFailure("prefix não suportado para o arquivo de parada: a b.")
+    prefixes.result = RemoteFailure("prefix não suportado para o arquivo de parada: a b.")
     assert plan_stop(config(), BANDS) == prefixes.result
 
-    fetch.result = JobsFailure("O cluster não respondeu a qstatus -a a tempo.", connection=True)
-    assert plan_stop(config(), BANDS) == ActionFailure(
+    fetch.result = RemoteFailure("O cluster não respondeu a qstatus -a a tempo.", connection=True)
+    assert plan_stop(config(), BANDS) == RemoteFailure(
         "Não foi possível conferir o estado do job no cluster: O cluster não respondeu a qstatus "
         "-a a tempo. Nada foi feito.",
         connection=True,
     )
     calls = len(listing.calls)
     failure = plan_stop(config(), "/elsewhere/Bands")
-    assert isinstance(failure, ActionFailure) and failure.local
+    assert isinstance(failure, RemoteFailure) and failure.local
     assert len(listing.calls) == calls  # refused before the cluster is asked
 
 
@@ -162,9 +165,9 @@ def test_a_job_that_ended_during_the_dialog_gets_no_stop_file(fakes):
     assert stop(config(), plan) == Refused(
         "O job 24000 não está mais em execução: nada foi criado."
     )
-    fetch.result = JobsFailure("x", auth=True)
+    fetch.result = RemoteFailure("x", auth=True)
     failure = stop(config(), plan)
-    assert isinstance(failure, ActionFailure) and failure.auth
+    assert isinstance(failure, RemoteFailure) and failure.auth
     assert run.commands == []  # no touch
 
 
@@ -173,11 +176,11 @@ def test_a_touch_that_fails_says_why(fakes):
     plan = plan_stop(config(), BANDS)
     assert isinstance(plan, StopPlan)
     run.result = CommandResult(1, "", "touch: cannot touch 'x': Permission denied\n")
-    assert stop(config(), plan) == ActionFailure(
+    assert stop(config(), plan) == RemoteFailure(
         "touch terminou com código 1: touch: cannot touch 'x': Permission denied"
     )
     run.result = CommandResult(127, "", "bash: touch: command not found\n")
-    assert stop(config(), plan) == ActionFailure(
+    assert stop(config(), plan) == RemoteFailure(
         "O comando touch não foi encontrado no cluster.", missing=True
     )
 
@@ -224,9 +227,9 @@ def test_qdel_never_runs_on_a_job_that_is_not_waiting(fakes, queue, message):
 
 def test_a_queue_that_cannot_be_read_runs_nothing(fakes):
     _listing, fetch, _prefixes, run = fakes
-    fetch.result = JobsFailure("O comando qstatus não foi encontrado.", missing=True)
+    fetch.result = RemoteFailure("O comando qstatus não foi encontrado.", missing=True)
     failure = delete_waiting(config(), waiting_job())
-    assert isinstance(failure, ActionFailure) and failure.missing
+    assert isinstance(failure, RemoteFailure) and failure.missing
     assert failure.message.endswith("Nada foi feito.")
     assert run.commands == []
 
@@ -234,7 +237,7 @@ def test_a_queue_that_cannot_be_read_runs_nothing(fakes):
 def test_a_qdel_that_fails_says_why(fakes):
     _listing, _fetch, _prefixes, run = fakes
     run.result = CommandResult(1, "", 'denied: job "25000" does not exist\n')
-    assert delete_waiting(config(), waiting_job()) == ActionFailure(
+    assert delete_waiting(config(), waiting_job()) == RemoteFailure(
         'qdel terminou com código 1: denied: job "25000" does not exist'
     )
 

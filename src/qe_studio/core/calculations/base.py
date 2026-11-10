@@ -284,6 +284,9 @@ class CalculationModule(Generic[D, P]):
             if existing and any(r.id == role_id for r in self.roles):
                 result.files[role_id] = existing
                 result.methods[role_id] = Method.MANUAL
+        # A mapping that lost files proves nothing: an anchor must be found, as in any detection.
+        mapped = [role_id for role_id, paths in (forced or {}).items() if paths]
+        whole = bool(mapped) and all(result.methods.get(r) is Method.MANUAL for r in mapped)
         for role in self.roles:
             if role.id in result.files:
                 continue
@@ -301,7 +304,7 @@ class CalculationModule(Generic[D, P]):
                 if chosen:
                     result.files[role.id] = chosen
                     result.methods[role.id] = method
-        if not forced and not any(r.anchor and r.id in result.files for r in self.roles):
+        if not whole and not any(r.anchor and r.id in result.files for r in self.roles):
             return None
         self.finalize(result, listing, sniffs, sniff)
         result.missing = [r.id for r in self.roles if r.required and r.id not in result.files] + [
@@ -397,7 +400,7 @@ class CalculationModule(Generic[D, P]):
         raise NotImplementedError
 
     # -- view hooks: keep the UI free of per-module knowledge ----------------------------------
-    def apply_limits(self, params: P, axes_limits: AxesLimits) -> None:
+    def apply_limits(self, dataset: D, params: P, axes_limits: AxesLimits) -> None:
         """Store the toolbar pan/zoom in ``params`` so edits and exports keep it.
 
         ``axes_limits`` holds ``(xlim, ylim)`` of every axes of the figure, in ``figure.axes``
@@ -439,9 +442,12 @@ class CalculationModule(Generic[D, P]):
 
     def load_cached(self, result: DetectionResult, sniff: SniffFn) -> D:
         """``load`` memoized on the files' (mtime, size), within a memory budget and loaded once
-        per key (``load_cache``); safe to call from worker threads."""
+        per key (``load_cache``); safe to call from worker threads. The folder and the warnings are
+        in the key because a dataset keeps its own copy of them."""
         key = (
             self.kind,
+            result.folder,
+            tuple(result.warnings),
             tuple(
                 sorted(
                     (role, tuple(_stamp(p) for p in paths)) for role, paths in result.files.items()

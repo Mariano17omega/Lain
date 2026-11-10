@@ -1,13 +1,17 @@
 """A CIF of a pw.x input's structure (spec 74): P1, every atom, built by hand.
 
 The text is a data file, so it does not change with the interface language. Fractions are written
-as the input has them (not wrapped into [0, 1)).
+as the input has them (not wrapped into [0, 1)), except in a left-handed cell: lengths and angles
+always describe a right-handed one, so it goes out as ``-a, -b, -c`` (the same lengths and angles)
+with the fractions negated, and no atom moves.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
+
+import numpy as np
 
 from ...i18n import _
 from ..files.unique_names import write_new
@@ -58,7 +62,7 @@ def cif_text(structure: Structure) -> str:
         f"_cell_angle_beta {beta:.8f}",
         f"_cell_angle_gamma {gamma:.8f}",
         f"_cell_volume {structure.volume:.8f}",
-        f"_chemical_formula_sum '{structure.formula}'",
+        f"_chemical_formula_sum '{' '.join(structure.formula_terms)}'",
         "loop_",
         "_symmetry_equiv_pos_as_xyz",
         "'x, y, z'",
@@ -70,8 +74,10 @@ def cif_text(structure: Structure) -> str:
         "_atom_site_fract_z",
         "_atom_site_occupancy",
     ]
+    # 0.0 - x, not -x: a zero must not be written as -0.00000000
+    fractions = 0.0 - structure.frac if np.linalg.det(structure.cell) < 0 else structure.frac
     for number, (label, symbol, frac) in enumerate(
-        zip(structure.labels, symbols, structure.frac, strict=True), start=1
+        zip(structure.labels, symbols, fractions, strict=True), start=1
     ):
         x, y, z = (f"{value:.8f}" for value in frac)
         lines.append(f"{_site_label(label, number)} {symbol} {x} {y} {z} 1.0")
@@ -86,4 +92,13 @@ def write_cif(path: Path) -> Path:
         structure = read_structure(path)
     except StructureReadError as exc:
         raise CifError(str(exc)) from exc
-    return write_new(path.with_suffix(".cif"), cif_text(structure), first=2)
+    target = path.with_suffix(".cif")
+    text = cif_text(structure)
+    try:
+        return write_new(target, text, first=2)
+    except OSError as exc:
+        raise CifError(
+            _("Não foi possível gravar {name}: {value}").format(
+                name=target.name, value=exc.strerror or exc
+            )
+        ) from exc

@@ -133,7 +133,7 @@ def test_zooming_either_side_panel_is_what_apply_limits_stores(spin):
     figure.axes[1].set_ylim(-1.0, 3.0)
     limits = [(ax.get_xlim(), ax.get_ylim()) for ax in figure.axes]
     assert limits[0] == limits[1]
-    module.apply_limits(params, limits)
+    module.apply_limits(dataset, params, limits)
     assert (params.xmin, params.xmax, params.emin, params.emax) == (0.5, 2.0, -1.0, 3.0)
 
 
@@ -292,6 +292,27 @@ def test_summary_of_an_insulating_up_channel_without_its_down_channel():
         BandsModule.summary(dataset)
         == "E_F = 5.1234 eV · gap ↑ (no caminho) 1.234 eV · 12 bandas × 200 pontos k"
     )
+
+
+def test_fixed_magnetization_with_only_the_up_channel_uses_its_own_fermi_energy():
+    # The top of band 1 (4.5) is above the mean of the two E_F (4.0) and below E_F↑ (5.0).
+    dataset = _dataset(
+        bands=BandData(np.array([0.0, 1.0]), np.array([[1.0, 4.5], [6.0, 7.0]])),
+        bands_down=None,
+        fermi=4.0,
+        fermi_kind="spin_fermi",
+        fermi_up_down=(5.0, 3.0),
+        edges={"up": ChannelEdges(5.0, 4.5, 6.0)},
+    )
+    module = BandsModule()
+    params = module.default_params(CONFIG, dataset)
+    params.reference, params.emin, params.emax = "absolute", 0.0, 8.0
+    figure, info = render(module, dataset, params, LIGHT)
+    (valence,) = [c for c in collections(figure.axes[0]) if _hex(c) == params.valence_color]
+    assert valence.get_segments()[0][:, 1].tolist() == [1.0, 4.5]
+    assert [y for y, _style in fermi_lines(figure.axes[0], params)] == [5.0]
+    assert "E_F↑ = 5.0000 eV" in info.summary
+    assert "E_F = " not in info.summary and "E_F↓" not in info.summary
 
 
 def test_occupation_coloring_counts_the_bands_of_fixed_occupations(spin):

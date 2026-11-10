@@ -5,13 +5,15 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout, QWidget
 
+from ..theme.scale import scaled
+
 
 class DetailsDialog(QDialog):
     def __init__(self, title: str, text: str, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setModal(False)
-        self.resize(560, 380)
+        self.resize(scaled(560), scaled(380))
         self.text = QPlainTextEdit(text)
         self.text.setObjectName("detailsText")
         self.text.setReadOnly(True)

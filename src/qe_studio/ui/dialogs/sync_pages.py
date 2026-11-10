@@ -22,6 +22,7 @@ from ...core.sync.preview import Preview, PreviewRow, PreviewSection, describe_p
 from ...core.sync.push_plan import PushPlan
 from ...i18n import _
 from ..theme.manager import ThemeManager
+from ..theme.scale import scaled
 from ..widgets.common import set_variant
 from ..widgets.spinner import CircularProgress
 
@@ -88,7 +89,7 @@ class PreviewPage(QWidget):
         self.tree.setColumnCount(len(COLUMNS))
         self.tree.setHeaderLabels(COLUMNS)
         self.tree.setUniformRowHeights(True)
-        self.tree.setMinimumSize(600, 260)
+        self.tree.setMinimumSize(scaled(600), scaled(260))
         header = self.tree.header()
         assert header is not None
         header.setStretchLastSection(False)

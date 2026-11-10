@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 
 from ...core.calculations import CalculationModule, DetectionResult
 from ...i18n import _
+from ..theme.scale import scaled
 from ..widgets.common import set_variant
 
 
@@ -38,11 +39,12 @@ class ManualMappingDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(_("Mapear arquivos manualmente"))
         self.setModal(True)
-        self.setMinimumWidth(620)
+        self.setMinimumWidth(scaled(620))
         self.folder = folder
         self.modules = modules
         self.results = {r.kind: r for r in results}
         self.edits: dict[str, QLineEdit] = {}
+        self._multiple: set[str] = set()  # the roles whose field takes several files, split on ";"
 
         layout = QVBoxLayout(self)
         title = set_variant(
@@ -95,7 +97,9 @@ class ManualMappingDialog(QDialog):
     def mapping(self) -> dict[str, list[Path]]:
         out = {}
         for role_id, edit in self.edits.items():
-            paths = [Path(p.strip()) for p in edit.text().split(";") if p.strip()]
+            # a file name may hold a ";": only a field of several files is split on it
+            parts = edit.text().split(";") if role_id in self._multiple else [edit.text()]
+            paths = [Path(p.strip()) for p in parts if p.strip()]
             if paths:
                 out[role_id] = paths
         return out
@@ -112,6 +116,7 @@ class ManualMappingDialog(QDialog):
             if widget is not None:
                 widget.deleteLater()
         self.edits.clear()
+        self._multiple.clear()
         module = self.module
         found = self.results.get(module.kind)
         for row, role in enumerate(module.roles):
@@ -122,13 +127,15 @@ class ManualMappingDialog(QDialog):
             if found and role.id in found.files:
                 edit.setText(";".join(str(p) for p in found.files[role.id]))
             browse = QPushButton("…")
-            browse.setFixedWidth(32)
+            browse.setFixedWidth(scaled(32))
             browse.clicked.connect(lambda _c=False, r=role, e=edit: self._browse(r, e))
             edit.textChanged.connect(self._validate)
             self.grid.addWidget(label, row, 0)
             self.grid.addWidget(edit, row, 1)
             self.grid.addWidget(browse, row, 2)
             self.edits[role.id] = edit
+            if role.multiple:
+                self._multiple.add(role.id)
         self._validate()
 
     def _browse(self, role, edit: QLineEdit) -> None:

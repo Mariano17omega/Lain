@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...i18n import _
+from ..theme.scale import scaled
 from ..widgets.common import set_variant
 
 
@@ -31,7 +32,7 @@ class OpenWithDialog(QDialog):
         )
         row = QHBoxLayout()
         self.edit = QLineEdit()
-        self.edit.setMinimumWidth(380)
+        self.edit.setMinimumWidth(scaled(380))
         self.edit.setPlaceholderText(_("Comando, ex.: gedit ou /opt/app/bin/app --flag"))
         browse = QPushButton(_("Procurar…"))
         browse.clicked.connect(self._browse)

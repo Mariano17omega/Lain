@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QLineEdit, QToolButton, QWidget
+from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QLineEdit, QWidget
 
 from ....i18n import _
+from ...theme.scale import scaled
+from ..common import tool_button
 from .code_view import MAX_MATCHES, CodeView
 
 TYPING_DELAY_MS = 200
@@ -44,13 +46,13 @@ class SearchBar(QWidget):
         layout.setSpacing(6)
         self.field = _SearchField()
         self.field.setPlaceholderText(_("Buscar no texto"))
-        self.field.setMinimumWidth(220)
-        self.previous = self._button(_("Anterior"), _("Anterior (Shift+Enter, Shift+F3)"))
-        self.next = self._button(_("Próximo"), _("Próximo (Enter, F3)"))
+        self.field.setMinimumWidth(scaled(220))
+        self.previous = tool_button(_("Anterior"), _("Anterior (Shift+Enter, Shift+F3)"))
+        self.next = tool_button(_("Próximo"), _("Próximo (Enter, F3)"))
         self.case = QCheckBox(_("Diferenciar maiúsculas"))
         self.counter = QLabel()
         self.counter.setObjectName("searchCounter")
-        self.close_button = self._button(_("Fechar"), _("Fechar (Esc)"))
+        self.close_button = tool_button(_("Fechar"), _("Fechar (Esc)"))
         for widget in (self.field, self.previous, self.next, self.case):
             layout.addWidget(widget)
         layout.addWidget(self.counter, 1)
@@ -68,14 +70,6 @@ class SearchBar(QWidget):
         self.next.clicked.connect(self.next_match)
         self.close_button.clicked.connect(self.dismiss)
         self.hide()
-
-    @staticmethod
-    def _button(text: str, tip: str) -> QToolButton:
-        button = QToolButton()
-        button.setProperty("variant", "viewerTool")
-        button.setText(text)
-        button.setToolTip(tip)
-        return button
 
     # -- open / close ------------------------------------------------------------------------
     def open(self) -> None:

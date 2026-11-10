@@ -73,7 +73,9 @@ def test_a_running_job_gets_its_stop_file(server):
     assert isinstance(plan, StopPlan), plan
     assert [job.job_id for job in plan.jobs] == ["7"] and plan.prefixes == ("al",)
     assert not (folder / "al.EXIT").exists()  # planning changes nothing
-    assert stop(config, plan) == Done(
+    done = stop(config, plan)
+    assert isinstance(done, Done)
+    assert done.message.startswith(
         "Pedido de parada criado: al.EXIT. O pw.x para na próxima verificação."
     )
     assert (folder / "al.EXIT").read_bytes() == b""

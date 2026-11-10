@@ -172,28 +172,26 @@ def _indices(structure: Structure) -> dict[str, list[int]]:
 
 
 def _species_colors(value: Any, structure: Structure) -> Any:
+    """Label → color; an entry that is wrong (a species the input no longer has, a bad color) drops
+    alone, so the colors of the other species stay."""
     if not isinstance(value, dict):
         return _INVALID
     known = _indices(structure)
     colors: dict[int, tuple[int, int, int]] = {}
     for label, color in value.items():
-        if not isinstance(label, str) or label not in known:
-            return _INVALID
-        if not isinstance(color, str) or not _HEX.fullmatch(color):
-            return _INVALID
-        rgb = (int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16))
-        for index in known[label]:
-            colors[index] = rgb
+        if label in known and isinstance(color, str) and _HEX.fullmatch(color):
+            rgb = (int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16))
+            for index in known[label]:
+                colors[index] = rgb
     return colors
 
 
 def _species_hidden(value: Any, structure: Structure) -> Any:
+    """The labels hidden; one the input no longer has drops alone."""
     if not isinstance(value, list):
         return _INVALID
     known = _indices(structure)
-    if not all(isinstance(label, str) and label in known for label in value):
-        return _INVALID
-    return {index for label in value for index in known[label]}
+    return {index for label in value if isinstance(label, str) for index in known.get(label, ())}
 
 
 _FIELDS: dict[str, Callable[[Any, Structure], Any]] = {

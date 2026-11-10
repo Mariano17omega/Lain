@@ -6,7 +6,8 @@ import pytest
 
 from qe_studio.core.calculations import Method
 from qe_studio.core.calculations.listing import FolderListing
-from qe_studio.core.detection import detect_folder
+from qe_studio.core.detection import Chosen, detect_folder, plot_choice
+from qe_studio.core.project.folder_memory import FolderMemory
 from qe_studio.core.sniff import SniffCache
 
 from conftest import FIXTURES, copy_fixture
@@ -206,3 +207,112 @@ def test_tmp_remote_copy_is_detected_on_its_own(tmp_path):
         "pdos.dat.pdos_atm#1(Al)_wfc#2(p)",
     ]
     assert all(path.parent == copy / "orbitals" for path in result.files["pdos_atm"])
+
+
+# -- which pdos_tot goes with the chosen projections ---------------------------------------------
+OLD, NEW, NEWEST = 1e9, 2e9, 3e9
+
+
+def pdos_group(folder: Path, prefix: str = "pdos.dat", total: bool = True, stamp: float = OLD):
+    """The PDOS files of ``al_pdos_flat`` in ``folder``, under ``prefix`` and dated ``stamp``."""
+    folder.mkdir(parents=True, exist_ok=True)
+    for path in (FIXTURES / "al_pdos_flat").glob("pdos.dat.pdos_*"):
+        if total or "pdos_tot" not in path.name:
+            copy = folder / path.name.replace("pdos.dat", prefix)
+            shutil.copy(path, copy)
+            os.utime(copy, (stamp, stamp))
+
+
+def test_the_total_is_the_one_in_the_folder_of_the_chosen_group(tmp_path):
+    chosen, other = tmp_path / "orbitals_b", tmp_path / "orbitals_a"
+    pdos_group(other)
+    pdos_group(chosen, stamp=NEW)
+    newest_total = other / "pdos.dat.pdos_tot"  # touched by a sync, say
+    os.utime(newest_total, (NEWEST, NEWEST))
+    (result,) = detect(tmp_path)
+    assert result.files["pdos_atm"][0].parent == chosen
+    assert result.files["pdos_tot"] == [chosen / "pdos.dat.pdos_tot"]
+
+
+def test_the_total_of_another_group_is_not_taken_for_the_chosen_one(tmp_path):
+    pdos_group(tmp_path, "b")
+    pdos_group(tmp_path, "a", total=False, stamp=NEW)
+    (result,) = detect(tmp_path)
+    assert result.files["pdos_atm"][0].name.startswith("a.pdos_atm")
+    assert "pdos_tot" not in result.files  # the plot then sums the projections
+
+
+def test_a_renamed_total_of_the_only_group_is_still_used(tmp_path):
+    pdos_group(tmp_path, total=False)
+    shutil.copy(FIXTURES / "al_pdos_flat/pdos.dat.pdos_tot", tmp_path / "total.pdos_tot")
+    (result,) = detect(tmp_path)
+    assert names(result, "pdos_tot") == ["total.pdos_tot"]
+
+
+# -- remembered mappings ------------------------------------------------------------------------
+AL_SCF, AL_BANDS_IN = FIXTURES / "al_bands/al.scf.out", FIXTURES / "al_bands/al.band.in"
+
+
+def two_scf_runs(folder: Path) -> tuple[Path, Path]:
+    folder.mkdir()
+    older, newer = folder / "older.out", folder / "newer.out"
+    for path, stamp in ((older, OLD), (newer, NEW)):
+        shutil.copy(AL_SCF, path)
+        os.utime(path, (stamp, stamp))
+    return older, newer
+
+
+def remembering(tmp_path: Path, folder: Path, kind: str, mapping: dict) -> FolderMemory:
+    memory = FolderMemory(tmp_path / "memory.json")
+    memory.set_mapping(folder, kind, mapping)
+    return memory
+
+
+def test_a_remembered_scf_output_is_the_one_plotted(tmp_path):
+    folder = tmp_path / "run"
+    older, newer = two_scf_runs(folder)
+    assert detect(folder)[0].files["scf_out"] == [newer]  # without a mapping: the newest
+    memory = remembering(tmp_path, folder, "scf", {"scf_out": [older]})
+    (result,) = detect(folder, memory=memory)
+    assert result.kind == "scf" and result.files["scf_out"] == [older]
+    assert result.methods["scf_out"] is Method.MANUAL
+
+
+def test_a_remembered_scf_output_stands_next_to_an_incomplete_kind(tmp_path):
+    folder = tmp_path / "run"
+    older, _newer = two_scf_runs(folder)
+    shutil.copy(AL_BANDS_IN, folder)  # a bands run with no eigenvalues yet: incomplete
+    assert [r.kind for r in detect(folder)] == ["bands"]
+    memory = remembering(tmp_path, folder, "scf", {"scf_out": [older]})
+    results = detect(folder, memory=memory)
+    assert sorted(r.kind for r in results) == ["bands", "scf"]
+    choice = plot_choice(results)
+    assert isinstance(choice, Chosen) and choice.result.kind == "scf"
+
+
+def test_a_remembered_scf_output_that_is_gone_adds_no_tag(tmp_path):
+    folder = tmp_path / "run"
+    older, _newer = two_scf_runs(folder)
+    shutil.copy(AL_BANDS_IN, folder)
+    memory = remembering(tmp_path, folder, "scf", {"scf_out": [older]})
+    older.unlink()
+    assert [r.kind for r in detect(folder, memory=memory)] == ["bands"]
+
+
+def test_a_mapping_that_lost_its_data_does_not_hide_the_scf(tmp_path):
+    folder = tmp_path / "run"
+    folder.mkdir()
+    shutil.copy(AL_SCF, folder / "al.scf.out")
+    mapping = {"scf_out": [folder / "al.scf.out"], "gnu": [folder / "bands.dat.gnu"]}  # gone
+    (result,) = detect(folder, memory=remembering(tmp_path, folder, "bands", mapping))
+    assert result.kind == "scf" and result.complete
+
+
+def test_a_whole_mapping_of_roles_without_an_anchor_still_holds(tmp_path):
+    folder = tmp_path / "run"
+    folder.mkdir()
+    for name in ("al.scf.out", "bands.dat"):
+        shutil.copy(FIXTURES / "al_bands" / name, folder / name)
+    mapping = {"scf_out": [folder / "al.scf.out"], "filband": [folder / "bands.dat"]}
+    (result,) = detect(folder, memory=remembering(tmp_path, folder, "bands", mapping))
+    assert result.kind == "bands" and result.methods["filband"] is Method.MANUAL

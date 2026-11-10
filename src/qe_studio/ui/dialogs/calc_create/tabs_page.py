@@ -48,6 +48,7 @@ from ....i18n import _
 from ...theme.manager import ThemeManager
 from .edit_bar import EditBar
 from .form import FieldForm
+from .labels import READING
 from .preview import FilePreview, FilesView
 
 DEBOUNCE_MS = 250
@@ -92,7 +93,7 @@ class TabsPage(QWidget):
         self._edits: dict[str, str] = {}  # file key → the text typed in its preview
         self._edited = False
         # step 1's place, the name asked for and the one the folder would get now (``set_target``)
-        self._target: tuple[Path, str, str] | None = None
+        self.target: tuple[Path, str, str] | None = None
         # step 1's ask (place, name, "Numerar", inherited suffix, "Sítio no nome") and the tag the
         # name was made with: the site changes with the fields (spec 77)
         self._naming: tuple[Path, str, bool, str, bool] | None = None
@@ -114,9 +115,8 @@ class TabsPage(QWidget):
         self.tabs.setDocumentMode(True)
         self.forms: list[FieldForm] = []
         self._form_of: dict[str, FieldForm] = {}  # file key (or group) → its fields
-        self._panes: dict[
-            str, QWidget
-        ] = {}  # file key → the form's side of the splitter; group → its tab
+        # file key → the form's side of the splitter; group → its tab
+        self._panes: dict[str, QWidget] = {}
         self._group_tabs: set[str] = set()  # the groups that are tabs of their own
         self.previews: dict[str, FilePreview] = {}  # by file key
         self.edit_bars: dict[str, EditBar] = {}  # by file key
@@ -380,8 +380,8 @@ class TabsPage(QWidget):
         return self.notes.toPlainText()
 
     def blocking(self) -> str:
-        """Why "Criar" is disabled ("" = it is not)."""
-        return self.plan.errors[0] if self.plan.errors else ""
+        """Why "Criar" is disabled ("" = it is not): a file still being read, or a plan error."""
+        return READING if any(f.reading for f in self.forms) else next(iter(self.plan.errors), "")
 
     def warnings(self) -> list[str]:
         no_site = (
@@ -436,7 +436,7 @@ class TabsPage(QWidget):
         parent, suffix, numbered, inherited, _use_tag = self._naming
         tag = self._tag()
         asked, name = preview_names(parent, self.calc_type, suffix, numbered, inherited, tag)
-        self._target, self._named_tag = (parent, asked, name), tag
+        self.target, self._named_tag = (parent, asked, name), tag
 
     def fingerprint_sources(self) -> tuple[Source, ...] | None:
         """The SCFs ``fingerprint.md`` lists now; None when step 1 did not ask for the file."""
@@ -470,9 +470,9 @@ class TabsPage(QWidget):
         self._show_files()
 
     def _show_files(self) -> None:
-        if self._target is None:
+        if self.target is None:
             return
-        parent, asked, name = self._target
+        parent, asked, name = self.target
         self.files_view.show_files(
             parent / name,
             asked,

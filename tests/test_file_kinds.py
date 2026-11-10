@@ -106,6 +106,16 @@ def test_status_label():
     assert status_label(log, 36, clean) == ("SEM ERROS", "success")
 
 
+def test_status_label_of_a_pp_output():
+    """L-01: a pp.x output reports whether it finished, like the other QE outputs."""
+    out = Path("pp_charge.out")
+    done = FileSniff(out, FileKind.PP_OUT, program="POST-PROC", job_done=True)
+    assert status_label(out, 2048, done) == ("OK", "success")
+    cut = FileSniff(out, FileKind.PP_OUT, program="POST-PROC", job_done=False)
+    assert status_label(out, 2048, cut) == ("INCOMPLETO", "warning")
+    assert status_label(out, 2048, FileSniff(out, FileKind.PP_IN, program="pp")) is None
+
+
 def test_the_label_of_a_job_log_comes_from_the_sniff_it_receives():
     """It never reads the file: this one does not exist, the sniff and the size are what counts."""
     log = Path("/nao/existe/job.o1")

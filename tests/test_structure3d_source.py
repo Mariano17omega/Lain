@@ -65,6 +65,35 @@ def test_starting_magnetization():
     assert structure.source.nspin == 2
 
 
+MAGNETIC = """&SYSTEM
+  ibrav = 1, celldm(1) = 20.0, nat = 1, ntyp = 1
+  {assignment}
+/
+ATOMIC_SPECIES
+Fe 55.8 Fe.UPF
+ATOMIC_POSITIONS crystal
+Fe 0.0 0.0 0.0
+"""
+
+
+@pytest.mark.parametrize(
+    ("assignment", "expected"),
+    [
+        ("starting_magnetization(1) = 0.5", {1: 0.5}),
+        ("starting_magnetization(1) = 0.5, 0.3", {1: 0.5, 2: 0.3}),
+        ("starting_magnetization(2) = 0.1, 0.2", {2: 0.1, 3: 0.2}),
+        ("starting_magnetization = 0.5, 0.3", {1: 0.5, 2: 0.3}),
+        ("starting_magnetization(1) = 0.5 0.3", {1: 0.5, 2: 0.3}),
+        ("starting_magnetization(1) = 2*0.5, 0.1", {1: 0.5, 2: 0.5, 3: 0.1}),
+        ("starting_magnetization(1) = 0.5,,0.3", {1: 0.5, 3: 0.3}),
+        ("starting_magnetization(1)=0.5, starting_magnetization(2)=0.3", {1: 0.5, 2: 0.3}),
+    ],
+)
+def test_starting_magnetization_is_a_fortran_list(assignment, expected):
+    structure = structure_of_text(MAGNETIC.format(assignment=assignment))
+    assert structure.source.starting_magnetization == expected
+
+
 def test_formula_volume_and_parameters():
     structure = read_structure(SI_SCF)
     a = 10.16863713 * 0.529177210903

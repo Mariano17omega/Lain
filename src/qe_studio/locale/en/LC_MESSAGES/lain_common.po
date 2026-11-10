@@ -1,0 +1,333 @@
+# English translations for Lain: QE Studio.
+# Copyright (C) 2026 Mariano Sobrinho
+# This file is distributed under the same license as the Lain: QE Studio project.
+# Mariano Sobrinho <onairam17@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Report-Msgid-Bugs-To: onairam17@gmail.com\n"
+"POT-Creation-Date: 2026-11-10 01:41-0400\n"
+"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
+"Language: en\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: core/calc_create/fragments.py core/qe/lattice.py
+#, python-brace-format
+msgid "ATOMIC_POSITIONS {unit} não é suportado"
+msgstr "ATOMIC_POSITIONS {unit} is not supported"
+
+#: core/search/fuzzy.py ui/widgets/shell/workspace.py
+msgid "Abas"
+msgstr "Tabs"
+
+#: ui/dialogs/open_with.py ui/widgets/files/context_menu.py
+msgid "Abrir com"
+msgstr "Open with"
+
+#: core/sync/controller.py ui/dialogs/sync_dialog.py
+msgid "Aguardando sua decisão…"
+msgstr "Waiting for your decision…"
+
+#: core/calculations/bands/params.py core/calculations/relax.py core/structure3d/options.py
+msgid "Ambos"
+msgstr "Both"
+
+#: core/analysis/adsorption_energy.py core/qe/summary/build.py ui/actions.py
+#: ui/dialogs/adsorption_energy.py ui/dialogs/calc_create/preview.py ui/dialogs/sync_pages.py
+msgid "Arquivo"
+msgstr "File"
+
+#: ui/dialogs/calc_create/tabs_page.py ui/widgets/files/file_grid.py ui/widgets/plot/params_body.py
+msgid "Arquivos"
+msgstr "Files"
+
+#: ui/actions.py ui/widgets/cluster/jobs_popup.py ui/widgets/viewer/summary_view.py
+msgid "Atualizar"
+msgstr "Refresh"
+
+#: ui/widgets/cluster/remote_panels.py ui/widgets/files/explorer.py
+msgid "Atualizar (F5)"
+msgstr "Refresh (F5)"
+
+#: core/calc_create/types/bandas.py core/calculations/bands_dos/pair.py
+msgid "Bandas"
+msgstr "Bands"
+
+#: core/sync/_process.py ui/dialogs/sync_dialog.py
+msgid "Cancelando…"
+msgstr "Cancelling…"
+
+#: ui/widgets/files/context_menu.py ui/widgets/viewer/code_view.py
+msgid "Carregando…"
+msgstr "Loading…"
+
+#: core/structure3d/options.py ui/theme/manager.py
+msgid "Claro"
+msgstr "Light"
+
+#: ui/actions.py ui/widgets/cluster/remote_panels.py ui/widgets/shell/bars.py
+msgid "Cluster"
+msgstr "Cluster"
+
+#: ui/widgets/shell/workspace.py ui/widgets/viewer/input_view.py
+msgid "Comparar com…"
+msgstr "Compare with…"
+
+#: core/calc_create/types/adsorption.py core/calc_create/types/adsorption_fields.py
+#: ui/widgets/structure3d/panel_atom.py
+msgid "Coordenação"
+msgstr "Coordination"
+
+#: ui/cluster/remote_controller.py ui/widgets/files/context_menu.py
+#, python-brace-format
+msgid "Copiado: {name}"
+msgid_plural "Copiados: {n} itens"
+msgstr[0] "Copied: {name}"
+msgstr[1] "Copied: {n} items"
+
+#: ui/widgets/files/context_menu.py ui/widgets/structure3d/measures.py
+#: ui/widgets/viewer/summary_view.py
+msgid "Copiar"
+msgstr "Copy"
+
+#: ui/cluster/remote_controller.py ui/widgets/files/breadcrumb.py ui/widgets/shell/workspace.py
+msgid "Copiar caminho"
+msgstr "Copy path"
+
+#: ui/dialogs/new_project.py ui/files/project_controller.py
+msgid "Criar projeto"
+msgstr "Create project"
+
+#: ui/actions.py ui/widgets/files/project_combo.py
+msgid "Criar projeto…"
+msgstr "Create project…"
+
+#: core/sync/preview.py ui/dialogs/sync_pages.py
+msgid "Data no cluster"
+msgstr "Date on the cluster"
+
+#: core/calc_create/writer.py ui/dialogs/calc_create/tabs_page.py
+msgid "Descrição"
+msgstr "Description"
+
+#: ui/widgets/plot/atom_table.py ui/widgets/structure3d/panel_atom.py
+msgid "Elemento"
+msgstr "Element"
+
+#: core/calculations/relax.py core/qe/summary/build.py
+msgid "Em andamento"
+msgstr "In progress"
+
+#: core/calc_create/types/ads_energy.py ui/dialogs/adsorption_energy.py
+msgid "Energia de adsorção"
+msgstr "Adsorption energy"
+
+#: core/analysis/adsorption_energy.py core/calculations/scf.py ui/dialogs/adsorption_energy.py
+msgid "Energia total (Ry)"
+msgstr "Total energy (Ry)"
+
+#: core/sync/request.py ui/actions.py
+msgid "Enviar pasta ao cluster…"
+msgstr "Upload folder to cluster…"
+
+#: ui/files/project_controller.py ui/tools/adsorption_energy_controller.py
+#: ui/tools/calc_create_controller.py ui/tools/derive_controller.py ui/tools/structure3d_controller.py
+#, python-brace-format
+msgid "Erro inesperado: {error}"
+msgstr "Unexpected error: {error}"
+
+#: core/structure3d/options.py ui/theme/manager.py
+msgid "Escuro"
+msgstr "Dark"
+
+#: core/calculations/pdos/params.py ui/widgets/structure3d/panel_atom.py
+msgid "Espécie"
+msgstr "Species"
+
+#: core/qe/summary/build.py ui/widgets/viewer/diff_view.py
+msgid "Estado"
+msgstr "Status"
+
+#: core/calculations/params.py ui/widgets/structure3d/panel.py
+msgid "Estilo"
+msgstr "Style"
+
+#: core/calculations/params.py ui/widgets/plot/plot_view.py
+msgid "Exportar"
+msgstr "Export"
+
+#: ui/dialogs/about.py ui/dialogs/adsorption_energy.py ui/dialogs/grid_dialog.py
+#: ui/widgets/shell/workspace.py ui/widgets/viewer/search_bar.py
+msgid "Fechar"
+msgstr "Close"
+
+#: core/qe/summary/build.py ui/widgets/structure3d/panel.py
+msgid "Fórmula"
+msgstr "Formula"
+
+#: ui/tools/derive_controller.py ui/widgets/files/context_menu.py
+msgid "Gerar CIF"
+msgstr "Generate CIF"
+
+#: ui/tools/derive_controller.py ui/widgets/files/context_menu.py
+msgid "Gerar SCF convergido"
+msgstr "Generate converged SCF"
+
+#: ui/widgets/files/view_controls.py ui/widgets/shell/bars.py
+msgid "Grade"
+msgstr "Grid"
+
+#: core/qe/summary/build.py ui/cluster/job_cancel.py
+msgid "Início"
+msgstr "Start"
+
+#: ui/dialogs/calc_create/scf_field.py ui/widgets/structure3d/measures.py
+msgid "Limpar"
+msgstr "Clear"
+
+#: core/calculations/relax.py core/calculations/scf.py ui/shell/excepthook.py
+#: ui/shell/help_controller.py
+msgid "Log"
+msgstr "Log"
+
+#: ui/dialogs/grid_dialog.py ui/widgets/cluster/jobs_popup.py ui/widgets/cluster/remote_model.py
+#: ui/widgets/files/view_controls.py
+msgid "Nome"
+msgstr "Name"
+
+#: core/qe/scf_from_relax.py core/structure3d/cif.py
+#, python-brace-format
+msgid "Não foi possível gravar {name}: {value}"
+msgstr "Could not write {name}: {value}"
+
+#: core/calc_create/scf_info.py core/qe/scf_from_relax.py core/structure3d/source.py
+#, python-brace-format
+msgid "Não foi possível ler {name}: {value}"
+msgstr "Could not read {name}: {value}"
+
+#: core/files/file_ops.py core/plotting/grid.py
+msgid "O nome não pode conter “/”."
+msgstr "The name cannot contain “/”."
+
+#: core/plotting/styles.py ui/dialogs/calc_create/mode_switch.py
+msgid "Padrão"
+msgstr "Standard"
+
+#: ui/dialogs/calc_create/form.py ui/widgets/viewer/diff_view.py
+msgid "Parâmetros"
+msgstr "Parameters"
+
+#: core/calc_create/fingerprint.py ui/cluster/job_cancel.py ui/shell/palette_controller.py
+msgid "Pasta"
+msgstr "Folder"
+
+#: core/calculations/base.py ui/cluster/remote_controller.py ui/dialogs/mapping.py
+#: ui/widgets/files/context_menu.py
+msgid "Plotar"
+msgstr "Plot"
+
+#: core/calculations/scf.py ui/widgets/shell/bars.py
+msgid "Plotar SCF"
+msgstr "Plot SCF"
+
+#: core/calculations/scf.py ui/widgets/shell/bars.py
+msgid "Plotar a convergência do SCF do arquivo aberto"
+msgstr "Plot the SCF convergence of the open file"
+
+#: core/analysis/adsorption_energy.py ui/dialogs/adsorption_energy.py
+msgid "Prefixo"
+msgstr "Prefix"
+
+#: ui/dialogs/rename.py ui/files/rename_controller.py ui/widgets/files/context_menu.py
+msgid "Renomear"
+msgstr "Rename"
+
+#: ui/plot/plot_workflow.py ui/widgets/plot/params_body.py ui/widgets/structure3d/panel.py
+msgid "Restaurar padrões"
+msgstr "Restore defaults"
+
+#: core/sync/request.py ui/actions.py
+msgid "Sincronizar tudo"
+msgstr "Sync all"
+
+#: core/calc_create/types/adsorption_fields.py ui/widgets/plot/atom_table.py
+msgid "Sítio"
+msgstr "Site"
+
+#: core/calculations/params.py ui/dialogs/calc_create/preview.py ui/dialogs/sync_pages.py
+#: ui/widgets/cluster/remote_model.py ui/widgets/files/view_controls.py
+msgid "Tamanho"
+msgstr "Size"
+
+#: core/calc_create/fingerprint.py ui/dialogs/calc_create/setup_page.py
+msgid "Tipo de cálculo"
+msgstr "Calculation type"
+
+#: core/calculations/params.py ui/dialogs/grid_cells.py
+msgid "Título"
+msgstr "Title"
+
+#: core/calc_create/writer.py core/project/projects.py
+msgid "Use só letras sem acento, números, ponto, hífen e sublinhado no nome"
+msgstr "Use only unaccented letters, digits, dot, hyphen and underscore in the name"
+
+#: ui/widgets/files/context_menu.py ui/widgets/structure3d/canvas.py ui/widgets/structure3d/window.py
+msgid "Visualização 3D"
+msgstr "3D view"
+
+#: core/qe/pw_output.py core/sniff.py
+msgid "execução incompleta (sem JOB DONE)"
+msgstr "incomplete run (no JOB DONE)"
+
+#: core/calc_create/fragments.py core/qe/lattice.py
+#, python-brace-format
+msgid "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha"
+msgid_plural "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas"
+msgstr[0] "nat = {nat}, but ATOMIC_POSITIONS has {count} line"
+msgstr[1] "nat = {nat}, but ATOMIC_POSITIONS has {count} lines"
+
+#: core/calc_create/surface/fixing.py core/calc_create/surface/merge.py
+#: core/calc_create/types/adsorption.py ui/shell/help_controller.py
+msgid "nenhum"
+msgstr "none"
+
+#: ui/widgets/cluster/remote_card.py ui/widgets/files/file_card.py
+msgid "pasta"
+msgstr "folder"
+
+#: ui/widgets/cluster/remote_card.py ui/widgets/files/file_card.py
+msgid "pasta acima"
+msgstr "folder above"
+
+#: core/calc_create/fragments.py core/qe/lattice.py
+msgid "sem ATOMIC_POSITIONS"
+msgstr "no ATOMIC_POSITIONS"
+
+#: core/calc_create/scf_info.py core/structure3d/source.py
+#, python-brace-format
+msgid "{name} não é um input do pw.x (sem &SYSTEM)"
+msgstr "{name} is not a pw.x input (no &SYSTEM)"
+
+#: core/project/compounds.py ui/widgets/viewer/search_bar.py
+#, python-brace-format
+msgid "{n} de {total}"
+msgstr "{n} of {total}"
+
+#: core/analysis/adsorption_energy.py core/calc_create/types/adsorption.py
+#: core/calc_create/types/charge_diff.py core/calc_create/types/slab.py
+#: core/calc_create/types/supercell.py core/calculations/pdos/params.py ui/dialogs/adsorption_energy.py
+#: ui/widgets/structure3d/measures.py
+msgid "Átomos"
+msgstr "Atoms"
+
+#: core/calc_create/types/surface_fields.py ui/widgets/structure3d/window.py
+msgid "Átomos fixos"
+msgstr "Fixed atoms"
+

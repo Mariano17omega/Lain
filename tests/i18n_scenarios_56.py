@@ -68,7 +68,7 @@ def pick_scf(dialog, path: Path):
     dialog.setup.scf_ready.connect(ready)
     QTimer.singleShot(SCF_WAIT_MS, loop.quit)
     try:
-        dialog.setup.set_scf(path)  # a file that is no input answers at once
+        dialog.setup.set_scf(path)  # a file that is no input is refused by the worker too
         if not outcome:
             loop.exec()
     finally:

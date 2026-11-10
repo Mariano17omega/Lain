@@ -11,6 +11,7 @@ import pytest
 from qe_studio.core.calc_create.kpath import KMesh, KPath, KPoint, distribute
 from qe_studio.core.calc_create.types import REGISTRY, by_id
 from qe_studio.core.calc_create.types.pdos import NO_BROADENING_NOTE
+from qe_studio.core.calc_create.types.script import job_name
 from qe_studio.core.config import JobsConfig
 from qe_studio.core.qe.input_edit import InputEditor
 from qe_studio.core.qe.input_lint import lint
@@ -203,12 +204,33 @@ def test_relax_changes_only_its_keys():
 
 
 def test_vc_relax_adds_cell():
-    text = text_of(plan("vc-relax", press=10, cell_dynamics="damp-w"), "vc-relax")
-    editor = InputEditor.from_text(text)
+    result = plan("vc-relax", press=10, ion_dynamics="damp", cell_dynamics="damp-w")
+    assert not result.errors
+    editor = InputEditor.from_text(text_of(result, "vc-relax"))
     assert editor.get("control", "calculation") == "vc-relax"
     assert (editor.get("cell", "cell_dynamics"), editor.get("cell", "press")) == ("damp-w", "10.0")
-    assert editor.get("ions", "ion_dynamics") == "bfgs"
+    assert editor.get("ions", "ion_dynamics") == "damp"
     assert not InputEditor.from_text(text_of(plan("relax"), "relax")).has_namelist("cell")
+
+
+def test_bfgs_on_one_side_needs_it_on_the_other():
+    assert "cell_dynamics" in plan("vc-relax", cell_dynamics="damp-pr").problems
+    assert "cell_dynamics" in plan("vc-relax", ion_dynamics="damp").problems
+    assert not plan("vc-relax", ion_dynamics="damp", cell_dynamics="damp-pr").errors
+    assert not plan("vc-relax").errors
+
+
+def test_a_pair_of_the_scf_that_does_not_fit_starts_as_bfgs():
+    ions = "&IONS\n  ion_dynamics='damp'\n/\n"
+    electrons = "&electrons\n    conv_thr =  1.0d-8\n/\n"
+    text = AL_SCF.read_text().replace(electrons, electrons + ions)
+    scf = from_text(text)
+    fields = {f.id: f.default for f in by_id("vc-relax").fields(scf, JOBS)}
+    assert (fields["ion_dynamics"], fields["cell_dynamics"]) == ("bfgs", "bfgs")
+    assert not plan("vc-relax", scf, mode="padrao").errors
+    valid = from_text(text.replace(ions, ions + "&CELL\n  cell_dynamics='damp-w'\n/\n"))
+    fields = {f.id: f.default for f in by_id("vc-relax").fields(valid, JOBS)}
+    assert (fields["ion_dynamics"], fields["cell_dynamics"]) == ("damp", "damp-w")
 
 
 def test_relax_keeps_what_the_scf_already_has():
@@ -292,8 +314,8 @@ def test_pdos_inputs():
     assert projwfc.get("projwfc", "filpdos") == "al.dat"
     assert [projwfc.get("projwfc", k) for k in ("DeltaE", "Emin", "Emax", "ngauss", "degauss")] == [
         "0.01",
-        "-25.0",
-        "25.0",
+        None,  # L-10: no window typed, so projwfc.x takes the whole range of the bands
+        None,
         None,  # tetrahedra: no broadening in projwfc.in
         None,
     ]
@@ -311,7 +333,7 @@ def test_pdos_inputs():
     ],
 )
 def test_pdos_broadening_follows_the_occupations(occupations, broadening):
-    result = plan("pdos", occupations=occupations, ngauss=1, degauss=0.02)
+    result = plan("pdos", occupations=occupations, ngauss=1, degauss=0.02, e_min=-25, e_max=25)
     projwfc = InputEditor.from_text(result.file("projwfc.in").text)
     assert projwfc.get("projwfc", "ngauss") == ("1" if broadening else None)
     assert projwfc.get("projwfc", "degauss") == ("0.02" if broadening else None)
@@ -372,6 +394,15 @@ def test_script_fields_and_pool_warnings():
     long = plan("scf", job_name="meu cálculo muito longo")
     assert '#$ -N "meu_c_lculo_mui"' in long.files[0].text
     assert any("ajustado" in note for note in long.notes)
+
+
+def test_a_job_name_does_not_start_with_a_digit():
+    assert job_name("3x3-kaol") == "j3x3-kaol"
+    assert job_name("1234567890123456") == "j12345678901234"
+    assert job_name("kaol-3x3") == "kaol-3x3"
+    typed = plan("scf", job_name="3x3")
+    assert '#$ -N "j3x3"' in typed.files[0].text
+    assert any("não começa com número" in note for note in typed.notes)
 
 
 def test_missing_and_invalid_values_are_errors():

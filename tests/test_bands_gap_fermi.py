@@ -8,10 +8,12 @@ from qe_studio.core.calculations.bands import BandsDataset, BandsModule
 from qe_studio.core.calculations.bands.data import (
     EDGE_TOL,
     GAP_FROM_FERMI_NOTE,
+    GAP_NO_EMPTY_NOTE,
     GAP_NO_FERMI_NOTE,
     GAP_OFF_PATH_NOTE,
     band_edges,
 )
+from qe_studio.core.calculations.bands.gap import NO_COUNT_NOTE, legend_gap_notes
 from qe_studio.core.plotting.style import LIGHT
 from qe_studio.core.qe.bands_x import BandData
 from qe_studio.core.qe.pw_output import FermiKind, PwOutput
@@ -109,6 +111,28 @@ def test_a_metal_by_the_count_says_metallic_without_a_note():
     _module, dataset, _params = load(FIXTURES / "al_bands")  # 3 electrons: no band count
     info = rendered(dataset)
     assert "metálico" in info.summary and info.notes == ()
+
+
+@pytest.mark.parametrize("electrons", [8.0, 10.0])  # the 4 bands exactly; more than there are
+def test_every_band_filled_is_no_verdict_of_a_metal(electrons):
+    dataset = dataset_of(VBM, "homo", electrons)
+    assert dataset.gap is None and not dataset.metallic
+    assert dataset.n_occupied == 4 and dataset.gap_note == GAP_NO_EMPTY_NOTE
+    module = BandsModule()
+    params = module.default_params(CONFIG, dataset)
+    params.legend_gap = params.show_legend = True
+    figure, info = render(module, dataset, params, LIGHT)
+    assert "metálico" not in info.summary and info.notes == (GAP_NO_EMPTY_NOTE,)
+    assert legend_gap_notes(dataset, params) == ()  # the note already says why
+    assert len(figure.axes[0].collections) == 1  # all valence, even above the HOMO of the SCF
+
+
+def test_without_the_electron_count_there_is_no_verdict_either():
+    dataset = dataset_of(0.25, "fermi", None)
+    assert not dataset.metallic and "metálico" not in rendered(dataset).summary
+    params = BandsModule().default_params(CONFIG, dataset)
+    params.legend_gap = params.show_legend = True
+    assert legend_gap_notes(dataset, params) == (NO_COUNT_NOTE,)
 
 
 # -- (d) an odd electron count: no whole bands to count, so the edges come from E_F --------------

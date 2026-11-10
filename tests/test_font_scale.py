@@ -99,6 +99,22 @@ def test_painted_fonts_follow_the_scale(theme):
     assert scaled(22) == 28
 
 
+@pytest.mark.parametrize("scale", [MIN_SCALE, 1.0, MAX_SCALE])
+def test_the_atoms_table_holds_a_coordinate_at_every_scale(qapp, scale):
+    """The three coordinate columns are fixed: their width follows the scale of the mono font."""
+    from qe_studio.ui.widgets.plot.atom_table import COORDINATE_WIDTH, AtomRow, AtomTable
+
+    theme = ThemeManager("dark", font_scale=scale)
+    try:
+        table = AtomTable([AtomRow(1, "Al", "-12.34567", "0.00000", "10.00000")])
+        widest = QFontMetrics(mono_font(11)).horizontalAdvance("-12.34567")
+        for column in (3, 4, 5):
+            assert table.table.columnWidth(column) == scaled(COORDINATE_WIDTH)
+            assert table.table.columnWidth(column) >= widest
+    finally:
+        theme.set_font_scale(1.0)
+
+
 def test_a_manager_without_scale_is_scale_one(qapp):
     ThemeManager("dark", font_scale=1.6)
     ThemeManager("dark")  # the last one built wins, and it asks for the default

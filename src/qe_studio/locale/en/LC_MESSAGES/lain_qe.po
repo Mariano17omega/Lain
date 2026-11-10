@@ -1,0 +1,693 @@
+# English translations for Lain: QE Studio.
+# Copyright (C) 2026 Mariano Sobrinho
+# This file is distributed under the same license as the Lain: QE Studio project.
+# Mariano Sobrinho <onairam17@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Report-Msgid-Bugs-To: onairam17@gmail.com\n"
+"POT-Creation-Date: 2026-11-10 01:41-0400\n"
+"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
+"Language: en\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: core/qe/input_extract.py
+msgid " (padrão)"
+msgstr " (default)"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid " (quis dizer &{upper}?)"
+msgstr " (did you mean &{upper}?)"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid " (quis dizer {suggestion}?)"
+msgstr " (did you mean {suggestion}?)"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "&{name} não foi fechada com '/'"
+msgstr "&{name} was not closed with '/'"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "&{upper} repetida: o pw.x lê só a primeira"
+msgstr "&{upper} repeated: pw.x reads only the first one"
+
+#: core/qe/input_lexer.py
+msgid "'&' sem nome de namelist"
+msgstr "'&' without a namelist name"
+
+#: core/qe/input_lexer.py
+msgid "'&end' sem namelist aberta"
+msgstr "'&end' without an open namelist"
+
+#: core/qe/input_lexer.py
+msgid "'/' sem namelist aberta"
+msgstr "'/' without an open namelist"
+
+#: core/qe/lattice.py
+msgid "A deve ser positivo"
+msgstr "A must be positive"
+
+#: core/qe/scf_from_relax.py
+msgid "A saída não traz a célula final (CELL_PARAMETERS) do vc-relax"
+msgstr "The output has no final cell (CELL_PARAMETERS) from the vc-relax"
+
+#: core/qe/summary/build.py
+msgid "Arquivos escritos"
+msgstr "Files written"
+
+#: core/qe/input_lexer.py
+msgid "Aspas não fechadas"
+msgstr "Unclosed quotes"
+
+#: core/qe/summary/build.py
+msgid "Ativa"
+msgstr "Active"
+
+#: core/qe/summary/build.py
+msgid "Avisos e erros"
+msgstr "Warnings and errors"
+
+#: core/qe/scf_from_relax.py
+msgid "CELL_PARAMETERS (alat) sem o valor de alat na saída"
+msgstr "CELL_PARAMETERS (alat) without the alat value in the output"
+
+#: core/qe/lattice.py
+msgid "CELL_PARAMETERS alat sem celldm(1) ou A"
+msgstr "CELL_PARAMETERS alat without celldm(1) or A"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "Card desconhecido {name}"
+msgstr "Unknown card {name}"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "Card {name} repetido: o pw.x interrompe o cálculo"
+msgstr "Card {name} repeated: pw.x stops the calculation"
+
+#: core/qe/summary/build.py
+msgid "Concluído"
+msgstr "Finished"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Convergiu ({detail})"
+msgstr "Converged ({detail})"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Convergiu em {count} iteração"
+msgid_plural "Convergiu em {count} iterações"
+msgstr[0] "Converged in {count} iteration"
+msgstr[1] "Converged in {count} iterations"
+
+#: core/qe/summary/build.py
+msgid "Cutoff da densidade de carga"
+msgstr "Charge density cutoff"
+
+#: core/qe/summary/build.py
+msgid "Cutoff da função de onda"
+msgstr "Wavefunction cutoff"
+
+#: core/qe/summary/build.py
+msgid "Cálculo"
+msgstr "Calculation"
+
+#: core/qe/scf_from_relax.py
+msgid ""
+"Cálculo vc-relax: a célula foi escrita com ibrav = 0; o pw.x detecta a simetria pela tolerância "
+"numérica da célula final."
+msgstr ""
+"vc-relax calculation: the cell was written with ibrav = 0; pw.x detects the symmetry from the "
+"numerical tolerance of the final cell."
+
+#: core/qe/summary/build.py
+msgid "Divisão R & G (proc/nbgrp/npool/nimage)"
+msgstr "R & G division (proc/nbgrp/npool/nimage)"
+
+#: core/qe/summary/build.py
+msgid "Divisão de k-pontos (npool)"
+msgstr "k-point division (npool)"
+
+#: core/qe/summary/build.py
+msgid "E final"
+msgstr "Final E"
+
+#: core/qe/summary/build.py
+msgid "E inicial"
+msgstr "Initial E"
+
+#: core/qe/summary/build.py
+msgid "Elétrons"
+msgstr "Electrons"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Em andamento ({count} iteração)"
+msgid_plural "Em andamento ({count} iterações)"
+msgstr[0] "In progress ({count} iteration)"
+msgstr[1] "In progress ({count} iterations)"
+
+#: core/qe/summary/build.py
+msgid "Energia de Fermi"
+msgstr "Fermi energy"
+
+#: core/qe/summary/build.py
+msgid "Energia de Fermi (↑ / ↓)"
+msgstr "Fermi energy (↑ / ↓)"
+
+#: core/qe/summary/build.py
+msgid "Energia final (BFGS)"
+msgstr "Final energy (BFGS)"
+
+#: core/qe/summary/build.py
+msgid "Energia total"
+msgstr "Total energy"
+
+#: core/qe/summary/build.py
+msgid "Entalpia final"
+msgstr "Final enthalpy"
+
+#: core/qe/summary/build.py
+msgid "Erro"
+msgstr "Error"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Erro em {routine}"
+msgstr "Error in {routine}"
+
+#: core/qe/input_lexer.py
+msgid "Esperado 'chave = valor'"
+msgstr "Expected 'key = value'"
+
+#: core/qe/summary/build.py
+msgid "Estados de Kohn-Sham"
+msgstr "Kohn-Sham states"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Falhou ({detail})"
+msgstr "Failed ({detail})"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "Falta um espaço entre {name} e a opção: o pw.x ignora o card"
+msgstr "Missing a space between {name} and its option: pw.x ignores the card"
+
+#: core/qe/summary/build.py
+msgid "Força total"
+msgstr "Total force"
+
+#: core/qe/summary/build.py
+msgid "Funcional (XC)"
+msgstr "Functional (XC)"
+
+#: core/qe/summary/build.py
+msgid "GPU"
+msgstr "GPU"
+
+#: core/qe/summary/build.py
+msgid "Geral"
+msgstr "General"
+
+#: core/qe/summary/build.py
+msgid "Incompleto"
+msgstr "Incomplete"
+
+#: core/qe/scf_from_relax.py
+msgid "Input do relax não encontrado na pasta"
+msgstr "Relax input not found in the folder"
+
+#: core/qe/input_edit.py
+#, python-brace-format
+msgid "Input não pôde ser lido: {exc}"
+msgstr "The input could not be read: {exc}"
+
+#: core/qe/summary/build.py
+msgid "Magnetização absoluta"
+msgstr "Absolute magnetization"
+
+#: core/qe/summary/build.py
+msgid "Magnetização total"
+msgstr "Total magnetization"
+
+#: core/qe/summary/build.py
+msgid "Malha k"
+msgstr "k-point mesh"
+
+#: core/qe/summary/build.py
+msgid "Memória disponível"
+msgstr "Available memory"
+
+#: core/qe/summary/build.py
+msgid "Mensagens"
+msgstr "Messages"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "Namelist desconhecida &{upper}"
+msgstr "Unknown namelist &{upper}"
+
+#: core/qe/summary/build.py
+msgid "Nenhum aviso ou erro"
+msgstr "No warnings or errors"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "Não convergiu ({count} iteração)"
+msgid_plural "Não convergiu ({count} iterações)"
+msgstr[0] "Not converged ({count} iteration)"
+msgstr[1] "Not converged ({count} iterations)"
+
+#: core/qe/input_edit.py
+#, python-brace-format
+msgid "Não foi possível editar {what}: {exc}"
+msgstr "Could not edit {what}: {exc}"
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "Não foi possível montar o SCF: {issues}"
+msgstr "Could not build the SCF: {issues}"
+
+#: core/qe/summary/build.py
+msgid "Nós"
+msgstr "Nodes"
+
+#: core/qe/input_lexer.py
+msgid "Número inválido"
+msgstr "Invalid number"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "O QE só ignora '#' na coluna 1: em {card} ele conta como campo e o pw.x para; comente com '!'"
+msgstr "QE ignores '#' only in column 1: in {card} it counts as a field and pw.x stops; comment with '!'"
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid ""
+"O SCF usa o mesmo prefix ({prefix}) e outdir do relax: rodá-lo regrava {save} e impede reiniciar "
+"o relax. Mude o prefix ou o outdir antes de rodar."
+msgstr ""
+"The SCF uses the same prefix ({prefix}) and outdir as the relax: running it rewrites {save} and "
+"prevents restarting the relax. Change the prefix or the outdir before running it."
+
+#: core/qe/scf_from_relax.py
+msgid "O input"
+msgstr "The input"
+
+#: core/qe/input_lint.py
+#, python-brace-format
+msgid "Opção inválida para {name}: {option}"
+msgstr "Invalid option for {name}: {option}"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "PDOS incompleta: faltam {n} projeções ({pairs}); arquivo apagado ou execução interrompida?"
+msgstr "Incomplete PDOS: {n} projections are missing ({pairs}); file deleted or run interrupted?"
+
+#: core/qe/projwfc.py
+msgid "PDOS resolvida em k (kresolveddos) não é suportada"
+msgstr "k-resolved PDOS (kresolveddos) is not supported"
+
+#: core/qe/summary/build.py
+msgid "Paralelização"
+msgstr "Parallelization"
+
+#: core/qe/summary/build.py
+msgid "Parâmetro de rede (alat)"
+msgstr "Lattice parameter (alat)"
+
+#: core/qe/input_lexer.py
+msgid "Parêntese não fechado"
+msgstr "Unclosed parenthesis"
+
+#: core/qe/input_lexer.py
+msgid "Parêntese sem abertura"
+msgstr "Unmatched closing parenthesis"
+
+#: core/qe/summary/build.py
+msgid "Passos BFGS"
+msgstr "BFGS steps"
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "Posições em alat com a célula em {unit}: o alat do SCF seria outro e o Lain não converte unidades"
+msgstr ""
+"Positions in alat with the cell in {unit}: the SCF alat would be different and Lain does not "
+"convert units"
+
+#: core/qe/summary/build.py
+msgid "Pressão"
+msgstr "Pressure"
+
+#: core/qe/summary/build.py
+msgid "Processos MPI"
+msgstr "MPI processes"
+
+#: core/qe/summary/build.py
+msgid "Programa"
+msgstr "Program"
+
+#: core/qe/summary/build.py
+msgid "Pseudopotenciais"
+msgstr "Pseudopotentials"
+
+#: core/qe/summary/build.py
+msgid "RAM máx. estimada por processo"
+msgstr "Estimated max RAM per process"
+
+#: core/qe/summary/build.py
+msgid "RAM total estimada"
+msgstr "Estimated total RAM"
+
+#: core/qe/summary/build.py
+msgid "Resultados"
+msgstr "Results"
+
+#: core/qe/pw_output.py
+msgid "SCF não convergiu"
+msgstr "SCF did not converge"
+
+#: core/qe/summary/build.py
+msgid "Sem convergência registrada"
+msgstr "No convergence recorded"
+
+#: core/qe/summary/build.py
+msgid "Serial"
+msgstr "Serial"
+
+#: core/qe/summary/build.py
+msgid "Sistema"
+msgstr "System"
+
+#: core/qe/summary/build.py
+msgid "Tempo (CPU)"
+msgstr "CPU time"
+
+#: core/qe/summary/build.py
+msgid "Tempo (WALL)"
+msgstr "Wall time"
+
+#: core/qe/summary/build.py
+msgid "Threads por processo MPI"
+msgstr "Threads per MPI process"
+
+#: core/qe/summary/build.py
+msgid "Tipos atômicos"
+msgstr "Atomic types"
+
+#: core/qe/summary/build.py
+msgid "Término"
+msgstr "End"
+
+#: core/qe/input_lexer.py
+#, python-brace-format
+msgid "Valor ausente para {name}"
+msgstr "Missing value for {name}"
+
+#: core/qe/input_lexer.py
+msgid "Valor lógico inválido: use .true. ou .false."
+msgstr "Invalid logical value: use .true. or .false."
+
+#: core/qe/summary/build.py
+msgid "Volume (inicial → final)"
+msgstr "Volume (initial → final)"
+
+#: core/qe/summary/build.py
+msgid "Volume da célula"
+msgstr "Cell volume"
+
+#: core/qe/cell_card.py
+msgid "a célula"
+msgstr "the cell"
+
+#: core/qe/scf_from_relax.py
+msgid "a célula final"
+msgstr "the final cell"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "agrupamento desconhecido: {grouping}"
+msgstr "unknown grouping: {grouping}"
+
+#: core/qe/bands_x.py
+msgid "arquivo sem dados"
+msgstr "file has no data"
+
+#: core/qe/bands_x.py
+msgid "bandas com números diferentes de pontos k"
+msgstr "bands with different numbers of k-points"
+
+#: core/qe/relax.py
+msgid "cabeçalho"
+msgstr "header"
+
+#: core/qe/bands_x.py
+msgid "cabeçalho &plot ausente"
+msgstr "&plot header missing"
+
+#: core/qe/projwfc.py
+msgid "cabeçalho '#' ausente"
+msgstr "'#' header missing"
+
+#: core/qe/summary/build.py
+msgid "colinear (nspin=2)"
+msgstr "collinear (nspin=2)"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "colunas não reconhecidas em {name}"
+msgstr "unrecognized columns in {name}"
+
+#: core/qe/lattice.py
+msgid "conjunto de celldm"
+msgstr "set of celldm values"
+
+#: core/qe/relax.py
+msgid "critérios"
+msgstr "criteria"
+
+#: core/qe/lattice.py
+msgid "célula de volume nulo"
+msgstr "cell with zero volume"
+
+#: core/qe/pw_output.py
+msgid "duas energias de Fermi (↑/↓): referência na média, linhas separadas no gráfico"
+msgstr "two Fermi energies (↑/↓): reference at the average, separate lines in the plot"
+
+#: core/qe/bands_x.py
+msgid "eixo x difere entre bandas"
+msgstr "x axis differs between bands"
+
+#: core/qe/relax.py
+msgid "entrada"
+msgstr "input"
+
+#: core/qe/bands_x.py
+msgid "esperadas 2 colunas (x, E)"
+msgstr "expected 2 columns (x, E)"
+
+#: core/qe/bands_x.py
+#, python-brace-format
+msgid "esperados {nks} pontos k com {nbnd} bandas"
+msgstr "expected {nks} k-points with {nbnd} bands"
+
+#: core/qe/lattice.py
+msgid "faltam celldm(1) ou A no &SYSTEM"
+msgstr "celldm(1) or A missing in &SYSTEM"
+
+#: core/qe/lattice.py
+msgid "ibrav = 0 sem CELL_PARAMETERS"
+msgstr "ibrav = 0 without CELL_PARAMETERS"
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "ibrav = {ibrav} não existe"
+msgstr "ibrav = {ibrav} does not exist"
+
+#: core/qe/cell_card.py
+#, python-brace-format
+msgid "ibrav = {ibrav} trocado por 0: {cell} vai em CELL_PARAMETERS"
+msgstr "ibrav = {ibrav} replaced by 0: {cell} goes in CELL_PARAMETERS"
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "ibrav ausente ou inválido ({ibrav_text})"
+msgstr "ibrav missing or invalid ({ibrav_text})"
+
+#: core/qe/summary/build.py
+msgid "k-pontos irredutíveis"
+msgstr "Irreducible k-points"
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "linha de ATOMIC_POSITIONS ilegível: {strip}"
+msgstr "unreadable ATOMIC_POSITIONS line: {strip}"
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "linha de {what} ilegível: {strip}"
+msgstr "unreadable {what} line: {strip}"
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "nat = {value} no input, {count} posições na saída"
+msgstr "nat = {value} in the input, {count} positions in the output"
+
+#: core/qe/projwfc.py
+msgid "nenhum arquivo pdos_atm# encontrado"
+msgstr "no pdos_atm# file found"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "nenhum arquivo pdos_atm# legível: {w}"
+msgstr "no readable pdos_atm# file: {w}"
+
+#: core/qe/input_extract.py core/qe/summary/build.py
+msgid "não colinear"
+msgstr "non-collinear"
+
+#: core/qe/summary/build.py
+msgid "não polarizado"
+msgstr "unpolarized"
+
+#: core/qe/bands_x.py
+#, python-brace-format
+msgid "não é um arquivo de bandas numérico: {exc}"
+msgstr "not a numeric bands file: {exc}"
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "opção {a} ↔ {b}"
+msgstr "option {a} ↔ {b}"
+
+#: core/qe/relax.py
+msgid "padrão do QE"
+msgstr "QE default"
+
+#: core/qe/projwfc.py
+msgid "pdos_tot ausente: total = soma das projeções"
+msgstr "pdos_tot missing: total = sum of the projections"
+
+#: core/qe/summary/build.py
+msgid "spin-órbita"
+msgstr "spin-orbit"
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "unidade de CELL_PARAMETERS desconhecida: {unit}"
+msgstr "unknown CELL_PARAMETERS unit: {unit}"
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "{count} linha difere"
+msgid_plural "{count} linhas diferem"
+msgstr[0] "{count} line differs"
+msgstr[1] "{count} lines differ"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "{cycles} ciclos SCF, {steps} passos BFGS"
+msgstr "{cycles} SCF cycles, {steps} BFGS steps"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "{flavor}, {count} processadores"
+msgstr "{flavor}, {count} processors"
+
+#: core/qe/input_extract.py
+#, python-brace-format
+msgid "{mode} {n} pontos"
+msgstr "{mode} {n} points"
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "{name} não tem o bloco final de coordenadas (Begin final coordinates)"
+msgstr "{name} has no final coordinates block (Begin final coordinates)"
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "{name} não é um input do pw.x"
+msgstr "{name} is not a pw.x input"
+
+#: core/qe/scf_from_relax.py
+#, python-brace-format
+msgid "{name} não é um relax/vc-relax (calculation = '{value}')"
+msgstr "{name} is not a relax/vc-relax (calculation = '{value}')"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "{name} sem dados"
+msgstr "{name} has no data"
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "{name}: arquivo grande demais para comparar"
+msgstr "{name}: file too large to compare"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "{name}: grade de energia diferente, interpolada"
+msgstr "{name}: different energy grid, interpolated"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "{name}: ilegível ({exc}): total = soma das projeções"
+msgstr "{name}: unreadable ({exc}): total = sum of the projections"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "{name}: ilegível, ignorado ({exc})"
+msgstr "{name}: unreadable, ignored ({exc})"
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "{name}: só em A"
+msgstr "{name}: only in A"
+
+#: core/qe/input_diff.py
+#, python-brace-format
+msgid "{name}: só em B"
+msgstr "{name}: only in B"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "{n} projeções não constam na saída do projwfc.x ({pairs}): de outra execução com o mesmo filpdos?"
+msgstr "{n} projections are not in the projwfc.x output ({pairs}): from another run with the same filpdos?"
+
+#: core/qe/summary/build.py
+#, python-brace-format
+msgid "{smearing} (largura {width} Ry)"
+msgstr "{smearing} (width {width} Ry)"
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "{what} incompleto"
+msgstr "{what} is incomplete"
+
+#: core/qe/lattice.py
+#, python-brace-format
+msgid "{what} inválido para o ibrav"
+msgstr "{what} is invalid for this ibrav"
+
+#: core/qe/summary/build.py
+msgid "Átomos na célula"
+msgstr "Atoms in the cell"
+
+#: core/qe/projwfc.py
+#, python-brace-format
+msgid "átomo {atom} wfc {wfc}"
+msgstr "atom {atom} wfc {wfc}"
+

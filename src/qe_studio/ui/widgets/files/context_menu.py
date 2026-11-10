@@ -24,16 +24,18 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 
+from PyQt6 import sip
 from PyQt6.QtCore import QMimeData, QMimeDatabase, QObject, QPoint, QProcess, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
 from ....core.calculations import module_for_file
 from ....core.calculations.bands_dos import bands_dos_pair
-from ....core.files.desktop_apps import DesktopApp, catalog, expand_exec
+from ....core.files.desktop_apps import DesktopApp, catalog, catalog_ready, expand_exec
 from ....core.files.xcrysden import command, locate, option_for
 from ....core.qe.scf_from_relax import scf_availability
 from ....core.sniff import FileKind, looks_like_input
+from ....core.tasks import run_task
 from ....i18n import _, ngettext
 from ...dialogs.open_with import ask_command
 from ...files.detection_service import DetectionService
@@ -53,6 +55,34 @@ def mime_types_for(path: Path) -> list[str]:
     mime = QMimeDatabase().mimeTypeForFile(str(path))
     parents = [name for name in mime.allAncestors() if name != "application/octet-stream"]
     return [mime.name(), *parents]
+
+
+class OpenChoices(NamedTuple):
+    """The programs that open ``path``: the type's default (or None) and the other ones."""
+
+    path: Path
+    default: DesktopApp | None
+    others: list[DesktopApp]
+
+
+def open_with_choices(path: Path) -> OpenChoices:
+    """The first call reads the whole catalog of programs: ``_fill_open_with`` and ``open_default``
+    run it in a worker until the catalog is built (``QMimeDatabase`` may be asked from any thread)."""
+    apps = catalog()
+    mime_types = mime_types_for(path)
+    default = apps.default_app(mime_types)
+    others = [app for app in apps.apps_for(mime_types) if default is None or app != default]
+    return OpenChoices(path, default, others)
+
+
+def default_choice(path: Path) -> OpenChoices:
+    """``open_with_choices``, but a catalog that cannot be read gives no program: the desktop's own
+    opener then decides (worker side of ``open_default``)."""
+    try:
+        return open_with_choices(path)
+    except Exception:
+        log.warning("file: cannot list the programs that open %s", path, exc_info=True)
+        return OpenChoices(path, None, [])
 
 
 class FileActions(NamedTuple):
@@ -102,6 +132,8 @@ class ItemActions(QObject):
         # once (spec 45). ``Structure3DController.for_window`` sets it: ``main_window.py`` is full.
         self.xcrysden_path: Callable[[], str | None] = lambda: None
         self._reveals: dict[QObject, list[Path]] = {}  # pending D-Bus calls → items
+        # The "Abrir com" submenu waiting for the programs of its item (one menu at a time).
+        self._pending_open_with: tuple[QMenu, Path] | None = None
 
     def show(self, paths: list[Path], pos: QPoint, can_rename: bool = True) -> None:
         """The menu of the selected ``paths`` at the global position ``pos``.
@@ -150,7 +182,7 @@ class ItemActions(QObject):
 
     def scf_state(self, path: Path) -> str | None:
         """The "Gerar SCF convergido" item (spec 24): None hides it, "" enables it, any other
-        text is why it is disabled. From the caches (and the head of the paired input)."""
+        text is why it is disabled. From the caches: no file is read here."""
         service = self.service
         results = service.peek_results(path.parent)
         return scf_availability(path, service.file_sniff(path), results, service.file_sniff)
@@ -296,11 +328,34 @@ class ItemActions(QObject):
                 submenu, _("Escolher programa…"), lambda: self._launch(argv, path, "Windows")
             )
             return
-        apps = catalog()
-        mime_types = mime_types_for(path)
-        default = apps.default_app(mime_types)
-        others = [app for app in apps.apps_for(mime_types) if default is None or app != default]
-        for app in ([default] if default else []) + others:
+        if catalog_ready():
+            self._add_apps(submenu, open_with_choices(path))
+            return
+        # The first time the catalog is read: from a worker, the submenu says so meanwhile.
+        add_action(submenu, _("Carregando…"), lambda: None, enabled=False)
+        self._pending_open_with = (submenu, path)
+        run_task(
+            open_with_choices, path, on_done=self._on_apps_listed, on_error=self._on_apps_failed
+        )
+
+    def _on_apps_listed(self, choices: OpenChoices) -> None:
+        pending = self._pending_open_with
+        if pending is None or pending[1] != choices.path:  # the answer of an earlier menu
+            return
+        self._pending_open_with = None
+        if not sip.isdeleted(pending[0]):  # else the menu closed before the answer
+            pending[0].clear()
+            self._add_apps(pending[0], choices)
+
+    def _on_apps_failed(self, error: Exception) -> None:
+        """No list of programs: "Outro programa…" still works."""
+        log.warning("file: cannot list the programs: %s", error)
+        if self._pending_open_with is not None:
+            self._on_apps_listed(OpenChoices(self._pending_open_with[1], None, []))
+
+    def _add_apps(self, submenu: QMenu, choices: OpenChoices) -> None:
+        path, default = choices.path, choices.default
+        for app in ([default] if default else []) + choices.others:
             text = _("{name} (padrão)").format(name=app.name) if app is default else app.name
             add_action(submenu, text, lambda a=app: self.open_with(path, a), icon=app_icon(app))
         if default is None:
@@ -313,12 +368,18 @@ class ItemActions(QObject):
 
     def open_default(self, path: Path) -> None:
         """Open ``path`` with the program its type opens with (text viewer's "Abrir no editor
-        externo"); the desktop decides when none is registered."""
-        app = None if IS_WINDOWS else catalog().default_app(mime_types_for(path))
-        if app is None:
+        externo"); the desktop decides when none is registered. The programs are listed in a worker:
+        the first time that reads the whole catalog."""
+        if IS_WINDOWS:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
         else:
-            self.open_with(path, app)
+            run_task(default_choice, path, on_done=self._open_with_default)
+
+    def _open_with_default(self, choices: OpenChoices) -> None:
+        if choices.default is None:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(choices.path)))
+        else:
+            self.open_with(choices.path, choices.default)
 
     def open_in_xcrysden(self, path: Path, option: str, executable: Path | None) -> None:
         """ "Abrir com XCrysDen" (spec 45): ``xcrysden <option> <path>``, detached, no shell. A start
@@ -336,7 +397,7 @@ class ItemActions(QObject):
         log.info("file: external program %s", shlex.join(argv))
         ok, _pid = QProcess.startDetached(argv[0], argv[1:], str(path.parent))
         if not ok:
-            log.warning("could not start %s", argv)
+            log.warning("file: could not start %s", argv)
             text = _("Não foi possível abrir {file} com {program}.")
             self.message.emit(text.format(file=path.name, program=name), "error", 4000)
 
@@ -349,7 +410,8 @@ class ItemActions(QObject):
         """Show the items, all selected when the file manager allows it (Windows' Explorer takes
         one ``/select``: the first)."""
         if IS_WINDOWS:
-            QProcess.startDetached("explorer", [f"/select,{paths[0]}"])
+            # Two arguments: Qt quotes a token with a space whole, and Explorer then selects nothing.
+            QProcess.startDetached("explorer", ["/select,", os.path.normpath(str(paths[0]))])
         elif not self._show_items_dbus(paths):
             self._open_parent(paths[0])
 
@@ -380,7 +442,7 @@ class ItemActions(QObject):
         try:
             reply = QDBusPendingReply(watcher)
             if reply.isError() and paths:
-                log.info("%s.ShowItems failed: %s", FILE_MANAGER, reply.error().message())
+                log.warning("file: %s.ShowItems failed: %s", FILE_MANAGER, reply.error().message())
                 self._open_parent(paths[0])
         finally:
             watcher.deleteLater()

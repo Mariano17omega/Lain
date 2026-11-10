@@ -1,18 +1,22 @@
 """PDOS: SCF, NSCF on a mesh and projwfc.x, whose PDOS files go to ``orbitals/`` (PRD §3).
 
-In the ``padrao`` mode only ``Emin`` / ``Emax`` are asked for: the NSCF takes the SCF's mesh (asked
-only when the SCF has no automatic one), ``nbnd`` and ``occupations`` follow the SCF, and
-``&PROJWFC`` has ``DeltaE = 0.01``, ``filpdos = '<prefix>.dat'`` and, unless the NSCF uses
-tetrahedra (spec 27-1), ``ngauss = 0``, ``degauss = 0.000735`` Ry (≈ 0.01 eV).
+In the ``padrao`` mode only ``Emin`` / ``Emax`` are asked for, and both start empty: projwfc.x then
+takes the whole range of the bands (L-10). The NSCF takes the SCF's mesh (asked only when the SCF has
+no automatic one), ``nbnd`` and ``occupations`` follow the SCF, and ``&PROJWFC`` has ``DeltaE = 0.01``,
+``filpdos = '<prefix>.dat'`` and, unless the NSCF uses tetrahedra (spec 27-1), ``ngauss = 0``,
+``degauss = 0.000735`` Ry (≈ 0.01 eV), which replace the smearing of pw.x.
 """
 
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from ....i18n import _
-from ..edits import ensure_smearing, put_mesh, put_number, put_string
+from ...qe.input_edit import InputEditor
+from ...qe.pw_input import fortran_float
+from ..edits import ensure_disk_io, ensure_smearing, put_mesh, put_number, put_string
 from ..render import render
 from ..scf_info import ScfInfo
 from ..unit import UNIT_OUTDIR
@@ -26,7 +30,6 @@ NSCF = "nscf"  # key
 PROJWFC = "projwfc"  # key
 PROJWFC_TEMPLATE = "qe/pdos/projwfc.in.j2"
 DEFAULT_DELTA_E = 0.01
-DEFAULT_E_MIN, DEFAULT_E_MAX = -25.0, 25.0
 DEFAULT_DEGAUSS = 0.000735  # Ry, ≈ 0.01 eV (spec 28 R3.4)
 DEFAULT_NGAUSS = 0
 OCCUPATIONS = ("smearing", "tetrahedra", "tetrahedra_opt", "tetrahedra_lin", "fixed")
@@ -36,8 +39,13 @@ NO_BROADENING_NOTE = _(
     "(um degauss no input o desligaria)"
 )
 ENERGY_WINDOW_HINT = _(
-    "Emin/Emax são energias absolutas em eV; acima da energia da última banda calculada (nbnd) "
-    "a DOS é zero. Aumente nbnd ou reduza Emax"
+    "Emin/Emax são energias absolutas em eV (em branco: toda a faixa das bandas calculadas); "
+    "acima da energia da última banda calculada (nbnd) a DOS é zero. Aumente nbnd ou reduza Emax"
+)
+WHOLE_RANGE_HINT = _("vazio = toda a faixa das bandas")  # the placeholder of Emin / Emax
+TETRA_OPT_DEGAUSS = _(
+    "projwfc.in com degauss e NSCF com occupations = 'tetrahedra_opt': o projwfc.x segue pelo ramo "
+    "dos tetraedros sem tê-los inicializado. Tire o degauss ou troque as ocupações"
 )
 
 
@@ -48,10 +56,17 @@ def _occupations(scf: ScfInfo) -> str:
 
 
 def _projwfc(
-    key: str, label: str, kind, default, tooltip: str, standard: bool = False
+    key: str, label: str, kind, default, tooltip: str, standard: bool = False, hint: str = ""
 ) -> FormField:
     return FormField(
-        key, label, kind, default, group=PROJWFC, tooltip=f"&PROJWFC {tooltip}", standard=standard
+        key,
+        label,
+        kind,
+        default,
+        group=PROJWFC,
+        tooltip=f"&PROJWFC {tooltip}",
+        standard=standard,
+        hint=hint,
     )
 
 
@@ -105,31 +120,36 @@ class PdosType(CalcType):
                 "e_min",
                 _("Energia mínima (Emin, eV)"),
                 "float",
-                DEFAULT_E_MIN,
+                None,
                 "Emin",
                 standard=True,
+                hint=WHOLE_RANGE_HINT,
             ),
             _projwfc(
                 "e_max",
                 _("Energia máxima (Emax, eV)"),
                 "float",
-                DEFAULT_E_MAX,
+                None,
                 f"Emax: {ENERGY_WINDOW_HINT}",
                 standard=True,
+                hint=WHOLE_RANGE_HINT,
             ),
             _projwfc(
                 "degauss",
                 _("Alargamento (degauss, Ry)"),
                 "float",
                 DEFAULT_DEGAUSS,
-                _("degauss (em Ry; 0.000735 Ry ≈ 0.01 eV): ignorado com tetraedros"),
+                _(
+                    "degauss (em Ry; 0.000735 Ry ≈ 0.01 eV): substitui o smearing do pw.x; "
+                    "ignorado com tetraedros"
+                ),
             ),
             _projwfc(
                 "ngauss",
                 _("Tipo de alargamento (ngauss)"),
                 "int",
                 DEFAULT_NGAUSS,
-                _("ngauss: ignorado com tetraedros"),
+                _("ngauss: substitui o do pw.x; ignorado com tetraedros"),
             ),
             _projwfc(
                 "filpdos",
@@ -148,12 +168,17 @@ class PdosType(CalcType):
         if occupations is not None and not (occupations == "fixed" and scf.occupations is None):
             put_string(editor, "system", "occupations", occupations)
         if occupations == "smearing":
-            nscf = work.name(NSCF)
             work.notes.extend(
-                f"{nscf}: {note}" for note in ensure_smearing(editor, replace_tetrahedra=False)
+                f"{work.name(NSCF)}: {note}"
+                for note in ensure_smearing(editor, replace_tetrahedra=False)
             )
         if values["nbnd"] is not None:
             put_number(editor, "system", "nbnd", values["nbnd"])
+        nscf = work.name(NSCF)
+        work.notes.extend(f"{nscf}: {note}" for note in ensure_disk_io(editor, "projwfc.x"))
+        scf_editor = work.editor()
+        scf_name = work.name(SCF_KEY)
+        work.notes.extend(f"{scf_name}: {note}" for note in ensure_disk_io(scf_editor))
         mesh = check_mesh(work)
         if mesh is not None:
             put_mesh(editor, mesh)
@@ -170,18 +195,32 @@ class PdosType(CalcType):
                 "outdir": UNIT_OUTDIR,
                 "delta_e": _or(values["delta_e"], DEFAULT_DELTA_E),
                 "filpdos": values["filpdos"] or f"{scf.prefix}.dat",
-                "e_min": _or(e_min, DEFAULT_E_MIN),
-                "e_max": _or(e_max, DEFAULT_E_MAX),
+                "e_min": e_min,
+                "e_max": e_max,
                 "broadening": broadening,
                 "ngauss": _or(values["ngauss"], DEFAULT_NGAUSS),
                 "degauss": _or(values["degauss"], DEFAULT_DEGAUSS),
             },
         )
         return [
-            work.pw_file(SCF_KEY, work.editor()),
+            work.pw_file(SCF_KEY, scf_editor),
             work.pw_file(NSCF, editor),
             work.planned(PROJWFC, "qe_input", projwfc),
         ]
+
+    def text_errors(self, files: Sequence[PlannedFile]) -> list[str]:
+        """``tetrahedra_opt`` in the NSCF and a ``degauss`` in the projwfc.in, as written (an edit by
+        hand: the form never makes it): ``partialdos.f90:84`` takes the tetrahedron branch whatever
+        ``degauss`` is, and ``projwfc.f90`` has not set the tetrahedra up (L-10)."""
+        by_key = {planned.key: planned for planned in files}
+        nscf, projwfc = by_key.get(NSCF), by_key.get(PROJWFC)
+        if nscf is None or projwfc is None:
+            return []
+        occupations = InputEditor.from_text(nscf.text).get("system", "occupations") or ""
+        degauss = fortran_float(InputEditor.from_text(projwfc.text).get("projwfc", "degauss") or "")
+        if occupations.strip().lower() == "tetrahedra_opt" and degauss:
+            return [TETRA_OPT_DEGAUSS]
+        return []
 
 
 def _or(value: Any, default: Any) -> Any:

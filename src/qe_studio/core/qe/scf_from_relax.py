@@ -27,6 +27,7 @@ from .cell_card import set_cell
 from .final_structure import FinalStructure, read_final_structure
 from .input_edit import InputEditor, read_input_text
 from .pairing import same_name_input
+from .pw_input import fortran_int
 
 if TYPE_CHECKING:
     from ..calculations.base import DetectionResult
@@ -71,16 +72,34 @@ def can_generate_scf(sniff: FileSniff | None) -> bool:
     return sniff.calculation in RELAX and pw.geometry_converged is True and pw.job_done
 
 
-def pair_input(output: Path, results: Iterable[DetectionResult] | None) -> Path | None:
-    """The input of ``output``: the same name with ``.in`` (when it is a QE input), else the
-    ``relax_in`` of the folder's detection, if that result's output is this one."""
-    if (same := same_name_input(output)) is not None:
-        return same
+def _detected_input(output: Path, results: Iterable[DetectionResult] | None) -> Path | None:
+    """The ``relax_in`` of the folder's detection, if that result's output is ``output``."""
     for result in results or ():
         found = result.file("relax_in")
         if found is not None and result.file("relax_out") == output:
             return found
     return None
+
+
+def pair_input(output: Path, results: Iterable[DetectionResult] | None) -> Path | None:
+    """The input of ``output``: the same name with ``.in`` (when it is a QE input), else the
+    detected one. Reads the head of the same-name file: workers only."""
+    return same_name_input(output) or _detected_input(output, results)
+
+
+def _cached_pair(
+    output: Path,
+    results: Iterable[DetectionResult] | None,
+    sniff_of: Callable[[Path], FileSniff | None],
+) -> Path | None:
+    """``pair_input`` for the GUI thread: one ``stat`` and the caches. A same-name file not sniffed
+    yet counts, and the worker settles it with ``pair_input``."""
+    same = output.with_suffix(".in")
+    if same != output and same.is_file():
+        cached = sniff_of(same)
+        if cached is None or not cached.is_output:
+            return same
+    return _detected_input(output, results)
 
 
 def _not_relax(name: str, calculation: str | None) -> str:
@@ -108,21 +127,14 @@ def scf_availability(
     sniff_of: Callable[[Path], FileSniff | None],
 ) -> str | None:
     """The "Gerar SCF convergido" item of ``output``: None hides it, "" enables it, and any other
-    text disables it with that tooltip. Reads caches, and at most the head of the paired input."""
+    text disables it with that tooltip. Reads no file: this runs on the GUI thread."""
     if not can_generate_scf(sniff):
         return None
-    pair = pair_input(output, results)
+    pair = _cached_pair(output, results, sniff_of)
     return pair_problem(pair, sniff_of(pair) if pair is not None else None)
 
 
 # -- the SCF ----------------------------------------------------------------------------------------
-def _int(text: str | None) -> int | None:
-    try:
-        return int(text) if text is not None else None
-    except ValueError:
-        return None
-
-
 def scf_from_relax(final: FinalStructure, in_text: str, name: str = _("O input")) -> ScfResult:
     """The relax input ``in_text`` turned into an SCF at ``final``. Raises ``ScfError`` (nothing
     to write) when the input is no relax or its ``nat`` disagrees with the output."""
@@ -130,7 +142,7 @@ def scf_from_relax(final: FinalStructure, in_text: str, name: str = _("O input")
     calculation = (editor.get("control", "calculation") or "scf").lower()
     if calculation not in RELAX:
         raise ScfError(_not_relax(name, calculation))
-    nat, count = _int(editor.get("system", "nat")), len(final.positions.lines)
+    nat, count = fortran_int(editor.get("system", "nat")), len(final.positions.lines)
     if nat != count:
         raise ScfError(
             _("nat = {value} no input, {count} posições na saída").format(

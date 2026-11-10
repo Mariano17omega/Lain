@@ -36,6 +36,7 @@ script, from an **SCF you already have**. Nothing is executed: you review, edit,
 - The folder is new: `<number>_<Type>[_suffix]` (see [numbering](../folders.md#folder-numbering-in-criar-calculo)); an
   existing folder is never overwritten.
 - `jobs.cores` (NP), `jobs.nk`, `jobs.pseudo_dir` and `jobs.myemail` from `config.yaml` set the script defaults.
+  An input with `K_POINTS gamma` (or no card) and `nk` above 1 gets a warning: `pw.x` stops with pools in that case.
 - **Gerar fingerprint.md** (off by default, remembered): records type, final name, time, Lain version and source SCFs.
 - Every script follows the cluster's current model (SGE + Intel MPI), in `resources/templates/qsub/`.
 

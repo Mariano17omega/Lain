@@ -131,9 +131,9 @@ def test_only_the_down_channel_found_warns_the_other_way(tmp_path):
     assert "só o canal ↓ foi encontrado: rode o bands.x com spin_component = 1" in result.warnings
 
 
-def test_inputs_of_both_channels_writing_one_file_give_it_to_no_channel(tmp_path):
+def _both_channels_writing_one_file(tmp_path, remove=()):
     # Both bands.x runs wrote bands.dat: the file holds the last run, whichever it was.
-    folder = spin_bands_copy(tmp_path, remove=("bands_up.dat", "bands_up.dat.gnu"))
+    folder = spin_bands_copy(tmp_path, remove=("bands_up.dat", "bands_up.dat.gnu", *remove))
     (folder / "bands_dw.dat").rename(folder / "bands.dat")
     (folder / "bands_dw.dat.gnu").rename(folder / "bands.dat.gnu")
     for name in BANDSX_FILES:
@@ -141,12 +141,23 @@ def test_inputs_of_both_channels_writing_one_file_give_it_to_no_channel(tmp_path
         (folder / name).write_text(
             text.replace("bands_up.dat", "bands.dat").replace("bands_dw.dat", "bands.dat")
         )
-    result = detect_one(folder)
+    return folder
+
+
+def test_inputs_of_both_channels_writing_one_file_give_it_to_no_channel(tmp_path):
+    result = detect_one(_both_channels_writing_one_file(tmp_path))
     assert "gnu_down" not in result.files and "filband_down" not in result.files
+    assert "gnu" not in result.files and "filband" not in result.files
+    assert result.complete  # the eigenvalues of the pw.x output, which holds both channels
     assert result.warnings == [
         "as entradas do bands.x de ↑ e ↓ escrevem o mesmo arquivo (bands.dat): ele guarda só a "
         "última execução; use filband diferentes ou o mapeamento manual"
     ]
+
+
+def test_one_file_for_both_channels_and_no_pw_output_asks_for_the_mapping(tmp_path):
+    result = detect_one(_both_channels_writing_one_file(tmp_path, remove=("ni.band.out",)))
+    assert "gnu" not in result.files and "gnu" in result.missing
 
 
 def test_channels_with_different_k_counts_warn(tmp_path):

@@ -40,7 +40,7 @@ def _write(order: WriteOrder, ticket: int, folder: Path, kind: str, params: obje
             plot_file_path(folder, kind), ticket, lambda: write_plot_file(folder, kind, params)
         )
     except OSError as exc:
-        log.warning("cannot save %s.plot in %s: %s", kind, folder, exc)
+        log.warning("file: cannot save %s.plot in %s: %s", kind, folder, exc)
         text = _("Não foi possível salvar {kind}.plot em {folder}: {error}")
         return text.format(kind=kind, folder=folder.name, error=exc.strerror or exc)
     return None
@@ -113,7 +113,9 @@ class PlotSettingsStore(QObject):
             self._timer.stop()
         drained = self._pool.waitForDone(timeout_ms)
         if not drained:
-            log.warning("plot settings: writes still queued after %d ms; writing now", timeout_ms)
+            log.warning(
+                "file: plot settings writes still queued after %d ms; writing now", timeout_ms
+            )
         for session in self._take(key, inside):
             ticket = self._order.ticket()
             self._report(

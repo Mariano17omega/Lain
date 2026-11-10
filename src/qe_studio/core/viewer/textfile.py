@@ -76,7 +76,15 @@ class TextSlice:
         return self.line_map.truncated
 
 
-def _count_newlines(handle, start: int, end: int) -> int:
+def _line_breaks(data: bytes, after_cr: bool = False) -> int:
+    """The line breaks the text editor sees in ``data``: ``\\n``, ``\\r``, and ``\\r\\n`` as one.
+    ``after_cr``: the byte before ``data`` was a ``\\r``, which a ``\\n`` at its start belongs to."""
+    breaks = data.count(b"\n") + data.count(b"\r") - data.count(b"\r\n")
+    return breaks - 1 if after_cr and data.startswith(b"\n") else breaks
+
+
+def _count_breaks(handle, start: int, end: int, after_cr: bool) -> tuple[int, bool]:
+    """The line breaks of the bytes ``[start, end)``, and whether what was read ends in ``\\r``."""
     handle.seek(start)
     remaining, count = max(0, end - start), 0
     while remaining > 0:
@@ -84,9 +92,10 @@ def _count_newlines(handle, start: int, end: int) -> int:
         chunk = handle.read(min(_CHUNK, remaining))
         if not chunk:
             break
-        count += chunk.count(b"\n")
+        count += _line_breaks(chunk, after_cr)
+        after_cr = chunk.endswith(b"\r")
         remaining -= len(chunk)
-    return count
+    return count, after_cr
 
 
 def _read_whole(handle, size: int) -> str:
@@ -107,20 +116,23 @@ def _read_whole(handle, size: int) -> str:
 def read_slice(path: Path, full: bool = False) -> TextSlice:
     """The file's text; above ``LARGE_FILE`` (unless ``full``) its head and tail with a marker.
 
-    A lone ``\\r`` is not a line break here, so such a file may number its tail a few lines off.
+    A line is what the editor shows as one, so the numbers are those of the whole file: ``\\n``, a
+    lone ``\\r`` and ``\\r\\n`` end it. A U+2029, which no run log holds, is not counted.
     """
     size = path.stat().st_size
     with open(path, "rb") as handle:
         if full or size <= LARGE_FILE:
             return TextSlice(_read_whole(handle, size), size)
-        head = handle.read(HEAD_BYTES).decode("utf-8", "replace")
+        head = handle.read(HEAD_BYTES)
         tail_start = size - TAIL_BYTES
-        omitted = _count_newlines(handle, HEAD_BYTES, tail_start)
+        omitted, after_cr = _count_breaks(handle, HEAD_BYTES, tail_start, head.endswith(b"\r"))
         handle.seek(tail_start)
-        tail = handle.read().decode("utf-8", "replace")
-    head_lines = head.count("\n")
+        tail = handle.read()
+    # A \r\n cut by the start of the tail was counted at its \r; its \n opens one more block.
+    crlf_cut = after_cr and tail.startswith(b"\n")
     line_map = LineMap(
-        tail_block=head_lines + MARKER_BLOCKS + 1,
-        tail_first_line=head_lines + omitted + 1,
+        tail_block=_line_breaks(head + MARKER.encode("utf-8")),
+        tail_first_line=_line_breaks(head) + omitted + 1 - crlf_cut,
     )
-    return TextSlice(head + MARKER + tail, size, line_map)
+    text = head.decode("utf-8", "replace") + MARKER + tail.decode("utf-8", "replace")
+    return TextSlice(text, size, line_map)

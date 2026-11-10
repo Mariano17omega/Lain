@@ -125,6 +125,13 @@ def test_gnu_shape_agrees_with_read_gnu(matrix, separator, trailing, chunk_size)
     assert shape == read_gnu_text(text).energies.shape == matrix[1].shape
 
 
+@given(st.lists(st.floats(-50, 50, allow_nan=False), min_size=2, max_size=30), st.integers(1, 64))
+def test_gnu_shape_of_a_single_k_point_agrees_with_read_gnu(energies, chunk_size):
+    text = "".join(f"{0.0:{COLUMN}.6f}{e:{COLUMN}.6f}\n\n" for e in energies)
+    shape = gnu_shape(io.BytesIO(text.encode()), chunk_size)
+    assert shape == read_gnu_text(text).energies.shape == (len(energies), 1)
+
+
 @given(band_matrices(), st.sampled_from(["", " "]), st.integers(1, 64), st.data())
 def test_gnu_shape_of_a_truncated_file_is_an_error_or_the_loaded_shape(
     matrix, separator, chunk_size, draw
@@ -687,6 +694,19 @@ def test_lint_script_of_a_big_script_is_quick():
     assert issues == [] and elapsed < 3.0
 
 
+@pytest.mark.perf
+@pytest.mark.parametrize("piece", ["a;", "${a};"])
+def test_lint_script_of_one_long_line_is_quick(piece):
+    import time
+
+    text = "#!/bin/bash\n" + piece * (1_000_000 // len(piece)) + "\n"
+    start = time.perf_counter()
+    issues = lint_script(text)
+    elapsed = time.perf_counter() - start
+    print(f"lint_script: one line of {piece!r}, {len(text) / 1e6:.1f} MB in {elapsed:.2f} s")
+    assert issues == [] and elapsed < 3.0
+
+
 # -- 3D viewer bonds (spec 43 R1.3) -------------------------------------------------------------
 
 CELLS = st.sampled_from(
@@ -720,6 +740,30 @@ def test_bonds_do_not_change_when_atoms_move_by_whole_cells(cell, atoms, data):
     moved = compute_bonds(cell, frac + k, radii)
     assert len(base) == len(moved)
     assert np.sort(base.dist) == pytest.approx(np.sort(moved.dist))
+
+
+@given(
+    lengths=st.tuples(*[st.floats(2.2, 7.0)] * 3),
+    atoms=st.lists(
+        st.tuples(*[st.floats(0.0, 1.0)] * 3, st.floats(0.3, 1.4)), min_size=1, max_size=6
+    ),
+    shears=st.lists(
+        st.tuples(st.permutations([0, 1, 2]), st.integers(-6, 6)), min_size=1, max_size=5
+    ),
+)
+def test_bonds_do_not_depend_on_the_basis_of_the_lattice(lengths, atoms, shears):
+    """The same lattice written on a sheared basis has the same bonds, however far they reach."""
+    clean = np.diag(lengths)
+    frac = np.array([atom[:3] for atom in atoms])
+    radii = np.array([atom[3] for atom in atoms])
+    unimodular = np.eye(3, dtype=int)
+    for (target, source, _unused), factor in shears:
+        unimodular[target] += factor * unimodular[source]
+    inverse = np.rint(np.linalg.inv(unimodular)).astype(int)
+    base = compute_bonds(clean, frac, radii)
+    sheared = compute_bonds(unimodular @ clean, frac @ inverse, radii)
+    assert len(base) == len(sheared)
+    assert np.sort(base.dist) == pytest.approx(np.sort(sheared.dist))
 
 
 # -- 3D viewer measures (spec 44 R1.3) -----------------------------------------------------------

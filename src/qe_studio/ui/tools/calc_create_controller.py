@@ -17,7 +17,7 @@ from PyQt6.QtCore import QObject, QSettings, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
 from ...core.calc_create.preview import created_notice
-from ...core.calc_create.writer import Created, CreateError, create_folder, preview_name
+from ...core.calc_create.writer import Created, CreateError, create_folder
 from ...core.config import JobsConfig
 from ...core.tasks import run_task
 from ...i18n import _
@@ -158,15 +158,9 @@ class CalcCreateController(QObject):
         return creating if creating is not None and creating.is_relative_to(path) else None
 
     def create(self, request: CreateRequest) -> None:
-        name = preview_name(
-            request.parent,
-            request.calc_type,
-            request.suffix,
-            request.numbered,
-            request.inherited,
-            request.tag,
-        )
         self._creating = request.parent
+        # The name the dialog already showed: no disk on this thread (the worker names it for real).
+        name = request.name or request.suffix
         self.busy.begin(BUSY_KEY, _("Criando {name}…").format(name=name))
         if self.dialog is not None:
             self.dialog.set_busy(True)

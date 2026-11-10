@@ -130,6 +130,36 @@ def test_an_input_that_is_not_an_scf_is_refused(qtbot, dialog, tmp_path):
     assert dialog.setup.scf_message.isHidden()
 
 
+def test_a_file_is_checked_and_read_in_the_worker_never_on_the_gui_thread(qtbot, dialog, tmp_path):
+    """Even the head check that says "não parece um input" runs in the worker: the message that
+    something is being read is up when ``set_scf`` returns."""
+    notes = tmp_path / "notes.txt"
+    notes.write_text("só texto\n")
+    with qtbot.waitSignal(dialog.setup.scf_ready, timeout=10_000) as blocker:
+        dialog.setup.set_scf(notes)
+        assert dialog.setup.scf_message.text() == setup_page.READING
+    assert blocker.args == [None]
+    assert dialog.setup.scf_message.text() == "notes.txt não parece um input do Quantum ESPRESSO"
+    gone = tmp_path / "gone.in"
+    with qtbot.waitSignal(dialog.setup.scf_ready, timeout=10_000) as blocker:
+        dialog.setup.set_scf(gone)
+    assert blocker.args == [None] and "não parece um input" in dialog.setup.scf_message.text()
+
+
+def test_one_edit_asks_the_disk_about_the_place_once(dialog, monkeypatch):
+    """The window reads what step 1 just checked instead of asking about the folder again."""
+    calls = []
+    real = setup_page.validate_parent
+    monkeypatch.setattr(
+        setup_page, "validate_parent", lambda path: calls.append(path) or real(path)
+    )
+    dialog.setup.suffix_edit.setText("Al")
+    assert len(calls) == 1
+    assert dialog.setup.last_problems == dialog.setup.problems()
+    assert not dialog.continue_button.isEnabled()  # no SCF yet: it says so from what was checked
+    assert dialog.continue_button.toolTip() == dialog.setup.last_problems[0]
+
+
 def test_name_preview_says_when_the_name_is_taken(qtbot, dialog, place):
     (place / "Bands_Al").mkdir()
     fill_setup(qtbot, dialog, "bandas")

@@ -37,15 +37,18 @@ SPECIES_KEYS = frozenset(
         "starting_ns_eigenvalue",
     }
 )
+# The keys whose species is the *first* index (``hubbard_occ(i,n)``, ``n`` being the manifold).
+FIRST_INDEX_KEYS = frozenset({"hubbard_occ"})
 _KEY = re.compile(r"(\w+)\(([^()]*)\)")
 _COMMENT = re.compile(r"[!#]")
 _TOKEN = re.compile(r"\S+")
+_MANIFOLDS = re.compile(r"(?:-\d[a-zA-Z])+$")  # the end of a label: ``-3d``, ``-2p-3s``
 
 
 def remap_species_keys(editor: InputEditor, mapping: Mapping[int, int]) -> list[str]:
     """Follow the species through ``mapping`` (old 1-based index → new one; absent = dropped): the keys of
     a dropped species are removed, the others renamed in place. Returns notes."""
-    found: list[tuple[str, str, list[str], int]] = []  # key, base, indices, species
+    found: list[tuple[str, str, list[str], int, int]] = []  # key, base, indices, position, species
     notes: list[str] = []
     for key in editor.keys("system"):
         match = _KEY.fullmatch(key)
@@ -54,22 +57,28 @@ def remap_species_keys(editor: InputEditor, mapping: Mapping[int, int]) -> list[
         base, indices = match.group(1), match.group(2).split(",")
         if base == "hubbard_v":
             notes.append(_("{key} usa índices de átomo: não foi renumerado").format(key=key))
-        elif base in SPECIES_KEYS and indices[-1].strip().isdigit():
-            found.append((key, base, indices, int(indices[-1])))
-    for key, _base, _indices, species in found:
+            continue
+        position = 0 if base in FIRST_INDEX_KEYS else len(indices) - 1
+        if (base in SPECIES_KEYS or base in FIRST_INDEX_KEYS) and indices[
+            position
+        ].strip().isdigit():
+            found.append((key, base, indices, position, int(indices[position])))
+    for key, *_rest, species in found:
         if species not in mapping:
             editor.remove("system", key)
     # The map only ever lowers an index, so renaming from the lowest never lands on a key not yet moved.
-    for key, base, indices, species in sorted(found, key=lambda item: item[3]):
+    for key, base, indices, position, species in sorted(found, key=lambda item: item[4]):
         new = mapping.get(species)
         if new is not None and new != species:
-            editor.rename_key("system", key, f"{base}({','.join([*indices[:-1], str(new)])})")
+            renamed = [*indices[:position], str(new), *indices[position + 1 :]]
+            editor.rename_key("system", key, f"{base}({','.join(renamed)})")
     return notes
 
 
 def _species_of(label: str) -> str:
-    """``Fe-3d`` → ``Fe``: the species of a ``HUBBARD`` manifold label."""
-    return label.rsplit("-", 1)[0]
+    """``Fe-3d`` → ``Fe``, ``O-2p-3s`` → ``O``: the species of a ``HUBBARD`` manifold label, whose own
+    name may hold a ``-`` (``Fe-up-3d`` → ``Fe-up``)."""
+    return _MANIFOLDS.sub("", label)
 
 
 def _atom_index(index: int, atoms: Mapping[int, int], nat: int, nat_new: int) -> int | None:

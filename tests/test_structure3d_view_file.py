@@ -1,8 +1,10 @@
 """Spec 47 R1: ``view3d.plot``, a section per file, and the view state it keeps (no Qt)."""
 
+import errno
 import os
 import shutil
 from dataclasses import fields
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -175,8 +177,6 @@ def test_invalid_values_fall_one_by_one_and_the_rest_holds():
             "reps",
             "show_cell",
             "label_size",
-            "species_colors",
-            "species_hidden",
         ]
     )
     assert options == DisplayOptions(bond_factor=1.3, labels="simbolo", abc_width=2.0)
@@ -197,8 +197,6 @@ def test_invalid_values_fall_one_by_one_and_the_rest_holds():
         ("reps", (1, 1, 1)),
         ("show_bonds", 1),
         ("background", "azul"),
-        ("species_colors", {"Si": "#ff00f"}),
-        ("species_colors", {"Zz": "#ffffff"}),
         ("species_colors", ["Si"]),
         ("species_hidden", "Si"),
     ],
@@ -207,6 +205,19 @@ def test_one_bad_value_is_ignored(name, value):
     options = DisplayOptions()
     assert apply_options(options, {name: value}, read_structure(SI_SCF)) == [name]
     assert options == DisplayOptions()
+
+
+def test_a_bad_species_entry_drops_alone():
+    """Removing a species from the input must not lose the colors of the ones that stay."""
+    structure = structure_of_text(TWO_SPECIES.format(species=O_FIRST))
+    stored = {
+        "species_colors": {"O": "#ff0000", "Fe": "#00ff00", "H": "vermelho"},
+        "species_hidden": ["Fe", "H", 7, ["O"]],
+    }
+    options = DisplayOptions()
+    assert apply_options(options, stored, structure) == []
+    assert options.species_colors == {0: (255, 0, 0)}
+    assert options.species_hidden == {1}
 
 
 def test_a_file_from_before_the_fixed_atoms_opens_with_them_off():
@@ -312,6 +323,42 @@ def test_an_unreadable_file_is_replaced(tmp_path, text):
     assert session is None and len(warnings) == 1
     assert write_session(tmp_path, "scf.in", a_session()) is None
     assert list(sections_of(tmp_path)) == ["scf.in"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["note: 2001-99-99\n", "[" * 5000 + "]" * 5000 + "\n"],
+    ids=["impossible-date", "too-deep"],
+)
+def test_yaml_that_cannot_be_built_is_a_bad_file_and_never_raises(tmp_path, text):
+    put_view(tmp_path, text)
+    session, warnings = read_session(tmp_path, "scf.in")
+    assert session is None and len(warnings) == 1
+    assert remove_session(tmp_path, "scf.in") is None
+    assert write_session(tmp_path, "scf.in", a_session()) is None
+    assert list(sections_of(tmp_path)) == ["scf.in"]
+
+
+def test_a_read_that_fails_leaves_the_file_alone(tmp_path, monkeypatch):
+    """A disk or network error says nothing about the file: the other views must survive it."""
+    assert write_session(tmp_path, "a.in", a_session()) is None
+    path = view_file_path(tmp_path)
+    before = stamp(path)
+    real_read = Path.read_text
+
+    def failing(self, *args, **kwargs):
+        if self == path:
+            raise OSError(errno.EIO, "Input/output error")
+        return real_read(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", failing)
+    message = write_session(tmp_path, "b.in", a_session(1.5))
+    session, warnings = read_session(tmp_path, "a.in")  # reading alone still only warns
+    monkeypatch.undo()
+    assert message is not None and "Input/output error" in message
+    assert session is None and len(warnings) == 1
+    assert stamp(path) == before
+    assert list(sections_of(tmp_path)) == ["a.in"]
 
 
 def test_a_section_that_is_no_mapping_reads_as_none(tmp_path):

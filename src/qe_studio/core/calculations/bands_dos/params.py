@@ -23,7 +23,12 @@ from ..params import (
     style_field,
 )
 from ..pdos import params as pdos_params
-from ..pdos.params import DEFAULT_ATOMOS_COLORS, DEFAULT_ORBITAL_COLORS, PdosParams
+from ..pdos.params import (
+    DEFAULT_ATOMOS_COLORS,
+    DEFAULT_ORBITAL_COLORS,
+    DOS_MAX_RANGE,
+    PdosParams,
+)
 
 if TYPE_CHECKING:
     from ...config import AppConfig
@@ -67,7 +72,7 @@ class BandsDosParams(CommonParams):
     down_color: str = field(default="#f97316", metadata={"kind": "color"})
     # The DOS panel.
     dos_width_ratio: float = 0.35  # of the band panel's width
-    dos_max: float | None = None
+    dos_max: float | None = field(default=None, metadata={"range": DOS_MAX_RANGE})
     grouping: str = "species_orbital"
     show_total: bool = True
     total_color: str = field(default="", metadata={"kind": "color"})

@@ -15,7 +15,7 @@ import math
 import re
 from pathlib import Path
 
-from ..viewer.qsub_lint import job_name, pe_slots
+from .job_script import job_name, pe_slots
 
 # The stdout half of a queue log: PBS/Torque/SGE ``job.o12345``, job arrays ``job.o12345.1``.
 JOB_STDOUT = re.compile(r"^(?P<name>.+)\.o\d+(?:[.-]\d+)?$", re.IGNORECASE)

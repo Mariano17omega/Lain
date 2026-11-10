@@ -64,7 +64,7 @@ PLOTS_55 = (
 
 @pytest.fixture(scope="module")
 def po():
-    return tool.read_catalog(tool.po_path("en"), "en")
+    return tool.read_all("en")
 
 
 @pytest.fixture(scope="module")
@@ -150,10 +150,12 @@ def test_po_follows_the_code(po, updated):
 
 
 def test_mo_follows_po(po):
-    path = tool.mo_path("en")
-    assert path.is_file(), "run `uv run python scripts/i18n.py compile`"
-    with path.open("rb") as handle:
-        compiled = pairs(tool.messages(read_mo(handle)))
+    compiled = {}
+    for domain in tool.domains_on_disk("en"):
+        path = tool.mo_path("en", domain)
+        assert path.is_file(), "run `uv run python scripts/i18n.py compile`"
+        with path.open("rb") as handle:
+            compiled |= pairs(tool.messages(read_mo(handle)))
     translated = pairs(message for message in tool.messages(po) if tool.is_translated(message))
     assert compiled == translated, "run `uv run python scripts/i18n.py compile`"
 
@@ -600,7 +602,7 @@ def test_the_plurals_have_both_forms(po):
         if len(tool.sources(message)) == 2
         and any(filename.startswith(SYNC_FILES) for filename, _line in message.locations)
     ]
-    assert len(area_58) == 14
+    assert len(area_58) == 18
     # The two forms differ, but for a sentence with no word that changes with the number.
     assert sorted(tool.sources(m)[0] for m in area_58 if len(set(tool.forms(m))) != 2) == [
         "{count} já existe no cluster (não será alterado)",
@@ -1189,7 +1191,9 @@ def test_the_fields_of_every_type_follow_the_language(english, portuguese, po):
     )
     assert relax["ion_dynamics"] == "Ion dynamics (ion_dynamics) | &IONS ion_dynamics"  # data
     pdos = keyed(english["calc_create_pdos#facts"], "field")
-    assert pdos["ngauss"] == "Smearing type (ngauss) | &PROJWFC ngauss: ignored with tetrahedra"
+    assert pdos["ngauss"] == (
+        "Smearing type (ngauss) | &PROJWFC ngauss: replaces the one of pw.x; ignored with tetrahedra"
+    )
 
 
 def test_the_checks_of_every_type_follow_the_language(english, portuguese, po):
@@ -1205,7 +1209,7 @@ def test_the_checks_of_every_type_follow_the_language(english, portuguese, po):
         assert no_portuguese(en, po) == [], type_id
         assert lost_code({str(n): pair for n, pair in enumerate(zip(pt, en, strict=True))}) == []
     for type_id, expected in {
-        "scf": ["typed note: Job name adjusted to job_de_teste (up to 15 characters: letters, digits, . _ -)"],
+        "scf": ["typed note: Job name adjusted to job_de_teste (up to 15 characters: letters, digits, . _ -; it cannot start with a digit)"],
         "relax": [
             "typed error: Invalid value in Maximum steps (nstep): abc",
             "typed note: NP = 64 is not a multiple of nk = 7: pw.x stops with an error (mp_start_pools)",
@@ -1561,7 +1565,7 @@ def test_failure_hints_follow_stderr(english, portuguese, po):
     """The needle is matched in the English stderr of ssh and rsync; the hint is the only thing that
     follows the language (R2.1): each needle picks its own hint, in the same order, and only the
     refusal of the credentials is ``auth_failed``."""
-    from qe_studio.core.sync.rsync import AUTH_DENIED, FAILURE_HINTS
+    from qe_studio.core.sync.rsync_errors import AUTH_DENIED, FAILURE_HINTS
 
     translated = {
         tool.sources(m)[0]: tool.forms(m)[0] for m in tool.messages(po) if tool.is_translated(m)

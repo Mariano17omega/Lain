@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Literal, NamedTuple
 
 from ..relax import NUMBER
-from ..structure import SITE
+from ..structure import SiteList
 from .model import Level, SummaryIssue
 
 Keep = Literal["first", "last", "both", "all"]
@@ -44,11 +44,11 @@ _RULES: tuple[_Rule, ...] = (
     _rule(
         "program",
         "Program ",
-        r"^\s*Program\s+([A-Z0-9_.]+)\s+v\.\s*(\S+)(?:.*?\bstarts on\s+(\S+)\s+at\s+(.+?))?\s*$",
+        r"^\s*Program\s+([A-Z0-9_.-]+)\s+v\.\s*(\S+)(?:.*?\bstarts on\s+(\S+)\s+at\s+(.+?))?\s*$",
     ),
     _rule("ended", "terminated on", r"terminated on:\s+(\d+:\s*\d+:\s*\d+)\s+(\S+)", "last"),
     _rule("job_done", "JOB DONE", r"JOB DONE"),
-    _rule("time", "WALL", r"^\s*([A-Z][A-Z0-9_]*)\s*:\s*(.+?)\s+CPU\s+(.+?)\s+WALL\s*$", "last"),
+    _rule("time", "WALL", r"^\s*([A-Z][A-Z0-9_-]*)\s*:\s*(.+?)\s+CPU\s+(.+?)\s+WALL\s*$", "last"),
     _rule("serial", "Serial version", r"Serial version"),
     _rule(
         "parallel", "Parallel version", r"Parallel version \((.+?)\),\s*running on\s+(\d+)\s+proc"
@@ -92,9 +92,13 @@ _RULES: tuple[_Rule, ...] = (
         "number of k points=",
         r"number of k points=\s*(\d+)(?:\s+(.+?),\s*width \(Ry\)=\s*(\S+))?",
     ),
-    _rule("spin_orbit", "with spin-orbit", r"Noncollinear calculation with spin-orbit"),
+    _rule(
+        "spin_orbit",
+        "with spin-orbit",
+        r"(?:Noncollinear|Non magnetic) calculation with spin-orbit",
+    ),
     # -- results (pw.x) -----------------------------------------------------------------------
-    _rule("etot", "!", rf"^\s*!\s+total energy\s*=\s*({NUMBER})\s*Ry", "both"),
+    _rule("etot", "!", rf"^\s*!+\s+total energy\s*=\s*({NUMBER})\s*Ry", "both"),
     _rule("final_energy", "Final energy", rf"Final energy\s*=\s*({NUMBER})\s*Ry", "last"),
     _rule("final_enthalpy", "Final enthalpy", rf"Final enthalpy\s*=\s*({NUMBER})\s*Ry", "last"),
     _rule(
@@ -163,8 +167,8 @@ class Scanner:
     def __init__(self) -> None:
         self.facts = Facts()
         self._in_header = True  # the site list of the header comes before the first "!" energy
-        self._sites_done = False
-        self._last_site = 0
+        self._sites = SiteList(self.facts.species)
+        self._exx_energy = False  # a "!!" energy (hybrid run) was already read
         self._stress: list[tuple[str, str, str]] | None = None
         self._pseudo: tuple[int, str, int] | None = None
         self._message: tuple[str, int] | None = None
@@ -208,10 +212,13 @@ class Scanner:
                     facts.last[rule.key] = hit
                 if rule.key == "etot":
                     self._in_header = False
+                    if "!!" in line and not self._exx_energy:  # "!" before it is semi-local
+                        self._exx_energy = True
+                        facts.first[rule.key] = hit
                 elif rule.key == "pressure":
                     self._stress = []
-        if "tau(" in line and self._in_header and not self._sites_done:
-            self._feed_site(line)
+        if "tau(" in line and self._in_header:
+            self._sites.feed(line)
         elif "Message from routine" in line and (match := _MESSAGE.search(line)):
             self._message = (match.group(1), number)
         elif "PseudoPot." in line and (match := _PSEUDO.search(line)):
@@ -235,19 +242,6 @@ class Scanner:
                 )
         if "Fermi energ" in line or "highest occupied" in line:
             facts.fermi_line = number
-
-    def _feed_site(self, line: str) -> None:
-        match = SITE.match(line)
-        if match is None:
-            return
-        index = int(match.group("index"))
-        if index <= self._last_site:  # a second list (another coordinate format): count one only
-            self._sites_done = True
-            return
-        self._last_site = index
-        species = self.facts.species
-        name = match.group("species")
-        species[name] = species.get(name, 0) + 1
 
     def _feed_stress(self, number: int, line: str) -> bool:
         """Three rows of six numbers follow ``P=``: Ry/bohr³ then kbar. True if ``line`` was one."""

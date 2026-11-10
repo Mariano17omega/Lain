@@ -8,6 +8,8 @@ One figure with a **shared energy axis**: bands on the left, PDOS on the right. 
   total, fill) together, plus `dos_width_ratio` (width of the DOS panel, default 0.35 of the bands panel).
 - `spin_mode` defaults to *Overlaid*: mirroring would make the DOS axis symmetric, odd next to the bands.
 - `Gap in legend` shows the bands' gap.
+- Both panels use the E_F of the bands, which in insulators is the middle of the gap: see
+  [Fermi level in insulators](index.md#fermi-in-insulators).
 - In cluster mode, selecting both remote folders and **Plotar** works the same way (copies in `tmp_remote/`).
 
 Code: `core/calculations/bands_dos/` (`pair.py` forms the pair; `module.py`, `render.py`, `params.py`, `table.py`).

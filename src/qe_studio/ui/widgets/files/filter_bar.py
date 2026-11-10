@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 
 from ....core.files.filtering import CategoryFilter
 from ....i18n import _
-from ..common import set_variant
+from ..common import clear_layout, set_variant
 from ..flow_layout import FlowLayout
 
 TYPING_DELAY_MS = 150
@@ -155,11 +155,7 @@ class FilterBar(QWidget):
         self.changed.emit()
 
     def _refresh_chips(self) -> None:
-        while (item := self.chips_layout.takeAt(0)) is not None:
-            widget = item.widget()
-            if widget is not None:
-                widget.hide()
-                widget.deleteLater()
+        clear_layout(self.chips_layout)
         for (_group, value), action in self._actions.items():
             if not action.isChecked():
                 continue

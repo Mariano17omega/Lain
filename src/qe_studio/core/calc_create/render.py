@@ -19,7 +19,14 @@ from ...i18n import _
 if TYPE_CHECKING:
     from jinja2 import Environment
 
-__all__ = ["TemplateFailure", "fortran_number", "fortran_string", "render", "template_names"]
+__all__ = [
+    "TemplateFailure",
+    "fortran_number",
+    "fortran_string",
+    "render",
+    "template_names",
+    "warm_templates",
+]
 
 TEMPLATES = "templates"
 
@@ -88,6 +95,21 @@ def _environment() -> Environment:
     env.filters["fstr"] = fortran_string
     env.filters["fnum"] = fortran_number
     return env
+
+
+@functools.cache
+def warm_templates() -> None:
+    """Import jinja2 and compile every template, which then stay in memory: ``render`` runs in
+    ``plan``, on the GUI thread, and must touch no file. Workers only. A failure is left for ``render``
+    to report, with the template's name."""
+    import jinja2
+
+    environment = _environment()
+    try:
+        for name in template_names():
+            environment.get_template(name)
+    except (OSError, jinja2.TemplateError):
+        return
 
 
 def render(template: str, values: Mapping[str, Any]) -> str:

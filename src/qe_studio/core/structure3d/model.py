@@ -113,6 +113,11 @@ class Structure:
     @property
     def formula(self) -> str:
         """Hill-system formula, e.g. ``CH18Al8HgO36Si8``."""
+        return "".join(self.formula_terms)
+
+    @property
+    def formula_terms(self) -> tuple[str, ...]:
+        """One term per element of the formula, in Hill order, e.g. ``("C", "H18", "Al8")``."""
         counts: dict[str, int] = {}
         for symbol in self.symbols:
             counts[symbol] = counts.get(symbol, 0) + 1
@@ -121,7 +126,7 @@ class Structure:
             order += sorted(s for s in counts if s not in ("C", "H"))
         else:
             order = sorted(counts)
-        return "".join(f"{s}{counts[s] if counts[s] > 1 else ''}" for s in order)
+        return tuple(f"{s}{counts[s] if counts[s] > 1 else ''}" for s in order)
 
     @property
     def volume(self) -> float:

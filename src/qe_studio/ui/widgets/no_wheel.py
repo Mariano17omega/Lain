@@ -11,8 +11,8 @@ Reusable: a field in any scrolled form takes ``NoWheelSpinBox``, ``NoWheelDouble
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QWheelEvent
+from PyQt6.QtCore import QLocale, Qt
+from PyQt6.QtGui import QValidator, QWheelEvent
 from PyQt6.QtWidgets import QComboBox, QDoubleSpinBox, QSpinBox
 
 
@@ -27,9 +27,23 @@ class NoWheelSpinBox(QSpinBox):
 
 
 class NoWheelDoubleSpinBox(QDoubleSpinBox):
+    """A decimal **point** whatever the system locale, and a typed comma is read as a point
+    (CLAUDE.md, "Numbers"): the C locale reads ``1,5`` as 15 (a group separator), so the comma is
+    replaced before Qt sees the text."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setLocale(QLocale.c())
+
+    def validate(self, input: str | None, pos: int) -> tuple[QValidator.State, str, int]:  # noqa: A002
+        return super().validate((input or "").replace(",", "."), pos)
+
+    def valueFromText(self, text: str | None) -> float:  # noqa: N802
+        return super().valueFromText((text or "").replace(",", "."))
+
+    def fixup(self, input: str | None) -> str:  # noqa: A002
+        return super().fixup((input or "").replace(",", "."))
 
     def wheelEvent(self, event: QWheelEvent | None) -> None:
         if event is not None:

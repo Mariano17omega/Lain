@@ -27,24 +27,19 @@ from dataclasses import dataclass, replace
 
 from ...i18n import _
 from ..config import AppConfig
-from .actions import (
-    ActionFailure,
-    checked_dir,
-    checked_name,
-    classify_failure,
-    failure_of,
-    failure_of_jobs,
-    run_action,
-)
-from .cluster_jobs import Job, JobsFailure, JobsSnapshot, fetch_jobs, running_in
+from .actions import checked_dir, checked_name, run_action
+from .cluster_jobs import Job, JobsSnapshot, fetch_jobs, running_in, same_job_name
+from .failure import RemoteFailure, classify_failure, explained
 from .inputs import fetch_job_name
-from .listing import RemoteFailure, list_remote
-from .submit_log import logged_here, read_log, record
+from .listing import list_remote
+from .submit_log import Logged, log_for_check, logged_here, record
 
 log = logging.getLogger(__name__)
 
 SETTING = "cluster.submit_command"
-_SUBMITTED = re.compile(r'^Your job (\d+) \("(.*)"\) has been submitted', re.MULTILINE)
+_SUBMITTED = re.compile(
+    r'^Your job(?:-array)? (\d+)(?:\.\S+)? \("(.*)"\) has been submitted', re.MULTILINE
+)
 
 
 @dataclass(frozen=True)
@@ -80,10 +75,6 @@ class FolderState:
     snapshot: JobsSnapshot  # the queue asked for the check
 
 
-def account(config: AppConfig) -> str:
-    return f"{config.cluster.user}@{config.cluster.host}"
-
-
 def submit_steps(config: AppConfig, remote_dir: str, script: str) -> tuple[str, str, str]:
     """``cd``, ``chmod a+x`` and the submission; ``ValueError`` for a name or folder refused by
     ``core/remote/actions.py``."""
@@ -93,7 +84,8 @@ def submit_steps(config: AppConfig, remote_dir: str, script: str) -> tuple[str, 
 
 
 def parse_submitted(stdout: str) -> Submitted | None:
-    """The job of ``Your job <id> ("<name>") has been submitted``, on any line; None otherwise."""
+    """The job of ``Your job <id> ("<name>") has been submitted`` (``Your job-array <id>.<range>``
+    for an array), on any line; None otherwise."""
     match = _SUBMITTED.search(stdout)
     return Submitted(match.group(1), match.group(2)) if match else None
 
@@ -103,12 +95,14 @@ def same_name(snapshot: JobsSnapshot, user: str, name: str) -> tuple[Job, ...]:
     return tuple(job for job in (*snapshot.mine(user), *snapshot.queued(user)) if job.name == name)
 
 
-def _logged_block(config: AppConfig, remote_dir: str, snapshot: JobsSnapshot) -> str:
+def _logged_block(
+    config: AppConfig, remote_dir: str, snapshot: JobsSnapshot, entries: list[Logged]
+) -> str:
     """Why a job Lain submitted from ``remote_dir`` blocks a new one; "" when none is in the queue."""
     user = config.cluster.user
-    logged = logged_here(read_log(), account(config), remote_dir)
+    logged = logged_here(entries, config.cluster.account, remote_dir)
     for job in (*snapshot.mine(user), *snapshot.queued(user)):
-        if (job.job_id, job.name) not in logged:
+        if not any(i == job.job_id and same_job_name(job.name, n) for i, n in logged):
             continue
         if job.running:
             message = _(
@@ -126,18 +120,18 @@ def _logged_block(config: AppConfig, remote_dir: str, snapshot: JobsSnapshot) ->
 
 def folder_check(
     config: AppConfig, remote_dir: str, password: str | None = None
-) -> FolderState | SubmitBlocked | ActionFailure:
+) -> FolderState | SubmitBlocked | RemoteFailure:
     """The EXIT files of ``remote_dir``, listed again, and the queue, asked again, when no job of the
     user runs in the folder and none Lain submitted from it is in the queue."""
     listing = list_remote(config, remote_dir, password)
     if isinstance(listing, RemoteFailure):
-        return failure_of(listing)
+        return listing
     jobs = fetch_jobs(config, password)
-    if isinstance(jobs, JobsFailure):
+    if isinstance(jobs, RemoteFailure):
         message = _(
             "Não foi possível conferir se já roda um job nesta pasta: {message}. Nada foi submetido."
         )
-        return failure_of_jobs(jobs, message)
+        return explained(jobs, message)
     names = [entry.name for entry in listing if not entry.is_dir]
     running = running_in(names, jobs, config.cluster.user)
     if running:
@@ -146,7 +140,10 @@ def folder_check(
             "ou cancele-o antes de submeter outro script."
         )
         return SubmitBlocked(message.format(name=running[0].name, job_id=running[0].job_id))
-    blocked = _logged_block(config, remote_dir, jobs)
+    entries = log_for_check(_("Nada foi submetido."))
+    if isinstance(entries, RemoteFailure):
+        return entries
+    blocked = _logged_block(config, remote_dir, jobs, entries)
     if blocked:
         return SubmitBlocked(blocked)
     exits = tuple(name for name in names if name == "EXIT" or name.endswith(".EXIT"))
@@ -155,18 +152,18 @@ def folder_check(
 
 def plan_submit(
     config: AppConfig, remote_dir: str, script: str, password: str | None = None
-) -> SubmitPlan | SubmitBlocked | ActionFailure:
+) -> SubmitPlan | SubmitBlocked | RemoteFailure:
     """What "Submeter…" will run, after the folder check and with the script's job name read;
     nothing runs that changes the cluster."""
     try:
         steps = submit_steps(config, remote_dir, script)
     except ValueError as exc:
-        return ActionFailure(str(exc), local=True)
+        return RemoteFailure(str(exc), local=True)
     checked = folder_check(config, remote_dir, password)
-    if isinstance(checked, SubmitBlocked | ActionFailure):
+    if isinstance(checked, SubmitBlocked | RemoteFailure):
         return checked
     name = fetch_job_name(config, remote_dir, script, password)
-    if isinstance(name, ActionFailure):
+    if isinstance(name, RemoteFailure):
         return name
     same = same_name(checked.snapshot, config.cluster.user, name)
     return SubmitPlan(remote_dir, script, steps, checked.exit_files, name, same)
@@ -175,21 +172,23 @@ def plan_submit(
 def _logged(config: AppConfig, plan: SubmitPlan, submitted: Submitted) -> Submitted:
     """``submitted``, written in the log of submitted jobs; why it could not be, in ``log_error``."""
     try:
-        record(account(config), submitted.job_id, submitted.name, plan.remote_dir, plan.script)
+        record(
+            config.cluster.account, submitted.job_id, submitted.name, plan.remote_dir, plan.script
+        )
     except (OSError, ValueError) as exc:
-        log.error("cannot log the submitted job %s: %s", submitted.job_id, exc)
+        log.error("file: cannot log the submitted job %s: %s", submitted.job_id, exc)
         return replace(submitted, log_error=str(exc))
     return submitted
 
 
 def submit(
     config: AppConfig, plan: SubmitPlan, password: str | None = None
-) -> Submitted | str | SubmitBlocked | ActionFailure:
+) -> Submitted | str | SubmitBlocked | RemoteFailure:
     """Check the folder again, then run ``plan.line``: the job (written in the log of submitted
     jobs), the first line of an answer that was not recognized (``qsub`` ended with code 0), or why
     nothing was submitted."""
     checked = folder_check(config, plan.remote_dir, password)
-    if isinstance(checked, SubmitBlocked | ActionFailure):
+    if isinstance(checked, SubmitBlocked | RemoteFailure):
         return checked
     known = {job.job_id for job in plan.same_name}
     for job in same_name(checked.snapshot, config.cluster.user, plan.job_name):
@@ -200,10 +199,10 @@ def submit(
             )
             return SubmitBlocked(message.format(name=job.name, job_id=job.job_id))
     result = run_action(config, plan.line, password)
-    if isinstance(result, ActionFailure):
+    if isinstance(result, RemoteFailure):
         return result
     if result.code != 0:
-        return classify_failure(result, config.cluster.submit_command, SETTING)
+        return classify_failure(result, config.cluster.submit_command, SETTING, ("cd", "chmod"))
     submitted = parse_submitted(result.stdout)
     if submitted is not None:
         return _logged(config, plan, submitted)

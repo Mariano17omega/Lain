@@ -57,6 +57,7 @@ Em ordem, o primeiro que existir:
 | `confirm_plan` | `true`: mostra a prévia e espera "Baixar". Enviar ao cluster sempre mostra prévia. |
 | `checksum` | `true`: compara por conteúdo (`rsync --checksum`); `false`: por data e tamanho (mais rápido). |
 | `push_exclude` | Nunca sobem, além de `exclude`: `plots/` e `*.plot`. |
+| `cygdrive_prefix` | Só no Windows: o que vem antes da letra da unidade nos caminhos do rsync. `/cygdrive` (padrão, cwRsync) ou `""` (MSYS2). |
 
 ## `plot`
 

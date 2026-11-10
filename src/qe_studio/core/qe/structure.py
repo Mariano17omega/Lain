@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+
+from .units import BOHR_TO_ANGSTROM, number
 
 # One line of "site n.  atom  positions (alat units)": ``    1   Si   tau(   1) = ( 0.0 … )``.
 SITE = re.compile(r"^\s*(?P<index>\d+)\s+(?P<species>[A-Za-z][A-Za-z0-9_-]*)\s+tau\(")
@@ -13,7 +15,28 @@ _ALAT = re.compile(
     r"lattice parameter \(alat\)\s*=\s*(?P<alat>\d+\.?\d*(?:[eEdD][+-]?\d+)?)\s*a\.u\."
 )
 _NUMBER = re.compile(r"[-+]?\d+\.\d*(?:[eEdD][+-]?\d+)?")
-BOHR_TO_ANGSTROM = 0.529177210903
+
+
+@dataclass
+class SiteList:
+    """The species of a header's first site list. With ``verbosity = 'high'`` pw.x prints the list
+    again in crystal coordinates, numbered from 1 once more: that one is not counted."""
+
+    species: dict[str, int] = field(default_factory=dict)
+    _last: int = 0
+    _done: bool = False
+
+    def feed(self, line: str) -> None:
+        """Count ``line`` when it is a site of the first list; any other line is ignored."""
+        if self._done or (match := SITE.match(line)) is None:
+            return
+        index = int(match.group("index"))
+        if index <= self._last:
+            self._done = True
+            return
+        self._last = index
+        name = match.group("species")
+        self.species[name] = self.species.get(name, 0) + 1
 
 
 @dataclass(frozen=True)
@@ -62,11 +85,7 @@ def read_sites(path: Path) -> list[Site]:
             for line in handle:
                 if alat is None and "lattice parameter (alat)" in line:
                     found = _ALAT.search(line)
-                    alat = (
-                        float(found.group("alat").replace("D", "E").replace("d", "e"))
-                        if found
-                        else None
-                    )
+                    alat = number(found.group("alat")) if found else None
                 match = SITE.match(line) if "tau(" in line else None
                 if match is None:
                     if sites or "number of k points" in line:
@@ -75,10 +94,7 @@ def read_sites(path: Path) -> list[Site]:
                 numbers = _NUMBER.findall(line.partition("=")[2])
                 if alat is None or len(numbers) < 3:
                     return []
-                x, y, z = (
-                    float(n.replace("D", "E").replace("d", "e")) * alat * BOHR_TO_ANGSTROM
-                    for n in numbers[:3]
-                )
+                x, y, z = (number(n) * alat * BOHR_TO_ANGSTROM for n in numbers[:3])
                 sites.append(Site(int(match.group("index")), match.group("species"), x, y, z))
     except (OSError, ValueError):
         return []

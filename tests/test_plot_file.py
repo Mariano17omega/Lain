@@ -20,12 +20,19 @@ from qe_studio.core.plotting.plot_file import (
 
 
 def bands_schema():
-    return BandsModule().param_schema(SimpleNamespace(fermi=1.0, gap=1.0, spin=False))
+    return BandsModule().param_schema(
+        SimpleNamespace(fermi=1.0, fermi_level=1.0, gap=1.0, spin=False)
+    )
 
 
 def pdos_schema():
     return PdosModule().param_schema(
-        SimpleNamespace(fermi_scf=1.0, fermi_nscf=None, data=SimpleNamespace(spin_polarized=False))
+        SimpleNamespace(
+            fermi_scf=1.0,
+            fermi_nscf=None,
+            proven_midgap=None,
+            data=SimpleNamespace(spin_polarized=False),
+        )
     )
 
 
@@ -118,6 +125,58 @@ def test_field_validation(caplog):
     assert params.legend_loc == "best" and params.valence_color == "#2563eb"
     assert (params.background, params.export_dpi) == ("black", 600)
     assert "unknown_field" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("emin", float("nan")),
+        ("emax", float("inf")),
+        ("xmin", float("-inf")),
+        ("figure_width", float("nan")),
+        ("emin", 10**400),  # YAML integers have no limit
+    ],
+)
+def test_numbers_no_figure_can_draw_are_ignored(name, value):
+    params = BandsParams()
+    default = getattr(params, name)
+    assert apply_stored(params, {name: value}, bands_schema()) == [name]
+    assert getattr(params, name) == default
+
+
+@pytest.mark.parametrize(
+    "name, value",
+    [
+        ("figure_width", -1.0),
+        ("figure_height", 0),
+        ("font_size", 200.0),
+        ("legend_transparency", 1.5),
+    ],
+)
+def test_a_stored_value_stays_within_the_limits_of_its_field(name, value):
+    params = BandsParams()
+    default = getattr(params, name)
+    assert apply_stored(params, {name: value}, bands_schema()) == [name]
+    assert getattr(params, name) == default
+
+
+def test_the_toolbar_may_store_a_view_past_the_limits_of_the_panel():
+    stored = {"xmin": -0.2}  # panned left of the path
+    params = BandsParams()
+    assert apply_stored(params, stored, bands_schema(), BandsModule.view_fields) == []
+    assert params.xmin == -0.2
+    assert apply_stored(BandsParams(), stored, bands_schema()) == ["xmin"]
+
+
+def test_a_negative_dos_limit_is_ignored_though_it_is_a_view_field():
+    params = PdosParams()
+    view = PdosModule.view_fields
+    assert apply_stored(params, {"dos_max": -1.0}, pdos_schema(), view) == ["dos_max"]
+    assert params.dos_max is None
+    assert apply_stored(params, {"dos_max": 2.5}, pdos_schema(), view) == []
+    assert params.dos_max == 2.5
+    assert apply_stored(params, {"dos_max": None}, pdos_schema(), view) == []  # automatic
+    assert params.dos_max is None
 
 
 def test_colour_collections_and_empty_colours():

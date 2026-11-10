@@ -80,6 +80,25 @@ def create(qtbot, window, numbered=False, **setup):
     return tabs, blocker.args[0]
 
 
+def test_pressing_create_names_the_footer_without_touching_the_disk(
+    qtbot, main_window, demo_project, monkeypatch
+):
+    """The footer's "Criando <nome>…" comes from the name the "Arquivos" tab showed: nothing on
+    the GUI thread asks the disk for the next free name."""
+    window = main_window
+    dialog = open_dialog(window)
+    to_files(qtbot, dialog, "pdos", location=demo_project)
+    requests, labels = [], []
+    dialog.create_requested.connect(requests.append)
+    monkeypatch.setattr(window.calc_create.busy, "begin", lambda key, text: labels.append(text))
+    monkeypatch.setattr(calc_create_controller, "run_task", lambda *args, **kwargs: None)
+    dialog.create_button.click()
+    assert requests[0].name == "PDOS_Al" and labels == ["Criando PDOS_Al…"]
+    assert not hasattr(calc_create_controller, "preview_name")
+    window.calc_create._creating = None
+    dialog.set_busy(False)
+
+
 def test_create_writes_the_plan_and_selects_the_folder(qtbot, main_window, demo_project):
     window = main_window
     dialog = open_dialog(window)

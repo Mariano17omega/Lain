@@ -13,12 +13,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from PyQt6.QtGui import QBrush, QColor, QLinearGradient
+from PyQt6.QtGui import QBrush, QLinearGradient
 
 from ....core.structure3d.camera import Camera
 from ....core.structure3d.geometry import half_bonds
 from ....core.structure3d.replicate import Scene
-from .render_types import Prims
+from .render_types import Prims, mix
 
 __all__ = ["MIN_HALF_PX", "BondShader", "Quads", "add_halves", "half_quads"]
 
@@ -117,11 +117,6 @@ def add_halves(
     return rows.tolist()
 
 
-def _mix(rgb: np.ndarray, other: float, amount: float) -> QColor:
-    out = rgb * (1 - amount) + other * amount
-    return QColor(int(out[0]), int(out[1]), int(out[2]))
-
-
 class BondShader:
     """The brushes of the halves by species: one ``QLinearGradient`` per species (its stops set once),
     moved to each half's edges before ``setBrush`` copies it; a flat brush in draft mode."""
@@ -142,13 +137,13 @@ class BondShader:
         gradient = self._gradients.get(species)
         if gradient is None:
             rgb = self._rgb[species]
-            edge = _mix(rgb, 0, 1 - EDGE)
+            edge = mix(rgb, 0, 1 - EDGE)
             gradient = QLinearGradient()
             gradient.setStops(
                 [
                     (0.0, edge),
-                    (HIGHLIGHT_AT, _mix(rgb, 255, HIGHLIGHT)),
-                    (BASE_AT, _mix(rgb, 0, 0.0)),
+                    (HIGHLIGHT_AT, mix(rgb, 255, HIGHLIGHT)),
+                    (BASE_AT, mix(rgb, 0, 0.0)),
                     (1.0, edge),
                 ]
             )
@@ -158,5 +153,5 @@ class BondShader:
     def flat(self, species: int) -> QBrush:
         brush = self._flat.get(species)
         if brush is None:
-            brush = self._flat[species] = QBrush(_mix(self._rgb[species], 0, 0.0))
+            brush = self._flat[species] = QBrush(mix(self._rgb[species], 0, 0.0))
         return brush

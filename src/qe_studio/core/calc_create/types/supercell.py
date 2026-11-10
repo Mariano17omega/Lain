@@ -4,7 +4,7 @@ Stage 2 of the user's scripts (``qe_slab_supercell.generate_supercell``): the SC
 surface's (the vacuum along c), but a bulk's works too; only the defaults change (``cell_dofree``, the
 fixed atoms). The geometry is ``surface/`` (``make_supercell``, ``fixed_atoms``, ``rescale_mesh``); this
 module reads the fields, writes the input (``vc-relax_<prefix>.in``, ``prefix = '<prefix>-<n1>x<n2>x<n3>'``,
-``nbnd`` times the copies) and ``geracao.md``. The plan always has its three files: when the structure
+``nbnd``, ``tot_charge`` and ``tot_magnetization`` times the copies) and ``geracao.md``. The plan always has its three files: when the structure
 cannot be built, the input is the SCF with the vc-relax edits and the report says why.
 """
 
@@ -16,19 +16,21 @@ import numpy as np
 
 from ....i18n import N_, _
 from ...qe.input_edit import InputEditor
+from ...qe.pw_input import fortran_float
 from ..edits import put_mesh, put_number, put_string, put_text
+from ..fragments import WHOLE_SYSTEM_KEYS
 from ..scf_info import ScfInfo
 from ..surface import SurfaceError
 from ..surface.fixing import BOTTOM, FIX_RULES, FROM_SCF, NONE, apply_fix
 from ..surface.geometry import MIN_SURFACE_GAP, vacuum_gaps
 from ..surface.kmesh import mesh_text, rescale_mesh
-from ..surface.model import flags_of, model_of, species_rows
+from ..surface.model import model_of, partly_fixed, species_rows
 from ..surface.report import decimal, report_file
 from ..surface.supercell import AXIS_NAMES, make_supercell, repeat_problem, size_problem
 from ..surface.write import put_structure
 from .base import FieldKind, FormField, PlannedFile, Work
 from .slab import NO_MESH
-from .slab_fields import dofree_field, mesh_field, non_orthogonal_notes
+from .slab_fields import asks_mesh, dofree_field, mesh_field, non_orthogonal_notes
 from .surface_fields import (
     BOND_SCALE,
     FIX_RULE,
@@ -52,6 +54,7 @@ GAMMA_NOTE = _("K_POINTS gamma do SCF mantido: confira se basta para a supercél
 STACKED_NOTE = _("Repetir ao longo do vácuo (c) empilha slabs: o vácuo entre eles não muda")
 LOW_VACUUM = _("Vácuo de {} Å ao longo de c, abaixo do mínimo de {} Å")
 BULK_NOTE = _("SCF sem vácuo: supercélula de bulk, cell_dofree = '{}'")
+EXTENSIVE_NOTE = _("{key} multiplicado pelas cópias da célula: {change}")
 Facts = list[tuple[str, str]]  # the lines of geracao.md
 
 
@@ -66,8 +69,9 @@ def _default_dofree(scf: ScfInfo) -> str:
 
 
 def _default_rule(scf: ScfInfo) -> str:
-    """ "do SCF" when the SCF fixes some atom; else the bottom half of a surface; none for a bulk."""
-    if any(flag is not None and 0 in flag for flag in flags_of(scf.text)):
+    """ "do SCF" when the SCF fixes some atom but not all; else the bottom half of a surface; none for
+    a bulk."""
+    if partly_fixed(scf.text):
         return FROM_SCF
     return BOTTOM if has_vacuum(scf) else NONE
 
@@ -99,7 +103,7 @@ class SupercellType(VcRelaxType):
         relax = [form_field for form_field in super().input_fields(scf) if form_field.id != "kmesh"]
         return [
             *self._supercell_fields(scf),
-            mesh_field(group, MESH_HINT, _("da supercélula")),
+            mesh_field(group, MESH_HINT, _("da supercélula"), standard=asks_mesh(scf)),
             *relax,
             dofree_field(group, _default_dofree(scf)),
         ]
@@ -147,6 +151,7 @@ class SupercellType(VcRelaxType):
         if repeats is not None:
             put_text(editor, "control", "prefix", f"{scf.prefix}-{'x'.join(map(str, repeats))}")
             self._nbnd(scf, editor, repeats, facts)
+            self._extensive(work, editor, repeats, facts)
             self._kpoints(work, editor, repeats, facts)
         return [work.pw_file(self.calculation, editor), report_file(facts)]
 
@@ -166,9 +171,9 @@ class SupercellType(VcRelaxType):
         crystal = work.scf.crystal
         problem = size_problem(len(crystal.labels), repeats) if crystal is not None else None
         if problem is not None:
-            for field_id, value in zip(REPEATS, repeats, strict=True):
-                if value > 1:
-                    work.problem(field_id, problem)
+            grown = [f for f, value in zip(REPEATS, repeats, strict=True) if value > 1]
+            for field_id in grown or REPEATS[:1]:  # at 1 × 1 × 1 the SCF alone is too big
+                work.problem(field_id, problem)
             return None
         return repeats
 
@@ -224,6 +229,21 @@ class SupercellType(VcRelaxType):
         nbnd = scf.nbnd * int(np.prod(repeats))
         put_number(editor, "system", "nbnd", nbnd)
         facts.append(("nbnd", f"{scf.nbnd} → {nbnd}"))
+
+    def _extensive(
+        self, work: Work, editor: InputEditor, repeats: tuple[int, int, int], facts: Facts
+    ) -> None:
+        """What holds for the whole cell grows with the copies; a negative ``tot_magnetization`` is
+        pw.x's "not set"."""
+        copies = int(np.prod(repeats))
+        for key in WHOLE_SYSTEM_KEYS:
+            value = fortran_float(editor.get("system", key) or "")
+            if copies == 1 or not value or (key == "tot_magnetization" and value < 0):
+                continue
+            put_number(editor, "system", key, value * copies)
+            change = f"{value:g} → {value * copies:g}"
+            facts.append((key, change))
+            work.notes.append(EXTENSIVE_NOTE.format(key=key, change=change))
 
     def _kpoints(
         self, work: Work, editor: InputEditor, repeats: tuple[int, int, int], facts: Facts

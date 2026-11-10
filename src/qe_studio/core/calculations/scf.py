@@ -193,7 +193,7 @@ class ScfModule(CalculationModule[ScfDataset, ScfParams]):
             *COMMON_FIELDS,
         ]
 
-    def apply_limits(self, params: ScfParams, axes_limits: AxesLimits) -> None:
+    def apply_limits(self, dataset: ScfDataset, params: ScfParams, axes_limits: AxesLimits) -> None:
         """The iteration range only: Y stays automatic in each panel."""
         if axes_limits:
             params.xmin, params.xmax = axes_limits[0][0]

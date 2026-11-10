@@ -6,7 +6,8 @@ built here with a port of Quantum ESPRESSO's ``latgen`` (``Modules/latgen.f90``,
 reciprocal vectors pw.x derives from them.
 
 Only what a band path needs is read: the cell, the species label of each site and its fractional
-position. Errors are ``StructureError`` with a Portuguese sentence.
+position. Errors are ``StructureError`` with a Portuguese sentence. ``position_flags`` reads the
+``if_pos`` flags of the same card, for what shows or copies them.
 """
 
 from __future__ import annotations
@@ -17,11 +18,21 @@ import numpy as np
 
 from ...i18n import _, ngettext
 from .input_edit import InputEditor
-from .pw_input import fortran_float
+from .pw_input import fortran_float, fortran_int
+from .units import BOHR_TO_ANGSTROM as BOHR_ANGSTROM
 
-__all__ = ["BOHR_ANGSTROM", "Crystal", "StructureError", "cell_vectors", "celldm_from_abc"]
+__all__ = [
+    "BOHR_ANGSTROM",
+    "Crystal",
+    "Flags",
+    "StructureError",
+    "cell_vectors",
+    "celldm_from_abc",
+    "position_flags",
+]
 
-BOHR_ANGSTROM = 0.529177210903  # QE's bohr_radius_angs (CODATA 2018)
+Flags = tuple[int, int, int]
+
 _SR2 = 1.414213562373  # the constants latgen uses, digits included
 _SR3 = 1.732050807569
 IBRAVS = frozenset({0, 1, 2, 3, -3, 4, 5, -5, 6, 7, 8, 9, -9, 91, 10, 11, 12, -12, 13, -13, 14})
@@ -185,11 +196,13 @@ def _cell_bohr(editor: InputEditor, ibrav: int) -> tuple[np.ndarray, float]:
     if card is None:
         raise StructureError(_("ibrav = 0 sem CELL_PARAMETERS"))
     rows = np.array(_rows(card.lines, 3, "CELL_PARAMETERS"))
-    unit = card.option or "alat"
+    lattice_parameter = celldm[0] if celldm is not None and celldm[0] > 0 else None
+    # With no unit pw.x takes alat when a lattice parameter is given, else Bohr (cell_base_init).
+    unit = card.option or ("alat" if lattice_parameter is not None else "bohr")
     if unit.startswith("alat"):
-        if celldm is None or celldm[0] <= 0:
+        if lattice_parameter is None:
             raise StructureError(_("CELL_PARAMETERS alat sem celldm(1) ou A"))
-        return rows * celldm[0], celldm[0]
+        return rows * lattice_parameter, lattice_parameter
     if unit not in ("bohr", "angstrom"):
         raise StructureError(_("unidade de CELL_PARAMETERS desconhecida: {unit}").format(unit=unit))
     cell = rows if unit == "bohr" else rows / BOHR_ANGSTROM
@@ -216,7 +229,7 @@ def crystal_from_editor(editor: InputEditor) -> Crystal:
         raise StructureError(_("ATOMIC_POSITIONS {unit} não é suportado").format(unit=unit))
     nat_value = _number(editor, "nat")
     nat = int(nat_value) if nat_value is not None else len(card.lines)
-    if len(card.lines) < nat:
+    if nat < 1 or len(card.lines) < nat:
         raise StructureError(
             ngettext(
                 "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha",
@@ -241,3 +254,21 @@ def crystal_from_editor(editor: InputEditor) -> Crystal:
         scale = {"alat": alat, "bohr": 1.0, "angstrom": 1 / BOHR_ANGSTROM}[unit]
         frac = positions * scale @ np.linalg.inv(cell)
     return Crystal(cell * BOHR_ANGSTROM, tuple(labels), frac)
+
+
+def _flags(words: list[str]) -> Flags | None:
+    try:
+        values = [int(word) for word in words[4:7]]
+    except ValueError:
+        return None
+    return (values[0], values[1], values[2]) if len(values) == 3 else None
+
+
+def position_flags(editor: InputEditor) -> tuple[Flags | None, ...]:
+    """The ``if_pos`` of each atom of ``ATOMIC_POSITIONS`` (up to ``nat``), None where none is written."""
+    card = editor.card("ATOMIC_POSITIONS")
+    if card is None:
+        return ()
+    nat = fortran_int(editor.get("system", "nat"))
+    lines = card.lines if nat is None else card.lines[:nat]
+    return tuple(_flags(line.split()) for line in lines)

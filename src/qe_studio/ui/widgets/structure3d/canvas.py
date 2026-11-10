@@ -188,6 +188,7 @@ class StructureCanvas(QWidget):
         if self.scene is None:
             return
         corners = self.scene.box_corners(self.scene.block)
+        self.camera.perspective = self.options.perspective  # else set only when painting
         self.camera.reset(
             self.scene.bounds_points(),
             viewport or self._viewport(),
@@ -228,6 +229,7 @@ class StructureCanvas(QWidget):
         if self.scene is None:
             return
         self.camera.center = self.scene.box_corners(self.scene.block).mean(axis=0)
+        self.camera.perspective = self.options.perspective  # else set only when painting
         self.camera.fit(
             self.scene.bounds_points(),
             self._viewport(),
@@ -405,6 +407,10 @@ class StructureCanvas(QWidget):
     # -- keyboard ----------------------------------------------------------------------------------
     def keyPressEvent(self, event: QKeyEvent | None) -> None:  # noqa: N802
         if event is None:
+            return
+        chords = Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier
+        if event.modifiers() & (chords | Qt.KeyboardModifier.MetaModifier):
+            super().keyPressEvent(event)  # Ctrl+C, Ctrl+Z…: not the camera's (Shift: "+" needs it)
             return
         key = event.key()
         if key == Qt.Key.Key_R:

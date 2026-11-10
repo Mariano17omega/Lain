@@ -23,6 +23,7 @@ PUSH_PROJECT = _("Escolha uma pasta de cálculo; o projeto inteiro não é envia
 PUSH_TRASH = _(  # spec 84: what a "Baixar" of a trash item left here
     "A lixeira do cluster não recebe envios: para recuperar um item, use o terminal no cluster."
 )
+PUSH_SCRATCH = _("Cópias de plot remoto (tmp_remote) ficam neste computador e não são enviadas.")
 SYNC_RUNNING = _("Há uma sincronização em andamento. Espere terminar ou cancele.")
 PLOT_ROOT = _("Escolha uma pasta de cálculo para plotar; a raiz não é copiada.")  # spec 66 R3.1
 PLOT_PROJECT = _("Escolha uma pasta de cálculo para plotar; o projeto inteiro não é copiado.")
@@ -76,7 +77,8 @@ def prepare_push(
 ) -> PushRequest | SyncRefusal:
     """The push of ``folder`` (spec 27 R4.1): like a pull's, but never of the root nor of a project
     (a first-level folder: an accidental push of everything), never into the cluster's trash (spec
-    84) and only of a folder that exists."""
+    84), never of a scratch copy or anything inside it (spec 66: the fixed exclusion does not cover
+    the folder a transfer starts from) and only of a folder that exists."""
     root = _root(config, resolved_root)
     request = prepare_sync(config, folder, resolved_root=root)
     if isinstance(request, SyncRefusal):
@@ -87,6 +89,8 @@ def prepare_push(
     resolved = path.resolve()
     if resolved == root:
         return SyncRefusal("warning", PUSH_ROOT)
+    if SCRATCH_DIR in resolved.relative_to(root).parts:
+        return SyncRefusal("warning", PUSH_SCRATCH)
     if not path.is_dir():
         return SyncRefusal("warning", _("Pasta não encontrada: {path}").format(path=path))
     if resolved.parent == root:

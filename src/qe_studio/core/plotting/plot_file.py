@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import math
 import threading
 import types
 import typing
@@ -72,19 +73,35 @@ def plot_file_path(folder: Path, kind: str) -> Path:
     return plots_folder(folder) / f"{kind}{SUFFIX}"
 
 
+def _invalid(path: Path) -> str:
+    return _("{name} inválido; usando ajustes padrão.").format(name=path.name)
+
+
 def read_plot_file(folder: Path, kind: str) -> tuple[dict[str, Any] | None, list[str]]:
     """(stored parameters or None, warnings for the user). A missing file is not a warning."""
+    try:
+        return read_plot_file_checked(folder, kind)
+    except OSError as exc:
+        path = plot_file_path(folder, kind)
+        log.warning("%s: %s", path, exc)
+        return None, [_invalid(path)]
+
+
+def read_plot_file_checked(folder: Path, kind: str) -> tuple[dict[str, Any] | None, list[str]]:
+    """``read_plot_file`` for a caller about to rewrite the file: a corrupt file is still (None, a
+    warning), but a read that failed raises its ``OSError``, since it says nothing about what the
+    file holds."""
     path = plot_file_path(folder, kind)
-    invalid = _("{name} inválido; usando ajustes padrão.").format(name=path.name)
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None, []
-    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+    except (ValueError, RecursionError, yaml.YAMLError) as exc:
+        # ValueError: bytes that are not UTF-8, or a value YAML cannot build (a date of month 99)
         log.warning("%s: %s", path, exc)
-        return None, [invalid]
+        return None, [_invalid(path)]
     if not isinstance(data, dict) or not isinstance(data.get("params"), dict):
-        return None, [invalid]
+        return None, [_invalid(path)]
     if data.get("lain_plot") != FORMAT_VERSION:
         version = data.get("lain_plot")
         return None, [
@@ -140,15 +157,21 @@ def delete_plot_file(folder: Path, kind: str) -> None:
 
 
 def apply_stored(
-    params: Any, stored: dict[str, Any], schema: typing.Iterable[ParamField] = ()
+    params: Any,
+    stored: dict[str, Any],
+    schema: typing.Iterable[ParamField] = (),
+    free: typing.Collection[str] = (),
 ) -> list[str]:
     """Set the valid stored values on ``params``; returns the names of the ignored fields.
 
     ``schema`` (the module's ``ParamField`` list) says how to validate each value: ``choice``
     fields only take their choices (any value of their type when they have a ``missing`` label),
-    ``color`` fields a color, and the color overrides named by a ``series`` field
-    (``ParamField.colors``) colors again. Parameters without a schema field can declare
-    ``metadata={"kind": "color" | "colors"}`` on their dataclass field instead.
+    ``color`` fields a color, the color overrides named by a ``series`` field
+    (``ParamField.colors``) colors again, and a number stays within the field's minimum and maximum
+    unless it is in ``free`` (the view limits: the toolbar may go past what the panel offers).
+    Parameters without a schema field can declare ``metadata={"kind": "color" | "colors"}`` on their
+    dataclass field instead (or ``"choice"`` with ``"choices": (…)``), and any parameter
+    ``metadata={"range": (low, high)}``.
     """
     hints = typing.get_type_hints(type(params))
     schema = list(schema)
@@ -159,7 +182,15 @@ def apply_stored(
         if kind := f.metadata.get("kind"):
             kinds.setdefault(f.name, kind)
     choices = {f.name: [c[0] for c in f.choices] for f in schema if f.kind == "choice"}
-    ranges = {f.name: f.metadata["range"] for f in declared if "range" in f.metadata}
+    for f in declared:
+        if "choices" in f.metadata:
+            choices.setdefault(f.name, list(f.metadata["choices"]))
+    ranges: dict[str, tuple[float, float]] = {
+        f.name: (f.minimum, f.maximum)
+        for f in schema
+        if f.minimum is not None and f.maximum is not None and f.name not in free
+    }
+    ranges.update({f.name: f.metadata["range"] for f in declared if "range" in f.metadata})
     names = {f.name for f in declared} - stored_elsewhere(params) - derived_fields(params)
     ignored = []
     for name, value in stored.items():
@@ -183,10 +214,18 @@ def apply_stored(
 
 
 def _in_range(value: Any, bounds: tuple[float, float] | None) -> bool:
-    """A parameter that declares ``metadata={"range": (low, high)}`` takes numbers within it."""
-    if bounds is None:
+    """A parameter with bounds takes numbers within them (None, "automatic", has none to break)."""
+    if bounds is None or value is None:
         return True
     return isinstance(value, int | float) and bounds[0] <= value <= bounds[1]
+
+
+def _finite(value: float) -> bool:
+    """False for NaN, infinity and an integer too big for a float (YAML has no limit)."""
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _options(hint: Any) -> tuple[Any, ...]:
@@ -206,7 +245,7 @@ def _fits(hint: Any, value: Any) -> bool:
         if option is type(None):
             ok = value is None
         elif option is float:
-            ok = isinstance(value, int | float) and not isinstance(value, bool)
+            ok = isinstance(value, int | float) and not isinstance(value, bool) and _finite(value)
         elif option in (int, str, bool):
             ok = type(value) is option
         elif origin is list:

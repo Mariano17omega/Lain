@@ -9,11 +9,11 @@ from types import SimpleNamespace
 import pytest
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtTest import QTest
+from PyQt6.QtWidgets import QLabel
 
 from qe_studio.core.remote import actions
 from qe_studio.core.remote import submit as submit_module
-from qe_studio.core.remote.actions import ActionFailure
-from qe_studio.core.remote.cluster_jobs import JobsFailure
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.remote.submit import SubmitBlocked, SubmitPlan, Submitted
 from qe_studio.core.sync.command import CommandResult, remote_command
 from qe_studio.core.sync.monitor import ConnectionState
@@ -209,7 +209,7 @@ def test_an_answer_that_is_not_recognized_warns(qtbot, window, monkeypatch, clus
 def test_a_failure_says_why(qtbot, window, monkeypatch, cluster):
     cluster.run.result = CommandResult(1, "", "Unable to read script file\n")
     result = submit_item(qtbot, window, monkeypatch)
-    assert isinstance(result, ActionFailure)
+    assert isinstance(result, RemoteFailure)
     text = "A submissão falhou: qsub terminou com código 1: Unable to read script file"
     assert (text, "error") in toasts(window)
 
@@ -241,7 +241,7 @@ def test_a_refused_login_forgets_the_password(
     cluster.asked.answer = True
     cluster.run.result = CommandResult(255, "", "lain-test@h: Permission denied (password).\n")
     result = submit_item(qtbot, window, monkeypatch)
-    assert isinstance(result, ActionFailure) and result.auth
+    assert isinstance(result, RemoteFailure) and result.auth
     assert known["password"] is None  # forgotten: the next action asks again
 
 
@@ -278,11 +278,11 @@ def test_without_a_job_of_the_same_name_nothing_more_is_asked(qtbot, window, mon
 def test_a_queue_that_does_not_answer_is_an_error_and_the_led_goes_offline(
     qtbot, window, monkeypatch, cluster
 ):
-    cluster.jobs.result = JobsFailure(
+    cluster.jobs.result = RemoteFailure(
         "O cluster não respondeu a qstatus -a a tempo.", connection=True
     )
     result = submit_item(qtbot, window, monkeypatch)
-    assert isinstance(result, ActionFailure) and result.connection
+    assert isinstance(result, RemoteFailure) and result.connection
     assert (f"A submissão falhou: {result.message}", "error") in toasts(window)
     assert window.monitor.state is ConnectionState.OFFLINE
     assert cluster.asked.plans == [] and cluster.run.argvs == []
@@ -320,9 +320,10 @@ def plan(*exit_files: str) -> SubmitPlan:
 def test_the_dialog_shows_the_folder_and_the_exact_commands(qtbot):
     dialog = SubmitDialog(plan(), ACCOUNT)
     qtbot.addWidget(dialog)
-    texts = [label.text() for label in dialog.findChildren(type(dialog.commands))]
+    texts = [label.text() for label in dialog.findChildren(QLabel)]
     assert "Submeter bands.qsub?" in texts and f"Pasta: {ACCOUNT}:{BANDS}" in texts
-    assert dialog.commands.text() == f"cd {BANDS}\nchmod a+x bands.qsub\nqsub bands.qsub"
+    assert dialog.commands.toPlainText() == f"cd {BANDS}\nchmod a+x bands.qsub\nqsub bands.qsub"
+    assert dialog.commands.isReadOnly()
     assert dialog.windowTitle() == "Submeter no cluster"
     assert dialog.warnings == [] and dialog.submit_button.isDefault()
 
@@ -331,14 +332,22 @@ def test_the_dialog_shows_the_job_name(qtbot):
     named = SubmitPlan(BANDS, "bands.qsub", plan().steps, (), NAME)
     dialog = SubmitDialog(named, ACCOUNT)
     qtbot.addWidget(dialog)
-    texts = [label.text() for label in dialog.findChildren(type(dialog.commands))]
+    texts = [label.text() for label in dialog.findChildren(QLabel)]
     assert f"Job: {NAME}" in texts
     unnamed = SubmitDialog(plan(), ACCOUNT)
     qtbot.addWidget(unnamed)
-    assert not any(
-        t.startswith("Job:")
-        for t in (x.text() for x in unnamed.findChildren(type(unnamed.commands)))
-    )
+    assert not any(t.startswith("Job:") for t in (x.text() for x in unnamed.findChildren(QLabel)))
+
+
+def test_a_very_long_remote_path_does_not_stretch_the_dialog(qtbot):
+    """The folder and the commands scroll or wrap: the buttons stay on a small screen."""
+    long = f"{REMOTE}/" + "/".join(["pasta_com_um_nome_bem_longo"] * 10)
+    assert len(long) > 270
+    steps = (f"cd {long}", "chmod a+x bands.qsub", "qsub bands.qsub")
+    dialog = SubmitDialog(SubmitPlan(long, "bands.qsub", steps, ()), ACCOUNT)
+    qtbot.addWidget(dialog)
+    assert dialog.commands.toPlainText().splitlines()[0] == f"cd {long}"
+    assert dialog.sizeHint().width() < 900
 
 
 def test_the_same_name_dialog_lists_the_jobs_and_enter_declines(qtbot):

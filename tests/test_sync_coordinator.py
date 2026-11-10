@@ -8,7 +8,9 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QInputDialog, QMessageBox, QWidget
 
 from qe_studio.core.config import parse_config
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.sync.controller import SyncReport, SyncStatus
+from qe_studio.core.sync.monitor import ConnectionState
 from qe_studio.core.sync.request import NOT_CONFIGURED
 from qe_studio.core.sync.rsync import Endpoint
 from qe_studio.ui.cluster.sync_coordinator import SyncCoordinator
@@ -136,6 +138,51 @@ def test_a_new_config_replaces_the_monitor(qtbot, tmp_path, boxes):
     coordinator.set_config(parse_config(data))
     assert coordinator.monitor is not old and labels[0] == "u@127.0.0.1"
     coordinator.shutdown()
+
+
+class RunningSync:
+    """A pull in progress, as far as the coordinator can tell."""
+
+    running = True
+
+    def shutdown(self, timeout_ms):
+        return True
+
+
+def test_a_new_config_during_a_sync_keeps_saying_syncing(qtbot, tmp_path, boxes):
+    coordinator = make(qtbot, tmp_path, auth="key")
+    coordinator.controller = RunningSync()  # type: ignore[assignment]
+    labels = []
+    coordinator.cluster_changed.connect(lambda label, state: labels.append(state))
+    data = {
+        "paths": {"local_root": str(tmp_path), "remote_root": "/r"},
+        "cluster": {"host": "127.0.0.1", "port": 9, "user": "u"},
+    }
+    coordinator.set_config(parse_config(data))
+    assert coordinator.monitor.state is ConnectionState.SYNCING and labels[-1] == "syncing"
+    assert not coordinator.monitor._probing  # no probe logs in while the transfer runs
+    coordinator.shutdown()
+
+
+def test_what_a_failure_tells_the_led_and_the_password(qtbot, tmp_path, boxes):
+    coordinator = make(qtbot, tmp_path, auth="key")
+    seen = []
+    coordinator.monitor.report = seen.append  # type: ignore[method-assign]
+    coordinator._session_password = "pw"
+    coordinator.report_remote(None)  # answered
+    coordinator.report_remote(RemoteFailure("no such folder", missing=True))  # the command failed
+    coordinator.report_remote(RemoteFailure("timed out", connection=True))
+    coordinator.report_remote(RemoteFailure("no ssh here", local=True))  # says nothing of the reach
+    assert seen == [True, True, False] and coordinator._session_password == "pw"
+    coordinator.report_remote(RemoteFailure("denied", auth=True))
+    assert seen == [True, True, False] and coordinator._session_password is None
+
+
+def test_a_failure_says_whether_the_cluster_answered():
+    assert RemoteFailure("x").answered and RemoteFailure("x", missing=True).answered
+    assert not RemoteFailure("x", connection=True).answered
+    assert not RemoteFailure("x", auth=True).answered
+    assert not RemoteFailure("x", local=True).answered
 
 
 def test_the_entry_points_pull_the_selection_or_the_whole_project(qtbot, tmp_path, boxes):

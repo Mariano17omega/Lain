@@ -25,7 +25,7 @@ from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 from PyQt6.QtWidgets import QMenu, QWidget
 
 from ...core.config import AppConfig
-from ...core.remote.actions import ActionFailure
+from ...core.remote.failure import RemoteFailure
 from ...core.remote.submit import (
     SubmitBlocked,
     SubmitPlan,
@@ -128,7 +128,7 @@ class JobActionsController(QObject):
 
     def run(self, label: str, fn: Callable, *args: Any, on_done: Callable[[Any], None]) -> None:
         """``fn(*args)`` in the pool of the cluster actions, with ``label`` in the footer;
-        ``on_done(answer)`` on the GUI thread, an exception as an ``ActionFailure``. Never after
+        ``on_done(answer)`` on the GUI thread, an exception as an ``RemoteFailure``. Never after
         ``cancel()``, which also refuses new actions. One action at a time: callers check
         ``busy_now`` first."""
         if self._closed:
@@ -144,23 +144,14 @@ class JobActionsController(QObject):
             then(result)
 
     def _on_error(self, key: Hashable, error: Exception) -> None:
-        log.error("cluster action failed", exc_info=error)
+        log.error("cluster: action failed", exc_info=error)
         message = _("Falha na ação no cluster: {error}").format(error=error)
-        self._on_done(key, ActionFailure(message, local=True))
+        self._on_done(key, RemoteFailure(message, local=True))
 
-    def report(self, failure: ActionFailure | None) -> None:
+    def report(self, failure: RemoteFailure | None) -> None:
         """What an answer tells the LED, as the jobs' and the listings' answers do (None: the
         cluster answered); a refused login forgets the password."""
-        monitor = self.sync.monitor
-        if failure is None:
-            monitor.report(True)
-            return
-        if failure.connection:
-            monitor.report(False)
-        elif not (failure.auth or failure.local):
-            monitor.report(True)  # the cluster answered: it is the command that failed
-        if failure.auth:
-            self.sync.forget_password()
+        self.sync.report_remote(failure)
 
     def list_again(self, remote_dir: str) -> None:
         """A folder an action changed: listed again when the cluster mode shows it, else out of the
@@ -214,7 +205,7 @@ class JobActionsController(QObject):
         args = (config, str(path.parent), path.name, password)
         self.run(CHECKING, plan_submit, *args, on_done=self._on_planned)
 
-    def _on_planned(self, result: SubmitPlan | SubmitBlocked | ActionFailure) -> None:
+    def _on_planned(self, result: SubmitPlan | SubmitBlocked | RemoteFailure) -> None:
         pending = self._pending
         if pending is None:
             return
@@ -224,7 +215,7 @@ class JobActionsController(QObject):
             self.done.emit(result)
             return
         config, password = pending
-        account = f"{config.cluster.user}@{config.cluster.host}"
+        account = config.cluster.account
         parent = self._dialog_parent
         if result.same_name and not ask_same_name(parent, result.job_name, result.same_name):
             self._pending = None
@@ -237,7 +228,7 @@ class JobActionsController(QObject):
         self._plan = result
         self.run(SUBMITTING, submit, config, result, password, on_done=self._on_submitted)
 
-    def _on_submitted(self, result: Submitted | str | SubmitBlocked | ActionFailure) -> None:
+    def _on_submitted(self, result: Submitted | str | SubmitBlocked | RemoteFailure) -> None:
         plan, self._pending, self._plan = self._plan, None, None
         self._tell(result)
         if plan is not None and isinstance(result, Submitted | str):  # qsub ended with code 0
@@ -245,9 +236,9 @@ class JobActionsController(QObject):
             self.list_again(plan.remote_dir)  # its .o file comes when the job starts
         self.done.emit(result)
 
-    def _tell(self, result: Submitted | str | SubmitBlocked | ActionFailure) -> None:
+    def _tell(self, result: Submitted | str | SubmitBlocked | RemoteFailure) -> None:
         """The toast (and the footer, for a job), and what the answer tells the LED."""
-        if isinstance(result, ActionFailure):
+        if isinstance(result, RemoteFailure):
             text = _("A submissão falhou: {message}").format(message=result.message)
             self.toast.show_message(text, "error")
             self.report(result)

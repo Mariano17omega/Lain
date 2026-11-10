@@ -16,6 +16,7 @@ from qe_studio.core.config import parse_config
 from qe_studio.core.project.project_data import FOLDERS_FILE, GRIDS_FILE, PROJECT_DATA_DIR
 from qe_studio.core.remote.trash_dir import TRASH_DIR
 from qe_studio.core.sync.controller import SyncController, SyncStatus
+from qe_studio.core.sync.partial import remove_temp_files
 from qe_studio.core.sync.planner import Decision, recheck_local
 from qe_studio.core.sync.rsync import Endpoint
 
@@ -296,16 +297,14 @@ def test_unexpected_stage_error_fails_the_sync(qtbot, dirs, monkeypatch):
 
 
 def test_temp_cleanup_lists_each_folder_once(tmp_path, monkeypatch):
-    controller = SyncController(make_config())
-    controller._local_dir = tmp_path
-    controller._transfer = [f"run/f{i}.out" for i in range(50)] + ["other/x.dat"]
+    files = [f"run/f{i}.out" for i in range(50)] + ["other/x.dat"]
     for name in ("run/.f1.out.Ab12Cd", "run/.f49.out.zzzzzz", "run/.keep.out.Ab12Cd", "run/f1.out"):
         write(tmp_path, name, "")
     write(tmp_path, "other/.x.dat.123456", "")
     scanned = []
     real = os.scandir
     monkeypatch.setattr(os, "scandir", lambda path: scanned.append(path) or real(path))
-    controller._remove_temp_files()
+    remove_temp_files(files, tmp_path, since=T0)
     # Checked before the listings below: ``Path.iterdir`` calls ``os.scandir`` too (Python 3.13).
     assert sorted(scanned) == [tmp_path / "other", tmp_path / "run"]
     assert sorted(p.name for p in (tmp_path / "run").iterdir()) == [".keep.out.Ab12Cd", "f1.out"]

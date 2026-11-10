@@ -30,7 +30,7 @@ class RemoteBrowser:
         self.local_root = Path(config.paths.local_root)
         self.remote_root = config.paths.remote_root
         cluster = config.cluster
-        self.account = f"{cluster.user}@{cluster.host}"
+        self.account = cluster.account
         self._cache: dict[str, _Listing] = {}
         self.top = ""
         self.set_view_root(view_root)

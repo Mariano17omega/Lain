@@ -27,8 +27,8 @@ def rows(a: str, b: str, ignore: bool = False):
         ("30", "30.0"),
         (".t.", ".true."),
         (".FALSE.", "F"),
-        ("'Si'", "'si '"),
-        ("'a'", '"A"'),
+        ("'Si'", "'Si '"),
+        ("'a'", '"a"'),
         ("3*1.0", "1.0 1.0 1.0"),
         ("1.0, 2.0", "1.0 2.0"),
     ],
@@ -41,6 +41,8 @@ def test_values_that_mean_the_same(a, b):
     ("a", "b"),
     [
         ("'scf'", "'nscf'"),
+        ("'Si'", "'si'"),  # pw.x compares its strings as written
+        ("'a'", '"A"'),
         ("1.0e-8", "1.0e-9"),
         (".true.", ".false."),
         ("'t'", ".true."),  # a quoted T is a string, not a logical
@@ -70,10 +72,16 @@ def test_only_the_changed_parameter_shows():
 
 def test_identical_inputs_and_formatting_only_changes():
     assert diff(SI_SCF, SI_SCF).identical
-    reformatted = SI_SCF.replace("ecutwfc = 25      ", "ECUTWFC=25.0").replace(
-        "'silicon'", "'SILICON'"
-    )
-    assert diff(SI_SCF, reformatted).identical
+    reformatted = SI_SCF.replace("ecutwfc = 25      ", "ECUTWFC=25.0")
+    assert reformatted != SI_SCF and diff(SI_SCF, reformatted).identical
+
+
+def test_names_that_differ_only_in_case_are_different():
+    other = SI_SCF.replace("'silicon'", "'SILICON'")
+    assert [c.key for c in diff(SI_SCF, other).params] == ["prefix"]
+    a = "&control\n/\nATOMIC_SPECIES\nSi 28.08 Si.UPF\n"
+    changes = diff(a, a.replace("Si.UPF", "si.upf")).cards
+    assert [(c.name, c.differing) for c in changes] == [("ATOMIC_SPECIES", 1)]
 
 
 def test_parameters_in_only_one_file():

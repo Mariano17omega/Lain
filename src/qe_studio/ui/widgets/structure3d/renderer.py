@@ -24,7 +24,7 @@ from ....core.structure3d.replicate import Scene
 from ..painting import ui_font
 from .bonds_paint import BondShader, add_halves
 from .overlay import ABC_COLORS, MIN_PICK_RADIUS, Spot, arrow_head, draw_overlays, head_px
-from .render_types import FrameStats, Prims, Projection
+from .render_types import FrameStats, Prims, Projection, mix
 
 WIRE_WIDTH = 1.6  # px, the bonds of "fio"
 DOT_PX = 2.2  # px, an unbonded atom in "fio"
@@ -51,11 +51,6 @@ _EDGES = np.array(
 )
 
 
-def _mix(rgb: np.ndarray, other: float, amount: float) -> QColor:
-    out = rgb * (1 - amount) + other * amount
-    return QColor(int(out[0]), int(out[1]), int(out[2]))
-
-
 class PaintRenderer:
     def __init__(self) -> None:
         self._r_cov = np.zeros(0)
@@ -73,7 +68,9 @@ class PaintRenderer:
             list[float]
         ] = []  # per drawn half: 4 corners (x, y), light and shade edges
         self.stats = FrameStats()
-        self._scene_id: int | None = None
+        self._scene: Scene | None = (
+            None  # whose refs the two tables below are (held: an id() can be reused)
+        )
         self._refs: tuple[AtomRef, ...] = ()
         self._ref_index: dict[AtomRef, int] = {}
         self._pick_xy = np.zeros((0, 2))
@@ -91,7 +88,7 @@ class PaintRenderer:
             for e, s in zip(elements, structure.species, strict=True)
         ]
         self._color_key = None
-        self._scene_id = None
+        self._scene = None
 
     def species_rgb(self, species: int) -> tuple[int, int, int]:
         """The element color of a species (0..255), the one "Restaurar cores" goes back to."""
@@ -118,28 +115,28 @@ class PaintRenderer:
             grad = QRadialGradient(
                 QPointF(-0.30 * r, -0.35 * r), 1.35 * r, QPointF(-0.38 * r, -0.42 * r)
             )
-            grad.setColorAt(0.0, _mix(rgb, 255, 0.75))
-            grad.setColorAt(0.35, _mix(rgb, 255, 0.10))
-            grad.setColorAt(1.0, _mix(rgb, 0, 0.60))
+            grad.setColorAt(0.0, mix(rgb, 255, 0.75))
+            grad.setColorAt(0.35, mix(rgb, 255, 0.10))
+            grad.setColorAt(1.0, mix(rgb, 0, 0.60))
             brush = self._gradient[(species, quant)] = QBrush(grad)
         return brush
 
     def _flat_brush(self, species: int) -> QBrush:
         brush = self._flat.get(species)
         if brush is None:
-            brush = self._flat[species] = QBrush(_mix(self._rgb[species], 0, 0.0))
+            brush = self._flat[species] = QBrush(mix(self._rgb[species], 0, 0.0))
         return brush
 
     def _outline_pen(self, species: int) -> QPen:
         pen = self._outline.get(species)
         if pen is None:
-            pen = self._outline[species] = QPen(_mix(self._rgb[species], 0, 0.72), 0.9)
+            pen = self._outline[species] = QPen(mix(self._rgb[species], 0, 0.72), 0.9)
         return pen
 
     def _wire_pen(self, species: int) -> QPen:
         pen = self._wire_pens.get(species)
         if pen is None:
-            pen = QPen(_mix(self._rgb[species], 0, 0.0), WIRE_WIDTH)
+            pen = QPen(mix(self._rgb[species], 0, 0.0), WIRE_WIDTH)
             pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             self._wire_pens[species] = pen
         return pen
@@ -168,10 +165,10 @@ class PaintRenderer:
         marks: tuple[AtomRef, ...] = (),
     ) -> FrameStats:
         started = time.perf_counter()
-        if self._scene_id != id(scene):
+        if self._scene is not scene:
             self._refs = scene.refs
             self._ref_index = {ref: i for i, ref in enumerate(scene.refs)}
-            self._scene_id = id(scene)
+            self._scene = scene
         self._use_colors(options)
         camera.perspective = options.perspective
         proj = self._project(scene, camera, options, size)

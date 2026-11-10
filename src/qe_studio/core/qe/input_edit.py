@@ -40,6 +40,8 @@ class _Namelist:
     end_line: int  # the closer's line, or the last line with code when unclosed
     close_col: int | None = None  # column of the ``/`` or ``&end``; None when unclosed
     entries: list[Entry] = field(default_factory=list)  # ``Entry.line`` is a line index here
+    # Line of an entry → the lines of bare values after its trailing comma (``celldm = 1.0,\n 2.0``).
+    continued: dict[int, list[int]] = field(default_factory=dict)
 
 
 @dataclass
@@ -85,6 +87,17 @@ def _has_code(scan: LineScan) -> bool:
         or scan.opens
         or scan.closed
         or any(token.kind is not Kind.COMMENT for token in scan.tokens)
+    )
+
+
+def _continues_values(scan: LineScan, before: LexState) -> bool:
+    """Is the line only more values of the entry before it (``before``: the state it started in)?"""
+    return (
+        before.mode is Mode.NAMELIST
+        and before.comma
+        and not scan.entries
+        and scan.opens is None
+        and any(token.kind not in (Kind.COMMENT, Kind.NAMELIST) for token in scan.tokens)
     )
 
 
@@ -206,6 +219,8 @@ class InputEditor:
                 current = _Namelist(scan.opens.name.lower(), scan.opens.name, i, i)
                 self._namelists.append(current)
             if current is not None and _has_code(scan):
+                if current.entries and _continues_values(scan, state):
+                    current.continued.setdefault(current.entries[-1].line, []).append(i)
                 current.end_line = i
                 current.entries.extend(scan.entries)
                 if scan.closed:
@@ -321,7 +336,19 @@ class InputEditor:
             removed = True
         return removed
 
+    def _remove_continuation(self, block: _Namelist, index: int) -> None:
+        """Remove a line of bare values; a ``/`` that shares it stays."""
+        line = self._lines[index]
+        if block.close_col is not None and index == block.end_line:
+            indent = line[: len(line) - len(line.lstrip())]
+            self._lines[index] = indent + line[block.close_col :]
+        else:
+            self._replace(index, index + 1, [])
+
     def _remove_entry(self, block: _Namelist, entry: Entry) -> None:
+        if entry.col == max(e.col for e in block.entries if e.line == entry.line):
+            for index in reversed(block.continued.get(entry.line, ())):
+                self._remove_continuation(block, index)
         line = self._lines[entry.line]
         rest = line[entry.value_end :]
         trailing = _TRAILING.match(rest)

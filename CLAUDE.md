@@ -45,8 +45,8 @@ CI = `ruff check`, `ruff format --check`, `pyright`, then the `not realdata and 
 ## Conventions
 
 - **Language:** user-facing strings are written in **Portuguese inside `_()`** (or `N_()` for a Portuguese
-  token that is also data, like `"conteúdo"`); English lives in `locale/en/LC_MESSAGES/lain.po` (workflow in
-  `src/qe_studio/locale/README.md`). Code, comments, docstrings and commit messages are **English**.
+  token that is also data, like `"conteúdo"`); English lives in `locale/en/LC_MESSAGES/lain_<domain>.po`, one catalog per area (workflow and
+  domains in `src/qe_studio/locale/README.md`). Code, comments, docstrings and commit messages are **English**.
 - **Old internal names, on purpose** (existing configs keep working): package `qe_studio`, `QE_STUDIO_*` env vars,
   `~/.config/qe-studio`, `~/.cache/qe-studio`, QSettings keys, `qe-studio-askpass`. Product and CLI are `lain`.
   Never rename them.

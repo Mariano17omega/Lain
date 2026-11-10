@@ -13,7 +13,7 @@ from ....i18n import _
 from ...plotting.draw import finish, finish_side, new_axes, side_axes
 from ...plotting.style import PlotStyle
 from ...qe.pw_input import format_kpoint_label
-from ..params import RenderInfo, gap_method_in_force
+from ..params import MID_GAP, RenderInfo, gap_method_in_force
 from ..readout import nearest_tick_label, signed
 from .data import BandsDataset, valence_mask
 from .gap import GapEntry, gap_entries, gap_handles, legend_gap_notes
@@ -92,10 +92,11 @@ def draw_plain(
     energies = dataset.bands.energies - ref
     up = dataset.edges.get("up")  # a spin run whose ↓ channel is missing
     n_occupied = dataset.n_occupied if up is None else up.n_occupied
+    fermi = _channel_fermi(dataset, "up")  # fixed magnetization, ↑ channel only: E_F↑, not the mean
     if n_occupied is not None:
         valence = np.arange(len(energies)) < n_occupied
-    elif dataset.fermi is not None:
-        valence = energies.max(axis=1) <= dataset.fermi - ref
+    elif fermi is not None:
+        valence = energies.max(axis=1) <= fermi - ref
     else:
         valence = np.zeros(len(energies), dtype=bool)
     handles = []
@@ -112,16 +113,11 @@ def draw_plain(
     if params.show_hs_lines:
         for tick in ticks[1:-1]:
             ax.axvline(tick, color=style.guide, lw=0.7, zorder=0)
-    if dataset.fermi is not None and params.show_fermi_line:
-        ax.axhline(
-            dataset.fermi - ref,
-            color=params.fermi_color,
-            lw=0.9,
-            ls=(0, (5, 3)),
-            zorder=1,
-        )
+    if fermi is not None and params.show_fermi_line:
+        ax.axhline(fermi - ref, color=params.fermi_color, lw=0.9, ls=(0, (5, 3)), zorder=1)
+        label = f"$E_F$ {SYMBOL['up']}" if dataset.fermi_up_down is not None else "$E_F$"
         handles.append(
-            Line2D([], [], color=params.fermi_color, lw=0.9, ls=(0, (5, 3)), label="$E_F$")
+            Line2D([], [], color=params.fermi_color, lw=0.9, ls=(0, (5, 3)), label=label)
         )
     ax.set_xticks(ticks, labels)
     ax.set_xlim(*band_xlim(dataset, params))
@@ -208,7 +204,7 @@ def _add_handles(handles: list, new: list) -> None:
 def _channel_fermi(dataset: BandsDataset, channel: str) -> float | None:
     if dataset.fermi_up_down is not None:
         return dataset.fermi_up_down[0 if channel == "up" else 1]
-    return dataset.fermi
+    return dataset.fermi_level
 
 
 def _draw_channel(
@@ -268,10 +264,11 @@ def _fermi_lines(
     ax: Axes, dataset: BandsDataset, on_axes: list[str], params: BandsParams, ref: float
 ) -> list[Line2D]:
     """One E_F line, or (fixed magnetization) one per channel: ↑ solid, ↓ dashed."""
-    if dataset.fermi is None or not params.show_fermi_line:
+    level = dataset.fermi_level
+    if level is None or not params.show_fermi_line:
         return []
     if dataset.fermi_up_down is None:
-        ax.axhline(dataset.fermi - ref, color=params.fermi_color, lw=0.9, ls=FERMI_DASH, zorder=1)
+        ax.axhline(level - ref, color=params.fermi_color, lw=0.9, ls=FERMI_DASH, zorder=1)
         return [Line2D([], [], color=params.fermi_color, lw=0.9, ls=FERMI_DASH, label="$E_F$")]
     handles = []
     for channel in on_axes:
@@ -310,12 +307,19 @@ def summary(dataset: BandsDataset, params: BandsParams | None = None) -> str:
     """E_F, the gap by the method in force (``params`` None: ``auto``) and the size of the data."""
     parts = []
     if dataset.fermi is not None:
-        if dataset.fermi_up_down is not None and dataset.spin:
+        if dataset.fermi_up_down is not None:
             up, down = dataset.fermi_up_down
-            parts.append(f"E_F↑ = {up:.4f} eV · E_F↓ = {down:.4f} eV")
+            down_text = (
+                f" · E_F↓ = {down:.4f} eV" if dataset.spin else ""
+            )  # its bands may be missing
+            parts.append(f"E_F↑ = {up:.4f} eV{down_text}")
         else:
             name = "E_F" if dataset.fermi_kind in ("fermi", "spin_fermi") else "HOMO"
-            parts.append(f"{name} = {dataset.fermi:.4f} eV")
+            level = dataset.fermi_level
+            if name == "HOMO" or level == dataset.fermi:
+                parts.append(f"{name} = {dataset.fermi:.4f} eV")
+            if level != dataset.fermi:
+                parts.append(f"E_F = {level:.4f} eV {MID_GAP}")
     method = "auto" if params is None else gap_method_in_force(params)
     gaps = gap_entries(dataset, params)
     if dataset.spin:
@@ -343,8 +347,8 @@ def notes(dataset: BandsDataset, params: BandsParams | None = None) -> tuple[str
 
 
 def _gap_parts(dataset: BandsDataset, gaps: list[GapEntry], method: str) -> list[str]:
-    """The footer's gap words. ``auto`` says "metálico" (a spin run per channel, and no verdict
-    when ``gap_note`` doubts the count); the other methods say where they found none."""
+    """The footer's gap words. ``auto`` says "metálico" when a count or a crossing proved it (a spin
+    run per channel), and gives no verdict otherwise; the other methods say where they found none."""
     if method != "auto":
         where = GAP_WHERE[method]
         return [_gap_text(entry, where) for entry in gaps] or [
@@ -354,7 +358,7 @@ def _gap_parts(dataset: BandsDataset, gaps: list[GapEntry], method: str) -> list
         return _spin_gaps(dataset, gaps)
     if gaps:
         return [_gap_text(gaps[0], ON_PATH)]
-    return [_("metálico")] if dataset.fermi is not None and dataset.gap_note is None else []
+    return [_("metálico")] if dataset.metallic else []
 
 
 def _gap_text(entry: GapEntry, where: str) -> str:

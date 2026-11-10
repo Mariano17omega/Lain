@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayo
 
 from ...core.project.compounds import AtomChoices, normalize_selection
 from ...i18n import _
+from ..theme.scale import scaled
 from ..widgets.common import set_variant
 from ..widgets.plot.atom_table import AtomRow, AtomTable
 
@@ -37,7 +38,7 @@ class AtomsDialog(QDialog):
         self.setModal(
             True
         )  # no WA_DeleteOnClose: ``exec`` would delete it before the answer is read
-        self.resize(560, 480)
+        self.resize(scaled(560), scaled(480))
         self.sites = sorted(choices.sites, key=lambda site: site.index)
 
         layout = QVBoxLayout(self)

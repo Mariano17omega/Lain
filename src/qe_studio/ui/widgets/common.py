@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from typing import TypeVar
 
 from PyQt6.QtCore import QItemSelectionModel, QSize
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QHBoxLayout,
     QLabel,
+    QLayout,
+    QSizePolicy,
+    QStackedWidget,
+    QTableView,
     QToolButton,
     QWidget,
 )
@@ -23,6 +29,33 @@ def set_variant(widget: W, variant: str) -> W:
     return widget
 
 
+def tool_button(text: str, tip: str, *, checkable: bool = False) -> QToolButton:
+    """A text button of a viewer's bar (the ``viewerTool`` variant)."""
+    button = set_variant(QToolButton(), "viewerTool")
+    button.setText(text)
+    button.setToolTip(tip)
+    button.setCheckable(checkable)
+    return button
+
+
+def clear_layout(layout: QLayout, keep: Collection[QWidget] = ()) -> None:
+    """Take every item out of ``layout`` and delete its widgets, but those of ``keep`` (taken out
+    only: the caller puts them back). A widget is hidden first: ``deleteLater`` waits for the event
+    loop, and until then it would show where it was."""
+    while (item := layout.takeAt(0)) is not None:
+        widget = item.widget()
+        if widget is not None and widget not in keep:
+            widget.hide()
+            widget.deleteLater()
+
+
+def copy_text(text: str) -> None:
+    """``text`` on the clipboard (there is none without an application)."""
+    clipboard = QApplication.clipboard()
+    if clipboard is not None:
+        clipboard.setText(text)
+
+
 def viewport_of(view: QAbstractItemView) -> QWidget:
     """The view's viewport (PyQt types it optional; an item view always has one)."""
     viewport = view.viewport()
@@ -35,6 +68,24 @@ def selection_of(view: QAbstractItemView) -> QItemSelectionModel:
     selection = view.selectionModel()
     assert selection is not None
     return selection
+
+
+def hide_vertical_header(view: QTableView) -> None:
+    """No row numbers (PyQt types the header optional; a table view always has one)."""
+    header = view.verticalHeader()
+    assert header is not None
+    header.setVisible(False)
+
+
+def show_only_page(stack: QStackedWidget, page: QWidget) -> None:
+    """Make ``page`` the current one and the only one that counts for the window's size: the others
+    are ``Ignored``, so a tall page does not keep a short one tall."""
+    for index in range(stack.count()):
+        widget = stack.widget(index)
+        if widget is not None:
+            policy = QSizePolicy.Policy.Preferred if widget is page else QSizePolicy.Policy.Ignored
+            widget.setSizePolicy(policy, policy)
+    stack.setCurrentWidget(page)
 
 
 class IconButton(QToolButton):

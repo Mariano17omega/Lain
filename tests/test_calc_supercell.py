@@ -166,6 +166,54 @@ def test_nbnd_follows_the_copies():
     assert editor_of(plan(scf, n1=2, n2=3)).get("system", "nbnd") == "540"
 
 
+def test_the_whole_cell_keys_follow_the_copies():
+    scf = from_text(
+        SLAB_TEXT.replace(
+            "   ntyp             = 4\n",
+            "   ntyp             = 4\n   tot_charge = 1.0\n   tot_magnetization = 2.0\n",
+        )
+    )
+    result = plan(scf)
+    editor = editor_of(result)
+    assert editor.get("system", "tot_charge") == "2.0"
+    assert editor.get("system", "tot_magnetization") == "4.0"
+    assert "- **tot_charge**: 1 → 2" in report(result)
+    assert "tot_magnetization multiplicado pelas cópias da célula: 2 → 4" in result.notes
+    one_copy = plan(scf, n1=1)
+    assert editor_of(one_copy).get("system", "tot_charge") == "1.0"
+    assert not any("multiplicado" in note for note in one_copy.notes)
+
+
+def test_an_unset_magnetization_stays_unset():
+    scf = from_text(
+        SLAB_TEXT.replace(
+            "   ntyp             = 4\n", "   ntyp             = 4\n   tot_magnetization = -1\n"
+        )
+    )
+    result = plan(scf)
+    assert editor_of(result).get("system", "tot_magnetization") == "-1"
+    assert not any("tot_magnetization" in note for note in result.notes)
+
+
+def test_an_scf_that_fixes_every_atom_leaves_the_standard_mode_free():
+    editor = InputEditor.from_text(SLAB_TEXT)
+    rows = editor.card_rows("ATOMIC_POSITIONS")
+    editor.replace_card_rows(
+        "ATOMIC_POSITIONS", [" ".join(row.split()[:4]) + " 0 0 0" for row in rows]
+    )
+    scf = from_text(editor.text())
+    assert defaults(scf)["fix_rule"] == "camada inferior"
+    assert not plan(scf, mode="padrao").errors
+
+
+def test_a_dynamics_pair_pw_refuses_is_marked():
+    assert "cell_dynamics" in plan(cell_dynamics="damp-w").problems
+
+
+def test_no_atoms_is_an_error_not_a_crash():
+    assert not plan(from_text(re.sub(r"\bnat\s*=\s*\d+", "nat = 0", SLAB_TEXT))).ok
+
+
 def test_nine_copies_are_a_problem_of_the_field():
     result = plan(n2=9)
     assert result.problems["n2"] == "Repetições ao longo de b: de 1 a 8"
@@ -184,6 +232,11 @@ def test_too_many_atoms_are_a_problem_of_the_fields_that_grew():
     largest = plan(many_atoms(250), n1=8, n2=1, n3=1)
     assert not largest.errors
     assert editor_of(largest).get("system", "nat") == "2000"
+
+
+def test_an_scf_too_big_by_itself_is_a_problem_of_the_first_field():
+    result = plan(many_atoms(2100), n1=1, n2=1, n3=1)
+    assert list(result.problems) == ["n1"] and not result.ok
 
 
 def test_the_standard_mode_shows_the_repetitions():
@@ -223,6 +276,7 @@ def test_a_gamma_scf_keeps_gamma():
 def test_another_card_needs_a_mesh():
     scf = from_text(re.sub(r"K_POINTS automatic\n.*\n", "K_POINTS tpiba\n1\n0 0 0 1\n", SLAB_TEXT))
     assert plan(scf).problems["kmesh"] == NO_MESH
+    assert "kmesh" in [f.id for f in visible_fields(SUPERCELL.fields(scf, JOBS), "padrao")]
     typed = plan(scf, kmesh="2 2 1 0 0 0")
     assert not typed.errors
     assert editor_of(typed).card("K_POINTS").lines == ("2 2 1 0 0 0",)

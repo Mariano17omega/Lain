@@ -7,8 +7,9 @@ faltantes podem ser mapeados à mão.
 ## Recursos
 
 - Caminho de alta simetria com rótulos Γ (`labels` sobrescreve; **Linhas de alta simetria** liga/desliga).
-- **Referência** da energia: `E_F (SCF)`, `Topo da valência (VBM)`, `Meio do gap` ou `Absoluta`; janela `E mín`/`E máx`;
-  janela do eixo x (`x mín`/`x máx`); linha de Fermi.
+- **Referência** da energia: `E_F (SCF)` (`E_F (meio do gap)` em isolantes), `Topo da valência (VBM)`, `Meio do gap` ou `Absoluta`; janela `E mín`/`E máx`;
+  janela do eixo x (`x mín`/`x máx`); linha de Fermi. Em isolantes, o E_F é o meio do gap: veja
+  [Nível de Fermi em isolantes](index.md#fermi-em-isolantes).
 - Cores: valência, condução, Fermi.
 - **Gap de energia na legenda** (`legend_gap`): gap = CBM − VBM (não a energia de Fermi), com **Método do gap**:
   *Automático* (contagem de elétrons), *HOMO/LUMO do SCF* ou *Maior intervalo na janela*.

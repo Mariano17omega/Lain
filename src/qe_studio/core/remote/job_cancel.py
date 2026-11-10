@@ -9,6 +9,11 @@ right before acting (never the cache of the queue popup).
   rule, spec 71 R2): pw.x stops cleanly at its next check and deletes the file. A later pw.x of the
   script with the same ``prefix`` still runs; one with another of these prefixes stops at its first
   check. ``qdel`` is never used on it: the process would go on running out of the queue.
+  The race (L-09): a job that ends between the fresh ``qstatus`` and the ``touch`` never reads the
+  file, which stays in the folder, and the next pw.x with that ``prefix`` stops right after its setup
+  (``Program stopped by user request``, ``QE:Modules/check_stop.f90:126-144``). Lain cannot tell and
+  never deletes on the cluster, so the message says it, and the next "Submeter…" reports the file
+  (``submit.folder_check``).
 - A **waiting** job is cancelled with ``cluster.delete_command`` (``qdel``) and its ID, only while the
   ID is still in "Waiting jobs", with the same name and owner, and not in "Running jobs". A job that
   waits has no ``.o`` and no folder in the listing: the ID is what tells apart jobs of the same
@@ -26,18 +31,11 @@ from dataclasses import dataclass
 
 from ...i18n import _
 from ..config import AppConfig
-from .actions import (
-    ActionFailure,
-    checked_dir,
-    checked_name,
-    classify_failure,
-    failure_of,
-    failure_of_jobs,
-    run_action,
-)
-from .cluster_jobs import Job, JobsFailure, JobsSnapshot, fetch_jobs, running_in
+from .actions import checked_dir, checked_name, run_action
+from .cluster_jobs import Job, JobsSnapshot, fetch_jobs, running_in
+from .failure import RemoteFailure, classify_failure, explained
 from .inputs import StopSource, fetch_stop_sources
-from .listing import RemoteFailure, list_remote
+from .listing import list_remote
 
 SETTING = "cluster.delete_command"
 TOUCH = "touch"
@@ -75,14 +73,14 @@ class Refused:
     message: str
 
 
-def _queue(config: AppConfig, password: str | None) -> JobsSnapshot | ActionFailure:
+def _queue(config: AppConfig, password: str | None) -> JobsSnapshot | RemoteFailure:
     """The queue, asked again; without it nothing runs."""
     jobs = fetch_jobs(config, password)
-    if isinstance(jobs, JobsFailure):
+    if isinstance(jobs, RemoteFailure):
         message = _(
             "Não foi possível conferir o estado do job no cluster: {message}. Nada foi feito."
         )
-        return failure_of_jobs(jobs, message)
+        return explained(jobs, message)
     return jobs
 
 
@@ -97,18 +95,18 @@ def exit_line(config: AppConfig, remote_dir: str, prefixes: tuple[str, ...]) -> 
 
 def plan_stop(
     config: AppConfig, remote_dir: str, password: str | None = None
-) -> StopPlan | NotRunning | ActionFailure:
+) -> StopPlan | NotRunning | RemoteFailure:
     """What "Cancelar simulação…" will run in ``remote_dir``: the folder listed and the queue asked
     again, then the inputs read. Nothing runs that changes the cluster."""
     try:
         checked_dir(config, remote_dir)
     except ValueError as exc:
-        return ActionFailure(str(exc), local=True)
+        return RemoteFailure(str(exc), local=True)
     listing = list_remote(config, remote_dir, password)
     if isinstance(listing, RemoteFailure):
-        return failure_of(listing)
+        return listing
     snapshot = _queue(config, password)
-    if isinstance(snapshot, ActionFailure):
+    if isinstance(snapshot, RemoteFailure):
         return snapshot
     names = [entry.name for entry in listing if not entry.is_dir]
     jobs = running_in(names, snapshot, config.cluster.user)
@@ -121,7 +119,7 @@ def plan_stop(
             )
         )
     sources = fetch_stop_sources(config, remote_dir, password)
-    if isinstance(sources, ActionFailure):
+    if isinstance(sources, RemoteFailure):
         return sources
     if not sources:
         return NotRunning(
@@ -136,21 +134,25 @@ def plan_stop(
 
 def stop(
     config: AppConfig, plan: StopPlan, password: str | None = None
-) -> Done | Refused | ActionFailure:
+) -> Done | Refused | RemoteFailure:
     """Create the stop files of ``plan`` when one of its jobs still runs, after a fresh queue."""
     snapshot = _queue(config, password)
-    if isinstance(snapshot, ActionFailure):
+    if isinstance(snapshot, RemoteFailure):
         return snapshot
     running = {(job.job_id, job.name) for job in snapshot.mine(config.cluster.user)}
     if not any((job.job_id, job.name) in running for job in plan.jobs):
         message = _("O job {job_id} não está mais em execução: nada foi criado.")
         return Refused(message.format(job_id=plan.jobs[0].job_id))
     result = run_action(config, plan.line, password)
-    if isinstance(result, ActionFailure):
+    if isinstance(result, RemoteFailure):
         return result
     if result.code != 0:
         return classify_failure(result, TOUCH)
-    message = _("Pedido de parada criado: {files}. O pw.x para na próxima verificação.")
+    message = _(
+        "Pedido de parada criado: {files}. O pw.x para na próxima verificação. Se o job terminar "
+        "antes de lê-lo, o arquivo fica na pasta e o próximo pw.x do mesmo prefixo para logo no "
+        "início: o Submeter… avisa."
+    )
     return Done(message.format(files=", ".join(plan.files)))
 
 
@@ -183,20 +185,20 @@ def waiting_check(snapshot: JobsSnapshot, job: Job, user: str) -> Job | Refused:
 
 def delete_waiting(
     config: AppConfig, job: Job, password: str | None = None
-) -> Done | Refused | ActionFailure:
+) -> Done | Refused | RemoteFailure:
     """``qdel`` ``job`` when a fresh queue shows it still waiting; why nothing ran otherwise."""
     try:
         line = delete_line(config, job)
     except ValueError as exc:
-        return ActionFailure(str(exc), local=True)
+        return RemoteFailure(str(exc), local=True)
     snapshot = _queue(config, password)
-    if isinstance(snapshot, ActionFailure):
+    if isinstance(snapshot, RemoteFailure):
         return snapshot
     checked = waiting_check(snapshot, job, config.cluster.user)
     if isinstance(checked, Refused):
         return checked
     result = run_action(config, line, password)
-    if isinstance(result, ActionFailure):
+    if isinstance(result, RemoteFailure):
         return result
     if result.code != 0:
         return classify_failure(result, config.cluster.delete_command, SETTING)

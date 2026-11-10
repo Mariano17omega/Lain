@@ -6,7 +6,7 @@
 ## Recursos
 
 - **Fonte do Fermi** (SCF ou NSCF), deslocar para E_F, janela `E mín`/`E máx`, `dos_max`, **orientação** (energia no
-  eixo x ou y).
+  eixo x ou y). Em isolantes, o E_F é o meio do gap: veja [Nível de Fermi em isolantes](index.md#fermi-em-isolantes).
 - **Agrupamento**: *Espécie + orbital*, *Espécie* ou *Orbital*; DOS total (cor própria); preencher estados ocupados.
 - **Átomos…**: escolhe quais átomos entram; a seleção é lembrada por composto (fórmula + ordem das espécies) em
   `.lain/compounds.json`.

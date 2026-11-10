@@ -73,7 +73,6 @@ FS_CALLS = {
 }
 FS_ALLOWED: dict[str, int] = {
     "ui/cluster/sync_coordinator.py": 2,
-    "ui/dialogs/calc_create/setup_page.py": 1,
     "ui/dialogs/mapping.py": 1,
     "ui/dialogs/rename.py": 1,
     "ui/files/navigation_controller.py": 5,
@@ -102,6 +101,7 @@ QT_FREE = [
     "qe_studio.core.viewer.markdown_links",
     "qe_studio.core.files.file_kinds",
     "qe_studio.core.files.job_log",
+    "qe_studio.core.files.job_script",
     "qe_studio.core.files.run_errors",
     "qe_studio.core.plotting.session",
     "qe_studio.core.plotting.gap_label",
@@ -119,6 +119,7 @@ QT_FREE = [
     "qe_studio.core.remote.browser",
     "qe_studio.core.remote.download",
     "qe_studio.core.remote.actions",
+    "qe_studio.core.remote.failure",
     "qe_studio.core.remote.submit",
     "qe_studio.core.remote.submit_log",
     "qe_studio.core.remote.inputs",
@@ -142,6 +143,7 @@ QT_FREE = [
     "qe_studio.core.project.project_data",
     "qe_studio.core.remote.scratch",
     "qe_studio.core.qe.structure",
+    "qe_studio.core.qe.units",
     "qe_studio.core.plotting.grid",
     "qe_studio.core.plotting.cell_layout",
     "qe_studio.core.plotting.grid_session",
@@ -347,6 +349,55 @@ def test_the_filesystem_check_flags_a_new_call_and_a_stale_list():
     assert "do not raise FS_ALLOWED" in fs_problems(more)[0]
     fewer = {name: found for name, found in now.items() if name != "ui/shell/first_run.py"}
     assert "lower it" in fs_problems(fewer)[0]
+
+
+# Calls that size a widget. In the dialogs the number comes from the font scale (``scaled``,
+# CLAUDE.md "Theming and UI"): a bare pixel count would not follow it.
+SIZE_CALLS = {
+    "setMinimumWidth",
+    "setMinimumHeight",
+    "setMinimumSize",
+    "setMaximumWidth",
+    "setMaximumHeight",
+    "setMaximumSize",
+    "setFixedWidth",
+    "setFixedHeight",
+    "setFixedSize",
+    "resize",
+}
+
+
+def bare_sizes(source: str) -> list[int]:
+    """The lines of ``source`` that size a widget with a number written in the call."""
+    return [
+        node.lineno
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in SIZE_CALLS
+        and any(
+            isinstance(arg, ast.Constant) and isinstance(arg.value, int | float)
+            for arg in node.args
+        )
+    ]
+
+
+def test_the_dialogs_size_their_widgets_through_the_font_scale():
+    offenders = {
+        name_of(path): lines
+        for path in sources("ui/dialogs")
+        if (lines := bare_sizes(path.read_text(encoding="utf-8")))
+    }
+    assert offenders == {}, "use scaled(...) of ui/theme/scale.py, not a bare pixel count"
+
+
+def test_the_size_check_flags_a_bare_pixel_count():
+    assert bare_sizes("def f(w):\n    w.resize(760, 580)\n") == [2]
+    assert bare_sizes("def f(w):\n    w.setFixedHeight(12)\n") == [2]
+    assert (
+        bare_sizes("def f(w):\n    w.setMinimumWidth(scaled(460))\n    w.resize(w.width(), w.h)\n")
+        == []
+    )
 
 
 def test_pymatgen_is_not_mentioned():

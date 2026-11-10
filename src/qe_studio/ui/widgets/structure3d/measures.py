@@ -14,7 +14,6 @@ from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
-    QApplication,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -36,7 +35,7 @@ from ....core.structure3d.measurements import (
 from ....core.structure3d.model import AtomRef, Structure, atom_name
 from ....i18n import _
 from ...theme.scale import scaled
-from ..common import set_variant
+from ..common import copy_text, set_variant
 from ..plot.param_widgets import Section
 from .canvas import StructureCanvas
 
@@ -304,9 +303,8 @@ class MeasuresSection(QObject):
         self._refresh()
 
     def copy(self) -> None:
-        clipboard = QApplication.clipboard()
-        if clipboard is not None and self.measurements:
-            clipboard.setText(to_tsv(self.structure, self.measurements))
+        if self.measurements:
+            copy_text(to_tsv(self.structure, self.measurements))
             self.message.emit(COPIED)
 
     # -- state ---------------------------------------------------------------------------------------

@@ -10,10 +10,12 @@ chosen or not, from variables at the top of the script (``Work.run``).
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from ....i18n import _
 from ...config import JobsConfig
+from ...qe.input_edit import InputEditor
 from ..render import render
 from ..scf_info import ScfInfo
 from .base import FormField, PlannedFile, Work
@@ -25,6 +27,7 @@ __all__ = [
     "JOB_NAME_MAX",
     "MYEMAIL_NOTE",
     "SCRIPT_KEY",
+    "gamma_pool_notes",
     "job_name",
     "pool_notes",
     "script_fields",
@@ -33,13 +36,18 @@ __all__ = [
 
 SCRIPT_KEY = "script"
 JOB_NAME_MAX = 15
+JOB_DIGIT_PREFIX = "j"
 MYEMAIL_NOTE = _("Defina jobs.myemail no config.yaml para receber os e-mails do job")
 _JOB_UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
 
 
 def job_name(name: str) -> str:
-    """What ``#$ -N`` gets: letters, digits, ``.``, ``_``, ``-``, at most 15 characters."""
-    return _JOB_UNSAFE.sub("_", name.strip())[:JOB_NAME_MAX] or "lain"
+    """What ``#$ -N`` gets: letters, digits, ``.``, ``_``, ``-``, at most 15 characters, and no digit
+    first (qsub refuses it: "is not a valid object name")."""
+    safe = _JOB_UNSAFE.sub("_", name.strip())
+    if safe[:1].isdigit():
+        safe = JOB_DIGIT_PREFIX + safe
+    return safe[:JOB_NAME_MAX] or "lain"
 
 
 def script_fields(type_: CalcType, scf: ScfInfo, jobs: JobsConfig) -> list[FormField]:
@@ -94,6 +102,28 @@ def pool_notes(np_: int, nk: int) -> list[str]:
     return []
 
 
+def gamma_pool_notes(files: Sequence[PlannedFile], nk: int) -> list[str]:
+    """The pw.x inputs with ``K_POINTS gamma`` (a missing card is gamma too) while ``-nk`` is above 1:
+    pw.x stops with "Gamma-only calculations not allowed with pools" (``QE:PW/src/setup.f90:683``,
+    L-07). The generated texts only: an edit by hand does not redo the notes."""
+    if nk <= 1:
+        return []
+    names = []
+    for planned in files:
+        if planned.kind != "pw_input":
+            continue
+        card = InputEditor.from_text(planned.text).card("K_POINTS")
+        if card is None or card.option == "gamma":
+            names.append(planned.name)
+    if not names:
+        return []
+    return [
+        _(
+            "{names}: K_POINTS gamma (ou sem o card) com nk = {nk}: o pw.x para (Gamma-only calculations not allowed with pools). Use nk = 1 (campo Pools, no modo avançado) ou uma rede de k-points"
+        ).format(names=", ".join(names), nk=nk)
+    ]
+
+
 def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
     values = work.values
     typed = str(values["job_name"] or "")
@@ -101,7 +131,7 @@ def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
     if typed.strip() and name != typed.strip():
         work.notes.append(
             _(
-                "Nome do job ajustado para {name} (até 15 caracteres: letras, números, . _ -)"
+                "Nome do job ajustado para {name} (até 15 caracteres: letras, números, . _ -; não começa com número)"
             ).format(name=name)
         )
     np_ = values["np"] if values["np"] is not None else jobs.cores

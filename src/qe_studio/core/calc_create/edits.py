@@ -12,10 +12,23 @@ from ..qe.pw_input import fortran_float
 from .kpath import KMesh, KPath, to_card
 from .render import fortran_number
 
-__all__ = ["ensure_smearing", "put_mesh", "put_number", "put_path", "put_string", "put_text"]
+__all__ = [
+    "ensure_disk_io",
+    "ensure_smearing",
+    "put_mesh",
+    "put_number",
+    "put_path",
+    "put_string",
+    "put_text",
+]
 
 DEFAULT_SMEARING = "gaussian"
 DEFAULT_DEGAUSS = 0.01
+# pw.x's ``disk_io`` (QE:PW/src/input.f90:884-908; the default is ``low`` in an scf, ``medium`` otherwise).
+# ``minimal`` and ``none`` keep no charge density, so a run that starts from it cannot; ``nowf`` keeps it
+# but no ``wfc*.dat``, which bands.x and projwfc.x read (L-14).
+DISK_IO_NO_CHARGE = frozenset({"minimal", "none"})
+DISK_IO_NO_WFC = frozenset({"nowf", "minimal", "none"})
 
 
 def _quote(editor: InputEditor, namelist: str, key: str) -> str:
@@ -66,6 +79,32 @@ def put_mesh(editor: InputEditor, mesh: KMesh) -> bool:
 
 def put_path(editor: InputEditor, path: KPath) -> None:
     editor.replace_card("K_POINTS", *to_card(path))
+
+
+def ensure_disk_io(editor: InputEditor, reader: str | None = None) -> list[str]:
+    """Take out a ``disk_io`` that would leave the next program without its data (L-14); the notes say
+    what was removed, and the QE default (which keeps what is needed) takes over.
+
+    ``reader`` is the program that reads the wavefunctions this run writes (``bands.x``,
+    ``projwfc.x``): with it the run needs ``wfc*.dat`` too (``nowf`` is refused as well). Without it
+    the run is the SCF that the next one starts from, and only its charge density is needed.
+    """
+    current = editor.get("control", "disk_io")
+    value = (current or "").strip().lower()
+    if value not in (DISK_IO_NO_WFC if reader else DISK_IO_NO_CHARGE):
+        return []
+    editor.remove("control", "disk_io")
+    if reader:
+        return [
+            _(
+                "disk_io = '{value}' removido: sem os wfc*.dat o {reader} não lê as funções de onda (o padrão do QE os grava)"
+            ).format(value=value, reader=reader)
+        ]
+    return [
+        _(
+            "disk_io = '{value}' removido: sem a densidade de carga do SCF o cálculo seguinte não parte (o padrão do QE a grava)"
+        ).format(value=value)
+    ]
 
 
 def ensure_smearing(editor: InputEditor, replace_tetrahedra: bool = True) -> list[str]:

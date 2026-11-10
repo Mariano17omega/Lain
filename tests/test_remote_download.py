@@ -3,6 +3,7 @@ the real rsync. The "cluster" is a local folder (as in ``test_sync_integration.p
 test SSH server, from the window's menu to the file on disk."""
 
 import shutil
+from pathlib import Path
 
 import pytest
 from PyQt6.QtCore import QPoint
@@ -10,9 +11,10 @@ from PyQt6.QtWidgets import QMessageBox
 
 from qe_studio.core.config import LoadedConfig, parse_config
 from qe_studio.core.remote.download import only_file_rules
+from qe_studio.core.remote.scratch import SCRATCH_EXCLUDE
 from qe_studio.core.sync.controller import SyncController, SyncStatus
 from qe_studio.core.sync.planner import Decision
-from qe_studio.core.sync.rsync import Endpoint
+from qe_studio.core.sync.rsync import Endpoint, dry_run_command
 from qe_studio.ui.widgets.cluster.remote_model import RemotePath
 
 from remote_helpers import menu_spy
@@ -103,3 +105,30 @@ def test_download_from_the_cluster_menu(qtbot, ssh_server, window_factory, tmp_p
     assert (root / "proj/run/scf.out").read_text() == "scf from the cluster"
     assert not (root / "proj/run/big.wfc1").exists()
     assert window.remote.active  # the mode goes on after a "Baixar"
+
+
+# -- a file that ``sync.exclude`` covers, asked for by name ------------------------------------------
+def excluding(*patterns):
+    return parse_config({"sync": {"exclude": list(patterns)}})
+
+
+def test_a_file_the_list_excludes_comes_when_asked_for_by_name(qtbot, tmp_path):
+    remote, local = tmp_path / "cluster", tmp_path / "local"
+    write(remote, "al.wfc1", "wave")
+    write(remote, "al.wfc2", "other")
+    rules = only_file_rules("al.wfc1")
+    controller = SyncController(excluding("*.wfc*"), extra_args=rules)
+    report, _prompts = run_sync(qtbot, controller, local, Endpoint(str(remote)))
+    assert report.status is SyncStatus.DONE, report.error
+    assert report.transferred == ["al.wfc1"] and not (local / "al.wfc2").exists()
+
+
+def test_the_fixed_exclusions_stay_ahead_of_a_file_asked_for_by_name():
+    argv = dry_run_command(
+        excluding("*.wfc*"), Endpoint("/r"), Path("/l"), None, only_file_rules("al.wfc1")
+    )
+    filters = [arg for arg in argv if arg.startswith(("--include=", "--exclude="))]
+    include = filters.index("--include=/al.wfc1")
+    assert (
+        filters.index(f"--exclude={SCRATCH_EXCLUDE}") < include < filters.index("--exclude=*.wfc*")
+    )

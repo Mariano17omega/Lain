@@ -12,14 +12,15 @@ from ...qe import bands_x
 from ...qe.pw_input import QEInput, read_input
 from ...qe.pw_output import PwOutput, read_structure
 from ...qe.structure import header_formula
+from ...qe.units import BOHR_TO_ANGSTROM
 from ..base import DetectionResult, LoadError, SniffFn
 
-BOHR_TO_ANGSTROM = 0.529177210903
 EDGE_TOL = 1e-3  # eV: a band within this of E_F is not counted as crossing it
 # Notes under the readout (spec 27-6 R1) when the gap of a run without spin is in doubt.
 GAP_OFF_PATH_NOTE = _("gap indeterminado: E_F fora de [VBM, CBM] no caminho")
 GAP_NO_FERMI_NOTE = _("E_F não encontrado: gap pela contagem de elétrons")
 GAP_FROM_FERMI_NOTE = _("gap pela posição de E_F: {n:g} elétrons não enchem bandas inteiras")
+GAP_NO_EMPTY_NOTE = _("sem bandas vazias na saída: aumente nbnd para obter o gap")
 CHANNELS = ("up", "down")
 # Roles holding the eigenvalue file of each spin channel: (.gnu, filband).
 CHANNEL_ROLES = {"up": ("gnu", "filband"), "down": ("gnu_down", "filband_down")}
@@ -77,6 +78,11 @@ def occupied_count(n_electrons: float | None, n_bands: int) -> int | None:
     return n_occ
 
 
+def fills_every_band(n_electrons: float, n_bands: int) -> bool:
+    """Does a whole electron count fill all the bands? Then none is left above to give a gap."""
+    return abs(n_electrons - round(n_electrons)) <= 1e-6 and round(n_electrons) >= n_bands
+
+
 def count_edges(energies: np.ndarray, n_occ: int, fermi: float | None) -> ChannelEdges:
     """Edges of ``n_occ`` filled bands (fixed occupations): VBM at the top of band ``n_occ``, CBM at
     the bottom of the next one, metallic if they overlap (≤ ``EDGE_TOL``)."""
@@ -110,6 +116,8 @@ class BandsDataset:
     magnetization: float | None = None  # total, μB/cell
     gap_note: str | None = None  # why the gap is missing or in doubt (a RenderInfo note)
     homo_lumo: tuple[float, float] | None = None  # the pair the SCF printed (gap method homo_lumo)
+    metallic: bool = False  # a count or a crossing of E_F proved it; no gap alone does not
+    insulating: bool = False  # the electron count backs the gap (``band_edges``): E_F may move
 
     @property
     def spin(self) -> bool:
@@ -124,14 +132,32 @@ class BandsDataset:
             return None
         return self.cbm - self.vbm
 
+    @property
+    def midgap(self) -> float | None:
+        if self.vbm is None or self.cbm is None:
+            return None
+        return (self.vbm + self.cbm) / 2
+
+    @property
+    def fermi_level(self) -> float | None:
+        """E_F as the plots use it (spec 91): the middle of the gap of an insulator, else ``fermi``.
+
+        ``fermi`` is what pw.x printed: the HOMO with fixed occupations, an arbitrary point of the
+        gap with smearing. ``band_edges`` says whether the gap is an insulator's; a run with one
+        E_F per channel keeps them.
+        """
+        if self.fermi is None or self.fermi_up_down is not None or not self.insulating:
+            return self.fermi
+        middle = self.midgap
+        return self.fermi if middle is None else middle
+
     def reference(self, mode: str) -> float:
         if mode == "vbm" and self.vbm is not None:
             return self.vbm
-        if mode == "midgap" and self.vbm is not None and self.cbm is not None:
-            return (self.vbm + self.cbm) / 2
-        if mode == "absolute" or self.fermi is None:
-            return 0.0
-        return self.fermi
+        if mode == "midgap" and (middle := self.midgap) is not None:
+            return middle
+        level = self.fermi_level
+        return 0.0 if mode == "absolute" or level is None else level
 
 
 def read_bands_input(path: Path | None) -> QEInput | None:
@@ -243,6 +269,13 @@ def _ticks(
     hs = sniff(bandsx_path).bandsx if bandsx_path else None
     if hs and hs.hs_x and source != "pw":
         labels = list(kp.labels) if kp and len(kp.labels) == len(hs.hs_x) else []
+        if kp is not None and kp.is_path and not labels:
+            # bands.x marks only turns, Γ and the ends: a collinear vertex is not in ``hs_x`` (L-06)
+            warnings.append(
+                _(
+                    "caminho K_POINTS não corresponde aos dados: pontos de alta simetria do bands.x ({found}, só mudanças de direção, Γ e as pontas) e {vertices} vértices no input; rótulos omitidos"
+                ).format(found=len(hs.hs_x), vertices=len(kp.labels))
+            )
         labels = labels or [""] * len(hs.hs_x)
         return list(hs.hs_x), labels, "bands.x"
     if kp is not None and kp.is_path:
@@ -258,7 +291,8 @@ def band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
     Without spin they come from the electron count. With smearing (``fermi_kind == "fermi"``) the
     count is only trusted when E_F lies between them: E_F inside a band means pockets off the path
     (a metal), so there is no gap, only ``gap_note``. Fixed occupations are not checked. A count that
-    fills no whole bands falls back to E_F (``fermi_edges``).
+    fills no whole bands falls back to E_F (``fermi_edges``); one that fills them all leaves no band
+    above to measure a gap to, which says nothing about a metal.
     """
     if dataset.spin:
         spin_band_edges(dataset, pw)
@@ -266,17 +300,22 @@ def band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
     if pw.spin_polarized:  # only the ↑ channel was found: its own edges, no global ones
         if pw.fermi is not None:
             dataset.edges = {"up": spin_channel_edges(dataset.bands.energies, 0, pw)}
+            _read_channel_edges(dataset)
         return
     if pw.n_electrons is None:
         return
     occupied = pw.n_electrons if pw.noncollinear else pw.n_electrons / 2
-    n_occ = occupied_count(occupied, len(dataset.bands.energies))
+    n_bands = len(dataset.bands.energies)
+    n_occ = occupied_count(occupied, n_bands)
     if n_occ is None:
         if abs(occupied - round(occupied)) > 1e-6:  # an odd count: no whole bands to count
             fermi_edges(dataset, pw)
+        elif fills_every_band(occupied, n_bands):
+            dataset.n_occupied, dataset.gap_note = n_bands, GAP_NO_EMPTY_NOTE
         return
     edges = count_edges(dataset.bands.energies, n_occ, pw.fermi)
     if edges.vbm is None or edges.cbm is None:
+        dataset.metallic = edges.metallic
         return
     if pw.fermi is None:
         dataset.gap_note = GAP_NO_FERMI_NOTE
@@ -284,6 +323,7 @@ def band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
         dataset.gap_note = GAP_OFF_PATH_NOTE
         return
     dataset.n_occupied, dataset.vbm, dataset.cbm = n_occ, edges.vbm, edges.cbm
+    dataset.insulating = True
 
 
 def fermi_edges(dataset: BandsDataset, pw: PwOutput) -> None:
@@ -298,6 +338,7 @@ def fermi_edges(dataset: BandsDataset, pw: PwOutput) -> None:
         return
     edges = channel_edges(dataset.bands.energies, pw.fermi)
     if edges.vbm is None or edges.cbm is None:
+        dataset.metallic = edges.metallic
         return
     dataset.vbm, dataset.cbm = edges.vbm, edges.cbm
     dataset.gap_note = GAP_FROM_FERMI_NOTE.format(n=pw.n_electrons)
@@ -308,14 +349,42 @@ def spin_channel_edges(energies: np.ndarray, index: int, pw: PwOutput) -> Channe
 
     With fixed occupations pw.x prints the HOMO / LUMO of both channels together, and a band path
     may top the HOMO of the SCF grid, so the bands are counted (``nelup`` / ``neldw``, printed with
-    ``tot_magnetization``). With smearing, the channel's own E_F splits them.
+    ``tot_magnetization``). A channel with every band filled has neither a gap nor a crossing. With
+    smearing, the channel's own E_F splits them.
     """
     if pw.fermi_kind in ("homo", "homo_lumo") and pw.n_electrons_up_down is not None:
-        n_occ = occupied_count(pw.n_electrons_up_down[index], len(energies))
+        count, n_bands = pw.n_electrons_up_down[index], len(energies)
+        n_occ = occupied_count(count, n_bands)
         if n_occ is not None:
             return count_edges(energies, n_occ, pw.fermi)
+        if fills_every_band(count, n_bands):
+            return ChannelEdges(pw.fermi, n_occupied=n_bands)
     fermi = pw.fermi_up_down[index] if pw.fermi_up_down else pw.fermi
     return channel_edges(energies, fermi)
+
+
+def _read_channel_edges(dataset: BandsDataset) -> None:
+    """What the edges of the spin channels say about the run: a channel crossing E_F makes it
+    metallic, and one with every band filled has no gap to give (the readout says why)."""
+    dataset.metallic = any(edges.metallic for edges in dataset.edges.values())
+    for channel, edges in dataset.edges.items():
+        band = dataset.band_data(channel)
+        if band is not None and edges.n_occupied == band.n_bands:
+            dataset.gap_note = GAP_NO_EMPTY_NOTE
+
+
+def _count_backs_spin_gap(dataset: BandsDataset, pw: PwOutput) -> bool:
+    """Do the bands below each channel's gap hold all the electrons? A short path can miss the
+    crossings of a metal and show a gap in both channels; without a count there is no verdict."""
+    if pw.n_electrons is None:
+        return False
+    valence = 0
+    for channel, edges in dataset.edges.items():
+        band = dataset.band_data(channel)
+        if band is None or edges.vbm is None:
+            return False
+        valence += int(valence_mask(band.energies, edges.vbm).sum())
+    return abs(valence - pw.n_electrons) <= 1e-6
 
 
 def spin_band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
@@ -327,6 +396,7 @@ def spin_band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
         "up": spin_channel_edges(dataset.bands.energies, 0, pw),
         "down": spin_channel_edges(dataset.bands_down.energies, 1, pw),
     }
+    _read_channel_edges(dataset)
     up, down = dataset.edges["up"], dataset.edges["down"]
     if up.gap is None or down.gap is None:
         return
@@ -334,6 +404,7 @@ def spin_band_edges(dataset: BandsDataset, pw: PwOutput) -> None:
     cbm = min(c for c in (up.cbm, down.cbm) if c is not None)
     if cbm - vbm > EDGE_TOL:
         dataset.vbm, dataset.cbm = vbm, cbm
+        dataset.insulating = _count_backs_spin_gap(dataset, pw)
 
 
 def _bands_from_pw_output(

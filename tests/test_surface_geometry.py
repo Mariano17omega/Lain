@@ -66,6 +66,17 @@ def test_minimum_images_keep_the_image_of_the_fractions_as_written():
     assert distances[0, 0] == pytest.approx(1.0) and images[0, 0].tolist() == [0, 0, 1]
 
 
+def test_atoms_written_cells_apart_are_still_neighbours():
+    cell = np.diag([5.0, 5.0, 5.0])
+    frac = np.array([[0.1, 0, 0], [2.15, 0, 0]])
+    distances, images = pair_images(frac, cell, [0], [1])
+    assert distances[0, 0] == pytest.approx(0.25) and images[0, 0].tolist() == [-2, 0, 0]
+    distances, images = pair_images(frac, cell, [1], [0])
+    assert distances[0, 0] == pytest.approx(0.25) and images[0, 0].tolist() == [2, 0, 0]
+    distance, image = min_image(frac[1] - frac[0], cell)
+    assert distance == pytest.approx(0.25) and image.tolist() == [-2, 0, 0]
+
+
 # -- elements -----------------------------------------------------------------------------------------
 @pytest.mark.parametrize(
     ("label", "element"),

@@ -1,5 +1,7 @@
 """Spin (two channels) in the PDOS figure: modes, channel cues, two Fermi energies (spec 13, R5)."""
 
+import dataclasses
+
 import numpy as np
 import pytest
 from matplotlib.collections import PolyCollection
@@ -192,15 +194,42 @@ def test_the_nscf_source_falls_back_to_a_single_line(fixed):
 
 # -- limits, schema, persistence, summary --------------------------------------------------------
 def test_apply_limits_stores_the_symmetric_limit_only_when_mirrored(spin):
-    module, _, params = spin
-    module.apply_limits(params, [((-5.0, 5.0), (-1.5, 2.0))])
+    module, dataset, params = spin
+    module.apply_limits(dataset, params, [((-5.0, 5.0), (-1.5, 2.0))])
     assert params.dos_max == 2.0  # mirrored: the larger side
     params.spin_mode = "overlay"
-    module.apply_limits(params, [((-5.0, 5.0), (0.0, 1.2))])
+    module.apply_limits(dataset, params, [((-5.0, 5.0), (0.0, 1.2))])
     assert params.dos_max == 1.2
     params.orientation = "vertical"
-    module.apply_limits(params, [((0.1, 1.4), (-3.0, 3.0))])
+    module.apply_limits(dataset, params, [((0.1, 1.4), (-3.0, 3.0))])
     assert (params.dos_max, params.emin, params.emax) == (1.4, -3.0, 3.0)
+
+
+def test_apply_limits_of_a_pdos_without_spin_keeps_the_top_of_the_view():
+    module, dataset, params = load(FIXTURES / "al_pdos_flat")
+    assert params.spin_mode == "mirror"  # the default, which only a spin PDOS draws
+    module.apply_limits(dataset, params, [((-5.0, 5.0), (-8.0, 3.0))])
+    assert params.dos_max == 3.0
+
+
+@pytest.mark.parametrize("before", [None, 2.5])
+def test_a_view_below_zero_leaves_the_dos_limit_as_it_was(spin, before):
+    module, dataset, params = spin
+    params.spin_mode, params.dos_max = "overlay", before
+    module.apply_limits(dataset, params, [((-5.0, 5.0), (-8.0, -1.0))])
+    assert params.dos_max == before
+
+
+def test_a_fermi_energy_of_exactly_zero_is_still_a_shift():
+    module, dataset, params = load(FIXTURES / "al_pdos_flat")
+    zero = dataclasses.replace(dataset, fermi_scf=0.0)
+    params.fermi_source, params.shift_to_fermi = "scf", True
+    figure, _ = render(module, zero, params, LIGHT)
+    assert figure.axes[0].get_xlabel() == "$E - E_F$ (eV)"
+    assert module.table(zero, params).columns[0].name == "E − E_F (eV)"
+    assert module.format_coordinates(1.0, 0.5, 0, zero, params).startswith("E − E_F =")
+    params.shift_to_fermi = False
+    assert module.table(zero, params).columns[0].name == "E (eV)"
 
 
 def test_spin_mode_is_offered_only_for_a_spin_polarized_pdos(spin):

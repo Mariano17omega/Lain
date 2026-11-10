@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -29,7 +28,8 @@ from ...core.sync.push_plan import PushPlan
 from ...core.sync.request import SyncScope
 from ...i18n import _
 from ..theme.manager import ThemeManager
-from ..widgets.common import set_variant
+from ..theme.scale import scaled
+from ..widgets.common import set_variant, show_only_page
 from .sync_pages import PreviewPage, SearchPage, TransferPage
 
 WAITING_DECISION = _("Aguardando sua decisão…")
@@ -51,7 +51,7 @@ class SyncDialog(QDialog):
         self.setObjectName("syncDialog")
         self.setWindowTitle(scope.window_title)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setMinimumWidth(460)
+        self.setMinimumWidth(scaled(460))
         self.controller = controller
         title = QLabel(scope.title)
         title.setObjectName("syncScope")
@@ -122,14 +122,7 @@ class SyncDialog(QDialog):
     def _show_page(self, page: QWidget) -> None:
         """Only the current page counts for the size, and the window only grows: the preview
         makes it bigger, the progress keeps that size."""
-        for index in range(self.pages.count()):
-            widget = self.pages.widget(index)
-            if widget is not None:
-                policy = (
-                    QSizePolicy.Policy.Preferred if widget is page else QSizePolicy.Policy.Ignored
-                )
-                widget.setSizePolicy(policy, policy)
-        self.pages.setCurrentWidget(page)
+        show_only_page(self.pages, page)
         self.download_button.setVisible(page is self.preview)
         if self.isVisible():  # before the first show, show() takes the size hint by itself
             self._grow()
@@ -215,9 +208,14 @@ class ConflictDialog(QDialog):
             button = QPushButton(text)
             if variant:
                 set_variant(button, variant)
+            button.setAutoDefault(False)  # Enter never cancels the pull, nor overwrites
             button.clicked.connect(lambda _c=False, d=decision: self.decide(d))
             row.addWidget(button)
+            if decision is Decision.SKIP:  # what Esc does: the local copy stays
+                self.keep_button = button
         layout.addLayout(row)
+        self.keep_button.setDefault(True)
+        self.keep_button.setFocus()
 
     def decide(self, decision: Decision) -> None:
         if self._sent:

@@ -35,6 +35,12 @@ def test_read_gnu_single_space_separator():
     assert read_gnu_text(text).energies.shape == (16, 91)
 
 
+def test_read_gnu_of_a_single_k_point_has_one_band_per_line():
+    data = read_gnu_text("0.0 -5.0\n\n0.0 1.0\n\n0.0 2.5\n")
+    assert data.energies.shape == (3, 1)
+    assert data.energies[:, 0].tolist() == [-5.0, 1.0, 2.5]
+
+
 def test_read_gnu_rejects_gnuplot_script():
     with pytest.raises(BandsFormatError):
         read_gnu_text('set terminal png\nplot "bands.dat.gnu" using 1:2 with lines\n')

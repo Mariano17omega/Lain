@@ -7,7 +7,7 @@ import pytest
 from PyQt6.QtCore import QPoint
 from PyQt6.QtWidgets import QApplication, QMenu
 
-from qe_studio.core.remote.listing import RemoteFailure
+from qe_studio.core.remote.failure import RemoteFailure
 from qe_studio.core.sync.monitor import ConnectionState
 from qe_studio.core.sync.request import SYNC_OFF, SYNC_RUNNING
 from qe_studio.ui.cluster.remote_controller import CONFIG_CHANGED, LISTING, ONE_ITEM

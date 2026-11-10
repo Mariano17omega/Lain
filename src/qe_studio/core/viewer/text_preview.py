@@ -16,7 +16,7 @@ from ..files.file_kinds import human_size, is_job_log, is_markdown, is_script
 from ..qe.input_extract import Chip, extract
 from ..qe.input_lexer import LintIssue
 from ..qe.input_lint import InputDoc, lint
-from ..sniff import INPUT_READ_LIMIT, FileSniff, looks_like_input, sniff
+from ..sniff import INPUT_READ_LIMIT, looks_like_input, sniff
 from . import textfile
 from .qsub_lint import lint_script
 from .textfile import LineMap
@@ -51,19 +51,6 @@ class TextPreview:
             return list(self.input_doc.issues)
         return list(self.script_issues)
 
-    @property
-    def omitted_lines(self) -> int:
-        """Lines left out between head and tail (0 when the text is whole)."""
-        start = self.line_map.marker_start
-        return 0 if start is None else self.line_map.tail_first_line - 1 - start
-
-
-def _sniff(path: Path) -> FileSniff | None:
-    try:
-        return sniff(path)
-    except OSError:
-        return None
-
 
 def read_preview(path: Path, full: bool = False) -> TextPreview:
     """Text, banner and line numbers of ``path``. Queue logs say whether the job wrote errors
@@ -82,15 +69,15 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
     elif full and piece.size > textfile.LARGE_FILE:
         banner = _("Arquivo completo ({human_size}).").format(human_size=human_size(piece.size))
     job_log = is_job_log(path)
-    info = _sniff(path)
+    info = sniff(path)
     cancel.check()
-    output = info is not None and info.is_output
+    output = info.is_output
     # A redirected QE output is judged by the run itself, as in the file label.
-    judged_by_run = output and info is not None and info.job_done is not None
+    judged_by_run = output and info.job_done is not None
     if job_log and not judged_by_run:
         if not piece.text:
             job, level = _("Arquivo vazio: o job não registrou erros."), "success"
-        elif info is not None and info.clean_job_log:
+        elif info.clean_job_log:
             job = _("O job não registrou erros: o arquivo lista só as máquinas dele.")
             level = "success"
         else:
@@ -113,7 +100,7 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
             banner = f"{note} {banner}".rstrip()
     elif script:
         if piece.size <= INPUT_READ_LIMIT:
-            issues = tuple(lint_script(piece.text))
+            issues = tuple(lint_script(piece.text, str(path)))
         else:
             note = _(
                 "Script grande ({human_size}): a escrita não foi verificada, só o realce."

@@ -42,7 +42,7 @@ def load_cell(ref: PlotRef, sniff: SniffFn, memory: FolderMemory) -> tuple[Detec
 def error_text(error: Exception) -> str:
     if isinstance(error, LoadError):
         return str(error)
-    log.error("grid cell failed to load", exc_info=error)
+    log.error("plot: grid cell failed to load", exc_info=error)
     return f"{type(error).__name__}: {error}"
 
 
@@ -141,9 +141,13 @@ class GridLoader(QObject):
         if state is None or key not in state.loaded:
             return
         result, dataset = state.loaded.pop(key)
-        session, _warnings = build_session(
-            result, dataset, self._config(), stored, self.memory, None, self.stores
-        )
+        try:
+            session, _warnings = build_session(
+                result, dataset, self._config(), stored, self.memory, None, self.stores
+            )
+        except Exception as exc:  # one bad cell must not leave the grid loading forever
+            self._set_cell(state, key, GridCellData(state.waiting[key], None, error_text(exc)))
+            return
         self._set_cell(state, key, GridCellData(state.waiting[key], session))
 
     def _on_error(self, key: str, error: Exception) -> None:

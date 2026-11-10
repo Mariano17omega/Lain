@@ -29,7 +29,7 @@ Onde revisar ou modificar cada parte. Caminhos relativos a `src/qe_studio/`.
 | Visualizador de texto/inputs | `core/viewer/*`, `core/qe/input_lexer.py`, `input_lint.py`, `ui/widgets/viewer/*` |
 | Menus, atalhos | `ui/actions.py` |
 | Tema/cores/QSS | `ui/resources/themes/*.yaml`, `ui/resources/styles/*` |
-| Textos e tradução | `_()` no código; `locale/en/LC_MESSAGES/lain.po` |
+| Textos e tradução | `_()` no código; `locale/en/LC_MESSAGES/lain_<domain>.po` |
 | Log | `core/app/logs.py` |
 | Explorador, filtros, favoritos | `core/files/*`, `core/project/*`, `ui/files/*`, `ui/widgets/files/*` |
 
@@ -60,7 +60,7 @@ exige que sejam idênticas).
 ### Adicionar um texto na interface
 
 Escreva em português dentro de `_()`; depois `uv run python scripts/i18n.py update`, traduza em
-`locale/en/LC_MESSAGES/lain.po`, `compile` e `check`.
+`locale/en/LC_MESSAGES/lain_<domain>.po`, `compile` e `check`.
 
 ### Adicionar uma ação de menu
 

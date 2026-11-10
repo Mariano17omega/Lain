@@ -36,5 +36,5 @@ def reload_notices(loaded: LoadedConfig) -> str:
     for line in logs.session_lines(loaded, settings):
         log.info("%s", line)
     for warning in loaded.warnings:
-        log.warning("%s", warning)
+        log.warning("session: %s", warning)
     return " ".join(notice for notice in notices if notice)

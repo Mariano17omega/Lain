@@ -57,6 +57,7 @@ In order, the first that exists:
 | `confirm_plan` | `true`: show the preview and wait for "Baixar". Sending to the cluster always shows a preview. |
 | `checksum` | `true`: compare by content (`rsync --checksum`); `false`: by date and size (faster). |
 | `push_exclude` | Never uploaded, on top of `exclude`: `plots/` and `*.plot`. |
+| `cygdrive_prefix` | Windows only: what comes before the drive letter in rsync's paths. `/cygdrive` (default, cwRsync) or `""` (MSYS2). |
 
 ## `plot`
 

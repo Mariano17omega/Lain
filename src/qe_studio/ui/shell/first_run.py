@@ -131,7 +131,7 @@ class FirstRunController(QObject):
             try:
                 create_config(path)
             except OSError as exc:
-                log.warning("could not create %s: %s", path, exc)
+                log.warning("file: could not create %s: %s", path, exc)
                 text = _("Não foi possível criar {path}: {error}")
                 self.message.emit(text.format(path=path, error=exc.strerror or exc), "error", 0)
                 return
@@ -153,7 +153,7 @@ class FirstRunController(QObject):
         try:
             create_config(path, local_root=folder)
         except OSError as exc:
-            log.warning("could not create %s: %s", path, exc)
+            log.warning("file: could not create %s: %s", path, exc)
             text = _("Não foi possível criar {path}: {error}")
             self.message.emit(text.format(path=path, error=exc.strerror or exc), "error", 0)
             return

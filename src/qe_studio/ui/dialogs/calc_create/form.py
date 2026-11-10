@@ -22,6 +22,7 @@ from ....core.calc_create.types import FormField
 from ....core.qe.lattice import Crystal
 from ....i18n import _
 from ...theme.manager import ThemeManager
+from ...theme.scale import scaled
 from ...widgets.common import set_variant
 from ...widgets.no_wheel import NoWheelComboBox
 from ...widgets.plot.atom_table import NOTE_HEADER, AtomRow, AtomTable
@@ -65,6 +66,10 @@ def fill_choices(combo: QComboBox, choices: Any) -> None:
 
 class FieldForm(QWidget):
     changed = pyqtSignal(bool)  # a value changed; True when the user did it
+    # A field began reading its file. The plan is not made again (it keeps the old file's data,
+    # which is how the anchor stays when the same file is picked, spec 87 R1.5): the window only
+    # asks again whether "Criar" may go on.
+    reading_started = pyqtSignal()
 
     def __init__(
         self,
@@ -137,7 +142,7 @@ class FieldForm(QWidget):
             note_header=getattr(atoms, "note_header", "") or NOTE_HEADER,
             species_filter=getattr(atoms, "species_filter", False),
         )
-        table.table.setMinimumHeight(ATOMS_MIN_HEIGHT)
+        table.table.setMinimumHeight(scaled(ATOMS_MIN_HEIGHT))
         table.setAccessibleName(form_field.label)
         table.setToolTip(form_field.tooltip)
         table.changed.connect(self._edited)
@@ -229,6 +234,7 @@ class FieldForm(QWidget):
                 self.start, not form_field.required, form_field.label, form_field.hint
             )
             field.changed.connect(self._edited)
+            field.started.connect(self.reading_started)
             return field
         edit = QLineEdit(field_text(default))
         edit.setPlaceholderText(placeholder(form_field))
@@ -265,6 +271,11 @@ class FieldForm(QWidget):
             elif isinstance(widget, KMeshEditor | KPathEditor | AtomTable | ScfFileField):
                 out[field_id] = widget.value()
         return out
+
+    @property
+    def reading(self) -> bool:
+        """A field is still reading its file in a worker: the plan does not have it yet."""
+        return any(isinstance(w, ScfFileField) and w.reading for w in self.widgets.values())
 
     def shutdown(self) -> None:
         """The window is done: the fields that read files in a worker drop them."""

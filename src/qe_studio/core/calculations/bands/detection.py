@@ -160,6 +160,10 @@ def assign_channels(
             else:
                 result.files.pop(up_role)
                 result.methods.pop(up_role, None)
+        if up_role not in manual and result.file(up_role) in same_file:
+            # The default ↑ pick holds whichever run was last: it may well be the ↓ channel.
+            result.files.pop(up_role)
+            result.methods.pop(up_role, None)
     _channel_warnings(result, ambiguous, shared)
 
 
@@ -206,6 +210,14 @@ def check_bands(result: DetectionResult, sniffs: dict[Path, FileSniff], sniff: S
         if parsed and parsed.kpoints is not None and len(parsed.kpoints.weights):
             kp = parsed.kpoints
             expected = kp.path_length if kp.is_path else len(kp.weights)
+
+    for path, found in sniffs.items():
+        if found.bandsx is not None and found.bandsx.gnu_skipped:
+            result.warnings.append(
+                _(
+                    "{name}: o bands.x não gravou o .gnu (dois k-points seguidos iguais no caminho, ou erro ao abri-lo): bandas lidas do filband"
+                ).format(name=path.name)
+            )
 
     counts: dict[str, int] = {}
     for channel, roles in CHANNEL_ROLES.items():

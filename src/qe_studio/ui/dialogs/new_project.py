@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from ...core.project.projects import validate_project_name
 from ...i18n import _
+from ..theme.scale import scaled
 from ..widgets.common import set_variant
 
 
@@ -35,7 +36,7 @@ class NewProjectDialog(QDialog):
         layout.addWidget(set_variant(QLabel(_("Criar projeto")), "dialogTitle"))
         layout.addWidget(set_variant(QLabel(_("Nome do projeto")), "dialogText"))
         self.edit = QLineEdit()
-        self.edit.setMinimumWidth(380)
+        self.edit.setMinimumWidth(scaled(380))
         self.edit.setAccessibleName(_("Nome do projeto"))
         layout.addWidget(self.edit)
         self.error = set_variant(QLabel(), "dialogError")

@@ -17,7 +17,7 @@ from .calculations import (
     module_for,
 )
 from .calculations.bands_dos import bands_dos_pair, ordered_pair, pair_result
-from .calculations.base import LoadError, SniffFn
+from .calculations.base import LoadError, Method, SniffFn
 from .plotting.grid import PlotRef
 from .plotting.plot_file import read_plot_file
 from .project.folder_memory import FolderMemory
@@ -57,11 +57,12 @@ def detect_folder(
     modules = list(modules)
     results = []
     for module in modules:
-        if module.fallback:
-            continue
         forced = stored.get(module.kind)
+        if module.fallback and not forced:
+            continue
         result = module.match(listing, sniffs, sniff, forced)
-        if result is not None:
+        # A remembered mapping puts a fallback kind among the primary ones, while its files exist.
+        if result is not None and (not module.fallback or Method.MANUAL in result.methods.values()):
             results.append(result)
     if not results:
         for module in modules:
@@ -81,7 +82,7 @@ def manual_result(
     listing = FolderListing.scan(folder)
     sniff = sniff_once(sniff)
     result = module.match(listing, _sniffs_of(listing, sniff), sniff, forced=mapping)
-    if result is None:  # empty mapping and no anchor file
+    if result is None:  # a mapping empty or with files gone, and no anchor file
         missing = [r.id for r in module.roles if r.required]
         result = DetectionResult(module, Path(folder), missing=missing)
     return result

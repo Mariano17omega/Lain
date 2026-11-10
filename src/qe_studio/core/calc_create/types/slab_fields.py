@@ -6,6 +6,7 @@ from __future__ import annotations
 import numpy as np
 
 from ....i18n import N_, _
+from ..scf_info import ScfInfo
 from ..surface.fixing import BOTTOM, NONE, SPECIES
 from ..surface.geometry import skewed
 from .base import FieldKind, FormField
@@ -21,6 +22,7 @@ __all__ = [
     "MESH_HINT",
     "METALS_LABEL",
     "SLAB_FIX_RULES",
+    "asks_mesh",
     "dofree_field",
     "mesh_field",
     "non_orthogonal_notes",
@@ -142,7 +144,14 @@ def surface_fields() -> list[FormField]:
     ]
 
 
-def mesh_field(group: str, hint: str = MESH_HINT, of: str = _("do slab")) -> FormField:
+def asks_mesh(scf: ScfInfo) -> bool:
+    """Whether only a typed mesh can fill ``K_POINTS``: the ``padrao`` mode must then show the field."""
+    return scf.kmesh is None and scf.kpoints_option != "gamma"
+
+
+def mesh_field(
+    group: str, hint: str = MESH_HINT, of: str = _("do slab"), standard: bool = False
+) -> FormField:
     """Empty by default: the SCF's mesh would be wrong, the cell changes (R5.3)."""
     return FormField(
         "kmesh",
@@ -151,6 +160,7 @@ def mesh_field(group: str, hint: str = MESH_HINT, of: str = _("do slab")) -> For
         None,
         group=group,
         tooltip=_("K_POINTS automatic {of}. {hint}").format(of=of, hint=hint),
+        standard=standard,
         hint=hint,
     )
 

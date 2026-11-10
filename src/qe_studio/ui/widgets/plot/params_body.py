@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from PyQt6.QtCore import QLocale, QSettings, Qt, pyqtSignal
+from PyQt6.QtCore import QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -25,6 +25,7 @@ from ....core.project.compounds import atoms_summary
 from ....i18n import N_, _
 from ...dialogs.atoms import ask_atoms
 from ...theme.manager import ThemeManager
+from ...theme.scale import scaled
 from ..common import set_variant
 from ..no_wheel import NoWheelComboBox, NoWheelDoubleSpinBox, NoWheelSpinBox
 from .param_widgets import ColorButton, Section, SeriesList, remembered_section
@@ -283,7 +284,7 @@ class ParamsBody(QWidget):
     def _color_widget(self, name: str, value: str) -> QWidget:
         swatch = ColorButton(value)
         edit = set_variant(QLineEdit(value), "mono")
-        edit.setMaximumWidth(84)
+        edit.setMaximumWidth(scaled(84))  # "#rrggbb" in the mono font
 
         def picked(color: str) -> None:
             edit.setText(color)
@@ -306,7 +307,6 @@ class ParamsBody(QWidget):
     def _float_widget(self, field: ParamField, value: float | None) -> QWidget:
         name = field.name
         spin = NoWheelDoubleSpinBox()
-        spin.setLocale(QLocale.c())
         spin.setDecimals(field.decimals)
         spin.setRange(
             field.minimum if field.minimum is not None else -1e9,

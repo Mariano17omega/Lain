@@ -181,7 +181,7 @@ class RenameController:
         try:
             new = rename_item(path, name)
         except OSError as exc:
-            log.warning("rename %s → %s failed: %s", path, name, exc)
+            log.warning("file: rename %s → %s failed: %s", path, name, exc)
             text = _("Não foi possível renomear {name}: {error}")
             QMessageBox.warning(
                 self._parent, TITLE, text.format(name=path.name, error=exc.strerror or exc)

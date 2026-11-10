@@ -3,8 +3,9 @@
 front of the name, for every type) and where it goes. A type that runs several SCFs (``multi_scf``,
 spec 79) gets a list (``scf_list.ScfList``) in place of the one SCF field.
 
-The SCF is checked on the GUI thread only by its head (``looks_like_input``) and read in a worker
-(``read_scf``); the file is never written. The name and the place are checked with ``stat`` only.
+The SCF is checked (its head, ``looks_like_input``) and read in a worker (``read_other_scf``), so
+nothing reads the disk on the GUI thread; the file is never written. The name and the place are
+checked with ``stat`` only.
 """
 
 from __future__ import annotations
@@ -28,20 +29,18 @@ from PyQt6.QtWidgets import (
 
 from ....core.calc_create.naming import inherited_suffix
 from ....core.calc_create.preview import SITE_PLACEHOLDER, location_warnings, target_text
-from ....core.calc_create.scf_info import ScfInfo, ScfInputError, read_scf
+from ....core.calc_create.scf_info import ScfInfo, ScfInputError, read_other_scf
 from ....core.calc_create.types import REGISTRY, CalcType
 from ....core.calc_create.writer import validate_parent, validate_parts, validate_suffix
-from ....core.sniff import looks_like_input
 from ....core.tasks import TaskGroup
 from ....i18n import _
 from ...shell.busy import BusyTracker
 from ...widgets.common import set_variant
-from .labels import message_label, show_message
+from .labels import NO_FILE, READING, message_label, show_message
 from .scf_list import INPUT_FILTER, ScfList
 
 log = logging.getLogger(__name__)
 
-READING = _("Lendo SCF…")
 CHOOSE_TYPE = _("Escolha o tipo de cálculo")
 CHOOSE_SCF = _("Escolha o input de SCF")
 REBUILD_NOTE = _("Esta mudança refaz a próxima etapa: os campos voltam aos padrões")
@@ -93,6 +92,9 @@ class SetupPage(QWidget):
         self._inheritable = ""  # the suffix of the SCF's folder (spec 77)
         self._reading = False
         self._location = start
+        # What keeps "Continuar" off as of the last ``_update``: the window reads this instead of
+        # asking the disk again for every keystroke (``problems()`` is the live answer).
+        self.last_problems: list[str] = []
         self._tasks = TaskGroup()
         # Ended by ``shutdown`` (the window's ``done``), never from our own ``destroyed``: PyQt may
         # call a plain callable on it after freeing it, which crashed the test run.
@@ -107,7 +109,7 @@ class SetupPage(QWidget):
         self.type_combo.currentIndexChanged.connect(self._update)
         self.scf_edit = set_variant(QLineEdit(), "mono")
         self.scf_edit.setReadOnly(True)
-        self.scf_edit.setPlaceholderText(_("Nenhum arquivo escolhido"))
+        self.scf_edit.setPlaceholderText(NO_FILE)
         self.scf_edit.setAccessibleName(CalcType.scf_label)
         self.scf_label = set_variant(QLabel(), "fieldLabel")  # the type's name for it (spec 40)
         self.scf_button = QPushButton(_("Escolher…"))
@@ -304,23 +306,18 @@ class SetupPage(QWidget):
             self.set_scf(path)
 
     def set_scf(self, path: Path) -> None:
-        """Use ``path`` as the SCF: its head now, its contents in a worker (``scf_ready``)."""
+        """Use ``path`` as the SCF: a worker checks that it looks like an input and reads it, and
+        ``scf_ready`` says how it went (the file that is no input answers there too)."""
         self._scf, self._scf_path, self._scf_problem = None, path, ""
         self.scf_edit.setText(str(path))
         self._tasks.cancel_all()
-        # Accepted, local disk: one file the user just picked, its head only (spec 27-8 R3.3).
-        if not path.is_file() or not looks_like_input(path):
-            self._scf_problem = _("{name} não parece um input do Quantum ESPRESSO").format(
-                name=path.name
-            )
-            self._end_reading()
-            self.scf_ready.emit(None)
-            return
         self._reading = True
         show_message(self.scf_message, READING, "hint")
         if self.busy is not None:
             self.busy.begin(self._busy_key, READING)
-        self._tasks.submit("scf", read_scf, path, on_done=self._on_read, on_error=self._on_failed)
+        self._tasks.submit(
+            "scf", read_other_scf, path, on_done=self._on_read, on_error=self._on_failed
+        )
         self._update()
 
     def _on_read(self, _key: str, info: ScfInfo) -> None:
@@ -393,6 +390,7 @@ class SetupPage(QWidget):
         if not self._reading and not self.multi:  # the type's refusal is the SCF's message too
             show_message(self.scf_message, self._scf_problem or self._refused(), "error")
         problems = self._problems(named, place)
+        self.last_problems = problems
         self.show_reason(problems[0] if problems else "")
         self.changed.emit()
 

@@ -177,6 +177,37 @@ def test_closing_the_window_while_reading_calls_nothing_back(
     assert called == []
 
 
+def test_criar_waits_for_a_file_a_field_is_still_reading(qtbot, make_dialog, chosen, monkeypatch):
+    """The optional molecule is not in the plan until its reading ends: "Criar" would write a
+    folder without the file the user picked."""
+    release, started = threading.Event(), threading.Event()
+    real = scf_field.read_other_scf
+
+    def slow(path):
+        started.set()
+        release.wait(5)
+        return real(path)
+
+    monkeypatch.setattr(scf_field, "read_other_scf", slow)
+    dialog, tabs, field = slab_tabs(qtbot, make_dialog)
+    requested = []
+    dialog.create_requested.connect(requested.append)
+    assert dialog.create_button.isEnabled() and tabs.blocking() == ""
+    field.choose_button.click()
+    assert started.wait(5) and field.reading
+    assert not dialog.create_button.isEnabled()
+    assert tabs.blocking() == READING and dialog.create_button.toolTip() == READING
+    assert dialog.create_reason.text() == READING
+    dialog.request_create()
+    assert requested == []
+    release.set()
+    qtbot.waitUntil(dialog.create_button.isEnabled, timeout=10_000)
+    assert tabs.blocking() == "" and isinstance(field.value(), ScfInfo)
+    assert "Molécula" in report(tabs)  # what "Criar" writes has the file
+    dialog.request_create()
+    assert len(requested) == 1
+
+
 def test_the_report_can_be_edited_in_the_advanced_mode(qtbot, make_dialog):
     """Spec 39 R2 holds for it too; Markdown is never linted."""
     _dialog, tabs, _field = slab_tabs(qtbot, make_dialog)

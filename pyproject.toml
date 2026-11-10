@@ -1,6 +1,6 @@
 [project]
 name = "lain"
-version = "1.0.0"
+version = "1.0.1"
 description = "Lain: QE Studio — desktop manager and plotter for Quantum ESPRESSO simulations"
 readme = "README.md"
 requires-python = ">=3.11"

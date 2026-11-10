@@ -1,0 +1,1084 @@
+# English translations for Lain: QE Studio.
+# Copyright (C) 2026 Mariano Sobrinho
+# This file is distributed under the same license as the Lain: QE Studio project.
+# Mariano Sobrinho <onairam17@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Report-Msgid-Bugs-To: onairam17@gmail.com\n"
+"POT-Creation-Date: 2026-11-10 01:41-0400\n"
+"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
+"Language: en\n"
+"Language-Team: English\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "  … e mais {value}"
+msgstr "  … and {value} more"
+
+#: core/sync/preview.py
+msgid "(pasta sincronizada)"
+msgstr "(synced folder)"
+
+#: core/remote/listing.py
+msgid "--version não respondeu"
+msgstr "--version did not answer"
+
+#: core/sync/preview.py
+msgid "A atualizar"
+msgstr "To update"
+
+#: core/sync/report.py
+msgid "A cópia local é mais recente que a do cluster: nenhuma transferência realizada."
+msgstr "The local copy is newer than the cluster's: no transfer was made."
+
+#: core/sync/request.py
+msgid "A lixeira do cluster não recebe envios: para recuperar um item, use o terminal no cluster."
+msgstr "Files are not sent to the cluster's trash: to recover an item, use a terminal on the cluster."
+
+#: core/remote/trash.py
+msgid "A pasta raiz do cluster (paths.remote_root) não vai para a lixeira."
+msgstr "The cluster's root folder (paths.remote_root) does not go to the trash."
+
+#: core/remote/actions.py
+#, python-brace-format
+msgid "A pasta {folder} não está em paths.remote_root ({root})."
+msgstr "The folder {folder} is not in paths.remote_root ({root})."
+
+#: core/remote/listing.py
+msgid "A pasta é grande demais para conferir a tempo se roda um job nas subpastas."
+msgstr "The folder is too large to check in time whether a job runs in its subfolders."
+
+#: ui/cluster/job_actions.py
+#, python-brace-format
+msgid "A submissão falhou: {message}"
+msgstr "The submission failed: {message}"
+
+#: core/sync/_process.py
+msgid "Aguardando confirmação…"
+msgstr "Waiting for confirmation…"
+
+#: ui/cluster/sync_coordinator.py
+msgid "Aguarde a sincronização em andamento."
+msgstr "Wait for the sync in progress to finish."
+
+#: ui/cluster/job_actions.py
+msgid "Aguarde: uma ação no cluster está em andamento."
+msgstr "Please wait: an action on the cluster is in progress."
+
+#: ui/cluster/job_cancel.py
+msgid "Antes do qdel o Lain consulta a fila de novo: se o job já começou, nada é feito."
+msgstr "Before qdel, Lain asks the queue again: if the job has already started, nothing is done."
+
+#: ui/cluster/remote_trash.py
+msgid "Apagar precisa de cluster.jobs_command: é o qstatus que diz se roda um job nesta pasta."
+msgstr "Deleting needs cluster.jobs_command: qstatus is what tells whether a job runs in this folder."
+
+#: ui/cluster/remote_trash.py
+msgid "Apagar…"
+msgstr "Delete…"
+
+#: core/sync/preview.py
+msgid "Arquivo grande: confira a cota no cluster antes de enviar"
+msgstr "Large file: check the quota on the cluster before uploading"
+
+#: core/sync/preview.py
+msgid "Arquivo grande: confira o espaço em disco antes de baixar"
+msgstr "Large file: check the disk space before downloading"
+
+#: ui/widgets/cluster/remote_panels.py
+msgid "Arquivos do cluster"
+msgstr "Cluster files"
+
+#: ui/widgets/cluster/jobs_popup.py
+#, python-brace-format
+msgid "Atualizado às {time}"
+msgstr "Updated at {time}"
+
+#: ui/widgets/cluster/jobs_popup.py
+msgid "Atualizando…"
+msgstr "Updating…"
+
+#: core/sync/rsync_errors.py
+msgid "Autenticação recusada pelo cluster (verifique usuário, chave ou senha)."
+msgstr "Authentication refused by the cluster (check the user, key or password)."
+
+#: core/sync/report.py
+msgid "Baixados"
+msgstr "Downloaded"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Baixando para plotar: {label}"
+msgstr "Downloading to plot: {label}"
+
+#: core/sync/request.py ui/cluster/remote_controller.py
+msgid "Baixar"
+msgstr "Download"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Baixar do cluster: {label}"
+msgstr "Download from the cluster: {label}"
+
+#: ui/cluster/job_cancel.py
+msgid "Cancelamento da fila desligado: cluster.delete_command está vazio no config.yaml."
+msgstr "Cancelling from the queue turned off: cluster.delete_command is empty in config.yaml."
+
+#: ui/cluster/job_cancel.py
+msgid "Cancelando o job na fila…"
+msgstr "Cancelling the waiting job…"
+
+#: ui/widgets/cluster/jobs_popup.py
+#, python-brace-format
+msgid "Cancelar o job {job_id} (qdel)"
+msgstr "Cancel job {job_id} (qdel)"
+
+#: ui/cluster/job_cancel.py
+msgid "Cancelar precisa de cluster.jobs_command: é o qstatus que diz se a simulação está rodando."
+msgstr "Cancelling needs cluster.jobs_command: qstatus is what tells whether the simulation is running."
+
+#: ui/cluster/job_cancel.py
+msgid "Cancelar simulação…"
+msgstr "Cancel simulation…"
+
+#: core/sync/rsync_errors.py
+msgid ""
+"Chave do host desconhecida. Conecte-se uma vez pelo terminal (ssh usuario@host) para confirmar a "
+"identidade do cluster."
+msgstr ""
+"Unknown host key. Connect once from the terminal (ssh user@host) to confirm the cluster's "
+"identity."
+
+#: ui/cluster/jobs_controller.py
+#, python-brace-format
+msgid "Clique para informar a senha de {account} (não é salva)."
+msgstr "Click to enter the password of {account} (not saved)."
+
+#: core/sync/rsync_errors.py
+msgid "Cluster inacessível (sem rota; verifique a rede/VPN)."
+msgstr "Cluster unreachable (no route; check the network/VPN)."
+
+#: core/remote/failure.py
+#, python-brace-format
+msgid "Cluster inacessível (ssh terminou com código {code})."
+msgstr "Cluster unreachable (ssh exited with code {code})."
+
+#: core/sync/rsync_errors.py
+msgid "Cluster inacessível (tempo de conexão esgotado)."
+msgstr "Cluster unreachable (connection timed out)."
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "Cluster: {remote}"
+msgstr "Cluster: {remote}"
+
+#: core/sync/push.py
+msgid "Comparando com o cluster…"
+msgstr "Comparing with the cluster…"
+
+#: core/sync/_process.py
+msgid "Comparando datas de modificação…"
+msgstr "Comparing modification dates…"
+
+#: core/sync/controller.py
+msgid "Comparando o conteúdo dos arquivos…"
+msgstr "Comparing file contents…"
+
+#: core/sync/rsync_errors.py
+msgid "Conexão interrompida (o cluster encerrou a conexão durante a transferência)."
+msgstr "Connection interrupted (the cluster closed the connection during the transfer)."
+
+#: core/sync/rsync_errors.py
+msgid "Conexão interrompida (sem resposta do cluster)."
+msgstr "Connection interrupted (no response from the cluster)."
+
+#: core/sync/rsync_errors.py
+msgid "Conexão recusada pelo cluster (verifique a porta SSH)."
+msgstr "Connection refused by the cluster (check the SSH port)."
+
+#: ui/cluster/job_actions.py
+msgid "Conferindo a pasta no cluster…"
+msgstr "Checking the folder on the cluster…"
+
+#: core/sync/controller.py core/sync/push.py
+msgid "Conferindo arquivos locais…"
+msgstr "Checking local files…"
+
+#: ui/cluster/remote_trash.py
+msgid "Conferindo no cluster…"
+msgstr "Checking on the cluster…"
+
+#: ui/cluster/job_cancel.py
+msgid "Conferindo o job no cluster…"
+msgstr "Checking the job on the cluster…"
+
+#: core/sync/request.py
+msgid "Configure cluster.host, cluster.user e paths.remote_root no config.yaml para sincronizar."
+msgstr "Set cluster.host, cluster.user and paths.remote_root in config.yaml to sync."
+
+#: ui/cluster/jobs_controller.py
+#, python-brace-format
+msgid "Consultando a fila do cluster ({account})…"
+msgstr "Querying the cluster queue ({account})…"
+
+#: ui/cluster/jobs_controller.py
+msgid "Consultando jobs…"
+msgstr "Querying jobs…"
+
+#: ui/widgets/cluster/jobs_popup.py
+msgid "Consultando o cluster…"
+msgstr "Querying the cluster…"
+
+#: ui/cluster/job_cancel.py
+msgid "Criando o arquivo de parada…"
+msgstr "Creating the stop file…"
+
+#: core/sync/request.py
+msgid "Cópias de plot remoto (tmp_remote) ficam neste computador e não são enviadas."
+msgstr "Copies of remote plots (tmp_remote) stay on this computer and are not uploaded."
+
+#: core/sync/preview.py
+msgid "Data local"
+msgstr "Local date"
+
+#: ui/cluster/job_cancel.py ui/widgets/cluster/jobs_popup.py
+msgid "Dono"
+msgstr "Owner"
+
+#: ui/widgets/cluster/jobs_popup.py
+#, python-brace-format
+msgid "Em execução ({n})"
+msgstr "Running ({n})"
+
+#: core/sync/rsync_errors.py
+msgid "Endereço do cluster não encontrado (verifique cluster.host)."
+msgstr "Cluster address not found (check cluster.host)."
+
+#: core/sync/report.py
+msgid "Enviados"
+msgstr "Uploaded"
+
+#: core/sync/request.py
+msgid "Enviando para o cluster"
+msgstr "Uploading to the cluster"
+
+#: core/sync/push.py
+#, python-brace-format
+msgid "Enviando {count} arquivo…"
+msgid_plural "Enviando {count} arquivos…"
+msgstr[0] "Uploading {count} file…"
+msgstr[1] "Uploading {count} files…"
+
+#: core/sync/request.py
+msgid "Enviar"
+msgstr "Upload"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Enviar para o cluster: {label}"
+msgstr "Upload to the cluster: {label}"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Enviar {elide_start} ao cluster…"
+msgstr "Upload {elide_start} to cluster…"
+
+#: ui/cluster/job_cancel.py
+msgid "Envio"
+msgstr "Submitted"
+
+#: ui/widgets/cluster/jobs_popup.py
+msgid "Envio / início"
+msgstr "Submitted / started"
+
+#: ui/cluster/sync_coordinator.py
+msgid "Envio ao cluster"
+msgstr "Upload to cluster"
+
+#: core/sync/report.py
+msgid "Envio cancelado."
+msgstr "Upload cancelled."
+
+#: core/sync/request.py
+msgid "Escolha uma pasta de cálculo para plotar; a raiz não é copiada."
+msgstr "Choose a calculation folder to plot; the root folder is not copied."
+
+#: core/sync/request.py
+msgid "Escolha uma pasta de cálculo para plotar; o projeto inteiro não é copiado."
+msgstr "Choose a calculation folder to plot; the whole project is not copied."
+
+#: core/sync/request.py
+msgid "Escolha uma pasta de cálculo; a pasta raiz inteira não é enviada."
+msgstr "Choose a calculation folder; the whole root folder is not uploaded."
+
+#: core/sync/request.py
+msgid "Escolha uma pasta de cálculo; o projeto inteiro não é enviado."
+msgstr "Choose a calculation folder; the whole project is not uploaded."
+
+#: ui/cluster/jobs_controller.py
+#, python-brace-format
+msgid "Executando: {name}"
+msgstr "Running: {name}"
+
+#: ui/cluster/jobs_controller.py
+#, python-brace-format
+msgid "Falha ao consultar os jobs: {error}"
+msgstr "Could not query the jobs: {error}"
+
+#: ui/cluster/remote_controller.py
+#, python-brace-format
+msgid "Falha ao listar a pasta: {error}"
+msgstr "Could not list the folder: {error}"
+
+#: ui/cluster/job_actions.py
+#, python-brace-format
+msgid "Falha na ação no cluster: {error}"
+msgstr "The action on the cluster failed: {error}"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "Falha na sincronização: {error}"
+msgstr "Sync failed: {error}"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "Falha no envio: {error}"
+msgstr "Upload failed: {error}"
+
+#: ui/widgets/cluster/jobs_popup.py
+msgid "Fila do cluster"
+msgstr "Cluster queue"
+
+#: core/remote/trash.py
+#, python-brace-format
+msgid "Há um job seu em execução em {folder} ({job_id}): cancele-o antes de apagar."
+msgstr "A job of yours is running in {folder} ({job_id}): cancel it before deleting."
+
+#: core/sync/request.py
+msgid "Há uma sincronização em andamento. Espere terminar ou cancele."
+msgstr "A sync is in progress. Wait for it to finish or cancel it."
+
+#: ui/cluster/job_cancel.py
+msgid "ID"
+msgstr "ID"
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "ID de job não suportado: {job_id}."
+msgstr "Unsupported job ID: {job_id}."
+
+#: ui/cluster/job_cancel.py
+msgid "Job"
+msgstr "Job"
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "Job {job_id} ({name}) cancelado com qdel."
+msgstr "Job {job_id} ({name}) cancelled with qdel."
+
+#: ui/cluster/job_actions.py
+#, python-brace-format
+msgid "Job {job_id} ({name}) submetido."
+msgstr "Job {job_id} ({name}) submitted."
+
+#: ui/widgets/cluster/jobs_indicator.py
+msgid "Jobs do cluster"
+msgstr "Cluster jobs"
+
+#: ui/cluster/jobs_controller.py
+msgid "Jobs indisponíveis"
+msgstr "Jobs unavailable"
+
+#: ui/cluster/jobs_controller.py
+msgid "Jobs: informe a senha"
+msgstr "Jobs: enter the password"
+
+#: core/remote/trash.py
+msgid "Já está na lixeira: para apagar de vez, use o terminal no cluster."
+msgstr "Already in the trash: to delete it for good, use a terminal on the cluster."
+
+#: core/remote/trash.py
+#, python-brace-format
+msgid "Já existe {target} no cluster: nada foi sobrescrito."
+msgstr "{target} already exists on the cluster: nothing was overwritten."
+
+#: core/sync/preview.py
+msgid "Já existem no cluster, não serão alterados"
+msgstr "Already on the cluster, will not be changed"
+
+#: core/sync/report.py
+msgid "Já existiam no cluster (não alterados)"
+msgstr "Already on the cluster (not changed)"
+
+#: core/remote/submit.py
+#, python-brace-format
+msgid ""
+"Já há um job seu em execução nesta pasta: {name} (job {job_id}). Espere ele terminar ou cancele-o"
+" antes de submeter outro script."
+msgstr ""
+"A job of yours is already running in this folder: {name} (job {job_id}). Wait for it to finish or"
+" cancel it before submitting another script."
+
+#: core/sync/_process.py
+msgid "Listando arquivos no cluster…"
+msgstr "Listing files on the cluster…"
+
+#: ui/cluster/remote_controller.py
+msgid "Listando no cluster…"
+msgstr "Listing on the cluster…"
+
+#: core/sync/preview.py core/sync/report.py
+msgid "Mais recentes no computador"
+msgstr "Newer on this computer"
+
+#: core/sync/report.py
+msgid "Mantidos na versão local"
+msgstr "Kept in the local version"
+
+#: ui/widgets/cluster/remote_model.py
+msgid "Modificado"
+msgstr "Modified"
+
+#: ui/cluster/remote_controller.py
+msgid "Modo cluster desligado: a configuração mudou."
+msgstr "Cluster mode turned off: the configuration changed."
+
+#: ui/cluster/remote_trash.py
+msgid "Movendo para trash…"
+msgstr "Moving to trash…"
+
+#: core/sync/report.py
+msgid "Mudaram localmente (não baixados)"
+msgstr "Changed locally (not downloaded)"
+
+#: ui/widgets/cluster/jobs_popup.py
+#, python-brace-format
+msgid "Na fila ({n})"
+msgstr "Queued ({n})"
+
+#: core/sync/preview.py core/sync/report.py
+msgid "Nada a enviar."
+msgstr "Nothing to upload."
+
+#: core/sync/preview.py
+msgid "Nada a transferir."
+msgstr "Nothing to transfer."
+
+#: ui/cluster/remote_trash.py
+#, python-brace-format
+msgid "Nada foi movido para trash: {message}"
+msgstr "Nothing was moved to trash: {message}"
+
+#: core/remote/trash.py
+msgid "Nada foi movido."
+msgstr "Nothing was moved."
+
+#: core/remote/submit.py
+msgid "Nada foi submetido."
+msgstr "Nothing was submitted."
+
+#: core/remote/inputs.py
+#, python-brace-format
+msgid ""
+"Nem todos os arquivos desta pasta puderam ser lidos ({detail}): o job pode usar um input que não "
+"chegou. Nada foi criado."
+msgstr ""
+"Not all files in this folder could be read ({detail}): the job may use an input that did not "
+"arrive. Nothing was created."
+
+#: core/remote/job_cancel.py
+msgid ""
+"Nenhum input de scf, relax ou vc-relax do pw.x (até 1 MB) nesta pasta: o arquivo de parada usa o "
+"prefix de um deles."
+msgstr ""
+"No scf, relax or vc-relax input of pw.x (up to 1 MB) in this folder: the stop file uses the "
+"prefix of one of them."
+
+#: ui/cluster/jobs_controller.py
+msgid "Nenhum job em execução"
+msgstr "No job running"
+
+#: ui/widgets/cluster/jobs_popup.py
+msgid "Nenhum job no cluster."
+msgstr "No jobs on the cluster."
+
+#: core/remote/job_cancel.py
+msgid ""
+"Nenhum job seu em execução nesta pasta: nenhum arquivo <nome>.o<id> corresponde a um job em "
+"execução no qstatus. Um job na fila se cancela pela fila do cluster, na barra superior."
+msgstr ""
+"No job of yours is running in this folder: no <name>.o<id> file matches a running job in qstatus."
+" A waiting job is cancelled from the cluster queue, on the top bar."
+
+#: core/remote/actions.py
+#, python-brace-format
+msgid "Nome não suportado para um comando no cluster: {name} (use letras, números, '.', '_', '+' e '-')."
+msgstr ""
+"Name not supported in a command on the cluster: {name} (use letters, digits, '.', '_', '+' and "
+"'-')."
+
+#: core/sync/preview.py
+msgid "Novos"
+msgstr "New"
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "Não foi possível conferir o estado do job no cluster: {message}. Nada foi feito."
+msgstr "Could not check the state of the job on the cluster: {message}. Nothing was done."
+
+#: core/remote/submit.py
+#, python-brace-format
+msgid "Não foi possível conferir se já roda um job nesta pasta: {message}. Nada foi submetido."
+msgstr "Could not check whether a job already runs in this folder: {message}. Nothing was submitted."
+
+#: core/remote/trash.py
+#, python-brace-format
+msgid "Não foi possível conferir se roda um job aqui: {message}. Nada foi movido."
+msgstr "Could not check whether a job runs here: {message}. Nothing was moved."
+
+#: core/remote/inputs.py core/remote/listing.py
+#, python-brace-format
+msgid "Não foi possível executar o rsync ({error})."
+msgstr "Could not run rsync ({error})."
+
+#: core/remote/actions.py core/remote/cluster_jobs.py
+#, python-brace-format
+msgid "Não foi possível executar o ssh ({error})."
+msgstr "Could not run ssh ({error})."
+
+#: core/remote/submit_log.py
+#, python-brace-format
+msgid "Não foi possível ler o registro de jobs submetidos ({error}). {outcome}"
+msgstr "Could not read the log of submitted jobs ({error}). {outcome}"
+
+#: core/remote/trash.py
+#, python-brace-format
+msgid ""
+"Não foi possível ler {folder} no cluster, e há um job seu em execução: sem saber se ele roda lá, "
+"nada foi movido."
+msgstr ""
+"Could not read {folder} on the cluster, and a job of yours is running: without knowing whether it"
+" runs there, nothing was moved."
+
+#: core/sync/report.py
+msgid "Não lidos (ficaram de fora)"
+msgstr "Not read (left out)"
+
+#: ui/cluster/job_cancel.py ui/widgets/cluster/jobs_popup.py
+msgid "Núcleos"
+msgstr "Cores"
+
+#: ui/cluster/job_cancel.py
+#, python-brace-format
+msgid "O cancelamento falhou: {message}"
+msgstr "The cancellation failed: {message}"
+
+#: core/remote/listing.py
+msgid "O cluster não respondeu a tempo."
+msgstr "The cluster did not answer in time."
+
+#: core/remote/failure.py
+#, python-brace-format
+msgid "O cluster não respondeu a {command} a tempo."
+msgstr "The cluster did not answer {command} in time."
+
+#: core/remote/failure.py
+#, python-brace-format
+msgid "O comando {command} não foi encontrado no cluster ({setting})."
+msgstr "The command {command} was not found on the cluster ({setting})."
+
+#: core/remote/failure.py
+#, python-brace-format
+msgid "O comando {command} não foi encontrado no cluster."
+msgstr "The command {command} was not found on the cluster."
+
+#: core/remote/trash.py
+#, python-brace-format
+msgid ""
+"O job {job_id} ({name}), que o Lain submeteu de {folder}, ainda está na fila: cancele-o pela fila"
+" antes de apagar."
+msgstr ""
+"Job {job_id} ({name}), which Lain submitted from {folder}, is still in the queue: cancel it from "
+"the queue before deleting."
+
+#: core/remote/trash.py
+#, python-brace-format
+msgid ""
+"O job {job_id} ({name}), que o Lain submeteu de {folder}, está em execução: cancele-o antes de "
+"apagar."
+msgstr "Job {job_id} ({name}), which Lain submitted from {folder}, is running: cancel it before deleting."
+
+#: core/remote/submit.py
+#, python-brace-format
+msgid ""
+"O job {job_id} ({name}), que o Lain submeteu desta pasta, ainda está em execução. Espere ele "
+"terminar ou cancele-o antes de submeter outro script."
+msgstr ""
+"Job {job_id} ({name}), which Lain submitted from this folder, is still running. Wait for it to "
+"finish or cancel it before submitting another script."
+
+#: core/remote/submit.py
+#, python-brace-format
+msgid ""
+"O job {job_id} ({name}), que o Lain submeteu desta pasta, ainda está na fila. Espere ele terminar"
+" ou cancele-o pela fila antes de submeter outro script."
+msgstr ""
+"Job {job_id} ({name}), which Lain submitted from this folder, is still in the queue. Wait for it "
+"to finish or cancel it from the queue before submitting another script."
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid ""
+"O job {job_id} começou a rodar: o qdel não é usado em jobs em execução. Cancele pela pasta dele, "
+"no modo cluster (Cancelar simulação…)."
+msgstr ""
+"Job {job_id} has started running: qdel is not used on running jobs. Cancel it from its folder, in"
+" the cluster mode (Cancel simulation…)."
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "O job {job_id} da fila não é mais {name}: nada foi feito."
+msgstr "Waiting job {job_id} is no longer {name}: nothing was done."
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "O job {job_id} não está mais em execução: nada foi criado."
+msgstr "Job {job_id} is no longer running: nothing was created."
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid "O job {job_id} não está mais na fila: nada foi feito."
+msgstr "Job {job_id} is no longer waiting in the queue: nothing was done."
+
+#: ui/cluster/job_actions.py
+#, python-brace-format
+msgid "O qsub terminou sem erro, mas a resposta não foi reconhecida: {line}"
+msgstr "qsub ended without an error, but its answer was not recognized: {line}"
+
+#: ui/cluster/job_actions.py
+#, python-brace-format
+msgid "O registro de jobs submetidos não pôde ser gravado ({error})."
+msgstr "The log of submitted jobs could not be written ({error})."
+
+#: core/remote/inputs.py
+#, python-brace-format
+msgid "O script {script} não foi encontrado na pasta, ou passa de 1 MB."
+msgstr "The script {script} was not found in the folder, or is over 1 MB."
+
+#: core/sync/report.py
+msgid "Pasta já sincronizada: nada a transferir."
+msgstr "Folder already in sync: nothing to transfer."
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "Pasta local: {local_dir}"
+msgstr "Local folder: {local_dir}"
+
+#: core/remote/listing.py core/sync/rsync_errors.py
+msgid "Pasta não encontrada no cluster."
+msgstr "Folder not found on the cluster."
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Pasta não encontrada: {path}"
+msgstr "Folder not found: {path}"
+
+#: ui/widgets/cluster/remote_panels.py
+msgid "Pastas do cluster"
+msgstr "Cluster folders"
+
+#: core/remote/job_cancel.py
+#, python-brace-format
+msgid ""
+"Pedido de parada criado: {files}. O pw.x para na próxima verificação. Se o job terminar antes de "
+"lê-lo, o arquivo fica na pasta e o próximo pw.x do mesmo prefixo para logo no início: o Submeter…"
+" avisa."
+msgstr ""
+"Stop request created: {files}. pw.x stops at its next check. If the job ends before reading it, "
+"the file stays in the folder and the next pw.x with the same prefix stops right at the start: "
+"Submit… warns about it."
+
+#: core/sync/rsync_errors.py
+msgid "Rede indisponível."
+msgstr "Network unavailable."
+
+#: core/remote/cluster_jobs.py
+#, python-brace-format
+msgid "Saída de {command} não reconhecida."
+msgstr "Output of {command} not recognized."
+
+#: core/remote/trash.py
+msgid "Selecione itens de uma pasta só para apagar."
+msgstr "Select items of a single folder to delete."
+
+#: core/remote/trash.py
+msgid "Selecione um item para apagar."
+msgstr "Select an item to delete."
+
+#: ui/cluster/remote_controller.py
+msgid "Selecione um item para baixar."
+msgstr "Select one item to download."
+
+#: ui/cluster/remote_controller.py
+msgid "Selecione uma ou duas pastas para plotar."
+msgstr "Select one or two folders to plot."
+
+#: core/remote/listing.py
+msgid "Sem permissão para ler esta pasta no cluster."
+msgstr "No permission to read this folder on the cluster."
+
+#: ui/cluster/sync_coordinator.py
+#, python-brace-format
+msgid "Senha de {account} (não é salva):"
+msgstr "Password for {account} (not saved):"
+
+#: ui/cluster/sync_coordinator.py
+msgid "Senha do cluster"
+msgstr "Cluster password"
+
+#: ui/cluster/remote_controller.py
+msgid "Senha do cluster não informada: clique em Tentar de novo."
+msgstr "Cluster password not given: click Try again."
+
+#: core/sync/preview.py
+msgid "Serão enviados"
+msgstr "To upload"
+
+#: ui/cluster/jobs_controller.py
+#, python-brace-format
+msgid ""
+"Seus jobs: {running} em execução, {waiting} na fila · atualizado às {time}. Clique para ver a "
+"fila do cluster."
+msgstr ""
+"Your jobs: {running} running, {waiting} queued · updated at {time}. Click to see the cluster "
+"queue."
+
+#: core/sync/request.py
+msgid "Sincronizando com o cluster"
+msgstr "Syncing with the cluster"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Sincronizar projeto {project}"
+msgstr "Sync project {project}"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "Sincronizar {elide_start}"
+msgstr "Sync {elide_start}"
+
+#: ui/cluster/sync_coordinator.py
+msgid "Sincronização"
+msgstr "Sync"
+
+#: core/sync/report.py
+msgid "Sincronização cancelada."
+msgstr "Sync cancelled."
+
+#: core/sync/request.py
+msgid "Sincronização desligada: configure cluster.host, cluster.user e paths.remote_root"
+msgstr "Sync is off: set cluster.host, cluster.user and paths.remote_root"
+
+#: ui/cluster/job_actions.py
+msgid "Submetendo no cluster…"
+msgstr "Submitting to the cluster…"
+
+#: ui/cluster/job_actions.py
+msgid "Submeter precisa de cluster.jobs_command: é o qstatus que diz se já roda um job nesta pasta."
+msgstr ""
+"Submitting needs cluster.jobs_command: qstatus is what tells whether a job already runs in this "
+"folder."
+
+#: ui/cluster/job_actions.py
+msgid "Submeter…"
+msgstr "Submit…"
+
+#: ui/cluster/job_actions.py
+msgid "Submissão desligada: cluster.submit_command está vazio no config.yaml."
+msgstr "Submission turned off: cluster.submit_command is empty in config.yaml."
+
+#: ui/widgets/cluster/jobs_popup.py ui/widgets/cluster/remote_panels.py
+msgid "Tentar de novo"
+msgstr "Try again"
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "Transferindo {count} arquivo…"
+msgid_plural "Transferindo {count} arquivos…"
+msgstr[0] "Transferring {count} file…"
+msgstr[1] "Transferring {count} files…"
+
+#: ui/cluster/job_cancel.py
+msgid ""
+"Um arquivo por prefix dos inputs de scf, relax e vc-relax da pasta. O pw.x procura o seu durante "
+"a execução, para de forma limpa (\"Program stopped by user request\") e o apaga. Um pw.x seguinte"
+" do script com o mesmo prefix (nscf, bands) ainda roda, a partir do cálculo interrompido; com "
+"outro prefix desta lista, para logo na primeira verificação. Os demais programas (bands.x, "
+"projwfc.x…) ainda rodam. Se nenhum pw.x estiver rodando agora, o arquivo fica na pasta e a "
+"próxima submissão avisa."
+msgstr ""
+"One file per prefix of the folder's scf, relax and vc-relax inputs. pw.x looks for its own while "
+"it runs, stops cleanly (\"Program stopped by user request\") and deletes it. A later pw.x of the "
+"script with the same prefix (nscf, bands) still runs, from the interrupted calculation; one with "
+"another prefix of this list stops at its first check. The other programs (bands.x, projwfc.x…) "
+"still run. If no pw.x is running now, the file stays in the folder and the next submission warns "
+"about it."
+
+#: core/remote/submit.py
+#, python-brace-format
+msgid ""
+"Um job seu chamado {name} apareceu no cluster depois da confirmação (job {job_id}): nada foi "
+"submetido."
+msgstr ""
+"A job of yours called {name} showed up on the cluster after the confirmation (job {job_id}): "
+"nothing was submitted."
+
+#: ui/cluster/job_cancel.py
+#, python-brace-format
+msgid "arquivo de parada do pw.x: {files}"
+msgstr "pw.x stop file: {files}"
+
+#: ui/cluster/sync_coordinator.py
+msgid "cluster não configurado"
+msgstr "cluster not configured"
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "erro inesperado ({name}: {exc})"
+msgstr "unexpected error ({name}: {exc})"
+
+#: ui/widgets/cluster/jobs_popup.py
+#, python-brace-format
+msgid "job-ID {job_id}"
+msgstr "job-ID {job_id}"
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "não foi possível executar {argv}"
+msgstr "could not run {argv}"
+
+#: ui/cluster/job_cancel.py
+msgid "não informada pelo qstatus"
+msgstr "not given by qstatus"
+
+#: core/sync/preview.py
+msgid "não será alterado"
+msgstr "will not be changed"
+
+#: core/remote/submit_log.py
+#, python-brace-format
+msgid "o job {job_id} tem um campo vazio ou com tabulação ou quebra de linha"
+msgstr "job {job_id} has an empty field, or one with a tab or a line break"
+
+#: core/sync/preview.py
+msgid "pedirá confirmação"
+msgstr "will ask for confirmation"
+
+#: core/remote/inputs.py
+#, python-brace-format
+msgid "prefix não suportado para o arquivo de parada: {prefix}."
+msgstr "Unsupported prefix for the stop file: {prefix}."
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "projeto {project}"
+msgstr "project {project}"
+
+#: ui/cluster/job_cancel.py
+#, python-brace-format
+msgid "qdel {job_id} (o job sai da fila antes de começar)"
+msgstr "qdel {job_id} (the job leaves the queue before it starts)"
+
+#: core/sync/_process.py
+msgid "rsync não encontrado (sync.rsync_binary)."
+msgstr "rsync not found (sync.rsync_binary)."
+
+#: core/sync/rsync_errors.py
+msgid "rsync não está instalado no cluster."
+msgstr "rsync is not installed on the cluster."
+
+#: core/sync/rsync_errors.py
+#, python-brace-format
+msgid "rsync terminou com código {exit_code}"
+msgstr "rsync exited with code {exit_code}"
+
+#: core/sync/preview.py
+msgid "será substituído"
+msgstr "will be replaced"
+
+#: core/sync/request.py
+msgid "tudo"
+msgstr "everything"
+
+#: core/remote/cluster_jobs.py
+#, python-brace-format
+msgid "{command} não conseguiu ler a fila: {cause}"
+msgstr "{command} could not read the queue: {cause}"
+
+#: core/remote/failure.py
+#, python-brace-format
+msgid "{command} terminou com código {code}"
+msgstr "{command} exited with code {code}"
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} a atualizar ({human_size})"
+msgstr "{count} to update ({human_size})"
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} a substituir ({human_size})"
+msgstr "{count} to replace ({human_size})"
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} arquivo a enviar ({size})"
+msgid_plural "{count} arquivos a enviar ({size})"
+msgstr[0] "{count} file to upload ({size})"
+msgstr[1] "{count} files to upload ({size})"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo baixado antes da falha."
+msgid_plural "{count} arquivos baixados antes da falha."
+msgstr[0] "{count} file downloaded before the failure."
+msgstr[1] "{count} files downloaded before the failure."
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo baixado."
+msgid_plural "{count} arquivos baixados."
+msgstr[0] "{count} file downloaded."
+msgstr[1] "{count} files downloaded."
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo enviado antes da falha."
+msgid_plural "{count} arquivos enviados antes da falha."
+msgstr[0] "{count} file uploaded before the failure."
+msgstr[1] "{count} files uploaded before the failure."
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo enviado."
+msgid_plural "{count} arquivos enviados."
+msgstr[0] "{count} file uploaded."
+msgstr[1] "{count} files uploaded."
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} arquivo grande soma {size}"
+msgid_plural "{count} arquivos grandes somam {size}"
+msgstr[0] "{count} large file adds up to {size}"
+msgstr[1] "{count} large files add up to {size}"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo local mais recente mantido."
+msgid_plural "{count} arquivos locais mais recentes mantidos."
+msgstr[0] "{count} newer local file kept."
+msgstr[1] "{count} newer local files kept."
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} arquivo mudou localmente durante a prévia e não foi baixado."
+msgid_plural "{count} arquivos mudaram localmente durante a prévia e não foram baixados."
+msgstr[0] "{count} file changed locally during the preview and was not downloaded."
+msgstr[1] "{count} files changed locally during the preview and were not downloaded."
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} arquivo novo ({size})"
+msgid_plural "{count} arquivos novos ({size})"
+msgstr[0] "{count} new file ({size})"
+msgstr[1] "{count} new files ({size})"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} conflito mantido na versão local."
+msgid_plural "{count} conflitos mantidos na versão local."
+msgstr[0] "{count} conflict kept in the local version."
+msgstr[1] "{count} conflicts kept in the local version."
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} item não pôde ser lido e ficou de fora."
+msgid_plural "{count} itens não puderam ser lidos e ficaram de fora."
+msgstr[0] "{count} item could not be read and was left out."
+msgstr[1] "{count} items could not be read and were left out."
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} já existe no cluster (não será alterado)"
+msgid_plural "{count} já existem no cluster (não serão alterados)"
+msgstr[0] "{count} already on the cluster (will not be changed)"
+msgstr[1] "{count} already on the cluster (will not be changed)"
+
+#: core/sync/report.py
+#, python-brace-format
+msgid "{count} já existia no cluster e não foi alterado."
+msgid_plural "{count} já existiam no cluster e não foram alterados."
+msgstr[0] "{count} already existed on the cluster and was not changed."
+msgstr[1] "{count} already existed on the cluster and were not changed."
+
+#: core/sync/preview.py
+#, python-brace-format
+msgid "{count} mais recente no computador (não será alterado)"
+msgid_plural "{count} mais recentes no computador (não serão alterados)"
+msgstr[0] "{count} newer on this computer (will not be changed)"
+msgstr[1] "{count} newer on this computer (will not be changed)"
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "{done}/{total} arquivo"
+msgid_plural "{done}/{total} arquivos"
+msgstr[0] "{done}/{total} file"
+msgstr[1] "{done}/{total} files"
+
+#: core/sync/rsync.py
+#, python-brace-format
+msgid "{folder} não está dentro da pasta local configurada ({root})"
+msgstr "{folder} is not inside the configured local folder ({root})"
+
+#: core/sync/_process.py
+#, python-brace-format
+msgid "{missing} de {total} arquivos não foi transferido: {cause}"
+msgid_plural "{missing} de {total} arquivos não foram transferidos: {cause}"
+msgstr[0] "{missing} of {total} files was not transferred: {cause}"
+msgstr[1] "{missing} of {total} files were not transferred: {cause}"
+
+#: ui/cluster/remote_trash.py
+#, python-brace-format
+msgid "{moved}; o resto parou: {message}"
+msgstr "{moved}; the rest stopped: {message}"
+
+#: ui/widgets/cluster/remote_model.py
+#, python-brace-format
+msgid "{name} (link simbólico)"
+msgstr "{name} (symbolic link)"
+
+#: core/remote/trash.py
+#, python-brace-format
+msgid "{name} não está mais nesta pasta do cluster: nada foi movido."
+msgstr "{name} is no longer in this folder of the cluster: nothing was moved."
+
+#: ui/cluster/remote_trash.py
+#, python-brace-format
+msgid "{n} item movido para trash"
+msgid_plural "{n} itens movidos para trash"
+msgstr[0] "{n} item moved to trash"
+msgstr[1] "{n} items moved to trash"
+
+#: core/sync/request.py
+#, python-brace-format
+msgid "{relative} (e subpastas)"
+msgstr "{relative} (and subfolders)"
+

@@ -111,11 +111,14 @@ class FocusController(QObject):
     # -- jumps to an area (R4.4) ----------------------------------------------------------------
     def focus_tree(self) -> None:
         self.window.panel_layout.set_left_mode("tree")
-        self._focus(self.window.explorer.tree)
+        remote = self.window.remote
+        # The cluster mode swaps the local tree and grid for the cluster's: the local ones are hidden.
+        self._focus(remote.tree_panel.tree if remote.active else self.window.explorer.tree)
 
     def focus_grid(self) -> None:
         self.window.panel_layout.set_panel_visible("grid", True)
-        self._focus(self.window.files.view)
+        remote = self.window.remote
+        self._focus(remote.file_panel.view if remote.active else self.window.files.view)
 
     def focus_workspace(self) -> None:
         self.window.panel_layout.set_panel_visible("workspace", True)
