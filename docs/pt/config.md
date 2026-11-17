@@ -75,7 +75,7 @@ Em ordem, o primeiro que existir:
 | Chave | Significado |
 |---|---|
 | `cores` | Valor inicial do campo NP (padrão 64). |
-| `nk` | Valor inicial de *pools* (`pw.x -nk`, padrão 4). NP deve ser múltiplo. |
+| `nk` | Ignorado: os *pools* (`pw.x -nk`) seguem o NP e os k-points (veja [Criar cálculo](create-calc/index.md#pools-nk)). Continua aceito para um `config.yaml` antigo carregar. |
 | `pseudo_dir` | `pseudo_dir` gravado em todo input do `pw.x` gerado (caminho no cluster). |
 | `myemail` | E-mail avisado pelo cluster quando o job começa e termina (`MYEMAIL` do `.qsub`). Nunca vai para o log. |
 
@@ -96,6 +96,5 @@ cluster:
   key_path: ~/.ssh/id_ed25519
 jobs:
   cores: 64
-  nk: 4
   pseudo_dir: /home/meu_usuario/pseudo
 ```

@@ -1,11 +1,14 @@
-"""Diferença de carga: three SCFs and pp.x making Δρ = ρ(base) − ρ(clean) − ρ(isolated) (spec 30).
+"""Diferença de carga: three SCFs and pp.x making Δρ = ρ(base) − ρ(clean) − ρ(isolated) (spec 30),
+or, with ``nspin = 2``, Δm = m(base) − m(clean) − m(isolated), m = ρ↑ − ρ↓ (spec 100).
 
 From the user's SCF the folder gets the SCF itself, ``scf_<p>_clean.in`` (without the atoms picked in
 the "Átomos" tab) and ``scf_<p>_isolated.in`` (only those atoms), the three on the same cell, cutoffs
 and mesh (``fragments.split_input`` touches only atoms and species), a pp.x input for each SCF's density
 and ``pp_charge_diff.in``, which subtracts them. The script runs the three SCFs alike, with MPI and the
 same pools (they share the ``K_POINTS automatic``), then the four pp.x. ``padrao`` asks for the atoms
-alone; ``avancado`` adds the format of the XSF files and the folder they go to, the same for the four.
+alone; ``avancado`` adds the quantity (``plot_num`` 0 or 6), the format of the XSF files and the folder
+they go to, the same for the four. With ``plot_num = 6`` the data files say ``spin`` where they say
+``charge``; the names of the inputs (the tabs) stay.
 """
 
 from __future__ import annotations
@@ -16,7 +19,7 @@ from typing import Any, ClassVar
 
 from ....i18n import N_, _
 from ...qe.input_edit import InputEditor
-from ..edits import put_text
+from ..edits import ensure_disk_io, put_text
 from ..fragments import CLEAN, ISOLATED, atom_rows, split_input
 from ..render import render
 from ..scf_info import ScfInfo
@@ -26,14 +29,19 @@ from .charge import (
     DEFAULT_IFLAG,
     DEFAULT_OUTPUT_FORMAT,
     DEFAULT_PLOT_NUM,
+    DIFF_PLOT_NUMS,
     FILEOUT_DIR,
     PP_TEMPLATE,
+    SPIN_PLOT_NUM,
+    choice,
     code_of,
     fileout_dir,
     format_problem,
     iflag_field,
     output_format_field,
     plot_problems,
+    spin_problem,
+    with_paw_note,
 )
 from .files import InputFile, unit_stem
 from .scf import KEY as SCF_KEY
@@ -55,6 +63,22 @@ ATOMS_HINT = _(
 )
 XSF_DIR_FIELD = "xsf_dir"
 ALL_PP_NOTE = _(". Vale para os quatro inputs do pp.x")
+# The tooltip of ``plot_num``, one line each, before ``PAW_NOTE``.
+PLOT_NUM_TIP = (
+    N_("&INPUTPP plot_num dos quatro pp.x: a grandeza que eles extraem e subtraem."),
+    N_(
+        "0 = Δρ = ρ(base) − ρ(clean) − ρ(isolated): onde a ligação acumula (> 0) ou tira (< 0) elétrons."
+    ),
+    N_(
+        "6 = Δm = m(base) − m(clean) − m(isolated), com m = ρ↑ − ρ↓: como a adsorção muda o magnetismo"
+    ),
+    N_("(momento apagado no sítio, fragmento que se polariza). Exige nspin = 2 no SCF."),
+)
+
+
+def data_word(plot_num: int) -> str:
+    """The word of the data files' names, so that a magnetization never passes for a density."""
+    return "spin" if plot_num == SPIN_PLOT_NUM else "charge"
 
 
 def xsf_dir_of(values: dict[str, Any]) -> str:
@@ -104,6 +128,15 @@ class ChargeDiffType(CalcType):
                 hint=ATOMS_HINT,
                 data=atom_rows(scf.text),
             ),
+            FormField(
+                "plot_num",
+                _("Grandeza (plot_num)"),
+                "choice",
+                choice(DEFAULT_PLOT_NUM, DIFF_PLOT_NUMS),
+                group=PP_DIFF,
+                tooltip=with_paw_note(*(_(line) for line in PLOT_NUM_TIP)),
+                choices=tuple(choice(code, DIFF_PLOT_NUMS) for code in DIFF_PLOT_NUMS),
+            ),
             iflag_field(PP_DIFF, ALL_PP_NOTE),
             output_format_field(PP_DIFF, ALL_PP_NOTE),
             FormField(
@@ -135,9 +168,13 @@ class ChargeDiffType(CalcType):
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values
         prefix = scf.prefix
+        plot_num = code_of(values["plot_num"], DEFAULT_PLOT_NUM)
+        word = data_word(plot_num)
         iflag = code_of(values["iflag"], DEFAULT_IFLAG)
         output_format = code_of(values["output_format"], DEFAULT_OUTPUT_FORMAT)
         folder = xsf_dir_of(values)
+        if (problem := spin_problem(plot_num, scf)) is not None:
+            work.problem("plot_num", problem)
         if absolute(folder) or climbs(folder):
             work.problem(
                 XSF_DIR_FIELD,
@@ -155,9 +192,17 @@ class ChargeDiffType(CalcType):
         key_of = {CLEAN: CLEAN_KEY, ISOLATED: ISOLATED_KEY}
         work.notes.extend(f"{work.name(key_of[which])}: {note}" for which, note in split.notes)
 
+        def keep_density(key: str, editor: InputEditor) -> None:
+            """pp.x reads each SCF's charge density: a disk_io that does not save it goes (L-14).
+            Each SCF has its own note: the fragments were split from the text as typed."""
+            work.notes.extend(f"{work.name(key)}: {note}" for note in ensure_disk_io(editor))
+
+        keep_density(SCF_KEY, base)
+
         def fragment(key: str, text: str, suffix: str) -> PlannedFile:
             editor = InputEditor.from_text(text)
             put_text(editor, "control", "prefix", f"{prefix}_{suffix}")
+            keep_density(key, editor)
             return work.pw_file(key, editor)
 
         def pp_file(key: str, fragment_prefix: str) -> PlannedFile:
@@ -166,11 +211,11 @@ class ChargeDiffType(CalcType):
                 {
                     "prefix": fragment_prefix,
                     "outdir": UNIT_OUTDIR,
-                    "filplot": f"{fragment_prefix}.charge",
-                    "plot_num": DEFAULT_PLOT_NUM,
+                    "filplot": f"{fragment_prefix}.{word}",
+                    "plot_num": plot_num,
                     "iflag": iflag,
                     "output_format": output_format,
-                    "fileout": _xsf(folder, f"{fragment_prefix}_charge"),
+                    "fileout": _xsf(folder, f"{fragment_prefix}_{word}"),
                 },
             )
             return work.planned(key, "qe_input", text)
@@ -181,12 +226,12 @@ class ChargeDiffType(CalcType):
             {
                 "prefix": prefix,
                 "outdir": UNIT_OUTDIR,
-                "filplot": f"{prefix}_charge_diff",
-                "plot_num": DEFAULT_PLOT_NUM,
-                "files": [f"{prefix}.charge", f"{clean}.charge", f"{isolated}.charge"],
+                "filplot": f"{prefix}_{word}_diff",
+                "plot_num": plot_num,
+                "files": [f"{name}.{word}" for name in (prefix, clean, isolated)],
                 "iflag": iflag,
                 "output_format": output_format,
-                "fileout": _xsf(folder, f"{prefix}_charge_diff"),
+                "fileout": _xsf(folder, f"{prefix}_{word}_diff"),
             },
         )
         return [

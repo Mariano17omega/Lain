@@ -51,11 +51,12 @@ NO_QUEUE = _(
 NO_DELETE = _("Cancelamento da fila desligado: cluster.delete_command está vazio no config.yaml.")
 NOTE_EXIT = _(
     "Um arquivo por prefix dos inputs de scf, relax e vc-relax da pasta. O pw.x procura o seu "
-    'durante a execução, para de forma limpa ("Program stopped by user request") e o apaga. Um '
-    "pw.x seguinte do script com o mesmo prefix (nscf, bands) ainda roda, a partir do cálculo "
-    "interrompido; com outro prefix desta lista, para logo na primeira verificação. Os demais "
-    "programas (bands.x, projwfc.x…) ainda rodam. Se nenhum pw.x estiver rodando agora, o arquivo "
-    "fica na pasta e a próxima submissão avisa."
+    'durante a execução, para de forma limpa ("Program stopped by user request") e o apaga. Num '
+    "script do Lain, que confere cada passo (check_step), o job termina aí e o e-mail avisa a "
+    "falha. Num script antigo ou escrito à mão, um pw.x seguinte com o mesmo prefix (nscf, bands) "
+    "ainda roda, a partir do cálculo interrompido, e os demais programas (bands.x, projwfc.x…) "
+    "também; com outro prefix desta lista, para logo na primeira verificação. Se nenhum pw.x "
+    "estiver rodando agora, o arquivo fica na pasta e a próxima submissão avisa."
 )
 NOTE_QDEL = _("Antes do qdel o Lain consulta a fila de novo: se o job já começou, nada é feito.")
 

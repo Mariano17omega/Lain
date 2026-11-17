@@ -49,7 +49,7 @@ def test_persisted_data_is_language_independent(persisted):
     kinds = ("file .lain/compounds.json", "file .lain/folders.json", "file .lain/grids.json")
     kinds += ("file .lain/navigation.json", "file 03_bands/plots/bands.plot")
     kinds += ("file 02_scf/plots/view3d.plot", "file 03_bands/plots/03_bands-bands.csv")
-    kinds += ("file Slab_I18n/slab.qsub", "file Slab_I18n/vc-relax_kaolinite.in")
+    kinds += ("file Slab_I18n/slab.qsub", "file Slab_I18n/relax_kaolinite.in")
     kinds += ("name 03_bands/plots/03_bands-bands.png", "setting calc_create/mode")
     for kind in kinds:  # the probe really did the actions: each output is among the facts
         assert any(fact.startswith(kind) for fact in en), kind

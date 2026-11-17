@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Project-Id-Version: Lain: QE Studio 1.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-11-10 01:41-0400\n"
-"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"POT-Creation-Date: 2026-11-17 08:38-0400\n"
+"PO-Revision-Date: 2026-11-17 08:38-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -848,10 +848,6 @@ msgstr "Folder name"
 msgid "Nome do projeto"
 msgstr "Project name"
 
-#: ui/dialogs/sync_pages.py
-msgid "Nota"
-msgstr "Note"
-
 #: ui/dialogs/overwrite.py
 msgid "Nova versão"
 msgstr "New version"
@@ -1427,6 +1423,11 @@ msgstr "empty = do not write"
 #, python-brace-format
 msgid "vazio = {default}"
 msgstr "empty = {default}"
+
+#: ui/dialogs/calc_create/form.py
+#, python-brace-format
+msgid "vazio = {default} (automático)"
+msgstr "empty = {default} (automatic)"
 
 #: ui/dialogs/mapping.py
 msgid "vários arquivos separados por ;"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import colorsys
+from collections.abc import Collection
 
 import numpy as np
 from matplotlib.axes import Axes
@@ -303,6 +304,9 @@ def summary(dataset: PdosDataset, params: PdosParams) -> str:
             count=len(data.series), count_2=len(data.species)
         )
     )
+    lowdin = dataset.lowdin
+    if lowdin is not None and lowdin.spilling is not None:
+        parts.append(f"spilling = {100 * lowdin.spilling:.2f} %")
     if params.atoms is not None:
         every = {s.atom for s in data.series}
         parts.append(
@@ -310,6 +314,7 @@ def summary(dataset: PdosDataset, params: PdosParams) -> str:
                 count=len(every & set(params.atoms)), count_2=len(every)
             )
         )
+        parts += _lowdin_parts(dataset, params.atoms)
     if data.spin_polarized:
         parts.append(_("spin polarizado"))
         if dataset.magnetization is not None:
@@ -317,6 +322,17 @@ def summary(dataset: PdosDataset, params: PdosParams) -> str:
                 _("M = {magnetization:.2f} μB/célula").format(magnetization=dataset.magnetization)
             )
     return " · ".join(parts)
+
+
+def _lowdin_parts(dataset: PdosDataset, atoms: Collection[int]) -> list[str]:
+    """``Löwdin = 9.8838 e (↑−↓ = 0.7103)``: the charge on the chosen atoms (spec 99)."""
+    found = dataset.lowdin.charge_of(atoms) if dataset.lowdin is not None else None
+    if found is None:
+        return []
+    charge, polarization = found
+    if polarization is None:
+        return [f"Löwdin = {charge:.4f} e"]
+    return [f"Löwdin = {charge:.4f} e (↑−↓ = {polarization:.4f})"]
 
 
 HOMO_KINDS = ("homo", "homo_lumo")  # fixed occupations: pw.x printed the top of the valence

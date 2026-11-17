@@ -1,0 +1,6 @@
+ &bands
+    prefix  = 'silicon'
+    outdir = '/home/seu_usuario/tmp/'
+    filband = 'sibands.dat'
+    lsym=.false.,
+ /

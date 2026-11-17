@@ -1,0 +1,60 @@
+ &control
+    calculation = 'scf'
+    prefix      = 'H2O.NaCl_aq'
+    pseudo_dir  = '/home/seu_usuario/PSEUDO/'
+    outdir      = '/home/seu_usuario/tmp/'
+    trism       = .true.
+ /
+ &system
+    ibrav       = 0
+    ntyp        = 2
+    nat         = 3
+    ecutwfc     = 25.0
+    ecutrho     = 225.0
+    occupations = 'fixed'
+ /
+ &electrons
+    mixing_beta = 0.4
+ /
+ &ions
+    ion_dynamics = 'bfgs'
+ /
+ &rism
+    nsolv    = 3
+    closure  = 'kh'
+    tempv    = 300.0  ! Kelvin
+    ecutsolv = 144.0  ! Rydberg
+    ! Lennard-Jones for each atom (SPC model)
+    solute_epsilon(1) = 0.1554  ! kcal/mol
+    solute_sigma(  1) = 3.1660  ! angstrom
+    solute_epsilon(2) = 0.0460
+    solute_sigma(  2) = 1.0000
+    ! 1D-RISM's setting
+    starting1d      = 'zero'
+    rism1d_conv_thr = 1.0e-8
+    rism1d_maxstep  = 10000
+    mdiis1d_size    = 20
+    mdiis1d_step    = 0.5
+    ! 3D-RISM's setting
+    starting3d      = 'zero'
+    rism3d_maxstep  = 2000
+    rism3d_conv_thr = 1.0e-5
+    mdiis3d_size    = 10
+    mdiis3d_step    = 0.8
+ /
+ATOMIC_SPECIES
+ O  -1.0  O.pbe-van_ak.UPF
+ H  -1.0  H.pbe-van_ak.UPF
+CELL_PARAMETERS angstrom
+   10.00000  0.00000  0.00000
+    0.0000  10.00000  0.00000
+    0.0000   0.00000 10.00000
+ATOMIC_POSITIONS {angstrom}
+ O  5.00000  5.00000  5.00000
+ H  5.81649  5.57736  5.00000
+ H  4.18351  5.57736  5.00000
+K_POINTS {gamma}
+SOLVENTS {mol/L}
+ H2O  -1.0  H2O.spc.MOL
+ Na+   0.5  Na+.aq.MOL
+ Cl-   0.5  Cl-.aq.MOL

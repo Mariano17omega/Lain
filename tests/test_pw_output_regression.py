@@ -19,7 +19,7 @@ import pytest
 from qe_studio.core.qe.pw_output import parse_pw_output
 from qe_studio.core.sniff import SniffCache
 
-from conftest import FIXTURES
+from conftest import FIXTURES, own_fixtures
 
 GOLDEN: dict[str, dict] = json.loads(
     (Path(__file__).parent / "pw_output_golden.json").read_text(encoding="utf-8")
@@ -34,7 +34,7 @@ def normalized(output) -> dict:
 def test_golden_covers_every_fixture_output():
     outputs = {
         path.relative_to(FIXTURES).as_posix()
-        for path in FIXTURES.rglob("*")
+        for path in own_fixtures()
         if path.is_file() and b"Program PWSCF" in path.read_bytes()[:2048]
     }
     assert outputs == set(GOLDEN)

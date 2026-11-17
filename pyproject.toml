@@ -1,8 +1,10 @@
 [project]
 name = "lain"
-version = "1.0.1"
+version = "1.1.0"
 description = "Lain: QE Studio — desktop manager and plotter for Quantum ESPRESSO simulations"
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "PyQt6>=6.7",
@@ -37,7 +39,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]  # 1.27: SPDX license expressions (PEP 639)
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -67,11 +69,13 @@ ignore = ["E501"]
 known-first-party = ["qe_studio"]
 known-local-folder = [
     "action_helpers",
+    "adsorption_helpers",
     "calc_dialog_helpers",
     "calc_helpers",
     "cluster_guard",
     "conftest",
     "jobs_helpers",
+    "qe_examples_helpers",
     "remote_helpers",
     "ssh_server",
     "surface_helpers",

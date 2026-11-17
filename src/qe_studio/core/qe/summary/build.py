@@ -6,15 +6,18 @@ Labels and values are Portuguese (user-facing); numbers keep QE's decimal point.
 from __future__ import annotations
 
 from ....i18n import _, ngettext
+from ..lowdin import LowdinCharges
 from ..pw_output import PwOutput
 from ..relax import RelaxData
 from ..structure import format_formula
 from .model import Level, OutputSummary, SummaryIssue, SummaryRow, SummarySection
+from .projections import projection_rows
 from .scan import Facts, Hit
 from .text import clock_text, duration_text, normalize_number
 
 RELAX_CALCULATIONS = ("relax", "vc-relax")
 PW_PROGRAM = "PWSCF"
+PROJWFC_PROGRAM = "PROJWFC"
 
 
 def _row(
@@ -32,9 +35,14 @@ def _group(hit: Hit | None, index: int = 0) -> str | None:
 
 
 def build_summary(
-    facts: Facts, pw: PwOutput | None, relax: RelaxData | None, mesh: str | None = None
+    facts: Facts,
+    pw: PwOutput | None,
+    relax: RelaxData | None,
+    mesh: str | None = None,
+    lowdin: LowdinCharges | None = None,
 ) -> OutputSummary:
-    """``mesh``: the k-point mesh of the input next to the output (``mesh.k_mesh_of``), if any."""
+    """``mesh``: the k-point mesh of the input next to the output (``mesh.k_mesh_of``), if any;
+    ``lowdin``: the Löwdin block of a projwfc.x output (spec 99)."""
     sections = [SummarySection(_("Geral"), tuple(_general(facts)))]
     if facts.program == PW_PROGRAM:
         for title, rows in (
@@ -43,6 +51,8 @@ def build_summary(
         ):
             if rows:
                 sections.append(SummarySection(title, tuple(rows)))
+    elif facts.program == PROJWFC_PROGRAM and (rows := projection_rows(lowdin, facts)):
+        sections.append(SummarySection(_("Resultados"), tuple(rows)))
     sections.append(SummarySection(_("Avisos e erros"), tuple(_issue_rows(facts.issues))))
     return OutputSummary(facts.program, tuple(sections), tuple(facts.issues))
 

@@ -5,14 +5,28 @@ from __future__ import annotations
 import math
 
 from ....i18n import _
+from ...qe.pw_input import fortran_float
 from ..kpath import KMesh
 from ..scf_info import ScfInfo
 from .base import FormField, Work
 
-__all__ = ["DEFAULT_MESH", "check_mesh", "kmesh_field", "nbnd_default", "nbnd_field"]
+__all__ = [
+    "DEFAULT_MESH",
+    "check_mesh",
+    "kmesh_field",
+    "nbnd_default",
+    "nbnd_field",
+    "scf_number",
+]
 
 DEFAULT_MESH = KMesh((4, 4, 4))
 BANDS_MARGIN = 1.2  # nbnd from the SCF's output: 20 % more than the states pw.x used
+
+
+def scf_number(scf: ScfInfo, namelist: str, key: str) -> float | None:
+    """The SCF's value of ``key`` as a number, or None when it does not set it."""
+    text = scf.value(namelist, key)
+    return fortran_float(text) if text is not None else None
 
 
 def kmesh_field(scf: ScfInfo, group: str, required: bool) -> FormField:

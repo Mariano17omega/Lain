@@ -11,12 +11,15 @@ mkdir -p {{ xsf_dir }}
 {# The three SCFs share the K_POINTS automatic, so they run alike: MPI and the same pools. #}
 {% for input, output in pw_runs %}
 ${MPICOMMAND} ${QE_COMMAND} -i "{{ input }}" > "{{ output }}"
+check_step $? "{{ output }}"
 {% endfor %}
 
 {# pp.x runs without MPI, also as in cargas.qsub. #}
 {% for input, output in pps %}
 ${PPCOMMAND} -i "{{ input }}" > "{{ output }}"
+check_step $? "{{ output }}"
 {% endfor %}
 
 ${PPCOMMAND} -i "{{ diff[0] }}" > "{{ diff[1] }}"
+check_step $? "{{ diff[1] }}"
 {% endblock %}

@@ -253,7 +253,10 @@ def load_pdos(atm_files: Iterable[Path], tot_file: Path | None = None) -> PdosDa
 # -- is the set of projections whole? (L-11) ----------------------------------------------------------
 # One line per atomic state in the output of projwfc.x (``QE:PP/src/projwfc.f90:433``); a projection
 # file is written for each (atom, wfc) pair, whatever its ``m`` (``partialdos.f90``: ``nlmchi%m == 1``).
-_STATE = re.compile(r"^\s*state #\s*\d+: atom\s+(\d+) \(.*?\), wfc\s+(\d+) \(l=")
+# ``lowdin.py`` reads the species and the ``l`` of each atom from the same lines (spec 99).
+STATE_LINE = re.compile(
+    r"^\s*state #\s*\d+: atom\s+(?P<atom>\d+) \((?P<species>[^)]*)\), wfc\s+(?P<wfc>\d+) \(l=(?P<l>\d)"
+)
 _LISTED = 5  # pairs a warning names
 
 
@@ -263,9 +266,9 @@ def read_projwfc_states(path: Path) -> set[tuple[int, int]]:
     found: set[tuple[int, int]] = set()
     with open(path, encoding="utf-8", errors="replace") as handle:
         for line in handle:
-            match = _STATE.match(line)
+            match = STATE_LINE.match(line)
             if match:
-                found.add((int(match.group(1)), int(match.group(2))))
+                found.add((int(match["atom"]), int(match["wfc"])))
             elif found and line.strip():
                 break  # the block is contiguous: the first other line ends it
     return found

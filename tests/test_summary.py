@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from qe_studio.core.qe import summary as summary_package
 from qe_studio.core.qe.input_extract import extract
 from qe_studio.core.qe.input_lint import lint
 from qe_studio.core.qe.pw_output import parse_pw_output
@@ -151,6 +152,108 @@ def test_a_pp_output_has_only_general_and_messages():
     assert general["Programa"].value == "POST-PROC 7.3"
     assert general["Estado"].value == "Concluído"
     assert general["Tempo (WALL)"].value == duration_text("0.15s")
+
+
+# -- projwfc.x: spilling and Löwdin charges (spec 99, R2) ------------------------------------------
+NI_PROJWFC = FIXTURES / "qe731_ni_spin_pdos" / "ni.pdos.out"
+AL_PROJWFC = FIXTURES / "al_pdos_flat" / "al.projwfc.out"
+PROJWFC_HEAD = "     Program PROJWFC v.7.3.1 starts on  3Oct2026 at 19:11: 4 \n\n"
+
+
+def test_projwfc_output_has_spilling_and_lowdin_charges():
+    summary = summarize(NI_PROJWFC)
+    assert titles(summary) == ["Geral", "Resultados", "Avisos e erros"]
+    results = rows(summary, "Resultados")
+    spilling = results["Spilling"]
+    assert (spilling.value, spilling.line, spilling.level) == ("0.0116 (1.16 %)", 79, None)
+    charges = results["Cargas de Löwdin"]
+    assert charges.value == "1 átomo"
+    (atom,) = charges.children
+    assert (atom.label, atom.line) == ("1 · Ni", 71)
+    assert atom.value == "9.8838 e · s 0.9412 · d 8.9426"  # no p: Ni has no p states
+    assert [(c.label, c.value) for c in atom.children] == [
+        ("↑", "5.2970 e · s 0.4649 · d 4.8321"),
+        ("↓", "4.5868 e · s 0.4763 · d 4.1105"),
+        ("Polarização (↑−↓)", "0.7103 · s -0.0114 · d 0.7217"),
+    ]
+    assert "Nota" not in results
+    assert "1 · Ni               9.8838 e · s 0.9412 · d 8.9426" in to_text(summary)
+
+
+def test_projwfc_without_spin_has_no_spin_rows():
+    results = rows(summarize(AL_PROJWFC), "Resultados")
+    assert results["Spilling"].value == "0.0143 (1.43 %)"
+    (atom,) = results["Cargas de Löwdin"].children
+    assert (atom.label, atom.value, atom.children) == (
+        "1 · Al",
+        "2.9570 e · s 0.9319 · p 2.0251",
+        (),
+    )
+
+
+def lowdin_text(spilling: str = "0.0612", states: str = "") -> str:
+    return (
+        PROJWFC_HEAD
+        + states
+        + "\nLowdin Charges: \n\n"
+        + "     Atom #   1: total charge =   0.6000, s =  0.6000, \n"
+        + "     Atom #   2: total charge =   0.4000, s =  0.4000, \n"
+        + f"     Spilling Parameter:   {spilling}\n\n   JOB DONE.\n"
+    )
+
+
+def test_high_spilling_is_a_warning():
+    results = rows(from_text(lowdin_text()), "Resultados")
+    assert (results["Spilling"].value, results["Spilling"].level) == ("0.0612 (6.12 %)", "warning")
+    charges = results["Cargas de Löwdin"]
+    assert charges.value == "2 átomos"
+    assert [c.label for c in charges.children] == ["1", "2"]  # no list of states: no species
+    assert rows(from_text(lowdin_text("0.0500")), "Resultados")["Spilling"].level is None
+
+
+def test_finished_projwfc_without_block_says_where_it_went():
+    done = from_text(PROJWFC_HEAD + "     Calling projwave_paw .... \n\n   JOB DONE.\n")
+    assert rows(done, "Resultados")["Cargas de Löwdin"].value == (
+        "não impressas nesta saída (filowdin ou pawproj)"
+    )
+    running = from_text(PROJWFC_HEAD + "     Calling projwave .... \n")
+    assert titles(running) == ["Geral", "Avisos e erros"]
+
+
+def test_spinor_note():
+    states = (
+        "     state #   1: atom   1 (Fe ), wfc  1 (l=0 m= 1 s_z= 0.5)\n"
+        "     state #   2: atom   1 (Fe ), wfc  1 (l=0 m= 1 s_z=-0.5)\n"
+    )
+    block = (
+        PROJWFC_HEAD + states + "\nLowdin Charges: \n\n"
+        "     Atom #   1: total charge =   1.0000, s =  1.0000, \n"
+        "                   spin up      =   0.6000, s =  0.6000, \n"
+        "                   spin down    =   0.4000, s =  0.4000, \n"
+        "                   polarization =   0.2000, s =  0.2000, \n"
+        "     Spilling Parameter:   0.0100\n"
+    )
+    results = rows(from_text(block), "Resultados")
+    assert results["Nota"].value.startswith("não colinear sem spin-órbita")
+    (atom,) = results["Cargas de Löwdin"].children
+    assert atom.label == "1 · Fe" and len(atom.children) == 3
+
+
+def test_only_a_projwfc_output_feeds_the_lowdin_reader(monkeypatch):
+    """The reader starts after a PROJWFC banner: a relax of hundreds of MB pays nothing for it."""
+    fed: list[str] = []
+
+    class Spy(summary_package.LowdinReader):
+        def feed(self, line, number=None):
+            fed.append(line)
+            super().feed(line, number)
+
+    monkeypatch.setattr(summary_package, "LowdinReader", Spy)
+    block = "\nLowdin Charges: \n\n     Atom #   1: total charge =   1.0000, s =  1.0000, \n"
+    from_text(HEAD + block)
+    assert fed == []
+    from_text(PROJWFC_HEAD + block)
+    assert any("Atom #" in line for line in fed)
 
 
 def test_spin_polarized_output_reports_the_last_magnetization():

@@ -75,7 +75,7 @@ In order, the first that exists:
 | Key | Meaning |
 |---|---|
 | `cores` | Initial value of the NP field (default 64). |
-| `nk` | Initial value of pools (`pw.x -nk`, default 4). NP must be a multiple. |
+| `nk` | Ignored: the pools (`pw.x -nk`) follow NP and the k-points (see [Criar cálculo](create-calc/index.md#pools-nk)). Still accepted so an older `config.yaml` loads. |
 | `pseudo_dir` | `pseudo_dir` written into every generated pw.x input (a path on the cluster). |
 | `myemail` | E-mail the cluster notifies when the job starts and ends (`MYEMAIL` in the `.qsub`). Never goes to the log. |
 
@@ -96,6 +96,5 @@ cluster:
   key_path: ~/.ssh/id_ed25519
 jobs:
   cores: 64
-  nk: 4
   pseudo_dir: /home/my_user/pseudo
 ```

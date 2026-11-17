@@ -15,6 +15,7 @@ from .render import fortran_number
 __all__ = [
     "ensure_disk_io",
     "ensure_smearing",
+    "put_comment",
     "put_mesh",
     "put_number",
     "put_path",
@@ -62,6 +63,14 @@ def put_number(editor: InputEditor, namelist: str, key: str, value: int | float)
         return False
     editor.set(namelist, key, fortran_number(value))
     return True
+
+
+def put_comment(editor: InputEditor, namelist: str, key: str, text: str) -> bool:
+    """The commented line ``! text`` at the end of the namelist, unless the input already sets ``key``
+    (a line that would only repeat it) or already carries the comment."""
+    if editor.get(namelist, key) is not None:
+        return False
+    return editor.add_comment(namelist, text)
 
 
 def put_mesh(editor: InputEditor, mesh: KMesh) -> bool:

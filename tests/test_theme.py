@@ -85,6 +85,29 @@ def test_a_disabled_button_looks_disabled(qapp, qtbot, theme, variant):
     assert button.grab().toImage() != enabled
 
 
+@pytest.mark.parametrize("theme", THEMES)
+def test_a_header_without_a_rule_of_its_own_follows_the_theme(qapp, qtbot, theme, tmp_path):
+    """A header is a scroll area: left with their transparent background, Fusion paints it black,
+    which is what the columns of Qt's own file dialog showed in the light theme."""
+    from PyQt6.QtWidgets import QFileDialog, QTableWidget, QTreeView
+
+    manager = ThemeManager(theme)
+    manager.apply(qapp)
+    table = QTableWidget(1, 2)
+    dialog = QFileDialog(None, "x", str(tmp_path))
+    dialog.setOption(QFileDialog.Option.DontUseNativeDialog)
+    dialog.setViewMode(QFileDialog.ViewMode.Detail)
+    tree = dialog.findChild(QTreeView, "treeView")
+    assert tree is not None
+    for host, header in ((table, table.horizontalHeader()), (dialog, tree.header())):
+        qtbot.addWidget(host)
+        host.resize(600, 300)
+        host.show()
+        qapp.processEvents()
+        assert header is not None
+        assert header.grab().toImage().pixelColor(2, 2) == manager.color("chrome")
+
+
 def test_parse_color():
     color = parse_color("rgba(0, 210, 255, 0.12)")
     assert (color.red(), color.green(), color.blue(), color.alpha()) == (0, 210, 255, 31)

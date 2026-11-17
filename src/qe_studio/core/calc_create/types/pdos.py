@@ -34,6 +34,8 @@ DEFAULT_DEGAUSS = 0.000735  # Ry, ≈ 0.01 eV (spec 28 R3.4)
 DEFAULT_NGAUSS = 0
 OCCUPATIONS = ("smearing", "tetrahedra", "tetrahedra_opt", "tetrahedra_lin", "fixed")
 DEFAULT_OCCUPATIONS = "tetrahedra"
+# What shows the broadening (``FormField.shown_when``): tetrahedra write none.
+WITH_BROADENING = (("occupations", ("smearing", "fixed")),)
 NO_BROADENING_NOTE = _(
     "projwfc.in sem ngauss/degauss: com tetraedros o projwfc.x usa o método dos tetraedros "
     "(um degauss no input o desligaria)"
@@ -56,7 +58,14 @@ def _occupations(scf: ScfInfo) -> str:
 
 
 def _projwfc(
-    key: str, label: str, kind, default, tooltip: str, standard: bool = False, hint: str = ""
+    key: str,
+    label: str,
+    kind,
+    default,
+    tooltip: str,
+    standard: bool = False,
+    hint: str = "",
+    shown_when: tuple[tuple[str, tuple[object, ...]], ...] = (),
 ) -> FormField:
     return FormField(
         key,
@@ -67,6 +76,7 @@ def _projwfc(
         tooltip=f"&PROJWFC {tooltip}",
         standard=standard,
         hint=hint,
+        shown_when=shown_when,
     )
 
 
@@ -143,6 +153,7 @@ class PdosType(CalcType):
                     "degauss (em Ry; 0.000735 Ry ≈ 0.01 eV): substitui o smearing do pw.x; "
                     "ignorado com tetraedros"
                 ),
+                shown_when=WITH_BROADENING,
             ),
             _projwfc(
                 "ngauss",
@@ -150,6 +161,7 @@ class PdosType(CalcType):
                 "int",
                 DEFAULT_NGAUSS,
                 _("ngauss: substitui o do pw.x; ignorado com tetraedros"),
+                shown_when=WITH_BROADENING,
             ),
             _projwfc(
                 "filpdos",

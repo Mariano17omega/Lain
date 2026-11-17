@@ -13,7 +13,7 @@ Onde revisar ou modificar cada parte. Caminhos relativos a `src/qe_studio/`.
 | Edição de inputs preservando formatação | `core/qe/input_edit.py` |
 | Nome/numeração/escrita da pasta nova | `core/calc_create/writer.py`, `numbering.py`, `naming.py`, `fingerprint.md` em `fingerprint.py` |
 | **Extração de dados de inputs** | `core/qe/pw_input.py`, `input_extract.py`, `cell_card.py`, `lattice.py`, `structure.py`; resumo do SCF em `core/calc_create/scf_info.py` |
-| **Extração de dados de saídas** | `core/qe/pw_output.py`, `bands_x.py`, `projwfc.py`, `relax.py`, `core/qe/summary/` |
+| **Extração de dados de saídas** | `core/qe/pw_output.py`, `bands_x.py`, `projwfc.py`, `lowdin.py`, `relax.py`, `core/qe/summary/` |
 | Identificação de arquivo por conteúdo | `core/sniff.py` |
 | Detecção de pasta (selos) | `core/detection.py`, `core/calculations/<tipo>/detection.py` |
 | **Desenho de um gráfico** | `core/calculations/<tipo>/render.py` |
@@ -26,7 +26,7 @@ Onde revisar ou modificar cada parte. Caminhos relativos a `src/qe_studio/`.
 | Plano/prévia de sync, push | `core/sync/planner.py`, `preview.py`, `push.py`, `push_plan.py` |
 | Chaves do `config.yaml` | `core/config.py` + `config.example.yaml` (raiz) **e** `resources/config.example.yaml` (idênticos) |
 | Visualização 3D | `core/structure3d/*` (lógica), `ui/widgets/structure3d/*`, `ui/tools/structure3d_controller.py` |
-| Visualizador de texto/inputs | `core/viewer/*`, `core/qe/input_lexer.py`, `input_lint.py`, `ui/widgets/viewer/*` |
+| Visualizador de texto/inputs | `core/viewer/*`, `core/qe/input_lexer.py`, `input_lint.py`, `input_semantics.py`, `ui/widgets/viewer/*` |
 | Menus, atalhos | `ui/actions.py` |
 | Tema/cores/QSS | `ui/resources/themes/*.yaml`, `ui/resources/styles/*` |
 | Textos e tradução | `_()` no código; `locale/en/LC_MESSAGES/lain_<domain>.po` |

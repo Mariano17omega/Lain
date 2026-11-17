@@ -8,6 +8,7 @@ from pathlib import Path
 from ....i18n import _
 from ...project.compounds import Compound, GeometryDrift, compound_of
 from ...qe import projwfc
+from ...qe.lowdin import LowdinCharges, read_lowdin, spilling_is_high
 from ...qe.pw_output import PwOutput
 from ...qe.structure import Site, read_sites
 from ..base import DetectionResult, LoadError, SniffFn
@@ -38,6 +39,7 @@ class PdosDataset:
     # What each run printed as ``fermi``: "fermi", "homo", "homo_lumo", "spin_fermi".
     kind_scf: str | None = None
     kind_nscf: str | None = None
+    lowdin: LowdinCharges | None = None  # the Löwdin block of the projwfc.x output (spec 99)
 
     def _use_nscf(self, source: str) -> bool:
         if source == "nscf" and self.fermi_nscf is not None:
@@ -74,6 +76,30 @@ def _listed_states(path: Path | None) -> set[tuple[int, int]] | None:
         return None
 
 
+def _lowdin(path: Path | None) -> LowdinCharges | None:
+    """The Löwdin charges and spilling of the projwfc.x output (None: no output, or no block)."""
+    if path is None:
+        return None
+    try:
+        return read_lowdin(path)
+    except OSError:
+        return None
+
+
+def _spilling_warning(lowdin: LowdinCharges | None) -> list[str]:
+    """The sum of the projections misses what the atomic basis leaves out; ``pdos_tot``, the total
+    drawn, has it all (spec 99)."""
+    if lowdin is None or not spilling_is_high(lowdin.spilling):
+        return []
+    assert lowdin.spilling is not None
+    pct = f"{100 * lowdin.spilling:.2f}"
+    return [
+        _(
+            "spilling de {pct} %: a base atômica deixa de fora {pct} % da carga ocupada, e a soma das projeções fica abaixo da DOS total (pdos_tot)"
+        ).format(pct=pct)
+    ]
+
+
 def _spin_note(data: projwfc.PdosData, result: DetectionResult, sniff: SniffFn) -> list[str]:
     """Noncollinear without spin-orbit: the ``up``/``dw`` columns are the two components of the spinor
     (``QE:PP/src/partialdos.f90:513-517``), not spin channels of their own (L-12). With spin-orbit
@@ -98,8 +124,10 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
     except (OSError, ValueError) as exc:
         raise LoadError(_("Não foi possível ler a PDOS: {exc}").format(exc=exc)) from exc
     listed = _listed_states(result.file("projwfc_out"))
+    lowdin = _lowdin(result.file("projwfc_out"))
     warnings = [
         *projwfc.completeness_warnings(data.series, listed),
+        *_spilling_warning(lowdin),
         *_spin_note(data, result, sniff),
     ]
 
@@ -133,6 +161,7 @@ def load_dataset(result: DetectionResult, sniff: SniffFn) -> PdosDataset:
         proven_midgap=pdos_midgap(scf, nscf, data),
         kind_scf=scf.fermi_kind if scf else None,
         kind_nscf=nscf.fermi_kind if nscf else None,
+        lowdin=lowdin,
     )
     if dataset.fermi("scf") is None:
         dataset.warnings.append(_("energia de Fermi não encontrada: energias absolutas"))

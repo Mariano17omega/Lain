@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Project-Id-Version: Lain: QE Studio 1.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-11-10 01:41-0400\n"
-"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"POT-Creation-Date: 2026-11-17 08:38-0400\n"
+"PO-Revision-Date: 2026-11-17 08:38-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -388,17 +388,17 @@ msgstr "only in B"
 
 #: ui/widgets/viewer/input_view.py
 #, python-brace-format
-msgid "{n} problema de escrita no input"
-msgid_plural "{n} problemas de escrita no input"
-msgstr[0] "{n} syntax problem in the input"
-msgstr[1] "{n} syntax problems in the input"
-
-#: ui/widgets/viewer/input_view.py
-#, python-brace-format
 msgid "{n} problema de escrita no script"
 msgid_plural "{n} problemas de escrita no script"
 msgstr[0] "{n} syntax problem in the script"
 msgstr[1] "{n} syntax problems in the script"
+
+#: ui/widgets/viewer/input_view.py
+#, python-brace-format
+msgid "{n} problema no input"
+msgid_plural "{n} problemas no input"
+msgstr[0] "{n} problem in the input"
+msgstr[1] "{n} problems in the input"
 
 #: core/viewer/qsub_lint.py
 #, python-brace-format

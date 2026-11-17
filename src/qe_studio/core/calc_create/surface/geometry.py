@@ -14,6 +14,7 @@ from collections.abc import Sequence
 import numpy as np
 
 from ....i18n import _
+from ...qe.lattice import MIN_SURFACE_GAP, interplanar, vacuum_gaps, widest_gap
 from ..scf_info import ScfInfo
 from .elements import covalent_radius
 from .model import Model
@@ -30,9 +31,9 @@ __all__ = [
     "skewed",
     "surface_problem",
     "vacuum_gaps",
+    "widest_gap",
 ]
 
-MIN_SURFACE_GAP = 5.0  # Å: an empty gap shorter than this is no surface's vacuum
 IMAGES = np.array(list(itertools.product((-1, 0, 1), repeat=3)), dtype=int)
 
 
@@ -78,29 +79,6 @@ def bonded(model: Model, i: int, j: int, scale: float) -> bool:
     """Whether atoms ``i`` and ``j`` are bonded: distance ``<=`` ``bond_cutoff``."""
     distance, __ = min_image(model.frac[j] - model.frac[i], model.cell)
     return distance <= bond_cutoff(model.labels[i], model.labels[j], scale)
-
-
-def interplanar(cell: np.ndarray) -> np.ndarray:
-    """The distance between the lattice planes of each axis: ``V / |a_j × a_k|``."""
-    volume = abs(float(np.linalg.det(cell)))
-    return np.array(
-        [volume / np.linalg.norm(np.cross(cell[(a + 1) % 3], cell[(a + 2) % 3])) for a in range(3)]
-    )
-
-
-def vacuum_gaps(cell: np.ndarray, frac: np.ndarray) -> tuple[float, float, float]:
-    """The widest empty gap along each axis (Å, between atom centres, across the cell edge too)."""
-    spacing = interplanar(cell)
-    frac = np.asarray(frac, float).reshape(-1, 3)
-    gaps = []
-    for axis in range(3):
-        if not len(frac):
-            gaps.append(float(spacing[axis]))
-            continue
-        values = np.sort(frac[:, axis] % 1.0)
-        steps = np.diff(np.append(values, values[0] + 1.0))
-        gaps.append(float(steps.max() * spacing[axis]))
-    return gaps[0], gaps[1], gaps[2]
 
 
 def skewed(cell: np.ndarray) -> bool:

@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Project-Id-Version: Lain: QE Studio 1.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-11-10 01:41-0400\n"
-"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"POT-Creation-Date: 2026-11-17 08:38-0400\n"
+"PO-Revision-Date: 2026-11-17 08:38-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -96,6 +96,10 @@ msgstr "Unknown card {name}"
 msgid "Card {name} repetido: o pw.x interrompe o cálculo"
 msgstr "Card {name} repeated: pw.x stops the calculation"
 
+#: core/qe/summary/projections.py
+msgid "Cargas de Löwdin"
+msgstr "Löwdin charges"
+
 #: core/qe/summary/build.py
 msgid "Concluído"
 msgstr "Finished"
@@ -120,10 +124,6 @@ msgstr "Charge density cutoff"
 msgid "Cutoff da função de onda"
 msgstr "Wavefunction cutoff"
 
-#: core/qe/summary/build.py
-msgid "Cálculo"
-msgstr "Calculation"
-
 #: core/qe/scf_from_relax.py
 msgid ""
 "Cálculo vc-relax: a célula foi escrita com ibrav = 0; o pw.x detecta a simetria pela tolerância "
@@ -131,6 +131,10 @@ msgid ""
 msgstr ""
 "vc-relax calculation: the cell was written with ibrav = 0; pw.x detects the symmetry from the "
 "numerical tolerance of the final cell."
+
+#: core/qe/summary/scan.py
+msgid "DFT-D3 (3 corpos)"
+msgstr "DFT-D3 (3-body)"
 
 #: core/qe/summary/build.py
 msgid "Divisão R & G (proc/nbgrp/npool/nimage)"
@@ -235,6 +239,15 @@ msgstr "Relax input not found in the folder"
 msgid "Input não pôde ser lido: {exc}"
 msgstr "The input could not be read: {exc}"
 
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid ""
+"K_POINTS com 1 ponto ao longo de {axis}, que não tem vácuo e mede {length} Å: a amostragem fica "
+"rala nessa direção"
+msgstr ""
+"K_POINTS has 1 point along {axis}, which has no vacuum and measures {length} Å: the sampling is "
+"sparse in that direction"
+
 #: core/qe/summary/build.py
 msgid "Magnetização absoluta"
 msgstr "Absolute magnetization"
@@ -242,10 +255,6 @@ msgstr "Absolute magnetization"
 #: core/qe/summary/build.py
 msgid "Magnetização total"
 msgstr "Total magnetization"
-
-#: core/qe/summary/build.py
-msgid "Malha k"
-msgstr "k-point mesh"
 
 #: core/qe/summary/build.py
 msgid "Memória disponível"
@@ -341,6 +350,10 @@ msgstr "Unmatched closing parenthesis"
 msgid "Passos BFGS"
 msgstr "BFGS steps"
 
+#: core/qe/summary/projections.py
+msgid "Polarização (↑−↓)"
+msgstr "Polarization (↑−↓)"
+
 #: core/qe/scf_from_relax.py
 #, python-brace-format
 msgid "Posições em alat com a célula em {unit}: o alat do SCF seria outro e o Lain não converte unidades"
@@ -363,6 +376,24 @@ msgstr "Program"
 #: core/qe/summary/build.py
 msgid "Pseudopotenciais"
 msgstr "Pseudopotentials"
+
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid ""
+"Pseudopotencial US/PAW ({file}) com ecutrho = {rho} Ry ({ratio} × ecutwfc): costuma precisar de 8"
+" a 12 ×; confira o corte sugerido no UPF"
+msgstr ""
+"US/PAW pseudopotential ({file}) with ecutrho = {rho} Ry ({ratio} × ecutwfc): it usually needs 8 "
+"to 12 ×; check the cutoff suggested in the UPF"
+
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid ""
+"Pseudopotencial US/PAW ({file}) sem ecutrho: o padrão é 4 × ecutwfc = {rho} Ry; costuma precisar "
+"de 8 a 12 ×; confira o corte sugerido no UPF"
+msgstr ""
+"US/PAW pseudopotential ({file}) without ecutrho: the default is 4 × ecutwfc = {rho} Ry; it "
+"usually needs 8 to 12 ×; check the cutoff suggested in the UPF"
 
 #: core/qe/summary/build.py
 msgid "RAM máx. estimada por processo"
@@ -462,9 +493,15 @@ msgstr "&plot header missing"
 msgid "cabeçalho '#' ausente"
 msgstr "'#' header missing"
 
-#: core/qe/summary/build.py
-msgid "colinear (nspin=2)"
-msgstr "collinear (nspin=2)"
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid "calculation = '{calc}' exige a namelist &CELL: o pw.x para"
+msgstr "calculation = '{calc}' needs the &CELL namelist: pw.x stops"
+
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid "calculation = '{calc}' exige a namelist &IONS: o pw.x para"
+msgstr "calculation = '{calc}' needs the &IONS namelist: pw.x stops"
 
 #: core/qe/projwfc.py
 #, python-brace-format
@@ -486,6 +523,18 @@ msgstr "cell with zero volume"
 #: core/qe/pw_output.py
 msgid "duas energias de Fermi (↑/↓): referência na média, linhas separadas no gráfico"
 msgstr "two Fermi energies (↑/↓): reference at the average, separate lines in the plot"
+
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid "ecutrho ({rho} Ry) não passa de ecutwfc ({wfc} Ry): o pw.x para"
+msgstr "ecutrho ({rho} Ry) is not above ecutwfc ({wfc} Ry): pw.x stops"
+
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid ""
+"ecutrho = {ratio} × ecutwfc, abaixo de 4 ×: a densidade perde componentes (o pw.x pergunta \"are "
+"you sure?\")"
+msgstr "ecutrho = {ratio} × ecutwfc, below 4 ×: the density loses components (pw.x asks \"are you sure?\")"
 
 #: core/qe/bands_x.py
 msgid "eixo x difere entre bandas"
@@ -541,6 +590,20 @@ msgstr "unreadable ATOMIC_POSITIONS line: {strip}"
 msgid "linha de {what} ilegível: {strip}"
 msgstr "unreadable {what} line: {strip}"
 
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha: o pw.x ignora as que sobram"
+msgid_plural "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas: o pw.x ignora as que sobram"
+msgstr[0] "nat = {nat}, but ATOMIC_POSITIONS has {count} line: pw.x ignores the extra ones"
+msgstr[1] "nat = {nat}, but ATOMIC_POSITIONS has {count} lines: pw.x ignores the extra ones"
+
+#: core/qe/input_semantics.py
+#, python-brace-format
+msgid "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha: o pw.x para"
+msgid_plural "nat = {nat}, mas ATOMIC_POSITIONS tem {count} linhas: o pw.x para"
+msgstr[0] "nat = {nat}, but ATOMIC_POSITIONS has {count} line: pw.x stops"
+msgstr[1] "nat = {nat}, but ATOMIC_POSITIONS has {count} lines: pw.x stops"
+
 #: core/qe/scf_from_relax.py
 #, python-brace-format
 msgid "nat = {value} no input, {count} posições na saída"
@@ -555,18 +618,26 @@ msgstr "no pdos_atm# file found"
 msgid "nenhum arquivo pdos_atm# legível: {w}"
 msgstr "no readable pdos_atm# file: {w}"
 
-#: core/qe/input_extract.py core/qe/summary/build.py
-msgid "não colinear"
-msgstr "non-collinear"
+#: core/qe/input_semantics.py
+msgid "nspin = 2 sem starting_magnetization nem tot_magnetization: o pw.x para"
+msgstr "nspin = 2 without starting_magnetization or tot_magnetization: pw.x stops"
 
-#: core/qe/summary/build.py
-msgid "não polarizado"
-msgstr "unpolarized"
+#: core/qe/summary/projections.py
+msgid "não colinear sem spin-órbita: ↑ e ↓ são as componentes do spinor ao longo de z"
+msgstr "noncollinear without spin-orbit: ↑ and ↓ are the components of the spinor along z"
+
+#: core/qe/summary/projections.py
+msgid "não impressas nesta saída (filowdin ou pawproj)"
+msgstr "not printed in this output (filowdin or pawproj)"
 
 #: core/qe/bands_x.py
 #, python-brace-format
 msgid "não é um arquivo de bandas numérico: {exc}"
 msgstr "not a numeric bands file: {exc}"
+
+#: core/qe/input_semantics.py
+msgid "occupations = 'smearing' exige degauss > 0: o pw.x para"
+msgstr "occupations = 'smearing' needs degauss > 0: pw.x stops"
 
 #: core/qe/input_diff.py
 #, python-brace-format
@@ -596,6 +667,13 @@ msgid "{count} linha difere"
 msgid_plural "{count} linhas diferem"
 msgstr[0] "{count} line differs"
 msgstr[1] "{count} lines differ"
+
+#: core/qe/summary/projections.py
+#, python-brace-format
+msgid "{count} átomo"
+msgid_plural "{count} átomos"
+msgstr[0] "{count} atom"
+msgstr[1] "{count} atoms"
 
 #: core/qe/summary/build.py
 #, python-brace-format

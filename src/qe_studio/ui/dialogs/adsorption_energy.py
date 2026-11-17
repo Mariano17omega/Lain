@@ -1,5 +1,6 @@
 """The "Energia de adsorção" window (spec 78 R3.3): the energies of the selected SCF outputs and an
-equation over them, recomputed at every edit.
+equation over them, recomputed at every edit. Each row shows its level of theory, and the warnings of
+``consistency.check`` follow the equation (spec 97 R6); they never block "Salvar resultado".
 
 Not modal: several can stay open. It never reads a file: the rows come from the controller's worker,
 and "Salvar resultado" asks the controller to write the report.
@@ -32,6 +33,16 @@ from ...core.analysis.adsorption_energy import (
     default_equation,
     role_label,
 )
+from ...core.analysis.consistency import check
+from ...core.analysis.level_of_theory import (
+    cutoffs_text,
+    k_points_tip,
+    mesh_text,
+    occupations_text,
+    pseudos_tip,
+    spin_text,
+    xc_text,
+)
 from ...i18n import _
 from ..theme.manager import ThemeManager
 from ..theme.scale import scaled
@@ -39,7 +50,20 @@ from ..widgets.common import hide_vertical_header, set_variant
 from ..widgets.painting import mono_font
 
 TITLE = _("Energia de adsorção")
-HEADERS = (_("Papel"), _("Prefixo"), _("Arquivo"), _("Átomos"), _("Energia total (Ry)"))
+HEADERS = (
+    _("Papel"),
+    _("Prefixo"),
+    _("Arquivo"),
+    _("Átomos"),
+    _("Energia total (Ry)"),
+    _("Cutoffs (Ry)"),
+    _("Funcional"),
+    _("Ocupações"),
+    "Spin",
+    _("Malha k"),
+)
+NUMBERS = (3, 4, 5)  # right-aligned columns
+FUNCTIONAL, MESH = 6, 9
 VARIABLE = "variable"  # the property of a variable's button: the text it inserts
 
 
@@ -55,7 +79,7 @@ class AdsorptionEnergyDialog(QDialog):
         self.outcome = Outcome("", None)
         self.setWindowTitle(TITLE)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        self.resize(scaled(720), scaled(420))
+        self.resize(scaled(1200), scaled(520))  # the ten columns of an ordinary set, no scroll
         layout = QVBoxLayout(self)
         layout.addWidget(set_variant(QLabel(TITLE), "dialogTitle"))
         self.table = self._table(theme)
@@ -87,6 +111,10 @@ class AdsorptionEnergyDialog(QDialog):
         self.error = set_variant(QLabel(), "dialogError")
         self.error.setWordWrap(True)
         layout.addWidget(self.error)
+        self.warnings = set_variant(QLabel(), "dialogWarning")
+        self.warnings.setWordWrap(True)
+        self.warnings.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(self.warnings)
 
         footer = QHBoxLayout()
         footer.addStretch(1)
@@ -119,10 +147,23 @@ class AdsorptionEnergyDialog(QDialog):
         for r, row in enumerate(self.rows):
             energy = f"{row.energy_ry:.8f}" if row.energy_ry is not None else "—"
             atoms = "" if row.atoms is None else str(row.atoms)
-            cells = (role_label(row.role), row.name, row.path.name, atoms, energy)
+            theory = row.theory
+            cells = (
+                role_label(row.role),
+                row.name,
+                row.path.name,
+                atoms,
+                energy,
+                cutoffs_text(theory),
+                xc_text(theory),
+                occupations_text(theory),
+                spin_text(theory),
+                mesh_text(theory),
+            )
+            tips = {FUNCTIONAL: pseudos_tip(theory), MESH: k_points_tip(theory)}
             for c, text in enumerate(cells):
                 item = QTableWidgetItem(text)
-                if c >= 3:
+                if c in NUMBERS:
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
                     )
@@ -130,7 +171,7 @@ class AdsorptionEnergyDialog(QDialog):
                     item.setForeground(muted)
                     item.setToolTip(row.problem)
                 else:
-                    item.setToolTip(str(row.path))
+                    item.setToolTip(tips.get(c) or str(row.path))
                 table.setItem(r, c, item)
         return table
 
@@ -153,6 +194,9 @@ class AdsorptionEnergyDialog(QDialog):
         self.error.setVisible(not ok)
         self.save_button.setEnabled(ok)
         self.save_button.setToolTip("" if ok else self.outcome.text)
+        warnings = check(self.equation.text(), self.rows).warnings
+        self.warnings.setText("\n".join(f"• {warning}" for warning in warnings))
+        self.warnings.setVisible(bool(warnings))
 
     def _save(self) -> None:
         if self.outcome.value_ry is not None:

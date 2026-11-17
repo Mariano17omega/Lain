@@ -126,7 +126,7 @@ def test_relax_readout_picks_the_panel_and_the_nearest_step(qtbot, main_window, 
     assert len(data.energy_deltas) >= 2
     step = 2
     energy = f"passo {step} · |ΔE| = {data.energy_deltas[step - 1]:.1e} Ry"
-    force = f"passo {step} · F = {data.steps[step].force_ry_bohr:.1e} Ry/Bohr"
+    force = f"passo {step} · F = {data.steps[step].criterion_force:.1e} Ry/Bohr"
     assert session.params.panels == "both" and len(view.figure.axes) == 2
     assert hover(view, step + 0.3, axes_index=0) == energy  # Y is not used
     assert hover(view, step - 0.2, axes_index=1) == force

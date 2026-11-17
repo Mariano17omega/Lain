@@ -8,9 +8,9 @@ from qe_studio.core.qe import input_lint
 from qe_studio.core.qe.input_lexer import Kind, LexState, Mode, scan_line
 from qe_studio.core.qe.input_lint import InputDoc, lint, neighbour_issue
 
-from conftest import FIXTURES
+from conftest import FIXTURES, own_fixtures
 
-INPUTS = sorted(FIXTURES.rglob("*.in"))
+INPUTS = own_fixtures("*.in")
 
 
 def found(text: str) -> list[tuple[int, str, str, str]]:

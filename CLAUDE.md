@@ -35,6 +35,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run pyright
 uv run python scripts/screenshot.py --plot       # off-screen PNGs of both themes → screenshots/ (--language en)
 uv run python scripts/i18n.py update|compile|check [--area N]   # the English catalog (locale/README.md)
+uv run python scripts/import_qe_examples.py      # rebuild tests/fixtures/qe_examples/ from Documentation/ (--replace)
 uv run python scripts/fetch_assets.py            # refresh vendored fonts/icons
 uv run python scripts/build_icons.py             # re-render app icon PNGs from ui/resources/app/lain.svg
 uv run python scripts/install_desktop.py         # optional: .desktop + icons for the user (--prefix DIR)
@@ -207,6 +208,7 @@ written decision.
   `copy_fixture` first (`test_fixtures_untouched.py` fails otherwise). Don't add renamed copies: PRD-style layouts
   are built by fixtures (`demo_project`, `al_pdos_orbitals`, `raiz`). A new QE version is a real trimmed run in
   `tests/fixtures/qe<ver>_<system>/` plus a row in `test_qe_versions.py`.
+- `tests/fixtures/qe_examples/` is a generated corpus of QE's own examples, most older than 7.1, marked by version: no code changes to accept an older format. Its expected values come from QE's text (`tests/qe_examples_helpers.py`), and a walker over `fixtures/` uses `conftest.py:own_fixtures` to stay out of it.
 - Reuse the shared helpers in `tests/*_helpers.py` (grid, viewer, sync, plot grid, calc, surface, 3D…).
 - The `main_window` fixture builds a full `MainWindow` with isolated stores; `window_factory()` again (after
   `window.close()`) restarts the app on the same files.

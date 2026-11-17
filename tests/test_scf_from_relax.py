@@ -8,7 +8,7 @@ import pytest
 
 from qe_studio.core.detection import detect_folder
 from qe_studio.core.qe.final_structure import parse_final_structure, read_final_structure
-from qe_studio.core.qe.input_edit import InputEditor
+from qe_studio.core.qe.input_edit import RESTART_COMMENT, InputEditor
 from qe_studio.core.qe.input_lint import lint
 from qe_studio.core.qe.pw_input import parse_input
 from qe_studio.core.qe.pw_output import parse_pw_output
@@ -175,6 +175,16 @@ def assert_scf(text: str, nat: int) -> InputEditor:
     assert not editor.has_namelist("ions") and not editor.has_namelist("cell")
     assert editor.get("control", "restart_mode") is None and editor.get("control", "nstep") is None
     return editor
+
+
+def test_the_commented_restart_line_of_a_generated_relax_does_not_reach_the_scf():
+    """spec 102: "Criar cálculo" writes ``! restart_mode = 'restart'`` in a relax; an SCF has no use for it."""
+    editor = InputEditor.from_text(SI_IN.read_text())
+    assert editor.add_comment("control", RESTART_COMMENT)
+    assert RESTART_COMMENT in editor.text()
+    final = read_final_structure(SI_OUT)
+    assert final is not None
+    assert RESTART_COMMENT not in scf_from_relax(final, editor.text()).text
 
 
 def test_scf_of_a_relax_keeps_the_input_and_the_cell():

@@ -16,6 +16,7 @@ from typing import Any, ClassVar
 
 from ....i18n import _, ngettext
 from ...qe.input_edit import InputEditor
+from ...qe.pw_input import fortran_float
 from ..edits import put_number, put_text
 from ..naming import site_tag as tag_of_sites
 from ..scf_info import ScfInfo
@@ -52,7 +53,15 @@ from .adsorption_fields import (
 )
 from .adsorption_fixed import FIXED_ATOMS, fix_surface, fixed_rows
 from .base import FormField, PlannedFile, Work
-from .relax import RelaxType
+from .dipole_fields import (
+    DIPFIELD,
+    DIPOLE_FACT,
+    apply_dipole,
+    corrects,
+    dipole_fields,
+    scf_has_dipole,
+)
+from .relax import INPUT_KEY, RelaxType
 from .surface_fields import (
     BOND_SCALE,
     MOLECULE,
@@ -74,6 +83,24 @@ FIELD_OF_ROLE = {  # the field a ``SiteError`` marks
 NOT_BUILT = _("Estrutura não gerada")
 NO_MOLECULE = _("falta o SCF da molécula")
 FIX_FIELDS = _("corrija os campos marcados")
+SURFACE_WITHOUT_DIPOLE = _(
+    "Correção de dipolo ligada, mas o SCF de {name} não a tem: para a energia de adsorção, a superfície limpa precisa da mesma correção"
+)
+SURFACE_WITH_DIPOLE = _(
+    "Correção de dipolo desligada, mas o SCF de {name} a tem: o complexo e a superfície limpa precisam da mesma escolha"
+)
+SURFACE_EMAXPOS = _("; emaxpos da superfície: {emaxpos}")
+
+
+def removed_h_note(count: int) -> str:
+    """Each H taken off carries an electron: the cell may turn into a neutral radical."""
+    return ngettext(
+        "{n} H removido: ele leva um elétron e o sistema pode virar um radical; confira a carga (tot_charge) e o spin (nspin)",
+        "{n} H removidos: eles levam {n} elétrons e o sistema pode virar um radical; confira a carga (tot_charge) e o spin (nspin)",
+        count,
+    ).format(n=count)
+
+
 Facts = list[tuple[str, str]]  # the lines of geracao.md
 
 
@@ -86,6 +113,7 @@ class AdsorptionType(RelaxType):
     scf_label: ClassVar[str] = _("SCF da superfície")
     writes_report: ClassVar[bool] = True
     site_tag: ClassVar[bool] = True
+    calculations: ClassVar[tuple[str, ...]] = ("relax",)  # always a relax: no "Cálculo" (spec 95)
 
     def check_scf(self, scf: ScfInfo) -> str | None:
         return surface_problem(scf, scf.name)
@@ -95,7 +123,8 @@ class AdsorptionType(RelaxType):
         return [
             *molecule_fields(),
             *site_fields(scf),
-            *input_tab_fields(scf, self.calculation, relax),
+            *dipole_fields(scf),  # the clean surface's choice (spec 98 R5, spec 105)
+            *input_tab_fields(scf, INPUT_KEY, relax),
         ]
 
     def field_data(self, field_id: str, scf: ScfInfo, values: Mapping[str, Any]) -> Any:
@@ -128,6 +157,7 @@ class AdsorptionType(RelaxType):
         self.edit(editor, work)
         if values["etot_conv_thr"] is not None:
             put_number(editor, "control", "etot_conv_thr", values["etot_conv_thr"])
+        self._dipole(work, editor, placed, facts)
         if placed is not None:
             surface = model_of(scf)
             sites = [(surface.labels[n - 1], n) for n in placed.sites]
@@ -135,9 +165,31 @@ class AdsorptionType(RelaxType):
             put_text(editor, "control", "prefix", adsorbed_prefix(scf.prefix, labels, sites))
             work.folder_tag = tag_of_sites(sites)
         facts.append(self._kpoints(work))
-        return [work.pw_file(self.calculation, editor), report_file(facts)]
+        return [work.pw_file(INPUT_KEY, editor), report_file(facts)]
 
     # -- the pieces of ``inputs`` ------------------------------------------------------------------
+    def _dipole(
+        self, work: Work, editor: InputEditor, placed: Adsorbed | None, facts: Facts
+    ) -> None:
+        """The correction of the adsorbed system: its ramp is placed again, as the molecule fills
+        the bottom of the surface's vacuum; the molecule on one side always makes a dipole."""
+        scf = work.scf
+        surface_has = scf_has_dipole(scf)
+        before = scf.value("system", "emaxpos") if surface_has else None
+        window = apply_dipole(
+            work, editor, placed.model if placed is not None else None, facts, polar=True
+        )
+        on = corrects(work)
+        if on and not surface_has:
+            work.advise(DIPFIELD, SURFACE_WITHOUT_DIPOLE.format(name=scf.name))
+        elif surface_has and not on:
+            work.advise(DIPFIELD, SURFACE_WITH_DIPOLE.format(name=scf.name))
+        written = fortran_float(before) if before is not None else None
+        if window is not None and written is not None and round(written, 4) != window.emaxpos:
+            label, text = facts[-1]
+            if label == DIPOLE_FACT:
+                facts[-1] = (label, text + SURFACE_EMAXPOS.format(emaxpos=before))
+
     def _request(self, work: Work) -> SiteRequest | None:
         """The site asked for, or None with the bad numbers marked on their fields."""
         values = work.values
@@ -198,6 +250,8 @@ class AdsorptionType(RelaxType):
             shift=(float(x), float(y)),
         )
         work.notes.extend(placed.notes)
+        if placed.removed:
+            work.notes.append(removed_h_note(len(placed.removed)))
         model, fixed = fix_surface(work, placed, scale or 1.0)
         merged = merge_species(species_rows(scf.text), species_rows(other.text))
         problem = structure_problem(editor, model, merged.rows)

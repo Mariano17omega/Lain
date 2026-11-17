@@ -1,10 +1,11 @@
 """The ``.qsub`` script every type writes first (spec 25 R6, spec 86): its three fields and its checks.
 
 The cluster side (QE and MPI paths, parallel environment, environment lines, the job's e-mails) is
-the cluster's model, fixed in ``qsub/_base.qsub.j2`` and each type's template; the defaults of NP and
-the pools and the ``MYEMAIL`` come from the ``jobs:`` section of ``config.yaml``. The form
-(``avancado`` mode only) asks for the job name, NP and the pools. The runs read the inputs' names,
-chosen or not, from variables at the top of the script (``Work.run``).
+the cluster's model, fixed in ``qsub/_base.qsub.j2`` and each type's template; the default of NP and the
+``MYEMAIL`` come from the ``jobs:`` section of ``config.yaml``. The pools are computed from NP and the
+k-points of the inputs (``pools.py``, spec 102) unless typed. The form (``avancado`` mode only) asks
+for the job name, NP and the pools. The runs read the inputs' names, chosen or not, from variables at
+the top of the script (``Work.run``).
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from ...qe.input_edit import InputEditor
 from ..render import render
 from ..scf_info import ScfInfo
 from .base import FormField, PlannedFile, Work
+from .pools import MAX_POOLS, POOL_STEP, Pools, auto_pools, planned_kpoints
 
 if TYPE_CHECKING:
     from .base import CalcType
@@ -27,6 +29,7 @@ __all__ = [
     "JOB_NAME_MAX",
     "MYEMAIL_NOTE",
     "SCRIPT_KEY",
+    "choose_pools",
     "gamma_pool_notes",
     "job_name",
     "pool_notes",
@@ -73,16 +76,32 @@ def script_fields(type_: CalcType, scf: ScfInfo, jobs: JobsConfig) -> list[FormF
             "nk",
             "Pools (nk)",
             "int",
-            jobs.nk,
+            None,
             group=group,
-            tooltip=_("pw.x -nk: número de pools (grupos de k-points); NP deve ser múltiplo de nk"),
+            auto=True,
+            hint=_("vazio = automático"),
+            tooltip=_(
+                "pw.x -nk: número de pools (grupos de k-points). Vazio: o Lain escolhe pelo NP e pelos "
+                "k-points (múltiplo de 4, até 16, dividindo o NP). NP deve ser múltiplo de nk"
+            ),
         ),
     ]
 
 
-def pool_notes(np_: int, nk: int) -> list[str]:
-    """Warnings of NP and nk; they never block (spec R6.2), though pw.x stops on them
-    (``mp_start_pools``)."""
+def choose_pools(work: Work, inputs: Sequence[PlannedFile], jobs: JobsConfig) -> Pools:
+    """The script's NP and nk: the nk typed, or (an empty field) the one ``auto_pools`` picks for the
+    k-points of the pw.x ``inputs`` (spec 102)."""
+    values = work.values
+    np_ = values["np"] if values["np"] is not None else jobs.cores
+    nks = planned_kpoints(inputs)
+    if values["nk"] is None:
+        return Pools(np_, auto_pools(np_, nks), True, nks)
+    return Pools(np_, values["nk"], False, nks)
+
+
+def pool_notes(np_: int, nk: int, nks: int | None = None) -> list[str]:
+    """Warnings of NP and nk; they never block (spec R6.2), though pw.x stops on the first two
+    (``mp_start_pools``). ``nks``: the k-points estimated (``pools.kpoint_count``)."""
     if np_ < 1:
         return [_("NP deve ser ao menos 1")]
     if nk < 1:
@@ -99,7 +118,20 @@ def pool_notes(np_: int, nk: int) -> list[str]:
                 "NP = {np} não é múltiplo de nk = {nk}: o pw.x para com erro (mp_start_pools)"
             ).format(np=np_, nk=nk)
         ]
-    return []
+    notes = []
+    if nk > 1 and (nk % POOL_STEP or nk > MAX_POOLS):
+        notes.append(
+            _("O cluster pede nk múltiplo de {step} e no máximo {max} (nk = {nk})").format(
+                step=POOL_STEP, max=MAX_POOLS, nk=nk
+            )
+        )
+    if nks is not None and nk > nks:
+        notes.append(
+            _(
+                "nk = {nk} é maior que os cerca de {nks} k-points do input: {idle} pools ficam sem k-point e os núcleos deles ficam ociosos"
+            ).format(nk=nk, nks=nks, idle=nk - nks)
+        )
+    return notes
 
 
 def gamma_pool_notes(files: Sequence[PlannedFile], nk: int) -> list[str]:
@@ -124,7 +156,7 @@ def gamma_pool_notes(files: Sequence[PlannedFile], nk: int) -> list[str]:
     ]
 
 
-def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
+def script_file(type_: CalcType, work: Work, jobs: JobsConfig, pools: Pools) -> PlannedFile:
     values = work.values
     typed = str(values["job_name"] or "")
     name = job_name(typed)
@@ -134,9 +166,7 @@ def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
                 "Nome do job ajustado para {name} (até 15 caracteres: letras, números, . _ -; não começa com número)"
             ).format(name=name)
         )
-    np_ = values["np"] if values["np"] is not None else jobs.cores
-    nk = values["nk"] if values["nk"] is not None else jobs.nk
-    work.notes.extend(pool_notes(np_, nk))
+    work.notes.extend(pool_notes(pools.np, pools.nk, pools.nks))
     if not jobs.myemail:
         work.notes.append(MYEMAIL_NOTE)
     runs = type_.script_values(work)  # fills ``work.script_inputs``
@@ -144,8 +174,8 @@ def script_file(type_: CalcType, work: Work, jobs: JobsConfig) -> PlannedFile:
         type_.script_template,
         {
             "job_name": name,
-            "np": np_,
-            "nk": nk,
+            "np": pools.np,
+            "nk": pools.nk,
             "myemail": jobs.myemail or "",
             "inputs": work.script_inputs,
             **runs,

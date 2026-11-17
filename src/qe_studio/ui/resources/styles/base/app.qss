@@ -82,3 +82,16 @@ QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::su
 QAbstractScrollArea {
     background: transparent;
 }
+/* A header is a scroll area too: left with that transparency, Fusion paints it black. */
+QHeaderView {
+    background: ${chrome};
+    border: none;
+}
+QHeaderView::section {
+    background: ${chrome};
+    color: ${text_muted};
+    border: none;
+    border-bottom: 1px solid ${border};
+    padding: 4px 8px;
+    font-size: 11px;
+}

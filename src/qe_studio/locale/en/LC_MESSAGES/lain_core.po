@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Project-Id-Version: Lain: QE Studio 1.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-11-10 01:41-0400\n"
-"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"POT-Creation-Date: 2026-11-17 08:38-0400\n"
+"PO-Revision-Date: 2026-11-17 08:38-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"

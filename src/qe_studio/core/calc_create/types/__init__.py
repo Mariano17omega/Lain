@@ -29,7 +29,6 @@ from .relax import RelaxType
 from .scf import ScfType
 from .slab import SlabType
 from .supercell import SupercellType
-from .vc_relax import VcRelaxType
 
 __all__ = [
     "DEFAULT_MODE",
@@ -51,7 +50,6 @@ __all__ = [
 REGISTRY: tuple[CalcType, ...] = (
     ScfType(),
     RelaxType(),
-    VcRelaxType(),
     BandasType(),
     PdosType(),
     ChargeType(),

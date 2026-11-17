@@ -13,7 +13,12 @@ it in a terminal. On Windows, run it in **Git Bash**, which comes with [Git for 
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Mariano17omega/Lain/main/install.sh | bash
-# or, from a clone:  bash install.sh
+```
+
+Or, from a clone:
+
+```bash
+bash install.sh
 ```
 
 1. It checks for `git`, `ssh` and `rsync` (only `git` is required), and installs uv if it is missing.
@@ -40,6 +45,31 @@ An existing `config.yaml` is changed only if you say so, and the old one is kept
 questions again later: `bash install.sh --config-only`. With a password login, the password is never asked: Lain
 reads it from `QE_STUDIO_SSH_PASSWORD`. `local_root`, `key_path` and `xcrysden_path` must be full paths (starting with
 `/` or `~`, or a drive letter on Windows): Lain would read a relative one from the folder it runs in.
+
+### Updating
+
+Run the installer again. When the repository has a newer version than the installed one, it asks whether to update.
+If you accept, the installed folder is renamed to `lain-backup-<version>`, next to where it was, and the new version
+takes its path. Your configuration goes on working with no new questions, and a copy of it (`config.yaml`, the
+interface settings and Lain's data folder) stays in `lain-backup-<version>/config-backup/`. Close Lain before updating.
+
+### Uninstalling
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mariano17omega/Lain/main/uninstall.sh | bash
+# or, from a clone:  bash uninstall.sh
+```
+
+The script lists the full path of everything it would delete and asks first; Enter answers no. It removes the `lain`
+command, the application menu entry, the configuration, Lain's data and cache, and the program folder. Older
+`lain-backup-*` folders have a question of their own.
+
+It never touches your simulations, the `.lain/` and `plots/` folders inside them, your ssh keys or `uv`. The program
+folder stays, with the reason shown, if it holds your simulations or files that are not part of the program.
+
+The script never connects to the cluster. If you log in with an ssh key, it explains what is involved and offers to
+rename the key on your computer, so that ssh asks for your password again. The key is not deleted, and renaming it back
+undoes this. See [What the installer does, and how to undo it](ssh.md#what-the-installer-does-and-how-to-undo-it).
 
 ## Step by step
 

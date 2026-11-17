@@ -10,10 +10,10 @@ from PyQt6.QtWidgets import QMenu
 from grid_helpers import menu_texts, select_names, show_folder
 from qe_studio.ui.dialogs.adsorption_energy import AdsorptionEnergyDialog
 
+from adsorption_helpers import copy_scf_outputs
 from conftest import FIXTURES
 
 ITEM = "Calcular adsorção…"
-SOURCES = {"si": "si_bands", "al": "al_bands", "ni": "qe731_ni_spin_fixed"}
 
 
 @pytest.fixture
@@ -26,12 +26,9 @@ def menus(monkeypatch):
 @pytest.fixture
 def ads_files(demo_project) -> Path:
     """A folder with three SCF runs, a bands output and a subfolder (before the window starts)."""
-    folder = demo_project / "05_ads"
-    folder.mkdir()
-    for stem, source in SOURCES.items():
-        for suffix in (".in", ".out"):
-            shutil.copy(FIXTURES / source / f"{stem}.scf{suffix}", folder / f"{stem}.scf{suffix}")
+    folder = copy_scf_outputs(demo_project / "05_ads")
     shutil.copy(FIXTURES / "si_bands/si.band.out", folder / "si.band.out")
+    shutil.copy(FIXTURES / "si_relax/si.rel.out", folder / "si.rel.out")  # initial-geometry trap
     (folder / "sub").mkdir()
     return folder
 
@@ -64,7 +61,7 @@ def test_the_item_needs_two_scf_outputs(qtbot, ads_files, main_window, ads, menu
     assert ITEM in menu_texts(menu_of(window, menus, "al.scf.out", "ni.scf.out"))
     texts = menu_texts(menu_of(window, menus, "si.scf.out", "al.scf.out", "ni.scf.out"))
     assert texts.index(ITEM) == texts.index("Copiar") + 1
-    for other in ("si.band.out", "si.scf.in", "sub"):
+    for other in ("si.band.out", "si.scf.in", "sub", "si.rel.out"):
         assert ITEM not in menu_texts(menu_of(window, menus, "al.scf.out", "ni.scf.out", other))
 
 
@@ -77,8 +74,17 @@ def test_the_window_computes_and_saves(qtbot, ads_files, main_window, ads, menus
     assert names == ["silicon", "al", "nifix"]
     assert table.item(0, 0).text() == "Complexo"  # type: ignore[union-attr]
     assert dialog.equation.text() == "E_ads = E(silicon) - E(al) - E(nifix)"
-    assert dialog.result_label.text().startswith("E_ads = 75.06454140 Ry = ")
+    assert dialog.result_label.text() == "E_ads = 75.06454140 Ry = 1021.3051 eV = 98540.96 kJ/mol"
     assert dialog.save_button.isEnabled()
+    # spec 97 R6: the level of theory and the warnings, which never block the result
+    assert table.columnCount() == 10
+    silicon = [table.item(0, c).text() for c in range(10)]  # type: ignore[union-attr]
+    assert silicon[5:7] == ["25/118.918", "LDA"]
+    assert table.item(0, 6).toolTip() == "Pseudopotenciais:\nSi: Si.pz-rrkj.UPF"  # type: ignore[union-attr]
+    assert table.item(0, 9).toolTip() == "29 k-pontos irredutíveis"  # type: ignore[union-attr]
+    assert dialog.warnings.isVisibleTo(dialog)
+    assert dialog.warnings.text().startswith("• Os átomos não fecham: Si +2, Al -1, Ni -1.")
+    assert "\n• Células diferentes: complexo (silicon) e substrato (al)." in dialog.warnings.text()
 
     dialog.equation.setText("E_ads = 2* - E(nifix)")
     dialog.equation.setCursorPosition(len("E_ads = 2*"))
@@ -92,6 +98,12 @@ def test_the_window_computes_and_saves(qtbot, ads_files, main_window, ads, menus
     assert dialog.error.text() == "Expressão incompleta" and dialog.error.isVisibleTo(dialog)
     assert not dialog.save_button.isEnabled()
     assert dialog.save_button.toolTip() == "Expressão incompleta"
+    assert not dialog.warnings.isVisibleTo(dialog)
+
+    dialog.equation.setText("E_ads = E(al) - E(nifix)")
+    assert dialog.warnings.isVisibleTo(dialog) and dialog.save_button.isEnabled()
+    assert "Células diferentes" not in dialog.warnings.text()
+    assert "Os átomos não fecham: Al +1, Ni -1." in dialog.warnings.text()
 
     dialog.equation.setText("E_ads = E(silicon) - E(al) - E(nifix)")
     with qtbot.waitSignal(window.adsorption.saved, timeout=10_000) as blocker:
@@ -101,6 +113,7 @@ def test_the_window_computes_and_saves(qtbot, ads_files, main_window, ads, menus
     text = written.read_text()
     assert "| silicon | si.scf.out | 2 | -15.86827608 |" in text
     assert "E_ads = E(silicon) - E(al) - E(nifix)" in text
+    assert "\n## Avisos\n\n- Os átomos não fecham: Si +2, Al -1, Ni -1." in text
     toast = window.toast.current
     assert toast is not None and toast.text == "energia_ads_silicon_al_nifix.md criado"
 

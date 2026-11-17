@@ -13,8 +13,9 @@ from qe_studio.core.calc_create.types import REGISTRY, by_id
 from qe_studio.core.calc_create.types.pdos import NO_BROADENING_NOTE
 from qe_studio.core.calc_create.types.script import job_name
 from qe_studio.core.config import JobsConfig
-from qe_studio.core.qe.input_edit import InputEditor
+from qe_studio.core.qe.input_edit import RESTART_COMMENT, InputEditor
 from qe_studio.core.qe.input_lint import lint
+from qe_studio.core.qe.input_semantics import check_input
 
 from calc_helpers import (
     AL_PATH,
@@ -29,18 +30,26 @@ from calc_helpers import (
     runs,
 )
 
-FILES = {  # spec 28 R1.3, for the prefix 'al'
+FILES = {  # spec 28 R1.3, for the prefix 'al'; the name of a relaxation follows its choice (spec 95)
     "scf": ["scf.qsub", "scf_al.in"],
     "relax": ["relax.qsub", "relax_al.in"],
-    "vc-relax": ["vc-relax.qsub", "vc-relax_al.in"],
+    "vc-relax": ["relax.qsub", "vc-relax_al.in"],
     "bandas": ["bands.qsub", "scf_al.in", "bands.in", "bands_pp.in"],
     "pdos": ["pdos.qsub", "scf_al.in", "nscf_al.in", "projwfc.in"],
     "charge": ["charge.qsub", "scf_al.in", "pp_charge.in"],
 }
 
 
+CASES = {"vc-relax": ("relax", {"calculation": "vc-relax"})}  # a case of FILES that is no type
+
+
 def plan(type_id, scf=None, mode="avancado", **values):
     return by_id(type_id).plan(scf or al(), {"kpath": AL_PATH, **values}, JOBS, mode)
+
+
+def case_plan(case, scf=None, **values):
+    type_id, chosen = CASES.get(case, (case, {}))
+    return plan(type_id, scf, **chosen, **values)
 
 
 def unit(text: str) -> str:
@@ -69,7 +78,6 @@ def test_registry():
     assert [t.id for t in REGISTRY] == [
         "scf",
         "relax",
-        "vc-relax",
         "bandas",
         "pdos",
         "charge",
@@ -81,8 +89,7 @@ def test_registry():
     ]
     assert [t.label for t in REGISTRY] == [
         "SCF",
-        "Relax",
-        "VC-Relax",
+        "Relaxamento",
         "Bandas",
         "PDOS",
         "Carga",
@@ -95,7 +102,6 @@ def test_registry():
     assert [t.folder_prefix for t in REGISTRY] == [
         "SCF",
         "Relax",
-        "VC-Relax",
         "Bands",
         "PDOS",
         "Charge",
@@ -108,7 +114,6 @@ def test_registry():
     assert [t.script_name for t in REGISTRY] == [
         "scf.qsub",
         "relax.qsub",
-        "vc-relax.qsub",
         "bands.qsub",
         "pdos.qsub",
         "charge.qsub",
@@ -122,14 +127,14 @@ def test_registry():
         by_id("dos")
 
 
-@pytest.mark.parametrize("type_id", FILES)
-def test_files_in_tab_order_and_fields_in_their_tabs(type_id):
-    result = plan(type_id)
+@pytest.mark.parametrize("case", FILES)
+def test_files_in_tab_order_and_fields_in_their_tabs(case):
+    result = case_plan(case)
     assert not result.errors, result.errors
-    assert [f.name for f in result.files] == FILES[type_id]
+    assert [f.name for f in result.files] == FILES[case]
     assert result.files[0].kind == "qsub" and result.files[0].tab_label.startswith("Script (")
     keys = {f.key for f in result.files}
-    for field in by_id(type_id).fields(al(), JOBS):
+    for field in by_id(CASES.get(case, (case,))[0]).fields(al(), JOBS):
         assert field.group in keys, field
 
 
@@ -157,13 +162,14 @@ def input_namelist(planned) -> str:
     return "inputpp" if planned.key.startswith("pp_") else "projwfc"
 
 
-@pytest.mark.parametrize("type_id", FILES)
-def test_inputs_lint_clean_with_the_scf_prefix_and_outdir(type_id):
+@pytest.mark.parametrize("case", FILES)
+def test_inputs_lint_clean_with_the_scf_prefix_and_outdir(case):
     for scf in (al(), ni(), from_text(SI_SCF.read_text())):
-        for planned in plan(type_id, scf, nbnd=16).files:
+        for planned in case_plan(case, scf, nbnd=16).files:
             if not planned.name.endswith(".in"):
                 continue
-            errors = [i for i in lint(planned.text).issues if i.severity == "error"]
+            # write and meaning checks (spec 104): no generated input makes pw.x stop
+            errors = [i for i in check_input(planned.text).issues if i.severity == "error"]
             assert not errors, (planned.name, errors)
             editor = InputEditor.from_text(planned.text)
             namelist = input_namelist(planned)
@@ -195,7 +201,8 @@ def test_relax_changes_only_its_keys():
     assert removed == ["    calculation = 'scf',"]
     assert added == [
         "    calculation = 'relax',",
-        "    nstep = 50",
+        "    nstep = 100",
+        "    ! restart_mode = 'restart'",
         "    forc_conv_thr = 0.001",
         "&ions",
         "  ion_dynamics = 'bfgs'",
@@ -203,34 +210,98 @@ def test_relax_changes_only_its_keys():
     ]
 
 
+def test_only_the_types_that_relax_have_nstep_and_it_starts_at_100():
+    """spec 102: ``nstep`` in the Padrão mode too, default 100 (pw.x's 50 is short for a slab)."""
+    for calc_type in REGISTRY:
+        fields = {f.id: f for f in calc_type.fields(al(), JOBS)}
+        if calc_type.id in ("relax", "slab", "supercell", "adsorption"):
+            assert (fields["nstep"].default, fields["nstep"].standard) == (100, True)
+        else:
+            assert "nstep" not in fields, calc_type.id
+
+
+def test_the_relax_input_carries_the_restart_line_as_a_comment():
+    text = text_of(plan("relax", mode="padrao"), "relax")
+    assert text.count(f"! {RESTART_COMMENT}") == 1
+    editor = InputEditor.from_text(text)
+    assert editor.get("control", "restart_mode") is None  # a comment: pw.x starts from scratch
+    assert editor.get("control", "nstep") == "100"
+    assert not lint(text).issues or all(i.severity != "error" for i in lint(text).issues)
+    vc = text_of(plan("relax", calculation="vc-relax"), "relax")
+    assert vc.count(f"! {RESTART_COMMENT}") == 1
+
+
+def test_an_scf_that_already_sets_restart_mode_gets_no_second_line():
+    scf = from_text(
+        AL_SCF.read_text().replace("outdir='./tmp' ", "outdir='./tmp', restart_mode='restart'")
+    )
+    text = text_of(plan("relax", scf), "relax")
+    assert f"! {RESTART_COMMENT}" not in text
+    assert InputEditor.from_text(text).get("control", "restart_mode") == "restart"
+
+
 def test_vc_relax_adds_cell():
-    result = plan("vc-relax", press=10, ion_dynamics="damp", cell_dynamics="damp-w")
+    cell = {"press": 10, "ion_dynamics": "damp", "cell_dynamics": "damp-w"}
+    result = plan("relax", calculation="vc-relax", **cell)
     assert not result.errors
-    editor = InputEditor.from_text(text_of(result, "vc-relax"))
+    editor = InputEditor.from_text(text_of(result, "relax"))
     assert editor.get("control", "calculation") == "vc-relax"
     assert (editor.get("cell", "cell_dynamics"), editor.get("cell", "press")) == ("damp-w", "10.0")
     assert editor.get("ions", "ion_dynamics") == "damp"
     assert not InputEditor.from_text(text_of(plan("relax"), "relax")).has_namelist("cell")
+    # Spec 95 R1.5: a relax has no &CELL, even with the cell fields typed (shown_when hides them).
+    relax = InputEditor.from_text(text_of(plan("relax", calculation="relax", **cell), "relax"))
+    assert relax.get("control", "calculation") == "relax" and not relax.has_namelist("cell")
 
 
 def test_bfgs_on_one_side_needs_it_on_the_other():
-    assert "cell_dynamics" in plan("vc-relax", cell_dynamics="damp-pr").problems
-    assert "cell_dynamics" in plan("vc-relax", ion_dynamics="damp").problems
-    assert not plan("vc-relax", ion_dynamics="damp", cell_dynamics="damp-pr").errors
-    assert not plan("vc-relax").errors
+    vc = {"calculation": "vc-relax"}
+    assert "cell_dynamics" in plan("relax", cell_dynamics="damp-pr", **vc).problems
+    assert "cell_dynamics" in plan("relax", ion_dynamics="damp", **vc).problems
+    assert not plan("relax", ion_dynamics="damp", cell_dynamics="damp-pr", **vc).errors
+    assert not plan("relax", **vc).errors
+    assert not plan("relax", cell_dynamics="damp-pr").errors  # a relax writes no &CELL
 
 
-def test_a_pair_of_the_scf_that_does_not_fit_starts_as_bfgs():
+def test_a_pair_of_the_scf_that_does_not_fit_takes_the_cell_that_does():
+    """Spec 95 R1.4: the ion_dynamics stays the SCF's (the relax keeps it); the cell_dynamics is the
+    one that goes with it, so a vc-relax of the padrao mode never starts blocked."""
     ions = "&IONS\n  ion_dynamics='damp'\n/\n"
     electrons = "&electrons\n    conv_thr =  1.0d-8\n/\n"
     text = AL_SCF.read_text().replace(electrons, electrons + ions)
     scf = from_text(text)
-    fields = {f.id: f.default for f in by_id("vc-relax").fields(scf, JOBS)}
-    assert (fields["ion_dynamics"], fields["cell_dynamics"]) == ("bfgs", "bfgs")
-    assert not plan("vc-relax", scf, mode="padrao").errors
+    fields = {f.id: f.default for f in by_id("relax").fields(scf, JOBS)}
+    assert (fields["ion_dynamics"], fields["cell_dynamics"]) == ("damp", "damp-pr")
+    assert not plan("relax", scf, mode="padrao", calculation="vc-relax").errors
     valid = from_text(text.replace(ions, ions + "&CELL\n  cell_dynamics='damp-w'\n/\n"))
-    fields = {f.id: f.default for f in by_id("vc-relax").fields(valid, JOBS)}
+    fields = {f.id: f.default for f in by_id("relax").fields(valid, JOBS)}
     assert (fields["ion_dynamics"], fields["cell_dynamics"]) == ("damp", "damp-w")
+    bfgs = from_text(
+        AL_SCF.read_text().replace(electrons, electrons + "&CELL\n  cell_dynamics='damp-w'\n/\n")
+    )
+    fields = {f.id: f.default for f in by_id("relax").fields(bfgs, JOBS)}
+    assert (fields["ion_dynamics"], fields["cell_dynamics"]) == ("bfgs", "bfgs")
+
+
+def test_the_name_follows_the_calculation():
+    """Spec 95 R2: the standard name is ``<calculation>_<prefix>.in``; a typed name stays."""
+    names = {
+        (): ["relax.qsub", "relax_al.in"],
+        (("calculation", "vc-relax"),): ["relax.qsub", "vc-relax_al.in"],
+        (("calculation", "vc-relax"), ("name:relax", "meu.in")): ["relax.qsub", "meu.in"],
+        (("calculation", "relax"), ("name:relax", "meu.in")): ["relax.qsub", "meu.in"],
+    }
+    for values, expected in names.items():
+        result = plan("relax", **dict(values))
+        assert [f.name for f in result.files] == expected, values
+    for mode in ("padrao", "avancado"):
+        result = plan("relax", mode=mode, calculation="vc-relax")
+        assert result.by_key("relax").tab_label == "Relaxamento (vc-relax_al.in)"
+    relax = by_id("relax")
+    assert relax.field_data("name:relax", al(), {"calculation": "vc-relax"}) == "vc-relax_al.in"
+    assert relax.field_data("name:relax", al(), {}) == "relax_al.in"
+    name = next(f for f in relax.fields(al(), JOBS) if f.id == "name:relax")
+    assert (name.default, name.data, name.depends_on) == (None, "relax_al.in", ("calculation",))
 
 
 def test_relax_keeps_what_the_scf_already_has():
@@ -247,7 +318,11 @@ def test_relax_keeps_what_the_scf_already_has():
     assert (fields["nstep"], fields["ion_dynamics"]) == (200, "damp")
     removed, added = changed(unit(text), text_of(plan("relax", scf), "relax"))
     assert removed == ["    calculation = 'scf',"]
-    assert added == ["    calculation = 'relax',", "    forc_conv_thr = 0.001"]
+    assert added == [
+        "    calculation = 'relax',",
+        "    ! restart_mode = 'restart'",
+        "    forc_conv_thr = 0.001",
+    ]
 
 
 def test_bands_input():
@@ -381,12 +456,15 @@ def test_pdos_smearing_gets_its_width():
 
 def test_script_fields_and_pool_warnings():
     fields = {f.id: f.default for f in by_id("bandas").fields(al(), JOBS)}
-    assert fields["job_name"] == "al" and fields["np"] == 64 and fields["nk"] == 4
-    for calc_type in REGISTRY:  # jobs.nk, the same for every type (spec 28 R2.3)
-        assert {f.id: f.default for f in calc_type.fields(al(), JOBS)}["nk"] == 4
+    assert fields["job_name"] == "al" and fields["np"] == 64 and fields["nk"] is None
+    for (
+        calc_type
+    ) in REGISTRY:  # no default: the plan computes it, whatever jobs.nk holds (spec 102)
+        pools = {f.id: f for f in calc_type.fields(al(), JOBS)}["nk"]
+        assert pools.auto and pools.default is None
         eight = JobsConfig(nk=8, cores=32)
         defaults = {f.id: f.default for f in calc_type.fields(al(), eight)}
-        assert (defaults["nk"], defaults["np"]) == (8, 32)
+        assert (defaults["nk"], defaults["np"]) == (None, 32)
     result = plan("pdos", np=10, nk=4)
     assert not result.errors
     assert any("NP = 10 não é múltiplo de nk = 4" in note for note in result.notes)

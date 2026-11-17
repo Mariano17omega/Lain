@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Project-Id-Version: Lain: QE Studio 1.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-11-10 01:41-0400\n"
-"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"POT-Creation-Date: 2026-11-17 08:38-0400\n"
+"PO-Revision-Date: 2026-11-17 08:38-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -39,7 +39,7 @@ msgstr "Waiting for your decision…"
 msgid "Ambos"
 msgstr "Both"
 
-#: core/analysis/adsorption_energy.py core/qe/summary/build.py ui/actions.py
+#: core/analysis/adsorption_report.py core/qe/summary/build.py ui/actions.py
 #: ui/dialogs/adsorption_energy.py ui/dialogs/calc_create/preview.py ui/dialogs/sync_pages.py
 msgid "Arquivo"
 msgstr "File"
@@ -109,6 +109,14 @@ msgstr "Create project"
 msgid "Criar projeto…"
 msgstr "Create project…"
 
+#: core/analysis/adsorption_report.py ui/dialogs/adsorption_energy.py
+msgid "Cutoffs (Ry)"
+msgstr "Cutoffs (Ry)"
+
+#: core/calc_create/types/slab_fields.py core/qe/summary/build.py
+msgid "Cálculo"
+msgstr "Calculation"
+
 #: core/sync/preview.py ui/dialogs/sync_pages.py
 msgid "Data no cluster"
 msgstr "Date on the cluster"
@@ -129,7 +137,7 @@ msgstr "In progress"
 msgid "Energia de adsorção"
 msgstr "Adsorption energy"
 
-#: core/analysis/adsorption_energy.py core/calculations/scf.py ui/dialogs/adsorption_energy.py
+#: core/analysis/adsorption_report.py core/calculations/scf.py ui/dialogs/adsorption_energy.py
 msgid "Energia total (Ry)"
 msgstr "Total energy (Ry)"
 
@@ -168,6 +176,10 @@ msgstr "Export"
 msgid "Fechar"
 msgstr "Close"
 
+#: core/analysis/adsorption_report.py ui/dialogs/adsorption_energy.py
+msgid "Funcional"
+msgstr "Functional"
+
 #: core/qe/summary/build.py ui/widgets/structure3d/panel.py
 msgid "Fórmula"
 msgstr "Formula"
@@ -197,10 +209,18 @@ msgstr "Clear"
 msgid "Log"
 msgstr "Log"
 
+#: core/analysis/adsorption_report.py core/qe/summary/build.py ui/dialogs/adsorption_energy.py
+msgid "Malha k"
+msgstr "k-point mesh"
+
 #: ui/dialogs/grid_dialog.py ui/widgets/cluster/jobs_popup.py ui/widgets/cluster/remote_model.py
 #: ui/widgets/files/view_controls.py
 msgid "Nome"
 msgstr "Name"
+
+#: core/qe/summary/projections.py ui/dialogs/sync_pages.py
+msgid "Nota"
+msgstr "Note"
 
 #: core/qe/scf_from_relax.py core/structure3d/cif.py
 #, python-brace-format
@@ -215,6 +235,10 @@ msgstr "Could not read {name}: {value}"
 #: core/files/file_ops.py core/plotting/grid.py
 msgid "O nome não pode conter “/”."
 msgstr "The name cannot contain “/”."
+
+#: core/analysis/adsorption_report.py ui/dialogs/adsorption_energy.py
+msgid "Ocupações"
+msgstr "Occupations"
 
 #: core/plotting/styles.py ui/dialogs/calc_create/mode_switch.py
 msgid "Padrão"
@@ -241,9 +265,13 @@ msgstr "Plot SCF"
 msgid "Plotar a convergência do SCF do arquivo aberto"
 msgstr "Plot the SCF convergence of the open file"
 
-#: core/analysis/adsorption_energy.py ui/dialogs/adsorption_energy.py
+#: core/analysis/adsorption_report.py ui/dialogs/adsorption_energy.py
 msgid "Prefixo"
 msgstr "Prefix"
+
+#: core/calc_create/types/relax.py core/calculations/relax.py
+msgid "Relaxamento"
+msgstr "Relaxation"
 
 #: ui/dialogs/rename.py ui/files/rename_controller.py ui/widgets/files/context_menu.py
 msgid "Renomear"
@@ -282,6 +310,10 @@ msgstr "Use only unaccented letters, digits, dot, hyphen and underscore in the n
 msgid "Visualização 3D"
 msgstr "3D view"
 
+#: core/analysis/level_of_theory.py core/qe/summary/build.py
+msgid "colinear (nspin=2)"
+msgstr "collinear (nspin=2)"
+
 #: core/qe/pw_output.py core/sniff.py
 msgid "execução incompleta (sem JOB DONE)"
 msgstr "incomplete run (no JOB DONE)"
@@ -297,6 +329,18 @@ msgstr[1] "nat = {nat}, but ATOMIC_POSITIONS has {count} lines"
 #: core/calc_create/types/adsorption.py ui/shell/help_controller.py
 msgid "nenhum"
 msgstr "none"
+
+#: core/analysis/consistency.py core/project/project_data.py
+msgid "nenhuma"
+msgstr "none"
+
+#: core/analysis/level_of_theory.py core/qe/input_extract.py core/qe/summary/build.py
+msgid "não colinear"
+msgstr "non-collinear"
+
+#: core/analysis/level_of_theory.py core/qe/summary/build.py
+msgid "não polarizado"
+msgstr "unpolarized"
 
 #: ui/widgets/cluster/remote_card.py ui/widgets/files/file_card.py
 msgid "pasta"
@@ -320,7 +364,7 @@ msgstr "{name} is not a pw.x input (no &SYSTEM)"
 msgid "{n} de {total}"
 msgstr "{n} of {total}"
 
-#: core/analysis/adsorption_energy.py core/calc_create/types/adsorption.py
+#: core/analysis/adsorption_report.py core/calc_create/types/adsorption.py
 #: core/calc_create/types/charge_diff.py core/calc_create/types/slab.py
 #: core/calc_create/types/supercell.py core/calculations/pdos/params.py ui/dialogs/adsorption_energy.py
 #: ui/widgets/structure3d/measures.py

@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Project-Id-Version: Lain: QE Studio 1.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-11-10 01:41-0400\n"
-"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"POT-Creation-Date: 2026-11-17 08:38-0400\n"
+"PO-Revision-Date: 2026-11-17 08:38-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -23,13 +23,21 @@ msgstr ""
 msgid " (limiar {threshold_ry:.1e})"
 msgstr " (threshold {threshold_ry:.1e})"
 
-#: core/analysis/adsorption_energy.py
+#: core/analysis/adsorption_report.py
 msgid "# Energia de adsorção"
 msgstr "# Adsorption energy"
 
-#: core/analysis/adsorption_energy.py
+#: core/analysis/adsorption_report.py
+msgid "## Avisos"
+msgstr "## Warnings"
+
+#: core/analysis/adsorption_report.py
 msgid "## Equação"
 msgstr "## Equation"
+
+#: core/analysis/adsorption_report.py
+msgid "## Notas"
+msgstr "## Notes"
 
 #: core/calculations/params.py
 msgid "(meio do gap)"
@@ -43,7 +51,7 @@ msgstr "(in the window)"
 msgid "(no caminho)"
 msgstr "(along the path)"
 
-#: core/analysis/adsorption_energy.py
+#: core/analysis/adsorption_report.py
 #, python-brace-format
 msgid "**Resultado**: {text}"
 msgstr "**Result**: {text}"
@@ -51,6 +59,10 @@ msgstr "**Result**: {text}"
 #: core/calculations/params.py
 msgid "0 = fundo da legenda opaco, 1 = invisível. Vale com a moldura ligada."
 msgstr "0 = opaque legend background, 1 = invisible. Applies with the frame on."
+
+#: core/analysis/consistency.py
+msgid "A equação não é linear nas energias: o balanço de átomos não foi conferido."
+msgstr "The equation is not linear in the energies: the atom balance was not checked."
 
 #: core/calculations/pdos/atoms.py
 #, python-brace-format
@@ -198,6 +210,10 @@ msgstr "Energy color"
 msgid "Cor força"
 msgstr "Force color"
 
+#: core/calculations/relax.py
+msgid "Cor força total"
+msgstr "Total force color"
+
 #: core/calculations/scf.py
 msgid "Cor limiar"
 msgstr "Threshold color"
@@ -238,6 +254,29 @@ msgstr "↓ color"
 msgid "Cores por"
 msgstr "Colors by"
 
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid ""
+"Correção de dipolo em {with_} e não em {without}: complexo e substrato precisam da mesma escolha,"
+" ou a diferença de energia leva o termo do dipolo."
+msgstr ""
+"Dipole correction in {with_} and not in {without}: the complex and the substrate need the same "
+"choice, or the energy difference carries the dipole term."
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid "Correção de dispersão diferente: {groups}."
+msgstr "Different dispersion correction: {groups}."
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid ""
+"Cutoffs diferentes (ecutwfc/ecutrho, Ry): {groups}. Só diferenças no mesmo cutoff cancelam o erro"
+" de base."
+msgstr ""
+"Different cutoffs (ecutwfc/ecutrho, Ry): {groups}. Only differences at the same cutoff cancel the"
+" basis-set error."
+
 #: core/calculations/info.py
 msgid "Cálculo QE"
 msgstr "QE calculation"
@@ -260,6 +299,15 @@ msgstr "Cell {number}: choose a plot."
 #, python-brace-format
 msgid "Célula {number}: posição {where} fora da grade {rows} × {cols}."
 msgstr "Cell {number}: position {where} is outside the {rows} × {cols} grid."
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid ""
+"Células diferentes: complexo ({complex}) e substrato ({substrate}). O erro da amostragem só "
+"cancela na mesma célula."
+msgstr ""
+"Different cells: complex ({complex}) and substrate ({substrate}). The sampling error only cancels"
+" in the same cell."
 
 #: core/plotting/grid.py
 #, python-brace-format
@@ -414,6 +462,10 @@ msgstr "Energy / enthalpy"
 msgid "Energia como"
 msgstr "Energy as"
 
+#: core/analysis/consistency.py
+msgid "Energia eletrônica: sem energia de ponto zero (ZPE) nem contribuição térmica."
+msgstr "Electronic energy: no zero-point energy (ZPE) and no thermal contribution."
+
 #: core/calculations/pdos/params.py
 msgid "Energia no eixo x"
 msgstr "Energy on the x axis"
@@ -510,6 +562,11 @@ msgstr "Expression too long"
 msgid "F final {force_ry_bohr:.1e} Ry/Bohr"
 msgstr "Final F {force_ry_bohr:.1e} Ry/Bohr"
 
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "F máx final {force_ry_bohr:.1e} Ry/Bohr"
+msgstr "Max F final {force_ry_bohr:.1e} Ry/Bohr"
+
 #: core/calculations/bands/params.py core/calculations/pdos/params.py
 msgid "Fermi"
 msgstr "Fermi"
@@ -537,6 +594,15 @@ msgstr "Force"
 #: core/calculations/relax.py
 msgid "Força total (Ry/Bohr)"
 msgstr "Total force (Ry/Bohr)"
+
+#: core/calculations/relax.py
+msgid "Força total (norma)"
+msgstr "Total force (norm)"
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid "Funcionais diferentes: {groups}."
+msgstr "Different functionals: {groups}."
 
 #: core/calculations/params.py
 msgid "Gap de energia na legenda"
@@ -632,9 +698,18 @@ msgstr "Magnetization"
 msgid "Magnetização (μB/célula)"
 msgstr "Magnetization (μB/cell)"
 
+#: core/calculations/relax.py
+msgid "Maior componente da força (Ry/Bohr)"
+msgstr "Largest force component (Ry/Bohr)"
+
 #: core/calculations/params.py
 msgid "Maior intervalo na janela"
 msgstr "Largest gap in the window"
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid "Malhas k diferentes: complexo ({complex}: {mesh}) e substrato ({substrate}: {mesh_2})."
+msgstr "Different k-point meshes: complex ({complex}: {mesh}) and substrate ({substrate}: {mesh_2})."
 
 #: core/calculations/params.py
 msgid "Marcações"
@@ -664,6 +739,14 @@ msgstr "Show legend"
 msgid "Método do gap"
 msgstr "Gap method"
 
+#: core/analysis/adsorption_report.py
+msgid ""
+"Nenhum aviso nas condições conferidas (cutoffs, funcional, dispersão, pseudopotenciais, "
+"ocupações, spin, célula, malha k e átomos)."
+msgstr ""
+"No warning on the conditions checked (cutoffs, functional, dispersion, pseudopotentials, "
+"occupations, spin, cell, k-point mesh and atoms)."
+
 #: core/calculations/scf.py
 msgid "Nenhum painel selecionado"
 msgstr "No panel selected"
@@ -676,6 +759,14 @@ msgstr "No complete relaxation step found."
 #, python-brace-format
 msgid "Nenhum passo de relaxamento completo em {name}."
 msgstr "No complete relaxation step in {name}."
+
+#: core/analysis/consistency.py
+msgid ""
+"Nenhuma das saídas usa correção de dispersão (vdw_corr) nem funcional vdW-DF: a fisissorção sai "
+"subestimada."
+msgstr ""
+"None of the outputs uses a dispersion correction (vdw_corr) or a vdW-DF functional: physisorption"
+" comes out underestimated."
 
 #: core/calculations/scf.py
 #, python-brace-format
@@ -712,6 +803,15 @@ msgstr ""
 msgid "Não relaxado"
 msgstr "Not relaxed"
 
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid ""
+"Ocupações diferentes: {groups}. Com smearing o \"!\" é a energia livre, e alargamentos diferentes"
+" não cancelam."
+msgstr ""
+"Different occupations: {groups}. With smearing the \"!\" energy is the free energy, and different"
+" broadenings do not cancel."
+
 #: core/analysis/expression.py
 #, python-brace-format
 msgid "Operador não permitido: {op}"
@@ -724,6 +824,17 @@ msgstr "Orbital"
 #: core/calculations/pdos/params.py
 msgid "Orientação"
 msgstr "Orientation"
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid ""
+"Os átomos não fecham: {terms}. O resultado é a energia de outra reação; com desprotonação, some a"
+" referência do H que falta (½ E(H₂), por exemplo). Uma referência numérica na equação (potencial "
+"químico) não entra nesta conta."
+msgstr ""
+"The atoms do not balance: {terms}. The result is the energy of another reaction; with a "
+"deprotonation, add the reference of the missing H (½ E(H₂), for example). A numerical reference "
+"in the equation (a chemical potential) does not enter this count."
 
 #: core/calculations/relax.py
 msgid "Otimização estrutural"
@@ -753,6 +864,10 @@ msgstr "Panels"
 #: core/calculations/relax.py
 msgid "Passo BFGS"
 msgstr "BFGS step"
+
+#: core/calculations/relax.py
+msgid "Passo da dinâmica"
+msgstr "Dynamics step"
 
 #: core/calculations/relax.py
 msgid "Passo máx."
@@ -807,6 +922,15 @@ msgstr "Projections"
 msgid "Projeções pdos_atm#*_wfc#*"
 msgstr "pdos_atm#*_wfc#* projections"
 
+#: core/analysis/level_of_theory.py
+msgid "Pseudopotenciais:"
+msgstr "Pseudopotentials:"
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid "Pseudopotencial de {element} diferente: {groups}."
+msgstr "Different pseudopotential for {element}: {groups}."
+
 #: core/calculations/pdos/params.py
 msgid "Referenciar a E_F"
 msgstr "Reference to E_F"
@@ -818,10 +942,6 @@ msgstr "Reference"
 #: core/calculations/relax.py
 msgid "Relaxado ✓"
 msgstr "Relaxed ✓"
-
-#: core/calculations/relax.py
-msgid "Relaxamento"
-msgstr "Relaxation"
 
 #: core/calculations/params.py
 msgid "Resolução PNG"
@@ -860,8 +980,8 @@ msgid "Saída de bandas (pw.x)"
 msgstr "Bands output (pw.x)"
 
 #: core/calculations/relax.py
-msgid "Saída de relax/vc-relax do pw.x com passos BFGS"
-msgstr "pw.x relax/vc-relax output with BFGS steps"
+msgid "Saída de relax/vc-relax do pw.x (BFGS ou dinâmica amortecida)"
+msgstr "pw.x relax/vc-relax output (BFGS or damped dynamics)"
 
 #: core/calculations/info.py
 msgid "Saída do QE sem tipo plotável"
@@ -942,6 +1062,15 @@ msgstr "Sum of the selected atoms"
 #: core/calculations/bands/module.py core/calculations/pdos/params.py
 msgid "Spin"
 msgstr "Spin"
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid ""
+"Spin diferente: {groups}. Confira se cada saída está no seu estado fundamental (a magnetização "
+"está no Resumo)."
+msgstr ""
+"Different spin: {groups}. Check that each output is in its ground state (the magnetization is in "
+"the Summary)."
 
 #: core/analysis/adsorption_energy.py
 msgid "Substrato"
@@ -1217,6 +1346,19 @@ msgstr "no final total energy (the SCF did not converge or the output is incompl
 msgid "sem gap {where}"
 msgstr "no gap {where}"
 
+#: core/analysis/level_of_theory.py
+msgid "sem smearing"
+msgstr "no smearing"
+
+#: core/calculations/pdos/data.py
+#, python-brace-format, python-format
+msgid ""
+"spilling de {pct} %: a base atômica deixa de fora {pct} % da carga ocupada, e a soma das "
+"projeções fica abaixo da DOS total (pdos_tot)"
+msgstr ""
+"spilling of {pct} %: the atomic basis leaves out {pct} % of the occupied charge, and the sum of "
+"the projections falls short of the total DOS (pdos_tot)"
+
 #: core/calculations/bands/render.py core/calculations/pdos/render.py
 msgid "spin polarizado"
 msgstr "spin-polarized"
@@ -1233,6 +1375,10 @@ msgstr "only the ↓ channel ({name}) was found: map it as ↑ or run bands.x wi
 #: core/calculations/bands/detection.py
 msgid "só o canal ↓ foi encontrado: rode o bands.x com spin_component = 1"
 msgstr "only the ↓ channel was found: run bands.x with spin_component = 1"
+
+#: core/analysis/adsorption_energy.py
+msgid "só saídas de SCF: a energia lida seria a da geometria inicial"
+msgstr "SCF outputs only: the energy read would be that of the initial geometry"
 
 #: core/calculations/bands/params.py
 msgid "x máx"
@@ -1288,6 +1434,13 @@ msgid_plural "{moves} passos BFGS"
 msgstr[0] "{moves} BFGS step"
 msgstr[1] "{moves} BFGS steps"
 
+#: core/calculations/relax.py
+#, python-brace-format
+msgid "{moves} passo da dinâmica amortecida"
+msgid_plural "{moves} passos da dinâmica amortecida"
+msgstr[0] "{moves} damped dynamics step"
+msgstr[1] "{moves} damped dynamics steps"
+
 #: core/calculations/bands/render.py
 #, python-brace-format
 msgid "{n_bands} bandas × {n_kpoints} pontos k"
@@ -1341,6 +1494,29 @@ msgstr ""
 #, python-brace-format
 msgid "{name}: pw.x não imprimiu os autovalores (rode o bands.x)"
 msgstr "{name}: pw.x did not print the eigenvalues (run bands.x)"
+
+#: core/analysis/consistency.py
+#, python-brace-format
+msgid ""
+"{name}: {n} k-pontos irredutíveis. Uma molécula isolada numa caixa grande só precisa de Γ "
+"(K_POINTS gamma)."
+msgstr ""
+"{name}: {n} irreducible k-points. An isolated molecule in a large box only needs Γ (K_POINTS "
+"gamma)."
+
+#: core/analysis/level_of_theory.py
+#, python-brace-format
+msgid "{n} k-ponto"
+msgid_plural "{n} k-pontos"
+msgstr[0] "{n} k-point"
+msgstr[1] "{n} k-points"
+
+#: core/analysis/level_of_theory.py
+#, python-brace-format
+msgid "{n} k-ponto irredutível"
+msgid_plural "{n} k-pontos irredutíveis"
+msgstr[0] "{n} irreducible k-point"
+msgstr[1] "{n} irreducible k-points"
 
 #: core/calculations/scf.py
 #, python-brace-format

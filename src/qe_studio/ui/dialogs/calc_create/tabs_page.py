@@ -39,7 +39,6 @@ from ....core.calc_create.types import (
     PlannedFile,
     resolve,
     shown_fields,
-    visible_fields,
 )
 from ....core.calc_create.writer import files_to_write, preview_names
 from ....core.config import JobsConfig
@@ -270,7 +269,7 @@ class TabsPage(QWidget):
         if self._naming is not None and self._tag() != self._named_tag:
             self._name_target()
         for form in self.forms:
-            form.mark(dict(self.plan.problems))
+            form.show_plan(self.plan)
         for key in self._keys:
             if key not in self._edits:
                 self._show_generated(key)
@@ -287,8 +286,9 @@ class TabsPage(QWidget):
         atoms (spec 76)."""
         if not self._depends:
             return
-        shown = {form_field.id for form_field in visible_fields(self.fields, self.mode)}
-        values = {key: value for key, value in self.values().items() if key in shown}
+        typed = self.values()
+        shown = {f.id for f in shown_fields(self.fields, self.mode, typed)}
+        values = {key: value for key, value in typed.items() if key in shown}
         resolved, __ = resolve(self._depended_fields, values)
         for field_id, depends in self._depends.items():
             now = tuple(resolved.get(key) for key in depends)

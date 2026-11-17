@@ -11,6 +11,11 @@ read. The identification is ``number of bfgs steps = k`` or, for the last SCF of
 dropped that one). The SCF after ``Final scf calculation`` (vc-relax, new plane-wave basis) is
 not a BFGS step.
 
+Damped dynamics (``damp``, ``damp-pr``, ``damp-w``; spec 101) prints none of that: its own markers
+close the step (``Entering Dynamics`` and the convergence message, see ``_DAMPED_STEP``) and the
+count is kept the BFGS way, from 0. It prints no enthalpy, and with damped ions the cell is fixed:
+nothing of the block tail (volume, cell, final coordinates) is read for them. Not read: FIRE.
+
 A BFGS block of a vc-relax is ``!`` energy, ``Total force``, the stress (``P=``), ``number of bfgs
 steps = k``, ``enthalpy new`` (of the geometry just computed) and then ``new unit-cell volume`` and
 ``CELL_PARAMETERS``, which are the geometry of step k + 1. So the pressure and the enthalpy go to
@@ -23,7 +28,7 @@ header volume is the *input* cell, wrong after ``restart_mode = 'restart'``.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -35,6 +40,7 @@ from .units import BOHR_TO_ANGSTROM, number
 NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[DEde][-+]?\d+)?"
 # etot_conv_thr (Ry), forc_conv_thr (Ry/Bohr), press_conv_thr (kbar)
 QE_DEFAULT_THRESHOLDS = (1.0e-4, 1.0e-3, 0.5)
+BFGS_DYNAMICS, DAMPED_DYNAMICS = "bfgs", "damped"  # ``RelaxData.dynamics``
 
 # Where a threshold came from: data compared and kept in the dataset, shown through ``_()``.
 HEADER, CRITERIA, INPUT, QE_DEFAULT = (
@@ -46,11 +52,25 @@ HEADER, CRITERIA, INPUT, QE_DEFAULT = (
 
 _ENERGY = re.compile(rf"^\s*!+\s*total\s+energy\s*=\s*({NUMBER})\s*Ry", re.I)
 _FORCE = re.compile(rf"\bTotal\s+force\s*=\s*({NUMBER})", re.I)
+_FORCES_HEADER = re.compile(r"Forces\s+acting\s+on\s+atoms", re.I)
+_ATOM_FORCE = re.compile(
+    rf"^\s*atom\s+(\d+)\s+type\s+\d+\s+force\s*=\s*({NUMBER})\s+({NUMBER})\s+({NUMBER})", re.I
+)
 _BFGS_STEPS = re.compile(r"\bnumber\s+of\s+bfgs\s+steps\s*=\s*(\d+)", re.I)
 _SCF_CYCLES = re.compile(r"\bnumber\s+of\s+scf\s+cycles\s*=\s*(\d+)", re.I)
 _BFGS_END = re.compile(  # "bfgs failed after …": history reset twice, convergence not achieved
     r"\bbfgs\s+(converged|failed)\s+(?:in|after)\s+(\d+)\s+scf\s+cycles\s+and\s+(\d+)\s+bfgs",
     re.I,
+)
+# Damped dynamics (``ion_dynamics = 'damp'``, ``cell_dynamics = 'damp-pr'|'damp-w'``) prints none of
+# the BFGS markers. Ions (``dynamics_module.f90``): "Entering Dynamics:    iteration = k" and, on
+# convergence, "Damped Dynamics: convergence achieved in N steps". Cell (``vcsmd.f90``): "Entering
+# Dynamics;  it = k   time = …", "convergence thresholds EPSE = … EPSF = …" at the first step and
+# "convergence achieved, Efinal=" at the end. Neither prints the enthalpy.
+_DAMPED_STEP = re.compile(r"Entering\s+Dynamics([:;])\s+(?:iteration|it)\s*=\s*(\d+)")
+_DAMPED_ION_END = re.compile(r"Damped\s+Dynamics:\s+convergence\s+achieved\s+in\s+(\d+)\s+steps")
+_DAMPED_THR = re.compile(
+    rf"convergence\s+thresholds\s+EPSE\s*=\s*({NUMBER})\s+EPSF\s*=\s*({NUMBER})", re.I
 )
 _ENERGY_THR = re.compile(rf"energy\s+convergence\s+thresh\.\s*=\s*({NUMBER})", re.I)
 _FORCE_THR = re.compile(rf"force\s+convergence\s+thresh\.\s*=\s*({NUMBER})", re.I)
@@ -71,6 +91,14 @@ _CELL_HEADER = re.compile(
 )
 
 
+def _free_peak(groups: tuple[str, ...], if_pos: Sequence[tuple[int, int, int] | None]) -> float:
+    """Largest |component| of one atom line among the components the input lets move."""
+    index = int(groups[0]) - 1
+    flags = if_pos[index] if 0 <= index < len(if_pos) else None
+    values = [abs(number(g)) for g in groups[1:]]
+    return max((v for i, v in enumerate(values) if flags is None or flags[i] != 0), default=0.0)
+
+
 def _cell_row(line: str) -> tuple[float, float, float] | None:
     tokens = line.split()
     if len(tokens) != 3:
@@ -87,15 +115,23 @@ Cell = tuple[tuple[float, float, float], ...]  # three rows, Å
 @dataclass(frozen=True)
 class RelaxStep:
     index: int  # sequential position among complete steps (the plot's X)
-    bfgs_step: int  # as printed by pw.x
+    bfgs_step: int  # ionic moves pw.x had made at this SCF (0 = the first one), BFGS or damped
     energy_ry: float
-    force_ry_bohr: float
+    force_ry_bohr: float  # ``Total force``: the norm of every component
     scf_cycles: int | None = None
     # vc-relax only (None when the run did not print it for this step)
     enthalpy_ry: float | None = None
     pressure_kbar: float | None = None
     volume_ang3: float | None = None
     cell: Cell | None = None  # rows in Å
+    # largest |component| of the per-atom forces: what the BFGS compares to ``forc_conv_thr``
+    # (None when the output has no per-atom block)
+    max_force_ry_bohr: float | None = None
+
+    @property
+    def criterion_force(self) -> float:
+        """The force the BFGS tests: the largest component, else the norm as the best stand-in."""
+        return self.force_ry_bohr if self.max_force_ry_bohr is None else self.max_force_ry_bohr
 
 
 @dataclass
@@ -111,7 +147,8 @@ class RelaxData:
     truncated_steps: int = 0
     final_scf_energy: float | None = None
     formula: str | None = None
-    bfgs_converged: bool = field(default=False, repr=False)
+    bfgs_converged: bool = field(default=False, repr=False)  # pw.x said so (BFGS or damped)
+    dynamics: str = BFGS_DYNAMICS  # or DAMPED_DYNAMICS: what closed the steps
     pressure_threshold: float = QE_DEFAULT_THRESHOLDS[2]  # press_conv_thr (kbar)
     pressure_threshold_source: str = QE_DEFAULT
     target_pressure_kbar: float = 0.0  # ``press`` of the input
@@ -141,6 +178,10 @@ class RelaxData:
         return [(delta, False) for delta in self.energy_deltas]
 
     @property
+    def has_max_force(self) -> bool:
+        return any(step.max_force_ry_bohr is not None for step in self.steps)
+
+    @property
     def has_pressure(self) -> bool:
         return any(step.pressure_kbar is not None for step in self.steps)
 
@@ -159,8 +200,13 @@ def parse_relax(
     *,
     target_pressure: float | None = None,
     press_conv_thr: float | None = None,
+    if_pos: Sequence[tuple[int, int, int] | None] | None = None,
 ) -> RelaxData:
-    """``fallback`` = (etot_conv_thr, forc_conv_thr) from the input, used when the output
+    """``if_pos`` is the input's per-atom movement flags (None where an atom has none): pw.x
+    prints the force of a frozen component but its BFGS ignores it, so the largest component is
+    taken over the free ones. Without it (no input) no largest component is computed.
+
+    ``fallback`` = (etot_conv_thr, forc_conv_thr) from the input, used when the output
     printed no thresholds; ``press_conv_thr`` likewise, ``target_pressure`` is the input's
     ``press`` (kbar, default 0)."""
     steps: list[RelaxStep] = []
@@ -178,6 +224,8 @@ def parse_relax(
     final_coords = False  # inside "Begin final coordinates" of a converged run
     cell_rows: list[tuple[float, float, float]] | None = None
     cell_scale = 1.0
+    in_forces = False  # inside the "Forces acting on atoms" block (not its verbose sub-blocks)
+    damped = damped_ions = False  # damped dynamics closed a step; ions only (a fixed cell)
 
     def close(bfgs_step: int, scf_cycles: int | None = None) -> None:
         nonlocal pending, block, carry
@@ -187,15 +235,19 @@ def parse_relax(
         if carry is not None and carry["after"] + 1 == bfgs_step:
             volume, cell = carry["volume"], carry["cell"]
         carry = None
-        block = len(steps)
+        # Damped ions print "new unit-cell volume" and final coordinates with the cell fixed: no
+        # block tail to read (it would make a vc-relax of the relax).
+        index = len(steps)
+        block = None if damped_ions else index
         steps.append(
             RelaxStep(
-                block,
+                index,
                 bfgs_step,
                 pending["energy"],
                 pending["force"],
                 scf_cycles if scf_cycles is not None else pending["scf"],
                 pressure_kbar=pending["pressure"],
+                max_force_ry_bohr=pending["fmax"],
                 volume_ang3=volume,
                 cell=cell,
             )
@@ -260,9 +312,26 @@ def parse_relax(
                 "force": None,
                 "scf": None,
                 "pressure": None,
+                "fmax": None,
             }
+            in_forces = False
             block = None
             in_header = False
+            continue
+        if in_forces:
+            if "force =" in line and (match := _ATOM_FORCE.match(line)) and pending is not None:
+                if if_pos is not None:
+                    peak = _free_peak(match.groups(), if_pos)
+                    if pending["fmax"] is None or peak > pending["fmax"]:
+                        pending["fmax"] = peak
+                continue
+            if line.strip():
+                in_forces = False
+            else:
+                continue
+        elif "Forces acting on atoms" in line and pending is not None:
+            if _FORCES_HEADER.search(line):
+                in_forces = True
             continue
         if in_header:
             if "tau(" in line:
@@ -307,6 +376,19 @@ def parse_relax(
             close(int(match.group(1)))
         elif "criteria:" in line and (match := _CRITERIA.search(line)):
             criteria = tuple(None if g is None else number(g) for g in match.groups())
+        elif "Dynamics" in line and (match := _DAMPED_STEP.search(line)):
+            # "iteration = k" counts from 1 and is printed with the SCF it follows: BFGS counts from 0
+            damped, damped_ions = True, match.group(1) == ":"
+            vc_relax = vc_relax or not damped_ions
+            close(int(match.group(2)) - 1)
+        elif "Dynamics:" in line and (match := _DAMPED_ION_END.search(line)):
+            damped = damped_ions = bfgs_converged = True
+            close(int(match.group(1)))  # the converged SCF came after N moves
+        elif "convergence achieved, Efinal=" in line:  # damped cell: no step number in the message
+            damped = vc_relax = bfgs_converged = True
+            close(steps[-1].bfgs_step + 1 if steps else 0)
+        elif "EPSE" in line and (match := _DAMPED_THR.search(line)):
+            criteria = (number(match.group(1)), number(match.group(2)), None)
         elif pending is not None and "P=" in line and (match := _PRESSURE.search(line)):
             pending["pressure"] = number(match.group(1))
     if pending is not None:
@@ -338,6 +420,7 @@ def parse_relax(
         final_scf_energy=final_energy,
         formula=format_formula(sites.species),
         bfgs_converged=bfgs_converged,
+        dynamics=DAMPED_DYNAMICS if damped else BFGS_DYNAMICS,
         pressure_threshold=thresholds[2],
         pressure_threshold_source=sources[2],
         target_pressure_kbar=target_pressure if target_pressure is not None else 0.0,
@@ -357,7 +440,7 @@ def is_relaxed(data: RelaxData) -> bool:
     if not deltas:
         return False
     last = data.steps[-1]
-    if deltas[-1][0] > data.energy_threshold or last.force_ry_bohr > data.force_threshold:
+    if deltas[-1][0] > data.energy_threshold or last.criterion_force > data.force_threshold:
         return False
     if data.calculation != "vc-relax":
         return True
@@ -373,9 +456,14 @@ def read_relax(
     *,
     target_pressure: float | None = None,
     press_conv_thr: float | None = None,
+    if_pos: Sequence[tuple[int, int, int] | None] | None = None,
 ) -> RelaxData:
     """Stream ``path`` (never read whole: vc-relax outputs can be huge)."""
     with open(path, encoding="utf-8", errors="replace") as handle:
         return parse_relax(
-            handle, fallback, target_pressure=target_pressure, press_conv_thr=press_conv_thr
+            handle,
+            fallback,
+            target_pressure=target_pressure,
+            press_conv_thr=press_conv_thr,
+            if_pos=if_pos,
         )

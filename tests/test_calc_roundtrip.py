@@ -146,10 +146,11 @@ def test_charge_diff_folder_is_written_whole_and_gets_the_scf_badge(tmp_path):
 
 
 def test_slab_folder_is_detected_as_a_vc_relax(tmp_path):
-    """Spec 40: the slab's input is a pw.x vc-relax; with its output next to it, the folder is a relax
-    whose input is that file (``geracao.md`` is taken for nothing)."""
+    """Spec 40: the slab's input, a pw.x vc-relax when chosen (spec 95); with its output next to it,
+    the folder is a relax whose input is that file (``geracao.md`` is taken for nothing)."""
     calc = by_id("slab")
-    created = create_folder(tmp_path, calc, "kao", calc.plan(read(BULK), {}, JOBS))
+    values = {"calculation": "vc-relax"}
+    created = create_folder(tmp_path, calc, "kao", calc.plan(read(BULK), values, JOBS))
     folder = created.folder
     assert folder.name == "Slab_kao"
     assert [p.name for p in created.files] == ["slab.qsub", "vc-relax_kaolinite.in", "geracao.md"]
@@ -162,9 +163,10 @@ def test_slab_folder_is_detected_as_a_vc_relax(tmp_path):
 
 
 def test_supercell_folder_is_detected_as_a_vc_relax(tmp_path):
-    """Spec 41: the supercell's input is a pw.x vc-relax too, named by the SCF's prefix."""
+    """Spec 41: the supercell's input is a pw.x vc-relax too when chosen, named by the SCF's prefix."""
     calc = by_id("supercell")
-    created = create_folder(tmp_path, calc, "kao", calc.plan(read(SLAB_001), {}, JOBS))
+    values = {"calculation": "vc-relax"}
+    created = create_folder(tmp_path, calc, "kao", calc.plan(read(SLAB_001), values, JOBS))
     folder = created.folder
     assert folder.name == "Supercell_kao"
     name = "vc-relax_kaolinite-slab-001"

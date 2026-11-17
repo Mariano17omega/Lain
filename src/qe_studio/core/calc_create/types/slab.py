@@ -1,12 +1,14 @@
-"""Slab: the bulk's SCF with one axis stretched to open vacuum, as a vc-relax (spec 40).
+"""Slab: the bulk's SCF with one axis stretched to open vacuum, as a relax or a vc-relax (spec 40, 95).
 
 Stage 1 of the user's scripts (``qe_slab_surface.generate_surface``): no Miller plane is cut, the bulk
 cell keeps its layer and one axis grows until the vacuum above it is the one asked for (the minimum,
 plus the height of a molecule and the adsorption distance when the molecule's SCF is given). The
 geometry is ``surface/`` (``make_slab``, ``fixed_atoms``, ``rescale_mesh``); this module reads the
-fields, writes the input (``vc-relax_<prefix>.in``, ``prefix = '<prefix>-slab-<hkl>'``,
-``cell_dofree``) and ``geracao.md``. The plan always has its three files: when the structure cannot be
-built, the input is the SCF with the vc-relax edits and the report says why.
+fields, writes the input (``relax_<prefix>.in``, or ``vc-relax_<prefix>.in`` with ``cell_dofree``;
+``prefix = '<prefix>-slab-<hkl>'``) and ``geracao.md``. A relax is the default: a crystal's surface keeps
+the bulk's lattice parameter in its plane, which a vc-relax would let the surface stress shrink (spec 95).
+The plan always has its three files: when the structure cannot be built, the input is the SCF with the
+relaxation's edits and the report says why.
 """
 
 from __future__ import annotations
@@ -29,12 +31,16 @@ from ..surface.report import decimal, report_file
 from ..surface.slab import AXES, HKL, NEED_O_H, NO_BULK_H, SlabOptions, SlabResult, make_slab
 from ..surface.write import put_structure
 from .base import FormField, PlannedFile, Work
+from .dipole_fields import apply_dipole, dipole_fields
+from .relax import INPUT_KEY, RelaxType
 from .slab_fields import (
     AXIS_OF,
     COMPLETE_LABEL,
     DEFAULT_CELL_DOFREE,
     METALS_LABEL,
+    SURFACE_CALCULATION_TOOLTIP,
     asks_mesh,
+    calculation_fact,
     dofree_field,
     mesh_field,
     non_orthogonal_notes,
@@ -51,7 +57,7 @@ from .surface_fields import (
     fixed_for,
     labels_of,
 )
-from .vc_relax import VcRelaxType
+from .vc_relax import VC_RELAX
 
 __all__ = ["SlabType"]
 
@@ -66,32 +72,42 @@ FIELD_OF_ERROR = {NEED_O_H: "complete", NO_BULK_H: "complete"}  # the field a Su
 Facts = list[tuple[str, str]]  # the lines of geracao.md
 
 
-class SlabType(VcRelaxType):
+class SlabType(RelaxType):
     id: ClassVar[str] = "slab"
     label: ClassVar[str] = "Slab"
     folder_prefix: ClassVar[str] = "Slab"
     script_stem: ClassVar[str] = "slab"
-    script_template: ClassVar[str] = "qsub/vc-relax.qsub.j2"
+    script_template: ClassVar[str] = "qsub/relax.qsub.j2"
     scf_label: ClassVar[str] = _("SCF do bulk")
     writes_report: ClassVar[bool] = True
+    calculation_tooltip: ClassVar[str] = SURFACE_CALCULATION_TOOLTIP
 
     def input_fields(self, scf: ScfInfo) -> list[FormField]:
-        group = self.calculation
-        relax = [form_field for form_field in super().input_fields(scf) if form_field.id != "kmesh"]
-        mesh = mesh_field(group, standard=asks_mesh(scf))
-        return [*surface_fields(), mesh, *relax, dofree_field(group)]
+        relax = [form_field for form_field in self.relax_fields(scf) if form_field.id != "kmesh"]
+        mesh = mesh_field(INPUT_KEY, standard=asks_mesh(scf))
+        return [
+            *surface_fields(),
+            *self.choice_fields(scf),
+            *dipole_fields(scf),  # as the SCF has them: off for a bulk's (spec 105)
+            mesh,
+            *relax,
+            dofree_field(INPUT_KEY),
+        ]
 
     def inputs(self, work: Work) -> list[PlannedFile]:
         scf, values = work.scf, work.values
         axis = AXIS_OF.get(values["axis"] or "", "c")
-        facts: Facts = [(_("SCF de origem"), scf.name)]
+        calculation = self.chosen(work)
+        dofree = values["cell_dofree"] or DEFAULT_CELL_DOFREE
+        facts: Facts = [(_("SCF de origem"), scf.name), calculation_fact(calculation, dofree)]
         options = self._options(work, axis, facts)
         editor = work.editor()
+        built: tuple[Model, bool] | None = None
         try:
             if options.vacuum <= 0 and work.errors:
                 pass  # a field already marked invalid made the vacuum 0: its error is the one shown
             else:
-                self._structure(work, editor, options, facts)
+                built = self._structure(work, editor, options, facts)
         except SurfaceError as exc:
             field_id = FIELD_OF_ERROR.get(str(exc))
             if field_id is not None:
@@ -100,10 +116,13 @@ class SlabType(VcRelaxType):
                 work.errors.append(str(exc))
             facts.append((_("Estrutura não gerada"), str(exc)))
         self.edit(editor, work)
-        put_string(editor, "cell", "cell_dofree", values["cell_dofree"] or DEFAULT_CELL_DOFREE)
+        if calculation == VC_RELAX:
+            put_string(editor, "cell", "cell_dofree", dofree)
+        model, one_side = built if built is not None else (None, False)
+        apply_dipole(work, editor, model, facts, vc=calculation == VC_RELAX, polar=one_side)
         put_text(editor, "control", "prefix", f"{scf.prefix}-slab-{HKL[axis]}")
         self._kpoints(work, editor, axis, facts)
-        return [work.pw_file(self.calculation, editor), report_file(facts)]
+        return [work.pw_file(INPUT_KEY, editor), report_file(facts)]
 
     # -- the pieces of ``inputs`` ------------------------------------------------------------------
     def _options(self, work: Work, axis: str, facts: Facts) -> SlabOptions:
@@ -177,7 +196,9 @@ class SlabType(VcRelaxType):
 
     def _structure(
         self, work: Work, editor: InputEditor, options: SlabOptions, facts: Facts
-    ) -> None:
+    ) -> tuple[Model, bool]:
+        """Write the slab; returns it and whether one side is fixed (the relaxed slab is then
+        asymmetric along c whatever the bulk's symmetry)."""
         scf = work.scf
         bulk = model_of(scf)
         stack = AXES[options.axis][1]
@@ -196,10 +217,12 @@ class SlabType(VcRelaxType):
         fix = fixed_for(work, result.model, rule, options.bond_scale)
         model = apply_fix(result.model, fix, rule) if fix is not None else result.model
         work.notes.extend(put_structure(editor, model, species_rows(scf.text)))
-        dofree = work.values["cell_dofree"] or DEFAULT_CELL_DOFREE
-        work.notes.extend(non_orthogonal_notes(dofree, model.cell))
+        if self.chosen(work) == VC_RELAX:  # a relax keeps the cell: nothing constrains it
+            dofree = work.values["cell_dofree"] or DEFAULT_CELL_DOFREE
+            work.notes.extend(non_orthogonal_notes(dofree, model.cell))
         work.notes.extend(bond_notes(result, options))
         facts += structure_facts(model, result, options, rule, fix)
+        return model, rule == BOTTOM and fix is not None and bool(fix.indices)
 
     def _electrons_added(self, work: Work, editor: InputEditor, pairs: int) -> None:
         """The O + H pairs bring electrons the SCF's ``nbnd`` did not count: pw.x's default does. Each

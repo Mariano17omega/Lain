@@ -16,7 +16,7 @@ flowchart TD
 ## Ordem sugerida
 
 1. **SCF** com cutoffs e malha k testados. É a base: quase todo tipo do "Criar cálculo" parte de um SCF.
-2. **Relax** (posições) ou **VC-Relax** (posições + célula). Acompanhe `|ΔE|` e força no [gráfico de relax](plots/relax.md).
+2. **Relaxamento**: relax (posições) ou vc-relax (posições + célula). Acompanhe `|ΔE|` e força no [gráfico de relax](plots/relax.md).
 3. **SCF convergido**: do menu de contexto da saída de um relax/vc-relax convergido, "Gerar SCF convergido" cria o `.in`
    com a estrutura final.
 4. A partir do SCF final:

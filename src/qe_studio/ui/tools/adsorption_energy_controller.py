@@ -17,7 +17,8 @@ from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
-from ...core.analysis.adsorption_energy import EnergyRow, calculate, read_rows, save_report
+from ...core.analysis.adsorption_energy import EnergyRow, calculate, read_rows
+from ...core.analysis.adsorption_report import save_report
 from ...core.tasks import TaskGroup
 from ...i18n import _
 from ..dialogs.adsorption_energy import TITLE, AdsorptionEnergyDialog

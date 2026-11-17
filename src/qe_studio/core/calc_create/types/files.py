@@ -10,7 +10,9 @@ with ``.out``, and the script runs the names chosen.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from ....i18n import _
 from ..scf_info import ScfInfo
@@ -22,6 +24,7 @@ __all__ = [
     "check_names",
     "name_field",
     "name_field_id",
+    "named_input",
     "pw_input",
     "unit_stem",
 ]
@@ -35,11 +38,20 @@ _NAME = re.compile(r"[A-Za-z0-9._-]+")
 @dataclass(frozen=True)
 class InputFile:
     key: str
-    name: str  # the standard name
+    name: str  # the standard name (with ``named_by``: the one of the choice's default)
     label: str = ""  # the tab is "<label> (<name>)", or the name alone
+    # The id of the choice field whose value is the ``<calculation>`` of the name (spec 95 R2), and
+    # the rest of it: the name is then ``<value>_<stem>.in``.
+    named_by: str = ""
+    stem: str = ""
 
     def tab_label(self, name: str) -> str:
         return f"{self.label} ({name})" if self.label else name
+
+    def standard(self, values: Mapping[str, Any]) -> str:
+        """The standard name for the values resolved: ``<value of named_by>_<stem>.in``, else ``name``."""
+        value = values.get(self.named_by) if self.named_by else None
+        return f"{value}_{self.stem}{INPUT_SUFFIX}" if value else self.name
 
 
 def unit_stem(prefix: str) -> str:
@@ -47,25 +59,43 @@ def unit_stem(prefix: str) -> str:
     return _UNSAFE.sub("_", prefix.strip()) or "pwscf"
 
 
-def pw_input(key: str, calculation: str, scf: ScfInfo, label: str) -> InputFile:
-    """A pw.x input of the pattern: ``<calculation>_<prefix>.in``."""
-    return InputFile(key, f"{calculation}_{unit_stem(scf.prefix)}{INPUT_SUFFIX}", label)
+def pw_input(key: str, calculation: str, scf: ScfInfo, label: str, named_by: str = "") -> InputFile:
+    """A pw.x input of the pattern: ``<calculation>_<prefix>.in``; with ``named_by``, the
+    ``<calculation>`` is the value of that choice field (``calculation`` is its default)."""
+    stem = unit_stem(scf.prefix)
+    return InputFile(key, f"{calculation}_{stem}{INPUT_SUFFIX}", label, named_by, stem)
 
 
 def name_field_id(key: str) -> str:
     return f"name:{key}"
 
 
-def name_field(input_file: InputFile) -> FormField:
+def name_field(input_file: InputFile, defaults: Mapping[str, Any] | None = None) -> FormField:
+    """The "Nome do arquivo" of an input. One named by a choice starts empty: its standard name
+    (the ``data``, which the placeholder shows) follows the choice (spec 95 R2.2)."""
+    tooltip = _("Nome do input na pasta nova (termina em .in); a saída tem o mesmo nome com .out")
+    field_id = name_field_id(input_file.key)
+    if input_file.named_by:
+        return FormField(
+            field_id,
+            NAME_LABEL,
+            "text",
+            None,
+            group=input_file.key,
+            tooltip=tooltip,
+            data=input_file.standard(defaults or {}),
+            depends_on=(input_file.named_by,),
+        )
     return FormField(
-        name_field_id(input_file.key),
-        NAME_LABEL,
-        "text",
-        input_file.name,
-        group=input_file.key,
-        tooltip=_(
-            "Nome do input na pasta nova (termina em .in); a saída tem o mesmo nome com .out"
-        ),
+        field_id, NAME_LABEL, "text", input_file.name, group=input_file.key, tooltip=tooltip
+    )
+
+
+def named_input(inputs: list[InputFile], field_id: str) -> InputFile | None:
+    """The input named by a choice whose "Nome do arquivo" is ``field_id``, or None."""
+    return next(
+        (f for f in inputs if f.named_by and name_field_id(f.key) == field_id),
+        None,
     )
 
 
@@ -88,7 +118,7 @@ def check_names(work: Work, script_name: str) -> dict[str, str]:
     owners: dict[str, str] = {script_name: ""}  # name → the field that took it first
     for key, input_file in work.inputs.items():
         field_id = name_field_id(key)
-        name = work.values.get(field_id) or input_file.name
+        name = work.values.get(field_id) or input_file.standard(work.values)
         work.names[key] = name
         problem = _problem(name)
         if problem is None and name in owners:

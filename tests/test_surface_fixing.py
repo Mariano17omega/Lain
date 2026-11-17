@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from qe_studio.core.calc_create.kpath import KMesh
 from qe_studio.core.calc_create.surface import SurfaceError
@@ -15,7 +17,7 @@ from qe_studio.core.calc_create.surface.fixing import (
     apply_fix,
     fixed_atoms,
 )
-from qe_studio.core.calc_create.surface.kmesh import rescale_mesh
+from qe_studio.core.calc_create.surface.kmesh import UnevenAxis, rescale_mesh, uneven_axes
 from qe_studio.core.calc_create.surface.model import model_of
 from qe_studio.core.calc_create.surface.slab import SlabOptions, make_slab
 
@@ -78,6 +80,34 @@ def test_rescale_mesh():
     assert rescale_mesh(KMesh((6, 4, 4)), {0: 0, 1: 1}, {0: 2}) == KMesh((3, 4, 1))
     assert rescale_mesh(KMesh((6, 4, 4), (1, 0, 1)), {0: 1, 1: 2}) == KMesh((4, 4, 1), (0, 1, 0))
     assert rescale_mesh(KMesh((1, 1, 1)), {0: 0, 1: 1}, {0: 2, 1: 3}) == KMesh((1, 1, 1))
+
+
+def test_rescale_mesh_rounds_up_never_to_the_even_number():
+    """Python's ``round`` gave 5 / 2 → 2 and 3 / 2 → 2: a mesh sparser than the SCF's."""
+    axes = {0: 0, 1: 1}
+    assert rescale_mesh(KMesh((5, 5, 5)), axes, {0: 2, 1: 2}) == KMesh((3, 3, 1))
+    assert rescale_mesh(KMesh((3, 7, 1)), axes, {0: 2, 1: 2}) == KMesh((2, 4, 1))
+    bulk = {0: 0, 1: 1, 2: 2}
+    assert rescale_mesh(
+        KMesh((5, 4, 5), (1, 0, 1)), bulk, {0: 2, 1: 2, 2: 1}, vacuum_axis=None
+    ) == KMesh((3, 2, 5), (1, 0, 1))
+
+
+@given(n=st.integers(1, 40), multiple=st.integers(1, 8))
+def test_a_rescaled_axis_is_never_sparser_than_the_scf(n, multiple):
+    new = rescale_mesh(KMesh((n, n, n)), {0: 0}, {0: multiple}).n[0]
+    assert new * multiple >= n > (new - 1) * multiple
+
+
+def test_uneven_axes_name_what_was_rounded_up():
+    axes = {0: 0, 1: 1}
+    assert uneven_axes(KMesh((5, 4, 1)), axes, {0: 2, 1: 2}) == (UnevenAxis(0, 5, 2, 3),)
+    assert uneven_axes(KMesh((6, 4, 1)), axes, {0: 2, 1: 2}) == ()
+    assert uneven_axes(KMesh((5, 5, 1)), axes) == ()  # no multiple: nothing is divided
+    assert uneven_axes(KMesh((5, 5, 5)), {0: 0, 1: 1, 2: 2}, {0: 1, 1: 3, 2: 2}, None) == (
+        UnevenAxis(1, 5, 3, 2),
+        UnevenAxis(2, 5, 2, 3),
+    )
 
 
 def test_a_slab_across_the_cell_edge_fixes_the_same_atoms():

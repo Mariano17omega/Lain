@@ -31,6 +31,7 @@ from qe_studio.core.qe.bands_x import BandsFormatError, gnu_shape, read_gnu_text
 from qe_studio.core.qe.input_edit import InputEditor, unquote
 from qe_studio.core.qe.input_lexer import LexState, scan_line
 from qe_studio.core.qe.input_lint import _lint
+from qe_studio.core.qe.input_semantics import _check_input
 from qe_studio.core.qe.pw_input import parse_kpoints
 from qe_studio.core.qe.pw_output import parse_pw_output
 from qe_studio.core.qe.relax import parse_relax
@@ -307,6 +308,28 @@ def test_lint_never_raises_and_its_issues_point_inside_the_text(text):
     )
 
 
+# Lines a pw.x input is made of, so random inputs reach every meaning check (spec 104).
+PW_LINES = st.sampled_from(
+    ["&control", "&system", "&ions", "&cell", "/", "calculation = 'relax'", "calculation = 'vc-relax'",
+     "calculation = 'cp'", "ecutwfc = 30", "ecutwfc = 0", "ecutrho = 20", "ecutrho = 1e999", "nspin = 2",
+     "occupations = 'smearing'", "degauss = 0", "nat = 2", "nat = 1e9", "ibrav = 2", "ibrav = 0",
+     "celldm(1) = 10.2", "A = 0", "ATOMIC_SPECIES", "Si 28 Si.pbe-kjpaw.UPF", "ATOMIC_POSITIONS crystal",
+     "Si 0 0 0", "Si 0.25 0.25 x", "K_POINTS automatic", "4 4 1 0 0 0", "1 1 1", "CELL_PARAMETERS bohr",
+     "1 0 0", "0 0 0", "", "! x", "'"]
+)  # fmt: skip
+
+
+@given(st.lists(PW_LINES, max_size=40).map("\n".join))
+def test_check_input_never_raises_and_keeps_its_issues_sorted_inside_the_text(text):
+    doc = _check_input(text)  # not `check_input`: that one swallows bugs
+    lines = text.split("\n")
+    for issue in doc.issues:
+        assert 1 <= issue.line <= len(lines)
+        assert 0 <= issue.col_start <= issue.col_end <= len(lines[issue.line - 1])
+    keys = [(i.line, i.col_start, i.col_end) for i in doc.issues]
+    assert keys == sorted(keys)
+
+
 @given(st.text(max_size=120), st.integers(-1, 20))
 def test_scan_line_is_total_for_any_line_and_block_state(line, code):
     state = LexState.from_code(code)
@@ -405,6 +428,7 @@ SUMMARY_RUNS = [
     (FIXTURES / "al_bands" / "al.scf.out").read_text(),
     (FIXTURES / "kao_vc_relax" / "vc-relax.out").read_text(),
     (FIXTURES / "al_bands" / "bands.out").read_text(),
+    (FIXTURES / "qe731_ni_spin_pdos" / "ni.pdos.out").read_text(),  # the Löwdin block (spec 99)
 ]
 # Lines that matter to the scanner's state machine, so that random text reaches its branches
 # (error block, message + next line, pseudopotential + next line, stress rows after P=).
@@ -420,7 +444,14 @@ SUMMARY_PIECES = st.sampled_from(
      "     iteration #  1     ecut=   100.00 Ry     beta= 0.70\n",
      "     convergence has been achieved in   4 iterations\n",
      "     bfgs converged in  25 scf cycles and  24 bfgs steps\n",
-     "     new unit-cell volume =   2253.94778 a.u.^3 (   334.00060 Ang^3 )\n"]
+     "     new unit-cell volume =   2253.94778 a.u.^3 (   334.00060 Ang^3 )\n",
+     "     Program PROJWFC v.7.3.1 starts on  3Oct2026 at 19:11: 4\n", "Lowdin Charges: \n",
+     "     state #   1: atom   1 (Ni ), wfc  1 (l=0 m= 1 s_z= 0.5)\n",
+     "     Atom #   1: total charge =   9.8838, s =  0.9412, d =  8.9426, \n",
+     "     Atom # ***: total charge =   2.9570, p =  2.0251, pz=  0.6750, \n",
+     "                   spin up      =   5.2970, s =  0.4649, \n",
+     "                   polarization =   0.7103, s = -0.0114, \n",
+     "     Spilling Parameter: ********\n", "     Spilling Parameter:   0.0612\n"]
 )  # fmt: skip
 
 

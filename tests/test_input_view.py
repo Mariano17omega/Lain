@@ -171,7 +171,7 @@ def test_banner_counts_the_problems(qtbot, main_window, tmp_path):
     viewer = open_text(qtbot, main_window, write(tmp_path, BROKEN))
     view = viewer.input_view
     assert not view.isHidden()
-    assert view.issues_label.text() == "2 problemas de escrita no input"
+    assert view.issues_label.text() == "2 problemas no input"
     assert view.issues_bar.property("level") == "error"
     assert viewer.banner_bar.isHidden()  # the notice about the file itself stays apart
 
@@ -179,8 +179,18 @@ def test_banner_counts_the_problems(qtbot, main_window, tmp_path):
 def test_one_problem_in_the_singular_and_warnings_are_not_errors(qtbot, main_window, tmp_path):
     only_warning = "&control\n/\n&control\n/\n&system\n/\n&electrons\n/\n"
     viewer = open_text(qtbot, main_window, write(tmp_path, only_warning))
-    assert viewer.input_view.issues_label.text() == "1 problema de escrita no input"
+    assert viewer.input_view.issues_label.text() == "1 problema no input"
     assert viewer.input_view.issues_bar.property("level") == "warning"
+
+
+def test_a_meaning_error_is_marked_and_counted(qtbot, main_window, tmp_path):
+    """Spec 104: pw.x stops on nspin = 2 without a starting magnetization; the viewer says so."""
+    viewer = open_text(
+        qtbot, main_window, write(tmp_path, "&control\n/\n&system\n  nspin = 2\n/\n&electrons\n/\n")
+    )
+    assert viewer.input_view.issues_label.text() == "1 problema no input"
+    assert viewer.input_view.issues_bar.property("level") == "error"
+    assert sorted(viewer.editor.diagnostics) == [3]  # the block of line 4
 
 
 def test_margin_marks_the_lines_and_makes_room(qtbot, main_window, tmp_path):

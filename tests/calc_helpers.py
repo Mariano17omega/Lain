@@ -20,6 +20,10 @@ NI_SCF = FIXTURES / "qe731_ni_spin_bands" / "ni.scf.in"
 SI_SCF = FIXTURES / "si_bands" / "si.scf.in"
 # A run of the scripts (spec 86 R3): the input by its variable, the output the same name in ``.out``.
 RUN = re.compile(r'-i "\$\{(\w+)\}" > "\$\{\1%\.in\}\.out"')
+# What Lain adds to the cluster's model (spec 103): the function, after a blank line, and one
+# ``check_step`` line under each program.
+CHECK_FUNCTION = re.compile(r"\n# Lain: .*?\n\}\n", re.DOTALL)
+CHECK_LINE = re.compile(r'^check_step \$\? "[^"\n]*"\n', re.MULTILINE)
 SCRIPT_INPUT = re.compile(r'^(QE_INPUTFILE\w*)="([^"]*)"$', re.MULTILINE)
 
 # The path of tests/fixtures/al_bands/al.band.in (L G X U G, weights 20 30 10 30 20).
@@ -99,3 +103,8 @@ def expanded(script: str) -> str:
         script = script.replace(f"${{{variable}}}", name)
         script = script.replace(f"${{{variable}%.in}}", name.removesuffix(".in"))
     return script
+
+
+def without_checks(script: str) -> str:
+    """``script`` without the step checks Lain adds to the cluster's model (spec 103)."""
+    return CHECK_LINE.sub("", CHECK_FUNCTION.sub("", script, count=1))

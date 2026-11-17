@@ -223,7 +223,7 @@ __marimo__/
 # install.sh: the backups of a reconfigured config.yaml (config.yaml.bak, .bak_2...) and its temp file
 /config.yaml.bak*
 /.config.yaml.*
-/screenshots/
+
 # Lain: paths.data of a config.yaml in the checkout (spec 61)
 /data/
 

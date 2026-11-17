@@ -63,7 +63,6 @@ def test_without_a_name_the_folder_is_the_prefix(tmp_path):
     assert names == [
         "SCF",
         "Relax",
-        "VC-Relax",
         "Bands",
         "PDOS",
         "Charge",

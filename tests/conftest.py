@@ -22,6 +22,8 @@ os.environ["QE_STUDIO_LANGUAGE"] = "pt_BR"
 os.environ["QE_STUDIO_NO_CHECKOUT_CONFIG"] = "1"
 
 FIXTURES = Path(__file__).parent / "fixtures"
+# Real runs of QE's own examples: read by the test_qe_examples_* modules, kept apart from the rest.
+QE_EXAMPLES = FIXTURES / "qe_examples"
 
 # Runner time varies, so Hypothesis never fails a test on its deadline. CI sets
 # HYPOTHESIS_PROFILE=ci for fewer examples and no example database.
@@ -114,6 +116,11 @@ def _cluster_guard(tmp_path_factory, monkeypatch):
     yield guard
     if guard.violations:
         pytest.fail("\n".join(guard.violations))
+
+
+def own_fixtures(pattern: str = "*") -> list[Path]:
+    """The files of ``fixtures/`` matching ``pattern``, without the ``qe_examples/`` corpus."""
+    return sorted(p for p in FIXTURES.rglob(pattern) if QE_EXAMPLES not in p.parents)
 
 
 def copy_fixture(name: str, dest: Path) -> Path:

@@ -14,7 +14,7 @@ import dataclasses
 from collections.abc import Mapping
 
 from ..qe.input_lexer import LintIssue
-from ..qe.input_lint import lint
+from ..qe.input_semantics import check_input
 from ..sniff import INPUT_READ_LIMIT
 from ..viewer.qsub_lint import lint_script
 from .types.base import CalcPlan, CalcType
@@ -63,11 +63,11 @@ def apply_overrides(plan: CalcPlan, texts: Mapping[str, str], calc_type: CalcTyp
 
 
 def edit_issues(kind: str, text: str) -> list[LintIssue]:
-    """The write problems of an edited file: ``lint_script`` for the script, the input linter for
-    the inputs, none for the report (Markdown). None above the text viewer's limit
+    """The problems of an edited file: ``lint_script`` for the script, the write and meaning checks
+    for the inputs (``check_input``, spec 104), none for the report (Markdown). None above the text viewer's limit
     (``INPUT_READ_LIMIT``). They never block "Criar"."""
     if len(text) > INPUT_READ_LIMIT or kind == "report":
         return []
     if kind == "qsub":
         return lint_script(text)
-    return list(lint(text).issues)
+    return list(check_input(text).issues)

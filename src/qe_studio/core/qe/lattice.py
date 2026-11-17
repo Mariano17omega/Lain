@@ -7,7 +7,8 @@ reciprocal vectors pw.x derives from them.
 
 Only what a band path needs is read: the cell, the species label of each site and its fractional
 position. Errors are ``StructureError`` with a Portuguese sentence. ``position_flags`` reads the
-``if_pos`` flags of the same card, for what shows or copies them.
+``if_pos`` flags of the same card, for what shows or copies them. ``vacuum_gaps`` measures the widest
+empty gap along each axis (from the Slab's geometry, spec 40; here since spec 104, for the input checks).
 """
 
 from __future__ import annotations
@@ -25,16 +26,21 @@ __all__ = [
     "BOHR_ANGSTROM",
     "Crystal",
     "Flags",
+    "MIN_SURFACE_GAP",
     "StructureError",
     "cell_vectors",
     "celldm_from_abc",
+    "interplanar",
     "position_flags",
+    "vacuum_gaps",
+    "widest_gap",
 ]
 
 Flags = tuple[int, int, int]
 
 _SR2 = 1.414213562373  # the constants latgen uses, digits included
 _SR3 = 1.732050807569
+MIN_SURFACE_GAP = 5.0  # Å: an empty gap shorter than this is no surface's vacuum
 IBRAVS = frozenset({0, 1, 2, 3, -3, 4, 5, -5, 6, 7, 8, 9, -9, 91, 10, 11, 12, -12, 13, -13, 14})
 
 
@@ -272,3 +278,31 @@ def position_flags(editor: InputEditor) -> tuple[Flags | None, ...]:
     nat = fortran_int(editor.get("system", "nat"))
     lines = card.lines if nat is None else card.lines[:nat]
     return tuple(_flags(line.split()) for line in lines)
+
+
+# -- empty gaps (spec 40 R2.3; here since spec 104, for the input checks) -------------------------
+def interplanar(cell: np.ndarray) -> np.ndarray:
+    """The distance between the lattice planes of each axis: ``V / |a_j × a_k|``."""
+    volume = abs(float(np.linalg.det(cell)))
+    return np.array(
+        [volume / np.linalg.norm(np.cross(cell[(a + 1) % 3], cell[(a + 2) % 3])) for a in range(3)]
+    )
+
+
+def widest_gap(values: np.ndarray) -> tuple[float, float]:
+    """The widest empty gap of the fractions ``values`` along one axis, across the cell edge too:
+    ``(start, width)``, the fraction of the atom below it (in [0, 1)) and its width (1 with no atom)."""
+    values = np.sort(np.asarray(values, float).reshape(-1) % 1.0)
+    if not len(values):
+        return 0.0, 1.0
+    steps = np.diff(np.append(values, values[0] + 1.0))
+    best = int(np.argmax(steps))
+    return float(values[best]), float(steps[best])
+
+
+def vacuum_gaps(cell: np.ndarray, frac: np.ndarray) -> tuple[float, float, float]:
+    """The widest empty gap along each axis (Å, between atom centres, across the cell edge too)."""
+    spacing = interplanar(cell)
+    frac = np.asarray(frac, float).reshape(-1, 3)
+    gaps = [widest_gap(frac[:, axis])[1] * float(spacing[axis]) for axis in range(3)]
+    return gaps[0], gaps[1], gaps[2]

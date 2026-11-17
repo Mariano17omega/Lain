@@ -323,6 +323,7 @@ def test_params_schema_and_export_stem():
     schema = RELAX.param_schema(dataset)
     assert {f.name for f in schema if f.section == "relaxation"} == {
         "panels",
+        "show_total_force",
         "scale",
         "show_thresholds",
     }
@@ -348,13 +349,13 @@ def test_relax_plot_file_round_trip(tmp_path):
 def test_summaries():
     _r, si, _p = load(FIXTURES / "si_relax")
     assert RELAX.summary(si) == (
-        "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr"
+        "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F máx final 2.0e-08 Ry/Bohr"
     )
     _r, vc, _p = load(FIXTURES / "kao_vc_relax")
     assert "24 passos BFGS" in RELAX.summary(vc)
     assert RELAX.summary(vc).endswith("E final (SCF final) -1107.464203 Ry")
     _r, single, _p = load(FIXTURES / "kao_supercell_relax")
-    assert RELAX.summary(single) == "Relaxado ✓ · 0 passos BFGS · F final 4.4e-04 Ry/Bohr"
+    assert RELAX.summary(single) == "Relaxado ✓ · 0 passos BFGS · F máx final 9.8e-05 Ry/Bohr"
 
 
 # -- figure --------------------------------------------------------------------------------------
@@ -379,7 +380,10 @@ def test_render_panels_and_thresholds():
     params.show_thresholds = False
     figure, _info = render(dataset, params)
     assert [len(ax.get_lines()) for ax in figure.axes] == [0, 1]
-    for panels, ylabel in (("energy", "|ΔE| (Ry)"), ("force", "Força total (Ry/Bohr)")):
+    for panels, ylabel in (
+        ("energy", "|ΔE| (Ry)"),
+        ("force", "Maior componente da força (Ry/Bohr)"),
+    ):
         params.panels = panels
         figure, info = render(dataset, params)
         assert len(figure.axes) == 1 and figure.axes[0].get_ylabel() == ylabel
@@ -699,7 +703,10 @@ def test_vc_relax_energy_panel_is_the_enthalpy():
     _result, dataset, params = load(FIXTURES / "kao_vc_relax")
     figure, info = render(dataset, params)
     energy, force = figure.axes
-    assert energy.get_ylabel() == "|ΔH| (Ry)" and force.get_ylabel() == "Força total (Ry/Bohr)"
+    assert (
+        energy.get_ylabel() == "|ΔH| (Ry)"
+        and force.get_ylabel() == "Maior componente da força (Ry/Bohr)"
+    )
     heights = [p.get_height() for p in energy.patches]
     assert heights == pytest.approx([d for d, _ in dataset.data.enthalpy_deltas()], rel=1e-9)
     assert [t.get_text() for t in energy.get_legend().get_texts()] == ["etot_conv_thr = 1.0e-05 Ry"]
@@ -713,7 +720,7 @@ def test_all_panels_of_a_vc_relax():
     energy, force, pressure, volume = figure.axes
     assert [ax.get_ylabel() for ax in figure.axes] == [
         "|ΔH| (Ry)",
-        "Força total (Ry/Bohr)",
+        "Maior componente da força (Ry/Bohr)",
         "Pressão (kbar)",
         "Volume (Å³)",
     ]
@@ -777,7 +784,7 @@ def test_vc_relax_readout_of_each_panel():
     params.panels = "all"
     read = lambda x, axes: RELAX.format_coordinates(x, 0.0, axes, dataset, params)  # noqa: E731
     assert read(1.2, 0).startswith("passo 1 · |ΔH| = ") and read(0.0, 0) == ""
-    assert read(3.0, 1) == "passo 3 · F = 5.5e-04 Ry/Bohr"
+    assert read(3.0, 1) == "passo 3 · F = 1.5e-04 Ry/Bohr"
     assert read(4.0, 2) == "passo 4 · P = 0.03 kbar"
     assert read(2.0, 3) == "passo 2 · V = 334.27 Å³"
     assert read(3.0, 3) == ""  # the geometry of step 3 is not in the output
@@ -816,3 +823,47 @@ def test_hundred_steps_load_and_render_under_budget(tmp_path):
         assert len(dataset.data.steps) == 100
 
     assert warm_seconds("relax, 100 steps", load_and_render) < 0.5
+
+
+def test_max_force_component_is_the_criterion():
+    import re
+
+    path = FIXTURES / "si_relax" / "si.rel.out"
+    data = read_relax(path, if_pos=(None, None))
+    assert data.has_max_force
+    first = data.steps[0]
+    assert first.max_force_ry_bohr == pytest.approx(0.12656049)
+    assert first.max_force_ry_bohr <= first.force_ry_bohr
+    assert first.criterion_force == first.max_force_ry_bohr
+    assert re.search(r"Total force", path.read_text())
+
+
+def test_max_force_ignores_verbose_sub_blocks_and_is_none_without_block():
+    out = [
+        "     !    total energy              =     -10.0 Ry\n",
+        "     Forces acting on atoms (cartesian axes, Ry/au):\n",
+        "\n",
+        "     atom    1 type  1   force =     0.01000000   -0.02000000    0.00000000\n",
+        "\n",
+        "     The non-local contrib.  to forces\n",
+        "     atom    1 type  1   force =     0.50000000    0.00000000    0.00000000\n",
+        "     Total force =     0.030000     Total SCF correction =     0.000001\n",
+        "     number of scf cycles    =   1\n",
+        "     number of bfgs steps    =   0\n",
+        "     !    total energy              =     -10.1 Ry\n",
+        "     Total force =     0.020000     Total SCF correction =     0.000001\n",
+        "     number of bfgs steps    =   1\n",
+    ]
+    assert parse_relax(out).steps[0].max_force_ry_bohr is None  # no input: no flags known
+    data = parse_relax(out, if_pos=[None])
+    assert data.steps[0].max_force_ry_bohr == pytest.approx(0.02)
+    frozen = parse_relax(out, if_pos=[(0, 0, 1)])  # x and y frozen: only z (0.0) counts
+    assert frozen.steps[0].max_force_ry_bohr == 0.0
+    assert data.steps[1].max_force_ry_bohr is None
+    assert data.steps[1].criterion_force == pytest.approx(0.02)
+
+
+def test_max_force_skips_frozen_atoms_of_the_input():
+    _r, dataset, _p = load(FIXTURES / "kao_supercell_relax")
+    step = dataset.data.steps[-1]
+    assert step.max_force_ry_bohr < step.force_ry_bohr  # printed forces of frozen atoms are 0.09

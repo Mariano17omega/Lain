@@ -118,7 +118,9 @@ stateDiagram-v2
 ```
 
 A **running** job is stopped only by creating `<prefix>.EXIT` (the cluster administrator's rule); `qdel` applies only
-to a **waiting** job, by ID. The script's next commands still run (nscf, bands.x, projwfc.x…).
+to a **waiting** job, by ID. In a script from "Criar cálculo", which
+[checks every step](create-calc/index.md#check-step), the job ends after the stopped pw.x and the e-mail reports the
+failure. In an older or hand-written script, the next commands still run (nscf, bands.x, projwfc.x…).
 
 ### Delete (trash)
 

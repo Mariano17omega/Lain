@@ -1,9 +1,11 @@
-"""Structural relaxation progress (relax / vc-relax): |ΔE| and total force per BFGS step.
+"""Structural relaxation progress (relax / vc-relax): |ΔE| and total force per step, BFGS or damped
+dynamics (spec 101).
 
 One figure with up to two stacked panels sharing the step axis, after the Relax-Viewer
 reference app (removed from ``Documentation/``, see git history); colours and background
 follow the plot parameters instead. A vc-relax draws |ΔH| instead of |ΔE| (the BFGS compares the
-enthalpy), and ``panels = "all"`` adds its pressure and volume (``relax_panels.py``, spec 27-7).
+enthalpy; damped dynamics prints none, so it falls back to |ΔE|), and ``panels = "all"`` adds its
+pressure and volume (``relax_panels.py``, spec 27-7).
 """
 
 from __future__ import annotations
@@ -29,9 +31,11 @@ from ..plotting.draw import (
     style_axes,
 )
 from ..plotting.style import PlotStyle
+from ..qe.input_edit import InputEditor, read_input_text
+from ..qe.lattice import Flags, position_flags
 from ..qe.pairing import same_name_input
 from ..qe.pw_input import read_input
-from ..qe.relax import RelaxData, read_relax
+from ..qe.relax import DAMPED_DYNAMICS, RelaxData, read_relax
 from ..sniff import FileKind, FileSniff
 from .base import (
     AxesLimits,
@@ -94,6 +98,8 @@ class RelaxParams(CommonParams):
     xmax: float | None = None
     energy_color: str = field(default="#38bdf8", metadata={"kind": "color"})
     force_color: str = field(default="#10b981", metadata={"kind": "color"})
+    show_total_force: bool = False  # also draw ``Total force`` (the norm), not the BFGS criterion
+    total_force_color: str = field(default="#94a3b8", metadata={"kind": "color"})
     threshold_color: str = field(default="#f43f5e", metadata={"kind": "color"})
     pressure_color: str = field(default="#f59e0b", metadata={"kind": "color"})
     volume_color: str = field(default="#8b5cf6", metadata={"kind": "color"})
@@ -105,13 +111,15 @@ class InputSettings(NamedTuple):
     thresholds: tuple[float | None, float | None] = (None, None)  # etot_conv_thr, forc_conv_thr
     press: float | None = None  # &CELL press (kbar)
     press_conv_thr: float | None = None  # &CELL press_conv_thr (kbar)
+    if_pos: tuple[Flags | None, ...] | None = None  # None: no input to read the flags from
 
 
 def input_settings(path: Path | None) -> InputSettings:
     """The thresholds of ``&CONTROL`` and the pressure settings of ``&CELL``, if any."""
     parsed = read_input(path) if path is not None else None
-    if parsed is None:
+    if parsed is None or path is None:
         return InputSettings()
+    flags = position_flags(InputEditor.from_text(read_input_text(path)))
 
     def number(namelist: str, key: str) -> float | None:
         value = parsed.get(namelist, key)
@@ -121,6 +129,7 @@ def input_settings(path: Path | None) -> InputSettings:
         (number("control", "etot_conv_thr"), number("control", "forc_conv_thr")),
         number("cell", "press"),
         number("cell", "press_conv_thr"),
+        flags,
     )
 
 
@@ -133,7 +142,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         (SectionDef("relaxation", N_("Relaxamento")), "x_axis"),
     )
     display_name: ClassVar[str] = _("Otimização estrutural")
-    description: ClassVar[str] = _("Saída de relax/vc-relax do pw.x com passos BFGS")
+    description: ClassVar[str] = _("Saída de relax/vc-relax do pw.x (BFGS ou dinâmica amortecida)")
     plottable: ClassVar[bool] = True
     single_file_role: ClassVar[str | None] = "relax_out"
     plot_file_label: ClassVar[str] = _("Plotar relaxamento")
@@ -212,6 +221,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
                 settings.thresholds,
                 target_pressure=settings.press,
                 press_conv_thr=settings.press_conv_thr,
+                if_pos=settings.if_pos,
             )
         except OSError as exc:
             raise LoadError(f"{output.name}: {exc.strerror or exc}") from exc
@@ -252,6 +262,8 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
             ParamField("force_color", _("Cor força"), "style", "color"),
             ParamField("pressure_color", _("Cor pressão"), "style", "color"),
             ParamField("volume_color", _("Cor volume"), "style", "color"),
+            ParamField("show_total_force", _("Força total (norma)"), "relaxation", "bool"),
+            ParamField("total_force_color", _("Cor força total"), "style", "color"),
             ParamField("threshold_color", _("Cor limiares"), "style", "color"),
             *COMMON_FIELDS,
         ]
@@ -292,7 +304,7 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         elif panel == "force":
             if 0 <= step < len(data.steps):
                 return _("passo {step} · F = {force_ry_bohr:.1e} Ry/Bohr").format(
-                    step=step, force_ry_bohr=data.steps[step].force_ry_bohr
+                    step=step, force_ry_bohr=data.steps[step].criterion_force
                 )
         else:
             return cell_readout(data, step, panel)
@@ -323,7 +335,9 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         n = len(data.steps)
         first = 0 if "force" in shown else 1  # |ΔE| starts at the second step
         bottom = axes[-1]
-        bottom.set_xlabel(_("Passo BFGS"))
+        bottom.set_xlabel(
+            _("Passo da dinâmica") if data.dynamics == DAMPED_DYNAMICS else _("Passo BFGS")
+        )
         bottom.set_xticks(range(first, n, max(1, n // MAX_TICKS)))
         low = params.xmin if params.xmin is not None else first - 0.5
         high = params.xmax if params.xmax is not None else max(n - 0.5, low + 1)
@@ -331,7 +345,12 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         finish(figure, axes[0], params, legends[0])
         top = axes[0]
         pairs = data.convergence_deltas()
-        missing = data.calculation == "vc-relax" and not all(enthalpy for __, enthalpy in pairs)
+        # damped dynamics compares the energy and never prints an enthalpy: nothing is missing
+        missing = (
+            data.calculation == "vc-relax"
+            and data.dynamics != DAMPED_DYNAMICS
+            and not all(enthalpy for __, enthalpy in pairs)
+        )
         notes = (NO_ENTHALPY,) if "energy" in shown and missing else ()
         return RenderInfo(top.get_xlim(), top.get_ylim(), self.summary(dataset), notes)
 
@@ -372,8 +391,29 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
             return []
         if log:
             ax.set_yscale("log")
-        forces = [step.force_ry_bohr for step in data.steps]
+        forces = [step.criterion_force for step in data.steps]
         values = positive_for_log(forces) if log else forces
+        handles: list = []
+        if params.show_total_force and data.has_max_force:
+            norms = [step.force_ry_bohr for step in data.steps]
+            ax.plot(
+                [step.index for step in data.steps],
+                positive_for_log(norms) if log else norms,
+                color=params.total_force_color,
+                lw=params.line_width,
+                ls=DASHED,
+                zorder=2,
+            )
+            handles.append(
+                Line2D(
+                    [],
+                    [],
+                    color=params.total_force_color,
+                    lw=1.0,
+                    ls=DASHED,
+                    label=_("Força total (norma)"),
+                )
+            )
         ax.plot(
             [step.index for step in data.steps],
             values,
@@ -383,9 +423,13 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
             markersize=max(3.0, params.line_width * 3),
             zorder=3,
         )
-        ax.set_ylabel(_("Força total (Ry/Bohr)"))
+        ax.set_ylabel(
+            _("Maior componente da força (Ry/Bohr)")
+            if data.has_max_force
+            else _("Força total (Ry/Bohr)")
+        )
         style_axes(ax, style)
-        return self._threshold(
+        return handles + self._threshold(
             ax,
             data.force_threshold,
             data.force_threshold_source,
@@ -404,10 +448,15 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
         else:
             status = _("Não relaxado")
         moves = data.steps[-1].bfgs_step  # as pw.x counts them ("… and M bfgs steps")
-        parts = [
-            status,
-            ngettext("{moves} passo BFGS", "{moves} passos BFGS", moves).format(moves=moves),
-        ]
+        if data.dynamics == DAMPED_DYNAMICS:
+            count = ngettext(
+                "{moves} passo da dinâmica amortecida",
+                "{moves} passos da dinâmica amortecida",
+                moves,
+            )
+        else:
+            count = ngettext("{moves} passo BFGS", "{moves} passos BFGS", moves)
+        parts = [status, count.format(moves=moves)]
         if series := data.convergence_deltas():
             value, enthalpy = series[-1]
             parts.append(
@@ -415,11 +464,12 @@ class RelaxModule(CalculationModule[RelaxDataset, RelaxParams]):
                     name="|ΔH|" if enthalpy else "|ΔE|", delta=value
                 )
             )
-        parts.append(
-            _("F final {force_ry_bohr:.1e} Ry/Bohr").format(
-                force_ry_bohr=data.steps[-1].force_ry_bohr
-            )
+        text = (
+            _("F máx final {force_ry_bohr:.1e} Ry/Bohr")
+            if data.has_max_force
+            else _("F final {force_ry_bohr:.1e} Ry/Bohr")
         )
+        parts.append(text.format(force_ry_bohr=data.steps[-1].criterion_force))
         parts += cell_summary(data)
         if data.final_scf_energy is not None:
             parts.append(

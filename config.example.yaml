@@ -136,8 +136,9 @@ jobs:
   # fixed in the script templates, the cluster's new model; only the values below are configured.
   # Default of the NP field (cores of the job).
   cores: 64
-  # Default of the pools field (pw.x -nk). NP must be a multiple of it.
-  nk: 4
+  # The pools (pw.x -nk) are not configured: "Criar cálculo" computes them from NP and the k-points of the
+  # inputs (a multiple of 4, at most 16) and the field in the window can override them. An `nk:` key
+  # written by an older version is still accepted and ignored.
   # Folder of the pseudopotentials on the cluster, written as pseudo_dir into every pw.x input
   # "Criar cálculo" generates (each folder is then self-contained). Unset: the SCF's pseudo_dir stays.
   # pseudo_dir: /home/me/pseudo

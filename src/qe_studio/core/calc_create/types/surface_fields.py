@@ -18,6 +18,7 @@ from .base import FormField, Work
 
 __all__ = [
     "BOND_SCALE",
+    "BY_SPECIES",
     "DEFAULT_BOND_SCALE",
     "FIX_FRACTION",
     "FIX_NEIGHBORS",
@@ -44,6 +45,9 @@ FIX_FRACTION = "fix_fraction"
 FIX_SPECIES = "fix_species"
 FIX_NEIGHBORS = "fix_neighbors"
 DEFAULT_BOND_SCALE = 1.15  # the scripts' tolerance over the sum of the covalent radii
+# What shows the parameters of a rule (``FormField.shown_when``).
+BY_BOTTOM = ((FIX_RULE, (BOTTOM,)),)
+BY_SPECIES = ((FIX_RULE, (SPECIES,)),)
 _SEPARATORS = re.compile(r"[\s,;]+")
 
 
@@ -71,7 +75,9 @@ def molecule_field(group: str, label: str, hint: str, required: bool = False) ->
     )
 
 
-def bond_scale_field(group: str) -> FormField:
+def bond_scale_field(
+    group: str, shown_when: tuple[tuple[str, tuple[object, ...]], ...] = ()
+) -> FormField:
     return FormField(
         BOND_SCALE,
         _("Tolerância de ligação (× soma dos raios covalentes)"),
@@ -84,6 +90,7 @@ def bond_scale_field(group: str) -> FormField:
                 "covalentes (tabela do ASE, a mesma dos scripts)"
             )
         ),
+        shown_when=shown_when,
     )
 
 
@@ -119,6 +126,7 @@ def fix_fields(
             tooltip=_(
                 "'{BOTTOM}': fixa os átomos abaixo desta fração da espessura (0.5 = metade)"
             ).format(BOTTOM=bottom),
+            shown_when=BY_BOTTOM,
         ),
         FormField(
             FIX_SPECIES,
@@ -129,6 +137,7 @@ def fix_fields(
             tooltip=_("'{SPECIES}': rótulos de ATOMIC_SPECIES, separados por espaço").format(
                 SPECIES=by_species
             ),
+            shown_when=BY_SPECIES,
         ),
         FormField(
             FIX_NEIGHBORS,
@@ -139,6 +148,7 @@ def fix_fields(
             tooltip=_(
                 "'{SPECIES}': rótulos dos vizinhos ligados às espécies fixas que também ficam fixos"
             ).format(SPECIES=by_species),
+            shown_when=BY_SPECIES,
         ),
     ]
 

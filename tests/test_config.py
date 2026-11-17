@@ -380,7 +380,8 @@ def test_create_config_writes_the_template_and_refuses_to_overwrite(tmp_path):
 
 def test_jobs_defaults_are_the_reference_scripts():
     jobs = AppConfig().jobs
-    assert (jobs.cores, jobs.nk, jobs.pseudo_dir) == (64, 4, None)  # spec 28 R2
+    assert (jobs.cores, jobs.pseudo_dir) == (64, None)  # spec 28 R2
+    assert jobs.nk is None  # ignored since spec 102, accepted so an old config.yaml loads
     assert jobs.myemail is None  # spec 86 R1
     # The cluster side of the scripts is fixed in their templates, not configured.
     assert set(JobsConfig.model_fields) == {"cores", "nk", "pseudo_dir", "myemail"}

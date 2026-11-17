@@ -9,6 +9,7 @@ The script makes the folder of ``fileout`` (pp.x does not) and runs pp.x without
 
 from __future__ import annotations
 
+import dataclasses
 import shlex
 from collections.abc import Sequence
 from pathlib import PurePosixPath
@@ -17,6 +18,7 @@ from typing import Any, ClassVar
 from ....i18n import N_, _
 from ...qe.input_edit import InputEditor
 from ...qe.pw_input import fortran_int
+from ..edits import ensure_disk_io
 from ..render import render
 from ..scf_info import ScfInfo
 from ..unit import UNIT_OUTDIR, absolute, climbs
@@ -51,6 +53,21 @@ OUTPUT_FORMATS = {
     7: N_("7 — gnuplot (2D)"),
 }
 CODE_SEPARATOR = " — "  # between the code and the label of a choice, in every language
+# rho(up) - rho(down): without lsda pp.x writes zeros and no error (PP/src/punch_plot.f90, QE 7.3).
+SPIN_PLOT_NUM = 6
+# What the "Diferença de carga" extracts and subtracts (spec 100); 0 is the default of every type.
+DIFF_PLOT_NUMS = {
+    0: N_("0 — Δρ: diferença de densidade de carga eletrônica (pseudo-carga de valência)"),
+    6: N_("6 — Δm: diferença de polarização de spin, m = ρ↑ − ρ↓ (exige nspin = 2)"),
+}
+# The end of every plot_num tooltip, one line each (a tooltip is plain text: Qt breaks only at "\n").
+# The plan cannot tell PAW (that is in the .upf), so the note is always there and says when it holds.
+PAW_NOTE = (
+    N_("PAW: plot_num 0 e 6 dão pseudo-densidades. Perto dos núcleos, dentro das esferas PAW,"),
+    N_("elas não são as reais; na região da ligação, longe dos núcleos, a diferença é pequena."),
+    N_("A densidade all-electron é plot_num 17 (valência) ou 21 (com caroço): só PAW e com uma"),
+    N_("grade real muito densa."),
+)
 # The formats pp.x writes for an ``iflag``; it ignores ``output_format`` on the others (1D, polar).
 FORMATS_OF_IFLAG = {2: (2, 3, 7), 3: (3, 5, 6)}
 # What pp.x stops without in ``&PLOT``. The form has no field for these: they are typed in the pp.x tab.
@@ -76,6 +93,20 @@ def code_of(text: object, default: int) -> int:
     """The code a ``choice`` starts with (``default`` for an empty or foreign text)."""
     head = str(text or "").split(maxsplit=1)
     return int(head[0]) if head and head[0].isdigit() else default
+
+
+def with_paw_note(*lines: str) -> str:
+    """A ``plot_num`` tooltip: ``lines`` (translated already), then ``PAW_NOTE``, one per line."""
+    return "\n".join([*lines, *(_(line) for line in PAW_NOTE)])
+
+
+def spin_problem(plot_num: int, scf: ScfInfo) -> str | None:
+    """Why ``plot_num`` = 6 does not fit an SCF without collinear spin (a file of zeros), or None."""
+    if plot_num != SPIN_PLOT_NUM or scf.spin:
+        return None
+    return _(
+        "plot_num = 6 (polarização de spin) exige nspin = 2 no SCF; este tem nspin = {nspin}: o pp.x escreveria um .xsf só de zeros"
+    ).format(nspin=scf.nspin)
 
 
 def fileout_dir(fileout: str) -> str | None:
@@ -114,8 +145,8 @@ def iflag_field(group: str = PP_KEY, note: str = "") -> FormField:
 
 
 def output_format_field(group: str = PP_KEY, note: str = "") -> FormField:
-    """``output_format`` of ``&PLOT``."""
-    return _field(
+    """``output_format`` of ``&PLOT``, shown for the ``iflag`` whose format pp.x reads."""
+    field = _field(
         "output_format",
         _("Formato de saída (output_format)"),
         "choice",
@@ -126,6 +157,8 @@ def output_format_field(group: str = PP_KEY, note: str = "") -> FormField:
         tuple(choice(code, OUTPUT_FORMATS) for code in OUTPUT_FORMATS),
         group,
     )
+    with_format = tuple(choice(code, IFLAGS) for code in FORMATS_OF_IFLAG)
+    return dataclasses.replace(field, shown_when=(("iflag", with_format),))
 
 
 def format_problem(iflag: int, output_format: int) -> str | None:
@@ -190,7 +223,12 @@ class ChargeType(CalcType):
                 _("Grandeza (plot_num)"),
                 "int",
                 DEFAULT_PLOT_NUM,
-                _("&INPUTPP plot_num: 0 = densidade de carga eletrônica (pseudo)"),
+                with_paw_note(
+                    _(
+                        "&INPUTPP plot_num: 0 = densidade de carga eletrônica (pseudo-carga de valência);"
+                    ),
+                    _("6 = polarização de spin, ρ↑ − ρ↓ (exige nspin = 2)."),
+                ),
             ),
             iflag_field(),
             output_format_field(),
@@ -222,6 +260,8 @@ class ChargeType(CalcType):
         fileout = values["fileout"] or default_fileout(scf)
         if plot_num < 0:
             work.problem("plot_num", _("plot_num deve ser 0 ou maior"))
+        if (problem := spin_problem(plot_num, scf)) is not None:
+            work.problem("plot_num", problem)
         if absolute(fileout) or climbs(fileout):
             work.problem(
                 "fileout",
@@ -243,4 +283,7 @@ class ChargeType(CalcType):
                 "fileout": fileout,
             },
         )
-        return [work.pw_file(SCF_KEY, work.editor()), work.planned(PP_KEY, "qe_input", text)]
+        # pp.x reads the SCF's charge density: a disk_io that does not save it goes (L-14).
+        scf_editor = work.editor()
+        work.notes.extend(f"{work.name(SCF_KEY)}: {note}" for note in ensure_disk_io(scf_editor))
+        return [work.pw_file(SCF_KEY, scf_editor), work.planned(PP_KEY, "qe_input", text)]

@@ -1,5 +1,5 @@
 """What the text viewer shows of a file (spec 10 R4, spec 11 R4, spec 4 R4, spec 38): the text or its
-ends, the banner, the real line numbers, for a QE input its write checks and key parameters, for a
+ends, the banner, the real line numbers, for a QE input its write and meaning checks and key parameters, for a
 ``.qsub`` script its write checks, and for Markdown whether it can be rendered.
 
 Read in a worker: a file can be big or on a network disk.
@@ -15,7 +15,8 @@ from .. import cancel
 from ..files.file_kinds import human_size, is_job_log, is_markdown, is_script
 from ..qe.input_extract import Chip, extract
 from ..qe.input_lexer import LintIssue
-from ..qe.input_lint import InputDoc, lint
+from ..qe.input_lint import InputDoc
+from ..qe.input_semantics import check_input
 from ..sniff import INPUT_READ_LIMIT, looks_like_input, sniff
 from . import textfile
 from .qsub_lint import lint_script
@@ -33,7 +34,7 @@ class TextPreview:
     size: int
     highlight: bool  # QE output or job log: color it
     is_input: bool = False  # a QE input: color it as one
-    input_doc: InputDoc | None = None  # its lint; None when too big to check (spec 11 R4.2)
+    input_doc: InputDoc | None = None  # its checks; None when too big to check (spec 11 R4.2)
     chips: tuple[Chip, ...] = ()  # its extract
     is_markdown: bool = False
     renderable: bool = False  # Markdown small and whole enough to be rendered (spec 38 R1.5)
@@ -46,7 +47,7 @@ class TextPreview:
 
     @property
     def issues(self) -> list[LintIssue]:
-        """The write problems the viewer marks: an input's or a script's."""
+        """The problems the viewer marks: an input's (write and meaning, spec 104) or a script's."""
         if self.input_doc is not None:
             return list(self.input_doc.issues)
         return list(self.script_issues)
@@ -92,7 +93,7 @@ def read_preview(path: Path, full: bool = False) -> TextPreview:
     issues: tuple[LintIssue, ...] = ()
     if is_input:
         if piece.size <= INPUT_READ_LIMIT:  # below the viewer's own limit: the text is whole
-            doc = lint(piece.text)
+            doc = check_input(piece.text)
         else:
             note = _(
                 "Input grande ({human_size}): a escrita não foi verificada, só o realce."

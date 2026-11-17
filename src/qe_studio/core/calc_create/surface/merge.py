@@ -5,9 +5,9 @@ The input starts from the surface's text (the unit's: ``Work.editor``): cell, cu
 other line stay the surface's. ``ATOMIC_SPECIES`` keeps the surface's rows and adds the molecule's
 species it lacks (a species in both keeps the surface's pseudopotential, with a note when they differ).
 The namelists become a relax of the whole system: no ``&CELL``, no ``nbnd`` (pw.x's default counts the
-molecule's electrons), the molecule's occupations (it may close the gap) and the smaller
-``mixing_beta`` (one left out counts as pw.x's default). Other differences between the two SCFs are
-only noted. Qt-free.
+molecule's electrons), the most permissive occupations of the two (``occupations``, spec 96) and the
+smaller ``mixing_beta`` (one left out counts as pw.x's default). Other differences between the two
+SCFs are only noted. Qt-free.
 """
 
 from __future__ import annotations
@@ -19,9 +19,10 @@ from dataclasses import dataclass
 from ....i18n import _
 from ...qe.input_edit import InputEditor
 from ...qe.pw_input import fortran_float
-from ..edits import put_number, put_string
+from ..edits import put_number
 from ..scf_info import ScfInfo
 from .elements import element_of
+from .occupations import merge_occupations
 
 __all__ = [
     "NBND_NOTE",
@@ -34,7 +35,6 @@ __all__ = [
 ]
 
 NBND_NOTE = _("nbnd removido: o pw.x calcula o padrão para o sistema com a molécula")
-SMEARING_KEYS = ("smearing", "degauss")
 PW_MIXING_BETA = 0.7  # pw.x's default: an SCF that does not write it still mixes at this
 
 
@@ -101,15 +101,7 @@ def merge_namelists(editor: InputEditor, molecule: ScfInfo | None) -> list[str]:
         notes.append(NBND_NOTE)
     if molecule is None:
         return notes
-    occupations = molecule.value("system", "occupations")
-    if occupations:
-        put_string(editor, "system", "occupations", occupations.strip())
-        smearing = molecule.value("system", "smearing")
-        if smearing:
-            put_string(editor, "system", "smearing", smearing.strip())
-        degauss = _number(molecule.value("system", "degauss") or "")
-        if degauss is not None:
-            put_number(editor, "system", "degauss", degauss)
+    notes.extend(merge_occupations(editor, molecule))
     mine = _mixing_beta(editor.get("electrons", "mixing_beta"))
     theirs = _mixing_beta(molecule.value("electrons", "mixing_beta"))
     if theirs < mine:

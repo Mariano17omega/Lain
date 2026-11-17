@@ -73,6 +73,33 @@ def test_the_cell_is_right_handed_with_the_plane_flat(bulk, options):
     assert cell[2, 2] > 0
 
 
+@pytest.mark.parametrize("axis", ["a", "b", "c"])
+@pytest.mark.parametrize("complete", [False, True])
+def test_a_flipped_slab_stays_inside_the_box(bulk, axis, complete):
+    options = SlabOptions(axis=axis, flip=True, complete=complete, vacuum=VACUUM_MIN)
+    frac = make_slab(bulk, options).model.frac
+    assert frac.min() >= 0 and frac.max() < 1
+
+
+def test_a_flip_turns_the_layer_upside_down(bulk):
+    plain = make_slab(bulk, SlabOptions(vacuum=VACUUM_MIN)).model.cart[:, 2]
+    flipped = make_slab(bulk, SlabOptions(flip=True, vacuum=VACUUM_MIN)).model.cart[:, 2]
+    assert np.allclose(plain + flipped, (plain + flipped)[0])
+
+
+def test_a_flip_keeps_an_atom_on_the_edge_at_zero():
+    frac = np.array([[0.0, 0.0, 0.1], [0.5, 0.5, 0.4]])
+    model = Model(np.diag([4.0, 4.0, 8.0]), ("Al", "Al"), frac)
+    flipped = make_slab(model, SlabOptions(flip=True, vacuum=VACUUM_MIN)).model
+    assert np.array_equal(flipped.frac[0, :2], [0.0, 0.0])
+
+
+def test_without_a_flip_the_plane_stays_as_written(bulk):
+    assert bulk.frac[:, :2].min() < 0  # an atom the SCF writes just outside the cell
+    model = make_slab(bulk, SlabOptions(vacuum=VACUUM_MIN)).model
+    assert np.allclose(model.frac[:, :2], bulk.frac[:, :2])
+
+
 def test_without_a_molecule_the_vacuum_is_the_minimum(bulk):
     model = make_slab(bulk, SlabOptions(vacuum=VACUUM_MIN)).model
     heights = model.cart[:, 2]

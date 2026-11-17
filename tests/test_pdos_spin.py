@@ -271,7 +271,8 @@ def test_summary_has_the_magnetization_of_the_spin_run(spin):
     module, dataset, params = spin
     assert dataset.magnetization == 0.71
     assert PdosModule.summary(dataset, params) == (
-        "E_F = 14.2704 eV (SCF) · 2 projeções · 1 espécies · spin polarizado · M = 0.71 μB/célula"
+        "E_F = 14.2704 eV (SCF) · 2 projeções · 1 espécies · spilling = 1.16 % · spin polarizado · "
+        "M = 0.71 μB/célula"
     )
 
 

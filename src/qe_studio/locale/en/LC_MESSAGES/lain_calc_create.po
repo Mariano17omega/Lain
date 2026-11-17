@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Lain: QE Studio 1.0.1\n"
+"Project-Id-Version: Lain: QE Studio 1.1.0\n"
 "Report-Msgid-Bugs-To: onairam17@gmail.com\n"
-"POT-Creation-Date: 2026-11-10 01:41-0400\n"
-"PO-Revision-Date: 2026-11-10 01:41-0400\n"
+"POT-Creation-Date: 2026-11-17 08:38-0400\n"
+"PO-Revision-Date: 2026-11-17 08:38-0400\n"
 "Last-Translator: Mariano Sobrinho <onairam17@gmail.com>\n"
 "Language: en\n"
 "Language-Team: English\n"
@@ -63,12 +63,20 @@ msgid "&CONTROL forc_conv_thr, em Ry/Bohr"
 msgstr "&CONTROL forc_conv_thr, in Ry/Bohr"
 
 #: core/calc_create/types/relax.py
-msgid "&CONTROL nstep: número máximo de passos da otimização"
-msgstr "&CONTROL nstep: maximum number of optimization steps"
+msgid ""
+"&CONTROL nstep: número máximo de passos da otimização. Se acabar sem convergir, descomente a "
+"linha restart_mode no input e rode de novo, com os mesmos NP e nk"
+msgstr ""
+"&CONTROL nstep: maximum number of optimization steps. If it ends without converging, uncomment "
+"the restart_mode line in the input and run again, with the same NP and nk"
+
+#: core/calc_create/types/charge_diff.py
+msgid "&INPUTPP plot_num dos quatro pp.x: a grandeza que eles extraem e subtraem."
+msgstr "&INPUTPP plot_num of the four pp.x: the quantity they extract and subtract."
 
 #: core/calc_create/types/charge.py
-msgid "&INPUTPP plot_num: 0 = densidade de carga eletrônica (pseudo)"
-msgstr "&INPUTPP plot_num: 0 = electronic charge density (pseudo)"
+msgid "&INPUTPP plot_num: 0 = densidade de carga eletrônica (pseudo-carga de valência);"
+msgstr "&INPUTPP plot_num: 0 = electronic charge density (valence pseudo-charge);"
 
 #: core/calc_create/types/charge_diff.py
 msgid ""
@@ -129,8 +137,16 @@ msgid "'{SPECIES}': rótulos dos vizinhos ligados às espécies fixas que també
 msgstr "'{SPECIES}': labels of the neighbors bonded to the fixed species that are also fixed"
 
 #: core/calc_create/types/charge_diff.py
+msgid "(momento apagado no sítio, fragmento que se polariza). Exige nspin = 2 no SCF."
+msgstr "(a moment quenched at the site, a fragment that polarizes). Needs nspin = 2 in the SCF."
+
+#: core/calc_create/types/charge_diff.py
 msgid ". Vale para os quatro inputs do pp.x"
 msgstr ". Applies to the four pp.x inputs"
+
+#: core/calc_create/types/charge_diff.py
+msgid "0 = Δρ = ρ(base) − ρ(clean) − ρ(isolated): onde a ligação acumula (> 0) ou tira (< 0) elétrons."
+msgstr "0 = Δρ = ρ(base) − ρ(clean) − ρ(isolated): where the bond gathers (> 0) or takes (< 0) electrons."
 
 #: core/calc_create/types/charge.py
 msgid "0 — gnuplot (1D)"
@@ -139,6 +155,10 @@ msgstr "0 — gnuplot (1D)"
 #: core/calc_create/types/charge.py
 msgid "0 — média esférica (1D)"
 msgstr "0 — spherical average (1D)"
+
+#: core/calc_create/types/charge.py
+msgid "0 — Δρ: diferença de densidade de carga eletrônica (pseudo-carga de valência)"
+msgstr "0 — Δρ: electronic charge density difference (valence pseudo-charge)"
 
 #: core/calc_create/types/charge.py
 msgid "1 — gráfico 1D"
@@ -169,12 +189,29 @@ msgid "5 — XSF para XCrySDen (3D, grade FFT inteira)"
 msgstr "5 — XSF for XCrySDen (3D, whole FFT grid)"
 
 #: core/calc_create/types/charge.py
+msgid "6 = polarização de spin, ρ↑ − ρ↓ (exige nspin = 2)."
+msgstr "6 = spin polarization, ρ↑ − ρ↓ (needs nspin = 2)."
+
+#: core/calc_create/types/charge_diff.py
+msgid "6 = Δm = m(base) − m(clean) − m(isolated), com m = ρ↑ − ρ↓: como a adsorção muda o magnetismo"
+msgstr "6 = Δm = m(base) − m(clean) − m(isolated), with m = ρ↑ − ρ↓: how adsorption changes the magnetism"
+
+#: core/calc_create/types/charge.py
 msgid "6 — cube do Gaussian (3D)"
 msgstr "6 — Gaussian cube (3D)"
 
 #: core/calc_create/types/charge.py
+msgid "6 — Δm: diferença de polarização de spin, m = ρ↑ − ρ↓ (exige nspin = 2)"
+msgstr "6 — Δm: spin polarization difference, m = ρ↑ − ρ↓ (needs nspin = 2)"
+
+#: core/calc_create/types/charge.py
 msgid "7 — gnuplot (2D)"
 msgstr "7 — gnuplot (2D)"
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid "; emaxpos da superfície: {emaxpos}"
+msgstr "; the surface's emaxpos: {emaxpos}"
 
 #: core/calc_create/types/slab.py
 msgid "; girada para o eixo ficar em +z"
@@ -200,6 +237,10 @@ msgstr "<site>"
 #: core/calc_create/surface/slab.py
 msgid "A célula do slab ficou com volume ≤ 0"
 msgstr "The slab cell ended up with volume ≤ 0"
+
+#: core/calc_create/types/charge.py
+msgid "A densidade all-electron é plot_num 17 (valência) ou 21 (com caroço): só PAW e com uma"
+msgstr "The all-electron density is plot_num 17 (valence) or 21 (with core): PAW only, and with a"
 
 #: core/calc_create/types/adsorption.py core/calc_create/types/slab.py
 msgid "A distância de adsorção"
@@ -236,6 +277,17 @@ msgstr "The folder will be created outside a project and will show up as a new p
 msgid "A pasta {parent} não existe"
 msgstr "The folder {parent} does not exist"
 
+#: core/calc_create/types/dipole_fields.py
+#, python-brace-format
+msgid ""
+"A rampa do campo fica a {margin} Å do átomo mais próximo (maior vácuo: {gap} Å); abaixo de "
+"{minimum} Å a densidade alcança a rampa e as forças saem erradas: aumente o vácuo ou mova a rampa"
+" (emaxpos, eopreg)"
+msgstr ""
+"The field's ramp is {margin} Å from the nearest atom (widest vacuum: {gap} Å); below {minimum} Å "
+"the density reaches the ramp and the forces come out wrong: increase the vacuum or move the ramp "
+"(emaxpos, eopreg)"
+
 #: core/calc_create/types/adsorption_fields.py
 msgid ""
 "A superfície: os átomos até esta distância abaixo do mais alto, ao longo da normal. Vale para a "
@@ -269,6 +321,18 @@ msgid ""
 msgstr ""
 "Height of the anchor atom above the site's O (bidentate: above the midpoint of the two O), along "
 "the surface normal. Atoms in the way, such as the hydroxyl's H, do not change the position"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "Amplitude do campo (eamp, a.u.)"
+msgstr "Field amplitude (eamp, a.u.)"
+
+#: core/calc_create/types/dipole_fields.py
+msgid ""
+"Amplitude do campo elétrico externo, em unidades atômicas de Hartree (1 a.u. = 51.42 V/Å). Só "
+"para a correção de dipolo: 0"
+msgstr ""
+"Amplitude of the external electric field, in Hartree atomic units (1 a.u. = 51.42 V/Å). For the "
+"dipole correction alone: 0"
 
 #: core/calc_create/preview.py
 msgid "Anotações"
@@ -326,9 +390,27 @@ msgstr "High-symmetry path"
 msgid "Campo"
 msgstr "Field"
 
+#: core/calc_create/types/dipole_fields.py
+msgid "Campo em dente de serra (tefield)"
+msgstr "Saw-like field (tefield)"
+
 #: core/calc_create/types/charge.py
 msgid "Carga"
 msgstr "Charge"
+
+#: core/calc_create/types/dipole_fields.py
+#, python-brace-format
+msgid "Chaves do campo do SCF removidas ({keys})"
+msgstr "The SCF's field keys removed ({keys})"
+
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid ""
+"Com n{n} = {copies} a célula se repete {copies} vezes ao longo de edir = {n}, e a rampa só "
+"corrige um vácuo: desmarque dipfield ou use n{n} = 1"
+msgstr ""
+"With n{n} = {copies} the cell repeats {copies} times along edir = {n}, and the ramp corrects one "
+"vacuum only: uncheck dipfield or use n{n} = 1"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Completar poliedros de borda (O + H)"
@@ -360,9 +442,49 @@ msgstr "Coordinates of atom {k} (crystal)"
 msgid "Coordenadas do átomo {value}: escreva três números, x y z"
 msgstr "Coordinates of atom {value}: write three numbers, x y z"
 
+#: core/calc_create/types/dipole_fields.py
+msgid "Correção de dipolo"
+msgstr "Dipole correction"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "Correção de dipolo (dipfield)"
+msgstr "Dipole correction (dipfield)"
+
+#: core/calc_create/types/dipole_fields.py
+msgid ""
+"Correção de dipolo de Bengtsson (dipfield): cancela o campo que o dipolo de um slab assimétrico "
+"cria entre as imagens periódicas. Só vale com tefield. O complexo e a superfície limpa de uma "
+"adsorção precisam da mesma escolha. Nasce como no SCF de origem"
+msgstr ""
+"Bengtsson's dipole correction (dipfield): cancels the field that the dipole of an asymmetric slab"
+" creates between the periodic images. It only works with tefield. The complex and the clean "
+"surface of an adsorption need the same choice. It starts as the source SCF has it"
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid ""
+"Correção de dipolo desligada, mas o SCF de {name} a tem: o complexo e a superfície limpa precisam"
+" da mesma escolha"
+msgstr ""
+"Dipole correction off, but the SCF of {name} has it: the complex and the clean surface need the "
+"same choice"
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid ""
+"Correção de dipolo ligada, mas o SCF de {name} não a tem: para a energia de adsorção, a "
+"superfície limpa precisa da mesma correção"
+msgstr ""
+"Dipole correction on, but the SCF of {name} does not have it: for the adsorption energy, the "
+"clean surface needs the same correction"
+
 #: core/calc_create/fingerprint.py
 msgid "Criado em"
 msgstr "Created at"
+
+#: core/calc_create/types/relax.py
+msgid "Cálculo (calculation)"
+msgstr "Calculation (calculation)"
 
 #: core/calc_create/types/supercell.py
 #, python-brace-format
@@ -411,6 +533,10 @@ msgstr "Cell dynamics (cell_dynamics)"
 #: core/calc_create/types/relax.py
 msgid "Dinâmica dos íons (ion_dynamics)"
 msgstr "Ion dynamics (ion_dynamics)"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "Direção do campo (edir)"
+msgstr "Field direction (edir)"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Distância de adsorção (Å)"
@@ -467,6 +593,14 @@ msgid ""
 msgstr ""
 "Emin/Emax are absolute energies in eV (blank: the whole range of the computed bands); above the "
 "energy of the last computed band (nbnd) the DOS is zero. Increase nbnd or reduce Emax"
+
+#: core/calc_create/surface/occupations.py
+msgid ""
+"Energia de adsorção: a superfície limpa e a molécula isolada devem usar as ocupações deste input "
+"(occupations, smearing e degauss)"
+msgstr ""
+"Adsorption energy: the clean surface and the isolated molecule must use the occupations of this "
+"input (occupations, smearing and degauss)"
 
 #: core/calc_create/types/pdos.py
 msgid "Energia máxima (Emax, eV)"
@@ -560,6 +694,22 @@ msgstr "Outside the root folder: detection and sync only see folders inside it"
 msgid "Formato de saída (output_format)"
 msgstr "Output format (output_format)"
 
+#: core/calc_create/types/dipole_fields.py
+msgid ""
+"Fração da célula que a rampa ocupa (entre 0 e 1). Vazio: 0.1, o padrão do pw.x, ou um terço do "
+"vácuo quando ele é menor"
+msgstr ""
+"Fraction of the cell the ramp spans (between 0 and 1). Empty: 0.1, pw.x's default, or a third of "
+"the vacuum when it is smaller"
+
+#: core/calc_create/types/dipole_fields.py
+msgid ""
+"Fração da célula, ao longo de edir, onde a rampa do potencial começa (entre 0 e 1). Vazio: a "
+"rampa fica no meio do maior vácuo da estrutura gerada"
+msgstr ""
+"Fraction of the cell, along edir, where the potential's ramp starts (between 0 and 1). Empty: the"
+" ramp sits in the middle of the widest vacuum of the generated structure"
+
 #: core/calc_create/types/surface_fields.py
 msgid "Fração fixa da espessura"
 msgstr "Fixed fraction of the thickness"
@@ -568,7 +718,7 @@ msgstr "Fixed fraction of the thickness"
 msgid "Frações x y z: escolhem o átomo mais próximo, até a tolerância"
 msgstr "Fractions x y z: pick the nearest atom, up to the tolerance"
 
-#: core/calc_create/types/charge.py
+#: core/calc_create/types/charge.py core/calc_create/types/charge_diff.py
 msgid "Grandeza (plot_num)"
 msgstr "Quantity (plot_num)"
 
@@ -602,6 +752,14 @@ msgstr "HUBBARD: V line removed (it cites an atom outside the fragment): {row}"
 msgid "HUBBARD: índice de átomo vizinho (maior que nat) renumerado pela supercélula 3×3×3; confira"
 msgstr "HUBBARD: neighbor atom index (greater than nat) renumbered by the 3×3×3 supercell; check it"
 
+#: core/calc_create/types/dipole_fields.py
+msgid ""
+"Há átomos dentro da rampa do campo (de emaxpos a emaxpos + eopreg): as forças saem erradas. Mova "
+"a rampa para o vácuo (emaxpos, eopreg)"
+msgstr ""
+"There are atoms inside the field's ramp (from emaxpos to emaxpos + eopreg): the forces come out "
+"wrong. Move the ramp into the vacuum (emaxpos, eopreg)"
+
 #: core/calc_create/types/base.py
 msgid "Input de SCF"
 msgstr "SCF input"
@@ -630,6 +788,10 @@ msgstr "SCF inputs"
 #: core/calc_create/types/slab_fields.py
 msgid "Inverter a superfície"
 msgstr "Flip the surface"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "Início da rampa (emaxpos)"
+msgstr "Ramp start (emaxpos)"
 
 #: core/calc_create/types/adsorption_fields.py
 msgid "Janela da superfície (Å)"
@@ -665,6 +827,10 @@ msgstr "K_POINTS {value} of the surface kept"
 #: core/calc_create/fingerprint.py
 msgid "Lain"
 msgstr "Lain"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "Largura da rampa (eopreg)"
+msgstr "Ramp width (eopreg)"
 
 #: core/calc_create/types/slab.py
 msgid "Ligações a O cortadas"
@@ -825,6 +991,11 @@ msgstr "The file"
 msgid "O arquivo não é um SCF (calculation = '{calculation}')"
 msgstr "The file is not an SCF (calculation = '{calculation}')"
 
+#: core/calc_create/types/script.py
+#, python-brace-format
+msgid "O cluster pede nk múltiplo de {step} e no máximo {max} (nk = {nk})"
+msgstr "The cluster asks for nk to be a multiple of {step} and at most {max} (nk = {nk})"
+
 #: core/calc_create/types/slab_fields.py
 msgid "O eixo da célula do SCF que é esticado para abrir o vácuo; os outros dois formam o plano"
 msgstr "The axis of the SCF cell that is stretched to open the vacuum; the other two form the plane"
@@ -937,6 +1108,10 @@ msgstr ""
 msgid "Os átomos de {names} ficam, em média, acima do plano médio: a parte fixa não é a de baixo"
 msgstr "The {names} atoms are, on average, above the middle plane: the fixed part is not the bottom one"
 
+#: core/calc_create/types/charge.py
+msgid "PAW: plot_num 0 e 6 dão pseudo-densidades. Perto dos núcleos, dentro das esferas PAW,"
+msgstr "PAW: plot_num 0 and 6 give pseudo-densities. Near the nuclei, inside the PAW spheres,"
+
 #: core/calc_create/types/pdos.py
 msgid "Passo de energia (DeltaE, eV)"
 msgstr "Energy step (DeltaE, eV)"
@@ -968,6 +1143,16 @@ msgstr "Anchor position"
 msgid "Posições em crystal_sg não são suportadas"
 msgstr "Positions in crystal_sg are not supported"
 
+#: core/calc_create/types/dipole_fields.py
+msgid ""
+"Potencial em dente de serra ao longo de edir (tefield): é o que a correção de dipolo usa. Com ele"
+" o pw.x não usa simetria e, num vc-relax, a tensão não inclui o termo do campo. Nasce como no SCF"
+" de origem"
+msgstr ""
+"Saw-like potential along edir (tefield): it is what the dipole correction uses. With it pw.x uses"
+" no symmetry and, in a vc-relax, the stress has no term for the field. It starts as the source "
+"SCF has it"
+
 #: core/calc_create/types/surface_fields.py
 msgid "Preencha Espécies fixas"
 msgstr "Fill in Fixed species"
@@ -996,6 +1181,15 @@ msgstr "Reattach cut H"
 #: core/calc_create/types/fields.py core/calc_create/types/slab_fields.py
 msgid "Rede de k-points"
 msgstr "k-point mesh"
+
+#: core/calc_create/types/supercell.py
+#, python-brace-format
+msgid ""
+"Rede de k-points ao longo de {axis}: {n} não divide por {multiple}, fica {result} (mais densa que"
+" a do SCF)"
+msgstr ""
+"K-point mesh along {axis}: {n} does not divide by {multiple}, it becomes {result} (denser than "
+"the SCF's)"
 
 #: core/calc_create/surface/fixing.py
 #, python-brace-format
@@ -1142,6 +1336,16 @@ msgstr "Will be created: {name}"
 msgid "Será criada: {name} — já existe {asked}"
 msgstr "Will be created: {name} — {asked} already exists"
 
+#: core/calc_create/types/dipole_fields.py
+#, python-brace-format
+msgid ""
+"Slab assimétrico ao longo de c ({reason}): ele tem momento de dipolo, as imagens periódicas "
+"interagem e a energia e o potencial passam a depender do vácuo. Ative tefield e dipfield para "
+"corrigir"
+msgstr ""
+"Slab asymmetric along c ({reason}): it has a dipole moment, the periodic images interact and the "
+"energy and the potential come to depend on the vacuum. Turn tefield and dipfield on to correct it"
+
 #: core/calc_create/types/slab_fields.py
 msgid "Somada ao vácuo só quando há molécula"
 msgstr "Added to the vacuum only when there is a molecule"
@@ -1238,8 +1442,8 @@ msgid "Valor inválido em {label}: {value}"
 msgstr "Invalid value in {label}: {value}"
 
 #: core/calc_create/types/supercell.py
-msgid "Vazio = a do SCF dividida pelas repetições"
-msgstr "Empty = the SCF's mesh divided by the repetitions"
+msgid "Vazio = a do SCF dividida pelas repetições, arredondada para cima"
+msgstr "Empty = the SCF's mesh divided by the repetitions, rounded up"
 
 #: core/calc_create/types/slab_fields.py
 msgid "Vazio = a do SCF reescalada: o eixo do vácuo vale 1"
@@ -1248,6 +1452,14 @@ msgstr "Empty = the SCF's mesh rescaled: the vacuum axis gets 1"
 #: core/calc_create/preview.py
 msgid "Vazio: mantém o K_POINTS do SCF"
 msgstr "Empty: keeps the K_POINTS of the SCF"
+
+#: core/calc_create/types/dipole_fields.py
+msgid ""
+"Vetor da rede recíproca ao longo do qual o campo é aplicado (1, 2 ou 3). O vácuo destes tipos "
+"fica ao longo de c: 3"
+msgstr ""
+"Reciprocal lattice vector along which the field is applied (1, 2 or 3). The vacuum of these types"
+" is along c: 3"
 
 #: core/calc_create/types/surface_fields.py
 msgid "Vizinhos fixos"
@@ -1341,6 +1553,29 @@ msgstr "degauss (in Ry; 0.000735 Ry ≈ 0.01 eV): replaces the smearing of pw.x;
 msgid "degauss = {DEFAULT_DEGAUSS} acrescentado"
 msgstr "degauss = {DEFAULT_DEGAUSS} added"
 
+#: core/calc_create/surface/occupations.py
+#, python-brace-format
+msgid ""
+"degauss: a superfície não tem; valem o smearing e o degauss da molécula ('{smearing}', "
+"{degauss:g} Ry)"
+msgstr ""
+"degauss: the surface has none; the molecule's smearing and degauss apply ('{smearing}', "
+"{degauss:g} Ry)"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "desligada"
+msgstr "off"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "desligada: dipfield sem tefield, que o pw.x ignora"
+msgstr "off: dipfield without tefield, which pw.x ignores"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "dipfield só vale com tefield = .true.: sem ele o pw.x ignora a correção de dipolo. Ative tefield"
+msgstr ""
+"dipfield only works with tefield = .true.: without it pw.x ignores the dipole correction. Turn "
+"tefield on"
+
 #: core/calc_create/edits.py
 #, python-brace-format
 msgid ""
@@ -1367,10 +1602,36 @@ msgstr "from the SCF"
 msgid "do slab"
 msgstr "of the slab"
 
+#: core/calc_create/types/dipole_fields.py
+#, python-brace-format
+msgid ""
+"eamp = {value} a.u. aplica um campo elétrico externo ao longo de edir (1 a.u. = 51.42 V/Å); para "
+"só corrigir o dipolo, use 0"
+msgstr ""
+"eamp = {value} a.u. applies an external electric field along edir (1 a.u. = 51.42 V/Å); to "
+"correct the dipole only, use 0"
+
+#: core/calc_create/types/dipole_fields.py
+#, python-brace-format
+msgid ""
+"edir = {edir}: o vácuo destes tipos fica ao longo de c (edir = 3); em outra direção a rampa cai "
+"dentro do material"
+msgstr ""
+"edir = {edir}: the vacuum of these types is along c (edir = 3); in another direction the ramp "
+"falls inside the material"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "edir deve ser 1, 2 ou 3"
+msgstr "edir must be 1, 2 or 3"
+
 #: core/calc_create/types/slab.py
 #, python-brace-format
 msgid "eixo {axis} empilhado ({HKL}), {flip}"
 msgstr "axis {axis} stacked ({HKL}), {flip}"
+
+#: core/calc_create/types/charge.py
+msgid "elas não são as reais; na região da ligação, longe dos núcleos, a diferença é pequena."
+msgstr "they are not the real ones; in the bonding region, away from the nuclei, the difference is small."
 
 #: core/calc_create/surface/fixing.py
 msgid "espécies e vizinhos"
@@ -1392,6 +1653,10 @@ msgstr "filpdos: the files are <filpdos>.pdos_atm#…"
 #: core/calc_create/types/slab.py core/calc_create/types/supercell.py
 msgid "gamma (do SCF)"
 msgstr "gamma (from the SCF)"
+
+#: core/calc_create/types/charge.py
+msgid "grade real muito densa."
+msgstr "very dense real-space grid."
 
 #: core/calc_create/types/adsorption_fixed.py
 msgid "if_pos no SCF"
@@ -1447,6 +1712,10 @@ msgstr "nbnd removed: pw.x computes the default for the slab with the added O + 
 msgid "nbnd removido: o pw.x escolhe pelo número de elétrons do fragmento"
 msgstr "nbnd removed: pw.x chooses it from the fragment's number of electrons"
 
+#: core/calc_create/types/dipole_fields.py
+msgid "nenhuma simetria inverte c"
+msgstr "no symmetry turns c over"
+
 #: core/calc_create/types/pdos.py
 msgid "ngauss: substitui o do pw.x; ignorado com tetraedros"
 msgstr "ngauss: replaces the one of pw.x; ignored with tetrahedra"
@@ -1455,6 +1724,15 @@ msgstr "ngauss: replaces the one of pw.x; ignored with tetrahedra"
 #, python-brace-format
 msgid "nk = {nk} é maior que NP = {np}: o pw.x para com erro (mp_start_pools)"
 msgstr "nk = {nk} is greater than NP = {np}: pw.x stops with an error (mp_start_pools)"
+
+#: core/calc_create/types/script.py
+#, python-brace-format
+msgid ""
+"nk = {nk} é maior que os cerca de {nks} k-points do input: {idle} pools ficam sem k-point e os "
+"núcleos deles ficam ociosos"
+msgstr ""
+"nk = {nk} is greater than the roughly {nks} k-points of the input: {idle} pools get no k-point "
+"and their cores sit idle"
 
 #: core/calc_create/types/script.py
 msgid "nk deve ser ao menos 1"
@@ -1481,9 +1759,21 @@ msgstr "nspin: surface {nspin}, molecule {nspin_2}; the surface one applies"
 msgid "não definido no SCF (o padrão do pw.x)"
 msgstr "not set in the SCF (the pw.x default)"
 
+#: core/calc_create/types/dipole_fields.py
+msgid "não escrita: corrija os campos marcados"
+msgstr "not written: fix the marked fields"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "não escrita: estrutura não gerada"
+msgstr "not written: structure not generated"
+
 #: core/calc_create/types/slab.py
 msgid "não invertida"
 msgstr "not flipped"
+
+#: core/calc_create/surface/occupations.py
+msgid "occupations 'smearing' sem degauss: o pw.x para; escreva o degauss no modo Avançado"
+msgstr "occupations 'smearing' without degauss: pw.x stops; write the degauss in Advanced mode"
 
 #: core/calc_create/types/slab.py
 #, python-brace-format
@@ -1499,6 +1789,15 @@ msgstr ""
 msgid "occupations = '{occupations}' trocado por 'smearing'"
 msgstr "occupations = '{occupations}' replaced with 'smearing'"
 
+#: core/calc_create/surface/occupations.py
+#, python-brace-format
+msgid ""
+"occupations: superfície '{value}', molécula '{value_2}'; valem o occupations, o smearing e o "
+"degauss da molécula"
+msgstr ""
+"occupations: surface '{value}', molecule '{value_2}'; the molecule's occupations, smearing and "
+"degauss apply"
+
 #: core/calc_create/kpath.py
 msgid "os deslocamentos da rede são 0 ou 1"
 msgstr "the mesh shifts are 0 or 1"
@@ -1507,6 +1806,15 @@ msgstr "the mesh shifts are 0 or 1"
 #, python-brace-format
 msgid "output_format = {output_format} não vale para iflag = {iflag} ({IFLAGS}): use {join}"
 msgstr "output_format = {output_format} does not apply to iflag = {iflag} ({IFLAGS}): use {join}"
+
+#: core/calc_create/types/charge.py
+#, python-brace-format
+msgid ""
+"plot_num = 6 (polarização de spin) exige nspin = 2 no SCF; este tem nspin = {nspin}: o pp.x "
+"escreveria um .xsf só de zeros"
+msgstr ""
+"plot_num = 6 (spin polarization) needs nspin = 2 in the SCF; this one has nspin = {nspin}: pp.x "
+"would write an .xsf of zeros only"
 
 #: core/calc_create/types/charge.py
 msgid "plot_num deve ser 0 ou maior"
@@ -1552,8 +1860,28 @@ msgstr ""
 "surface's"
 
 #: core/calc_create/types/script.py
-msgid "pw.x -nk: número de pools (grupos de k-points); NP deve ser múltiplo de nk"
-msgstr "pw.x -nk: number of pools (groups of k-points); NP must be a multiple of nk"
+msgid ""
+"pw.x -nk: número de pools (grupos de k-points). Vazio: o Lain escolhe pelo NP e pelos k-points "
+"(múltiplo de 4, até 16, dividindo o NP). NP deve ser múltiplo de nk"
+msgstr ""
+"pw.x -nk: number of pools (groups of k-points). Empty: Lain chooses from NP and the k-points (a "
+"multiple of 4, up to 16, dividing NP). NP must be a multiple of nk"
+
+#: core/calc_create/types/slab_fields.py
+msgid "relax: célula fixa, o plano no parâmetro de rede do bulk"
+msgstr "relax: fixed cell, the plane at the bulk's lattice parameter"
+
+#: core/calc_create/types/slab_fields.py
+msgid ""
+"relax: o plano fica no parâmetro de rede do bulk, como na superfície de um cristal; vc-relax: o "
+"plano também relaxa (cell_dofree), para um material 2D isolado"
+msgstr ""
+"relax: the plane stays at the bulk's lattice parameter, as on the surface of a crystal; vc-relax:"
+" the plane relaxes too (cell_dofree), for an isolated 2D material"
+
+#: core/calc_create/types/relax.py
+msgid "relax: só os átomos se movem e a célula fica a do SCF; vc-relax: a célula também relaxa (&CELL)"
+msgstr "relax: only the atoms move and the cell stays the SCF's; vc-relax: the cell relaxes too (&CELL)"
 
 #: core/calc_create/surface/geometry.py core/calc_create/surface/model.py
 msgid "sem estrutura"
@@ -1576,6 +1904,22 @@ msgstr "smearing = '{DEFAULT_SMEARING}' added"
 msgid "symprec do spglib, que agrupa os átomos equivalentes (as letras da coluna Sítio)"
 msgstr "spglib's symprec, which groups the equivalent atoms (the letters of the Site column)"
 
+#: core/calc_create/types/dipole_fields.py
+msgid "só tefield, sem correção de dipolo"
+msgstr "tefield only, without the dipole correction"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "tefield e dipfield"
+msgstr "tefield and dipfield"
+
+#: core/calc_create/types/dipole_fields.py
+msgid ""
+"tefield sem dipfield e com eamp = 0 não muda o potencial e só desliga a simetria do pw.x: ative "
+"dipfield para a correção de dipolo, ou informe eamp para um campo externo"
+msgstr ""
+"tefield without dipfield and with eamp = 0 leaves the potential as it is and only turns pw.x's "
+"symmetry off: turn dipfield on for the dipole correction, or give eamp for an external field"
+
 #: core/calc_create/surface/adsorb.py
 msgid "todos os átomos da superfície (scripts)"
 msgstr "all surface atoms (scripts)"
@@ -1590,9 +1934,30 @@ msgstr ""
 "code with constrained magnetization has not been tested'). The pw.x runs go through, and the "
 "bands come only from the pw.x output (up to 100 k-points, 50 per spin)"
 
+#: core/calc_create/types/dipole_fields.py
+msgid "tstress removido: com tefield o pw.x desliga a tensão que o vc-relax usa"
+msgstr "tstress removed: with tefield pw.x turns off the stress the vc-relax uses"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "um lado é diferente do outro: átomos fixos embaixo ou molécula de um lado só"
+msgstr "one side differs from the other: atoms fixed at the bottom or a molecule on one side only"
+
+#: core/calc_create/types/dipole_fields.py core/calc_create/types/script.py
+msgid "vazio = automático"
+msgstr "empty = automatic"
+
 #: core/calc_create/types/pdos.py
 msgid "vazio = toda a faixa das bandas"
 msgstr "empty = the whole range of the bands"
+
+#: core/calc_create/types/dipole_fields.py
+msgid "vc-relax com tefield: a tensão do pw.x não inclui o termo do campo"
+msgstr "vc-relax with tefield: pw.x's stress has no term for the field"
+
+#: core/calc_create/types/slab_fields.py
+#, python-brace-format
+msgid "vc-relax, cell_dofree = '{dofree}'"
+msgstr "vc-relax, cell_dofree = '{dofree}'"
 
 #: core/calc_create/types/adsorption_fields.py
 #, python-brace-format
@@ -1665,6 +2030,20 @@ msgstr ""
 "{distance} Å above the midpoint of {site} and {site_2} (relative to the site), Δx {x} Å, Δy {y} "
 "Å; at {position} Å"
 
+#: core/calc_create/types/dipole_fields.py
+#, python-brace-format
+msgid ""
+"{keys}: edir = {edir}, emaxpos = {emaxpos}, eopreg = {eopreg}, eamp = {eamp}; rampa de {ramp} Å a"
+" {margin} Å do átomo mais próximo (maior vácuo: {gap} Å); o pw.x roda sem simetria"
+msgstr ""
+"{keys}: edir = {edir}, emaxpos = {emaxpos}, eopreg = {eopreg}, eamp = {eamp}; a ramp of {ramp} Å,"
+" {margin} Å from the nearest atom (widest vacuum: {gap} Å); pw.x runs without symmetry"
+
+#: core/calc_create/types/dipole_fields.py
+#, python-brace-format
+msgid "{key} deve ficar entre 0 e 1 (fração da célula ao longo de edir)"
+msgstr "{key} must be between 0 and 1 (a fraction of the cell along edir)"
+
 #: core/calc_create/fragments.py
 #, python-brace-format
 msgid "{key} do SCF vale para o sistema inteiro: confira se serve a este fragmento"
@@ -1680,12 +2059,12 @@ msgstr "{key} multiplied by the copies of the cell: {change}"
 msgid "{key} usa índices de átomo: não foi renumerado"
 msgstr "{key} uses atom indices: it was not renumbered"
 
-#: core/calc_create/surface/merge.py
+#: core/calc_create/surface/merge.py core/calc_create/surface/occupations.py
 #, python-brace-format
 msgid "{key}: molécula {theirs:g} Ry, superfície {mine:g} Ry; vale o da superfície"
 msgstr "{key}: molecule {theirs:g} Ry, surface {mine:g} Ry; the surface one applies"
 
-#: core/calc_create/surface/merge.py
+#: core/calc_create/surface/merge.py core/calc_create/surface/occupations.py
 #, python-brace-format
 msgid "{key}: superfície '{value}', molécula '{value_2}'; vale o da superfície"
 msgstr "{key}: surface '{value}', molecule '{value_2}'; the surface one applies"
@@ -1794,6 +2173,21 @@ msgstr "{name}: {counts}, height {decimal} Å, anchor {anchor}{turned}"
 #, python-brace-format
 msgid "{name}: {formula} ({counts}), altura {decimal} Å, âncora {anchor}{turned}"
 msgstr "{name}: {formula} ({counts}), height {decimal} Å, anchor {anchor}{turned}"
+
+#: core/calc_create/types/adsorption.py
+#, python-brace-format
+msgid ""
+"{n} H removido: ele leva um elétron e o sistema pode virar um radical; confira a carga "
+"(tot_charge) e o spin (nspin)"
+msgid_plural ""
+"{n} H removidos: eles levam {n} elétrons e o sistema pode virar um radical; confira a carga "
+"(tot_charge) e o spin (nspin)"
+msgstr[0] ""
+"{n} H removed: it takes one electron and the system may become a radical; check the charge "
+"(tot_charge) and the spin (nspin)"
+msgstr[1] ""
+"{n} H removed: they take {n} electrons and the system may become a radical; check the charge "
+"(tot_charge) and the spin (nspin)"
 
 #: core/calc_create/preview.py
 #, python-brace-format

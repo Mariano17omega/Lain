@@ -71,6 +71,11 @@ def test_loader_returns_the_lint_with_the_text(tmp_path):
     assert not plain.is_input and plain.input_doc is None
 
 
+def test_loader_adds_the_meaning_checks_of_a_pw_input(tmp_path):
+    loaded = read_preview(write(tmp_path, "&control\n/\n&system\n  nspin = 2\n/\n&electrons\n/\n"))
+    assert [(i.line, i.severity) for i in loaded.issues] == [(4, "error")]  # spec 104 R3.2
+
+
 def test_empty_and_written_job_logs(tmp_path):
     empty = read_preview(write(tmp_path, "", "job.o1"))
     assert (empty.banner, empty.level) == ("Arquivo vazio: o job não registrou erros.", "success")

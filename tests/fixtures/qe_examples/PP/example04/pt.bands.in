@@ -1,0 +1,6 @@
+ &bands
+    prefix='Pt',
+    outdir='/home/seu_usuario/tmp/'
+    filband='pt.band'
+    lsym=.true.,
+ /

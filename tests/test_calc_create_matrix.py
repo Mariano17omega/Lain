@@ -24,7 +24,7 @@ from qe_studio.ui.theme.manager import ThemeManager
 
 from calc_dialog_helpers import fill_setup, pick_scf, to_files
 from calc_helpers import AL_SCF, JOBS
-from conftest import FIXTURES
+from conftest import FIXTURES, own_fixtures
 
 NAME = "teste"
 
@@ -40,7 +40,7 @@ def _is_scf(path) -> bool:
 
 
 FIXTURE_SCFS = sorted(
-    path for path in FIXTURES.rglob("*") if path.suffix in (".in", ".pwi") and _is_scf(path)
+    path for path in own_fixtures() if path.suffix in (".in", ".pwi") and _is_scf(path)
 )
 TEXTS = {"SMALL": SMALL, "slab": slab_scf()}  # SMALL holds the HUBBARD card and spin
 SOURCES = [str(path.relative_to(FIXTURES)) for path in FIXTURE_SCFS] + list(TEXTS)

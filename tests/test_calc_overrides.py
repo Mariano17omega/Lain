@@ -65,3 +65,8 @@ def test_issues_of_an_input_and_of_a_script():
     assert edit_issues("pw_input", SCF.text) == []
     assert edit_issues("qsub", "#!/bin/bash\nif true; then\n  echo ok\n") != []  # no "fi"
     assert edit_issues("qsub", SCRIPT.text) == []
+
+
+def test_an_edited_input_also_shows_what_its_parameters_mean():
+    issues = edit_issues("pw_input", "&control\n/\n&system\n  nspin = 2\n/\n&electrons\n/\n")
+    assert [(i.line, i.severity) for i in issues] == [(4, "error")]  # spec 104 R3.2

@@ -1,9 +1,0 @@
-{% extends "qsub/_base.qsub.j2" %}
-{% block body %}
-{% for input, output in pw_runs %}
-${MPICOMMAND} ${QE_COMMAND} -i "{{ input }}" > "{{ output }}"
-{% if not loop.last %}
-
-{% endif %}
-{% endfor %}
-{% endblock %}

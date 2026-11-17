@@ -48,10 +48,20 @@ def test_a_numeric_failure_is_a_read_error(monkeypatch):
         structure_of_text(al().text)
 
 
-@pytest.mark.parametrize("type_id", ["bandas", "pdos", "relax", "vc-relax", "scf", "charge"])
-def test_a_type_without_a_new_structure_gives_the_scf(type_id):
+@pytest.mark.parametrize(
+    "type_id, values",
+    [
+        ("bandas", {}),
+        ("pdos", {}),
+        ("relax", {}),
+        ("relax", {"calculation": "vc-relax"}),
+        ("scf", {}),
+        ("charge", {}),
+    ],
+)
+def test_a_type_without_a_new_structure_gives_the_scf(type_id, values):
     scf = al()
-    found = plan_structures(scf, by_id(type_id).plan(scf, {}, JOBS, "avancado"))
+    found = plan_structures(scf, by_id(type_id).plan(scf, values, JOBS, "avancado"))
     assert labels(found) == ["SCF base (al.scf.in)"]
     assert found[0].path == scf.path and found[0].structure.source.path == str(scf.path)
     assert default_index(found) == 0
@@ -86,7 +96,7 @@ def test_without_the_site_the_relax_is_the_surface():
 def test_slab_and_supercell_add_the_new_structure():
     bulk, slab = read(BULK), read(SLAB_001)
     found = plan_structures(bulk, by_id("slab").plan(bulk, {}, JOBS, "padrao"))
-    assert labels(found) == ["SCF base (scf-kaolinite.in)", "Slab (vc-relax_kaolinite.in)"]
+    assert labels(found) == ["SCF base (scf-kaolinite.in)", "Slab (relax_kaolinite.in)"]
     found = plan_structures(slab, by_id("supercell").plan(slab, {}, JOBS, "padrao"))
     assert [len(each.structure) for each in found] == [34, 68]
 

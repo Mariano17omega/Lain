@@ -1,4 +1,4 @@
-"""Spec 78 R2: the energies of SCF outputs, the default equation and the report."""
+"""Spec 78 R2 and spec 97 R4–R5: the energies of SCF outputs, the default equation and the report."""
 
 import shutil
 from pathlib import Path
@@ -6,7 +6,9 @@ from pathlib import Path
 import pytest
 
 from qe_studio.core.analysis.adsorption_energy import (
+    EV_TO_KJ_PER_MOL,
     NO_ENERGY,
+    NOT_SCF,
     RY_TO_EV,
     EnergyRow,
     Role,
@@ -14,30 +16,21 @@ from qe_studio.core.analysis.adsorption_energy import (
     default_equation,
     parse_equation,
     read_rows,
-    report_name,
-    report_text,
-    save_report,
 )
+from qe_studio.core.analysis.adsorption_report import report_name, report_text, save_report
+from qe_studio.core.qe.scf import read_scf
 
-from conftest import FIXTURES
+from adsorption_helpers import coherent_set, copy_scf_outputs
+from adsorption_helpers import scf_paths as paths
+from conftest import copy_fixture
 
 SI, AL, NI = -15.86827608, -5.03855495, -85.89426253
-SOURCES = {"si": "si_bands", "al": "al_bands", "ni": "qe731_ni_spin_fixed"}
 
 
 @pytest.fixture
 def outputs(tmp_path) -> Path:
     """The three SCF runs (input and output) side by side."""
-    folder = tmp_path / "ads"
-    folder.mkdir()
-    for stem, source in SOURCES.items():
-        for suffix in (".in", ".out"):
-            shutil.copy(FIXTURES / source / f"{stem}.scf{suffix}", folder / f"{stem}.scf{suffix}")
-    return folder
-
-
-def paths(folder: Path) -> list[Path]:
-    return sorted(folder.glob("*.scf.out"))
+    return copy_scf_outputs(tmp_path / "ads")
 
 
 def test_energies_prefixes_and_order(outputs):
@@ -50,6 +43,14 @@ def test_energies_prefixes_and_order(outputs):
     assert [r.energy_ry for r in rows] == [SI, AL, NI]
     assert [r.role for r in rows] == [Role.COMPLEX, Role.SUBSTRATE, Role.ADSORBATE]
     assert all(r.problem is None for r in rows)
+
+
+def test_a_relax_output_is_refused_not_read_at_its_first_geometry(tmp_path):
+    out = copy_fixture("si_relax", tmp_path) / "si.rel.out"
+    assert read_scf(out).final_energy_ry == pytest.approx(-15.81702313)  # the initial geometry
+    row = read_rows([out])[0]
+    assert row.energy_ry is None
+    assert row.problem == NOT_SCF
 
 
 def test_the_prefix_without_an_input(outputs):
@@ -69,8 +70,13 @@ def test_the_default_equation_and_its_value(outputs):
     outcome = calculate(equation, rows)
     value = SI - AL - NI
     assert outcome.name == "E_ads" and outcome.value_ry == pytest.approx(value)
-    assert outcome.text == f"E_ads = {value:.8f} Ry = {value * RY_TO_EV:.4f} eV"
+    ev = value * RY_TO_EV
+    assert (
+        outcome.text == f"E_ads = {value:.8f} Ry = {ev:.4f} eV = {ev * EV_TO_KJ_PER_MOL:.2f} kJ/mol"
+    )
+    assert outcome.text == "E_ads = 75.06454140 Ry = 1021.3051 eV = 98540.96 kJ/mol"
     assert pytest.approx(4.3597447222071e-18 / 1.602176634e-19 / 2, rel=1e-14) == RY_TO_EV
+    assert pytest.approx(1.602176634e-19 * 6.02214076e23 / 1000, rel=1e-14) == EV_TO_KJ_PER_MOL
 
 
 def test_a_repeated_prefix_gets_a_number(outputs):
@@ -122,6 +128,32 @@ def test_the_report(outputs):
     assert "| silicon | si.scf.out | 2 | -15.86827608 |" in text
     assert f"```\n{equation}\n```" in text
     assert "E_ads = 75.06454140 Ry = 1021.3051 eV" in text
+    # spec 97 R5: the level of theory, the warnings and the notes
+    assert (
+        "| Prefixo | Arquivo | Átomos | Energia total (Ry) | Cutoffs (Ry) | Funcional | Ocupações "
+        "| Spin | Malha k |\n" in text
+    )
+    assert (
+        "| silicon | si.scf.out | 2 | -15.86827608 | 25/118.918 | LDA | sem smearing "
+        "| não polarizado | automatic 8×8×8 (0 0 0) |\n" in text
+    )
+    assert "= 98540.96 kJ/mol\n" in text
+    avisos, notas = text.index("\n## Avisos\n"), text.index("\n## Notas\n")
+    assert text.index("**Resultado**") < avisos < notas
+    assert "\n- Os átomos não fecham: Si +2, Al -1, Ni -1." in text[avisos:notas]
+    assert text[notas:].startswith(
+        "\n## Notas\n\n- Energia eletrônica: sem energia de ponto zero (ZPE) nem contribuição térmica.\n"
+    )
+
+
+def test_the_report_of_a_coherent_set(tmp_path):
+    rows = read_rows(coherent_set(tmp_path))
+    equation = "E_ads = E(big) - E(small) - E(atom)"
+    text = report_text(rows, equation, calculate(equation, rows))
+    assert (
+        "## Avisos\n\nNenhum aviso nas condições conferidas (cutoffs, funcional, dispersão, "
+        "pseudopotenciais, ocupações, spin, célula, malha k e átomos).\n" in text
+    )
 
 
 def test_the_reports_name_is_safe_and_short(outputs):

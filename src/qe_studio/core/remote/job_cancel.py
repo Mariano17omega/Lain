@@ -6,9 +6,11 @@ right before acting (never the cache of the queue popup).
 - A **running** job is matched to a folder by its scheduler output ``<name>.o<id>`` (the only link
   the cluster gives, ``running_in``) and stopped by creating ``<prefix>.EXIT`` there, one per
   ``prefix`` of the folder's SCF, relax and vc-relax inputs of pw.x (the cluster administrator's
-  rule, spec 71 R2): pw.x stops cleanly at its next check and deletes the file. A later pw.x of the
-  script with the same ``prefix`` still runs; one with another of these prefixes stops at its first
-  check. ``qdel`` is never used on it: the process would go on running out of the queue.
+  rule, spec 71 R2): pw.x stops cleanly at its next check and deletes the file. A script made by Lain
+  checks every step (``check_step``, spec 103) and ends the job there, with the failure e-mail. In an
+  older or hand-written script a later pw.x with the same ``prefix`` still runs; one with another of
+  these prefixes stops at its first check. ``qdel`` is never used on it: the process would go on
+  running out of the queue.
   The race (L-09): a job that ends between the fresh ``qstatus`` and the ``touch`` never reads the
   file, which stays in the folder, and the next pw.x with that ``prefix`` stops right after its setup
   (``Program stopped by user request``, ``QE:Modules/check_stop.f90:126-144``). Lain cannot tell and

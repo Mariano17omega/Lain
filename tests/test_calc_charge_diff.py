@@ -6,7 +6,8 @@ from fragment_helpers import SMALL
 from qe_studio.core.calc_create.overrides import apply_overrides
 from qe_studio.core.calc_create.render import template_names
 from qe_studio.core.calc_create.types import by_id, visible_fields
-from qe_studio.core.calc_create.types.charge_diff import ATOMS_TAB, DIFF_TEMPLATE
+from qe_studio.core.calc_create.types.charge import DIFF_PLOT_NUMS, choice, code_of
+from qe_studio.core.calc_create.types.charge_diff import ATOMS_TAB, DIFF_TEMPLATE, PP_DIFF
 from qe_studio.core.calc_create.writer import folder_name
 from qe_studio.core.config import JobsConfig
 from qe_studio.core.qe.input_edit import InputEditor
@@ -244,12 +245,19 @@ def test_the_script_runs_the_inputs_in_order():
     assert body[start:] == [
         "mkdir -p cdd_xsf",
         '${MPICOMMAND} ${QE_COMMAND} -i "scf_ilita.in" > "scf_ilita.out"',
+        'check_step $? "scf_ilita.out"',
         '${MPICOMMAND} ${QE_COMMAND} -i "scf_ilita_clean.in" > "scf_ilita_clean.out"',
+        'check_step $? "scf_ilita_clean.out"',
         '${MPICOMMAND} ${QE_COMMAND} -i "scf_ilita_isolated.in" > "scf_ilita_isolated.out"',
+        'check_step $? "scf_ilita_isolated.out"',
         '${PPCOMMAND} -i "pp_ilita_charge.in" > "pp_ilita_charge.out"',
+        'check_step $? "pp_ilita_charge.out"',
         '${PPCOMMAND} -i "pp_ilita_clean_charge.in" > "pp_ilita_clean_charge.out"',
+        'check_step $? "pp_ilita_clean_charge.out"',
         '${PPCOMMAND} -i "pp_ilita_isolated_charge.in" > "pp_ilita_isolated_charge.out"',
+        'check_step $? "pp_ilita_isolated_charge.out"',
         '${PPCOMMAND} -i "pp_charge_diff.in" > "pp_charge_diff.out"',
+        'check_step $? "pp_charge_diff.out"',
         "#" * 41 + " ",
         "# Job finished mail",
         'sendMail "Job done" "$?"',
@@ -319,6 +327,7 @@ def test_the_advanced_mode_shows_every_field():
             )
         ],
         "atoms",
+        "plot_num",
         "iflag",
         "output_format",
         "xsf_dir",
@@ -383,3 +392,79 @@ def test_the_names_are_checked_like_the_other_types():
 
 def test_registered_templates_exist_for_every_pp_input():
     assert {"qe/charge/pp_charge.in.j2", DIFF_TEMPLATE} <= set(CHARGE_DIFF.input_templates)
+
+
+# -- spec 100: the quantity, Δρ (plot_num 0) or Δm (plot_num 6) -----------------------------------
+PP_KEYS = ("pp_base", "pp_clean", "pp_isolated", "pp_diff")
+SPIN = choice(6, DIFF_PLOT_NUMS)
+NO_SPIN = from_text(SMALL.replace("  nspin = 2\n", "").replace("  nbnd = 40\n", ""))
+
+
+def plot_num_field():
+    return next(f for f in CHARGE_DIFF.fields(ILITA, JOBS) if f.id == "plot_num")
+
+
+def test_the_plot_num_choices_are_0_and_6():
+    field = plot_num_field()
+    assert [code_of(c, -1) for c in field.choices] == [0, 6]
+    assert field.default == choice(0, DIFF_PLOT_NUMS)
+    assert (field.kind, field.group, field.standard) == ("choice", PP_DIFF, False)
+
+
+def test_the_default_plot_num_keeps_the_files_of_today():
+    standard = plan()
+    for advanced in (
+        plan(mode="avancado"),
+        plan(mode="avancado", plot_num=choice(0, DIFF_PLOT_NUMS)),
+    ):
+        assert advanced.ok and text_of(advanced, "pp_diff") == IDEA
+        for key in PP_KEYS[:3]:
+            assert text_of(advanced, key) == text_of(standard, key), key
+
+
+def test_the_standard_mode_ignores_a_spin_plot_num():
+    result = plan(plot_num=SPIN)
+    assert result.ok and text_of(result, "pp_diff") == IDEA
+
+
+def test_spin_plot_num_reaches_the_four_pp_inputs():
+    result = plan(mode="avancado", plot_num=SPIN)
+    assert result.ok, result.errors
+    for key in PP_KEYS:
+        assert editor_of(result, key).get("inputpp", "plot_num") == "6", key
+        assert [i for i in lint(text_of(result, key)).issues if i.severity == "error"] == [], key
+    for key, prefix in (
+        ("pp_base", "ilita"),
+        ("pp_clean", "ilita_clean"),
+        ("pp_isolated", "ilita_isolated"),
+    ):
+        text = text_of(result, key)
+        assert f"filplot = '{prefix}.spin'," in text and f"filepp(1) = '{prefix}.spin'," in text
+        assert f"fileout = 'cdd_xsf/{prefix}_spin.xsf'" in text
+    diff = text_of(result, "pp_diff")
+    assert "filplot = 'ilita_spin_diff'," in diff
+    assert [editor_of(result, "pp_diff").get("plot", f"filepp({i})") for i in (1, 2, 3)] == [
+        "ilita.spin",
+        "ilita_clean.spin",
+        "ilita_isolated.spin",
+    ]
+    assert "weight(1) = 1.0,\nweight(2) = -1.0,\nweight(3) = -1.0," in diff
+    assert "fileout = 'cdd_xsf/ilita_spin_diff.xsf'" in diff
+    assert "charge" not in diff  # no data name says charge
+    assert [f.name for f in result.files] == NAMES  # the tabs and the inputs keep their names
+    assert runs(result.files[0].text) == runs(plan().files[0].text)
+
+
+def test_spin_plot_num_without_spin_blocks_creating():
+    result = plan(NO_SPIN, mode="avancado", plot_num=SPIN)
+    assert not result.ok and "plot_num" in result.problems
+    assert "nspin = 2" in result.problems["plot_num"] and "nspin = 1" in result.problems["plot_num"]
+    assert [f.name for f in result.files] == NAMES
+    assert plan(NO_SPIN, mode="avancado", plot_num=choice(0, DIFF_PLOT_NUMS)).ok
+
+
+def test_the_plot_num_tooltip_explains_spin_and_paw():
+    tooltip = plot_num_field().tooltip
+    for words in ("ρ↑ − ρ↓", "nspin = 2", "PAW", "17", "21", "Δρ", "Δm"):
+        assert words in tooltip, words
+    assert all(len(line) <= 100 for line in tooltip.splitlines())

@@ -57,8 +57,14 @@ def test_scripts_run_the_standard_names():
 # -- R2: the self-contained folder -----------------------------------------------------------------
 def test_pseudo_dir_from_the_config():
     jobs = JobsConfig(pseudo_dir=PSEUDO)
-    for type_id in ("scf", "relax", "vc-relax", "bandas", "pdos"):
-        result = plan(type_id, jobs=jobs)
+    for type_id, values in (
+        ("scf", {}),
+        ("relax", {}),
+        ("relax", {"calculation": "vc-relax"}),
+        ("bandas", {}),
+        ("pdos", {}),
+    ):
+        result = plan(type_id, jobs=jobs, **values)
         assert PSEUDO_DIR_NOTE not in result.notes
         for planned in result.files:
             if planned.kind == "pw_input":
@@ -117,14 +123,22 @@ def test_fields_of_the_standard_mode():
     without_output = from_text(AL_TEXT)  # no al.scf.out next to it: no nbnd to start from
     assert {t.id: shown(t.id, al()) for t in REGISTRY} == {
         "scf": [],
-        "relax": [],
-        "vc-relax": [],
+        "relax": ["calculation", "nstep"],
         "bandas": ["kpath"],
         "pdos": ["e_min", "e_max"],
         "charge": [],
         "charge_diff": ["atoms"],
-        "slab": ["molecule", "axis", "vacuum_min", "complete"],
-        "supercell": ["n1", "n2", "n3"],
+        "slab": [
+            "molecule",
+            "axis",
+            "vacuum_min",
+            "complete",
+            "calculation",
+            "tefield",
+            "dipfield",
+            "nstep",
+        ],
+        "supercell": ["n1", "n2", "n3", "calculation", "nstep"],
         "adsorption": [
             "molecule",
             "anchor",
@@ -134,6 +148,9 @@ def test_fields_of_the_standard_mode():
             "remove_h",
             "shift_x",
             "shift_y",
+            "tefield",
+            "dipfield",
+            "nstep",
             "fixed_atoms",
         ],
         "ads_energy": [],
@@ -151,22 +168,26 @@ def test_fields_of_the_standard_mode():
     "type_id, values",
     [
         ("scf", {"kmesh": "2 2 2 0 0 0", "np": 8, "nk": 2, "job_name": "x"}),
-        ("relax", {"nstep": 7, "forc_conv_thr": 0.5, "ion_dynamics": "damp"}),
+        ("relax", {"forc_conv_thr": 0.5, "ion_dynamics": "damp"}),  # nstep is a standard field
         ("vc-relax", {"press": 99.0, "cell_dynamics": "damp-w"}),
         ("bandas", {"nbnd": 99, "filband": "outro.dat"}),
         ("pdos", {"nbnd": 99, "kmesh": "2 2 2 0 0 0", "delta_e": 0.5, "degauss": 0.3}),
     ],
 )
 def test_the_standard_mode_ignores_hidden_fields(type_id, values):
-    standard = plan(type_id)
-    edited = plan(type_id, **values)
+    # The vc-relax is the relaxation with its "Cálculo" chosen, a field the padrao mode shows.
+    type_id, base = (
+        ("relax", {"calculation": "vc-relax"}) if type_id == "vc-relax" else (type_id, {})
+    )
+    standard = plan(type_id, **base)
+    edited = plan(type_id, **base, **values)
     assert [f.text for f in edited.files] == [f.text for f in standard.files]
     assert not edited.errors
-    advanced = plan(type_id, mode="avancado", **values)
+    advanced = plan(type_id, mode="avancado", **base, **values)
     assert [f.text for f in advanced.files] != [f.text for f in standard.files]
     bad = {key: "?" for key in values if key != "ion_dynamics"}
-    assert not plan(type_id, **bad).errors  # a hidden field can hold anything
-    assert plan(type_id, mode="avancado", **bad).errors
+    assert not plan(type_id, **base, **bad).errors  # a hidden field can hold anything
+    assert plan(type_id, mode="avancado", **base, **bad).errors
 
 
 def test_standard_bands():
@@ -286,5 +307,7 @@ def test_shown_fields_without_conditions_are_the_visible_ones():
         if calc_type.id in ("adsorption", "ads_energy"):  # surface and SCF list of their own
             continue
         fields = calc_type.fields(scf, JOBS)
+        if any(form_field.shown_when for form_field in fields):  # test_calc_shown_fields.py
+            continue
         for mode in ("padrao", "avancado"):
             assert shown_fields(fields, mode, {}) == visible_fields(fields, mode), calc_type.id

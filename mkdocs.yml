@@ -41,7 +41,6 @@ nav:
       - create-calc/index.md
       - create-calc/scf.md
       - create-calc/relax.md
-      - create-calc/vc-relax.md
       - create-calc/bands.md
       - create-calc/pdos.md
       - create-calc/charge.md

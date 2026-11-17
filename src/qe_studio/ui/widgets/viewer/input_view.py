@@ -1,8 +1,9 @@
-"""What the text viewer adds for a QE input (spec 11): write errors, extract strip, comparison; and
+"""What the text viewer adds for a QE input (spec 11): its problems (write errors and, spec 104, what
+the parameters mean), extract strip, comparison; and
 for a ``.qsub`` script (spec 38): the write errors alone.
 
 ``InputView`` is one container the ``TextViewer`` embeds, hidden for anything that is neither. It
-holds no parsing: the worker lints the text (``core/qe/input_lint``, ``core/viewer/qsub_lint``) and
+holds no parsing: the worker checks the text (``core/qe/input_semantics``, ``core/viewer/qsub_lint``) and
 extracts an input's key parameters (``core/qe/input_extract``) and hands them to ``bind`` /
 ``bind_issues``; this widget only shows them and moves the editor's cursor.
 """
@@ -115,16 +116,14 @@ class InputView(QWidget):
         self.extract_bar.hide()
         self.setVisible(bool(self.issues))
 
-    # -- write errors ------------------------------------------------------------------------
+    # -- problems ----------------------------------------------------------------------------
     def _issues_text(self, count: int) -> str:
         if self._noun == "script":
             text = ngettext(
                 "{n} problema de escrita no script", "{n} problemas de escrita no script", count
             )
         else:
-            text = ngettext(
-                "{n} problema de escrita no input", "{n} problemas de escrita no input", count
-            )
+            text = ngettext("{n} problema no input", "{n} problemas no input", count)
         return text.format(n=count)
 
     def _set_issues_row(self) -> None:

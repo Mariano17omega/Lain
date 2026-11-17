@@ -1,9 +1,9 @@
 """Spec 24 R1: ``InputEditor`` edits an input in place and keeps everything else as written."""
 
-from qe_studio.core.qe.input_edit import InputEditor
+from qe_studio.core.qe.input_edit import RESTART_COMMENT, InputEditor
 from qe_studio.core.qe.input_lint import lint
 
-from conftest import FIXTURES
+from conftest import own_fixtures
 
 BASE = """\
 &CONTROL
@@ -161,7 +161,7 @@ def test_crlf_files_keep_their_line_ends():
 
 
 def test_real_inputs_survive_a_round_of_edits():
-    for path in sorted(FIXTURES.rglob("*.in")):
+    for path in own_fixtures("*.in"):
         text = path.read_text(encoding="utf-8", errors="replace")
         editor = InputEditor.from_text(text)
         assert editor.text() == text
@@ -281,3 +281,38 @@ def test_a_cell_option_as_pw_x_prints_it_is_replaced_whole():
     assert edited(text, ("replace_card", "CELL_PARAMETERS", "angstrom", rows)) == (
         "&system\n/\nCELL_PARAMETERS (angstrom)\n2 0 0\n0 2 0\n0 0 2\n"
     )
+
+
+# -- spec 102: a commented line inside a namelist ----------------------------------------------------
+def test_add_comment_goes_above_the_closer_indented_like_the_entries():
+    text = edited(BASE, ("add_comment", "control", RESTART_COMMENT))
+    assert text == BASE.replace(
+        "   outdir = './tmp'\n/", "   outdir = './tmp'\n   ! restart_mode = 'restart'\n/"
+    )
+    editor = InputEditor.from_text(text)
+    assert editor.get("control", "outdir") == "./tmp" and editor.keys("control") == [
+        "calculation",
+        "prefix",
+        "outdir",
+    ]  # the comment is no entry
+
+
+def test_add_comment_is_not_repeated_and_remove_comment_undoes_it():
+    editor = InputEditor.from_text(BASE)
+    assert editor.add_comment("control", "x = 1") is True
+    assert editor.add_comment("control", "x = 1") is False
+    assert editor.text().count("! x = 1") == 1
+    assert editor.remove_comment("control", "x = 1") is True
+    assert editor.text() == BASE and editor.remove_comment("control", "x = 1") is False
+
+
+def test_add_comment_keeps_crlf_and_needs_a_namelist_that_can_hold_it():
+    crlf = InputEditor.from_text(BASE.replace("\n", "\r\n"))
+    crlf.add_comment("control", "x")
+    assert "   ! x\r\n/\r\n" in crlf.text() and "\n/" not in crlf.text().replace("\r\n", "")
+    assert InputEditor.from_text(BASE).add_comment("electrons", "x") is False  # missing namelist
+    one_line = InputEditor.from_text("&CONTROL calculation='scf' /\n")
+    assert one_line.add_comment("control", "x") is False  # a comment after it would be outside
+    assert one_line.text() == "&CONTROL calculation='scf' /\n"
+    unclosed = InputEditor.from_text("&CONTROL\n  calculation='scf'\n&SYSTEM\n  ibrav=1\n/\n")
+    assert unclosed.add_comment("control", "x") and unclosed.text().splitlines()[2] == "  ! x"

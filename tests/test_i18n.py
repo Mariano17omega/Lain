@@ -302,6 +302,8 @@ DYNAMIC = [
     ("core/calc_create/types/adsorption.py", "FROM_LIST"),
     ("core/calc_create/types/adsorption.py", "mode"),
     ("core/calc_create/types/charge.py", "labels[code]"),
+    ("core/calc_create/types/charge.py", "line"),  # PAW_NOTE (spec 100)
+    ("core/calc_create/types/charge_diff.py", "line"),  # PLOT_NUM_TIP (spec 100)
     ("core/calc_create/types/surface_fields.py", "BOTTOM"),
     ("core/calc_create/types/surface_fields.py", "NONE"),
     ("core/calc_create/types/surface_fields.py", "SPECIES"),
@@ -498,9 +500,9 @@ def test_the_plurals_have_both_forms(po):
         "Converged in {count} iteration",
         "Converged in {count} iterations",
     )
-    assert forms[("{n} problema de escrita no input", "{n} problemas de escrita no input")] == (
-        "{n} syntax problem in the input",
-        "{n} syntax problems in the input",
+    assert forms[("{n} problema no input", "{n} problemas no input")] == (
+        "{n} problem in the input",
+        "{n} problems in the input",
     )
     lattice = ("nat = {nat}, mas ATOMIC_POSITIONS tem {count} linha",)
     [(source, strings)] = [(k, v) for k, v in forms.items() if k[0] == lattice[0]]
@@ -512,6 +514,9 @@ def test_the_plurals_have_both_forms(po):
         "{moves} BFGS step",
         "{moves} BFGS steps",
     )
+    assert forms[
+        ("{moves} passo da dinâmica amortecida", "{moves} passos da dinâmica amortecida")
+    ] == ("{moves} damped dynamics step", "{moves} damped dynamics steps")  # spec 101
     assert forms[("{count} iteração", "{count} iterações")] == (
         "{count} iteration",
         "{count} iterations",
@@ -572,7 +577,7 @@ def test_the_plurals_have_both_forms(po):
             filename.startswith("core/calc_create/types/") for filename, _line in message.locations
         )
     ]
-    assert len(area_57) == 4  # spec 76: the marks of the fixed atoms that differ from the rule
+    assert len(area_57) == 5  # + spec 76: marks that differ from the rule; the H removed note
     assert [tool.sources(m)[0] for m in area_57 if len(set(tool.forms(m))) != 2] == []
     differ = (
         "{count}/{count_2}{which}, marcados na tabela ({k} diferente da regra '{rule}')",
@@ -654,9 +659,9 @@ def test_the_banners_of_the_text_viewer(english, portuguese):
 
 
 def test_the_problems_bar_counts_in_the_language(english, portuguese):
-    assert english["input_viewer#facts"][0] == "4 syntax problems in the input"
+    assert english["input_viewer#facts"][0] == "4 problems in the input"
     assert english["qsub#facts"] == ["8 syntax problems in the script"]
-    assert portuguese["input_viewer#facts"][0] == "4 problemas de escrita no input"
+    assert portuguese["input_viewer#facts"][0] == "4 problemas no input"
     assert portuguese["qsub#facts"] == ["8 problemas de escrita no script"]
     assert "nspin: 1 (default) | Go to line 7" in english["input_viewer#facts"]
     assert "nspin: 1 (padrão) | Ir à linha 7" in portuguese["input_viewer#facts"]
@@ -928,12 +933,12 @@ def test_the_report_tab_shows_what_is_written(english, portuguese):
 def test_the_files_tab_names_the_kind_of_each_file(english, portuguese):
     assert [f for f in english["calc_create_files#facts"] if f.startswith("row: ")] == [
         "row: slab.qsub | SGE script",
-        "row: vc-relax_kaolinite.in | pw.x input",
+        "row: relax_kaolinite.in | pw.x input",
         "row: geracao.md | Report",
     ]
     assert [f for f in portuguese["calc_create_files#facts"] if f.startswith("row: ")] == [
         "row: slab.qsub | Script SGE",
-        "row: vc-relax_kaolinite.in | Input do pw.x",
+        "row: relax_kaolinite.in | Input do pw.x",
         "row: geracao.md | Relatório",
     ]
     assert any(
@@ -1113,11 +1118,11 @@ def test_the_converged_scf_speaks_english(english, portuguese):
 
 # -- spec 57: the calculation types of "Criar cálculo" ---------------------------------------------
 TYPES_EN = (
-    "types: SCF | Relax | VC-Relax | Bands | PDOS | Charge | Charge difference | Slab | Supercell"
+    "types: SCF | Relaxation | Bands | PDOS | Charge | Charge difference | Slab | Supercell"
     " | Molecule on surface | Adsorption energy"
 )
 TYPES_PT = (
-    "types: SCF | Relax | VC-Relax | Bandas | PDOS | Carga | Diferença de carga | Slab"
+    "types: SCF | Relaxamento | Bandas | PDOS | Carga | Diferença de carga | Slab"
     " | Supercélula | Molécula na superfície | Energia de adsorção"
 )
 QSUB_HEADER = "###       Grid setup                   ###"
@@ -1125,6 +1130,7 @@ QSUB_HEADER = "###       Grid setup                   ###"
 # languages, so they are no message (R3.1).
 QE_CHOICES = {
     "axis": "the stacked axis and its Miller index, c (001)",
+    "calculation": "&CONTROL calculation",
     "cell_dofree": "&CELL cell_dofree",
     "cell_dynamics": "&CELL cell_dynamics",
     "ion_dynamics": "&IONS ion_dynamics",
@@ -1187,7 +1193,9 @@ def test_the_fields_of_every_type_follow_the_language(english, portuguese, po):
     assert "tab: Supercell" in english["calc_create_supercell#facts"]
     relax = keyed(english["calc_create_relax#facts"], "field")
     assert relax["nstep"] == (
-        "Maximum steps (nstep) | &CONTROL nstep: maximum number of optimization steps"
+        "Maximum steps (nstep) | &CONTROL nstep: maximum number of optimization steps. If it ends "
+        "without converging, uncomment the restart_mode line in the input and run again, with the "
+        "same NP and nk"
     )
     assert relax["ion_dynamics"] == "Ion dynamics (ion_dynamics) | &IONS ion_dynamics"  # data
     pdos = keyed(english["calc_create_pdos#facts"], "field")
@@ -1255,10 +1263,8 @@ def test_a_slab_writes_the_same_inputs_in_both_languages(english, portuguese, po
     byte for byte, the script's header the cluster's in both (R2.3), no message in the input."""
     en_files = files_of(english["slab_files#facts"])
     pt_files = files_of(portuguese["slab_files#facts"])
-    assert (
-        sorted(en_files) == sorted(pt_files) == ["geracao.md", "slab.qsub", "vc-relax_kaolinite.in"]
-    )
-    assert en_files["vc-relax_kaolinite.in"] == pt_files["vc-relax_kaolinite.in"]
+    assert sorted(en_files) == sorted(pt_files) == ["geracao.md", "relax_kaolinite.in", "slab.qsub"]
+    assert en_files["relax_kaolinite.in"] == pt_files["relax_kaolinite.in"]
     assert en_files["slab.qsub"] == pt_files["slab.qsub"]
     assert QSUB_HEADER in en_files["slab.qsub"]
     texts = {
@@ -1269,7 +1275,7 @@ def test_a_slab_writes_the_same_inputs_in_both_languages(english, portuguese, po
         for text in (*tool.sources(message), *tool.forms(message))
         if " " in text
     }
-    assert sorted(text for text in texts if text in en_files["vc-relax_kaolinite.in"]) == []
+    assert sorted(text for text in texts if text in en_files["relax_kaolinite.in"]) == []
 
 
 def test_the_report_of_a_slab_follows_the_language(english, portuguese, po):
@@ -1312,7 +1318,12 @@ def test_choice_values_are_marked(po):
     where it is defined): the combo shows ``_(value)`` and keeps the value (R3.1). QE's own tokens
     are the exception, and a code of pp.x keeps its code in English."""
     from qe_studio.core.calc_create.types import REGISTRY
-    from qe_studio.core.calc_create.types.charge import CODE_SEPARATOR, IFLAGS, OUTPUT_FORMATS
+    from qe_studio.core.calc_create.types.charge import (
+        CODE_SEPARATOR,
+        DIFF_PLOT_NUMS,
+        IFLAGS,
+        OUTPUT_FORMATS,
+    )
 
     from calc_helpers import JOBS, al
     from surface_helpers import BULK, SLAB_001, read
@@ -1334,7 +1345,7 @@ def test_choice_values_are_marked(po):
                     unmarked.append(f"{calc_type.id}.{form_field.id}: {value!r}")
     assert unmarked == []
     assert len(tokens) > 20 and [t for t in tokens if t in translated or not t.isascii()] == []
-    for value in (*IFLAGS.values(), *OUTPUT_FORMATS.values()):
+    for value in (*IFLAGS.values(), *OUTPUT_FORMATS.values(), *DIFF_PLOT_NUMS.values()):
         code = value.partition(CODE_SEPARATOR)[0]
         assert translated[value].startswith(f"{code}{CODE_SEPARATOR}"), value
 

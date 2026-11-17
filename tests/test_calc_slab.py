@@ -9,8 +9,9 @@ import numpy as np
 import pytest
 
 from qe_studio.core.calc_create.scf_info import ScfInfo
+from qe_studio.core.calc_create.structures import plan_structures
 from qe_studio.core.calc_create.surface.report import REPORT_KEY, REPORT_NAME
-from qe_studio.core.calc_create.types import by_id, visible_fields
+from qe_studio.core.calc_create.types import by_id, shown_fields, visible_fields
 from qe_studio.core.calc_create.types.slab import (
     GAMMA_NOTE,
     NBND_ADDED_NOTE,
@@ -51,7 +52,7 @@ def plan(scf: ScfInfo | None = None, mode: str = "avancado", jobs=JOBS, **values
 
 
 def input_text(result) -> str:
-    return result.by_key("vc-relax").text
+    return result.by_key("relax").text
 
 
 def report(result) -> str:
@@ -59,7 +60,8 @@ def report(result) -> str:
 
 
 def script_plan(case: str):
-    return plan(molecule=read(MOLECULE), **SCRIPT_FIELDS[case])
+    """The plan of the user's scripts, which make a vc-relax (relax is the type's default, spec 95)."""
+    return plan(molecule=read(MOLECULE), calculation="vc-relax", **SCRIPT_FIELDS[case])
 
 
 @pytest.mark.parametrize("case", ["slab_001", "slab_010"])
@@ -80,6 +82,46 @@ def test_the_plan_reproduces_the_scripts(case):
     assert editor.get("cell", "cell_dofree") == "2Dxy"
     assert editor.get("system", "nbnd") is None and data["nbnd"] is None  # as in the SCF
     assert [i for i in lint(text).issues if i.severity == "error"] == []
+
+
+def test_the_default_is_a_relax_that_keeps_the_cell():
+    """Spec 95 R3: a crystal's surface keeps the bulk's lattice parameter in its plane."""
+    for mode in ("padrao", "avancado"):
+        result = plan(mode=mode)
+        assert [f.name for f in result.files] == ["slab.qsub", "relax_kaolinite.in", REPORT_NAME]
+        assert [f.key for f in result.files] == ["script", "relax", REPORT_KEY]
+        editor = InputEditor.from_text(input_text(result))
+        assert editor.get("control", "calculation") == "relax"
+        # Nothing of &CELL is written: the bulk SCF's own &CELL (cell_dynamics) stays, as pw.x
+        # does not read it in a relax (out of scope of spec 95).
+        assert editor.get("cell", "cell_dofree") is None and editor.get("cell", "press") is None
+        assert editor.get("cell", "cell_dynamics") == "bfgs"
+        assert editor.get("control", "prefix") == "kaolinite-slab-001"
+        assert result.by_key("relax").tab_label == "Slab (relax_kaolinite.in)"
+    assert "- **Cálculo**: relax: célula fixa, o plano no parâmetro de rede do bulk" in report(
+        plan()
+    )
+
+
+def test_a_vc_relax_relaxes_the_plane():
+    result = plan(calculation="vc-relax")
+    assert [f.name for f in result.files] == ["slab.qsub", "vc-relax_kaolinite.in", REPORT_NAME]
+    editor = InputEditor.from_text(input_text(result))
+    assert editor.get("control", "calculation") == "vc-relax"
+    assert editor.get("cell", "cell_dofree") == "2Dxy"
+    assert "- **Cálculo**: vc-relax, cell_dofree = '2Dxy'" in report(result)
+    relax, vc = plan(), result  # the structure, its fixed atoms and k-points do not change
+    assert input_text(relax).split("ATOMIC_SPECIES")[1] == input_text(vc).split("ATOMIC_SPECIES")[1]
+
+
+def test_cell_dofree_is_shown_only_for_a_vc_relax():
+    fields = SLAB.fields(read(BULK), JOBS)
+    padrao = [f.id for f in shown_fields(fields, "padrao", {})]
+    assert "calculation" in padrao and "cell_dofree" not in padrao
+    for calculation, shown in (("relax", False), ("vc-relax", True)):
+        ids = [f.id for f in shown_fields(fields, "avancado", {"calculation": calculation})]
+        assert ("cell_dofree" in ids) is shown, calculation
+        assert ("press" in ids) is shown and ("cell_dynamics" in ids) is shown
 
 
 def test_the_report_of_the_010():
@@ -125,15 +167,30 @@ def test_the_folder_is_a_unit():
 def test_the_standard_mode_shows_the_four_fields():
     fields = SLAB.fields(read(BULK), JOBS)
     shown = [f.id for f in visible_fields(fields, "padrao")]
-    assert shown == ["molecule", "axis", "vacuum_min", "complete"]
-    assert {f.group for f in fields if f.id in shown} == {GROUP}
-    assert plan(mode="padrao", fix_rule="nenhum").by_key("vc-relax") is not None
+    assert shown == [
+        "molecule",
+        "axis",
+        "vacuum_min",
+        "complete",
+        "calculation",
+        "tefield",
+        "dipfield",
+        "nstep",
+    ]
+    assert {f.group for f in fields if f.id in shown} == {GROUP, "relax"}
+    assert plan(mode="padrao", fix_rule="nenhum").by_key("relax") is not None
 
 
 def test_the_standard_mode_keeps_the_defaults():
     """Fields the mode hides take their defaults: the bottom half is fixed, nothing is turned."""
     result = plan(mode="padrao", fix_rule="nenhum", flip=True)
     assert "regra 'camada inferior'" in report(result) and "não invertida" in report(result)
+
+
+def test_the_3d_preview_of_a_flipped_slab_has_its_atoms_in_the_box():
+    scf = read(BULK)
+    structure = plan_structures(scf, plan(scf, flip=True))[-1].structure
+    assert structure.frac.min() >= 0 and structure.frac.max() < 1
 
 
 def test_cut_bonds_left_open_are_noted():
@@ -189,7 +246,8 @@ def test_an_odd_number_of_pairs_under_fixed_occupations_is_a_note():
 
 
 def test_a_dynamics_pair_pw_refuses_is_marked():
-    assert "cell_dynamics" in plan(cell_dynamics="damp-w").problems
+    assert "cell_dynamics" in plan(calculation="vc-relax", cell_dynamics="damp-w").problems
+    assert "cell_dynamics" not in plan(cell_dynamics="damp-w").problems  # a relax has no &CELL
 
 
 def test_no_atoms_is_an_error_not_a_crash():
@@ -200,7 +258,7 @@ def test_constraints_are_an_error_and_the_files_stay():
     scf = from_text(BULK_TEXT + "\nCONSTRAINTS\n1\n'distance' 1 2 2.0\n")
     result = plan(scf)
     assert any("CONSTRAINTS" in error for error in result.errors)
-    assert [f.key for f in result.files] == ["script", "vc-relax", REPORT_KEY]
+    assert [f.key for f in result.files] == ["script", "relax", REPORT_KEY]
     assert "Estrutura não gerada" in report(result)
 
 
@@ -231,8 +289,11 @@ def test_a_scf_that_already_has_vacuum_is_noted():
 
 
 def test_a_skewed_cell_with_2dxy_is_noted():
-    assert any("eixos não ortogonais" in note for note in plan().notes)
-    assert not any("eixos não ortogonais" in note for note in plan(cell_dofree="all").notes)
+    vc = plan(calculation="vc-relax")
+    assert any("eixos não ortogonais" in note for note in vc.notes)
+    every = plan(calculation="vc-relax", cell_dofree="all")
+    assert not any("eixos não ortogonais" in note for note in every.notes)
+    assert not any("eixos não ortogonais" in note for note in plan().notes)  # a relax: no cell
 
 
 def test_another_axis_names_the_prefix():
@@ -269,3 +330,12 @@ def test_an_overflowing_number_is_an_invalid_value_not_a_crash():
         al(), {"nstep": "1e999", "forc_conv_thr": "1e999"}, JOBS, "avancado"
     )
     assert len(result.errors) == 2
+
+
+def test_the_slab_has_nstep_100_and_the_commented_restart_line():
+    text = input_text(plan(mode="padrao"))
+    editor = InputEditor.from_text(text)
+    assert editor.get("control", "nstep") == "100" and editor.get("control", "restart_mode") is None
+    assert (
+        len(re.findall(r"! *restart_mode *= *'restart'", text)) == 1
+    )  # the SCF's own, if it has one

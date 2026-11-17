@@ -3,7 +3,8 @@
 The plane is two axes of the bulk cell, ``(a, b)``, ``(a, c)`` or ``(b, c)``; the third (the *stacked*
 axis ``s``) is multiplied by ``f`` so that the vacuum above the layer is the one asked for, and the
 layer keeps the bulk's geometry. ``flip`` takes the second axis of the plane with a minus sign (the
-script's ``t1_sign = -1``), which turns the surface upside down. Before stretching:
+script's ``t1_sign = -1``), which turns the surface upside down and leaves the fractions along that
+axis negative, so a flipped slab is brought back into the cell in the plane. Before stretching:
 
 - ``heal``: an H whose bond to its nearest bonded neighbour crosses the stacked axis is moved next
   to it (the script only knew O–H);
@@ -141,6 +142,7 @@ def _bulk_oh_length(bulk: Model, elements: list[str]) -> float:
 
 
 SHARED_O = 0.5  # Å: new O closer than this to another new O are the same atom
+EDGE_TOLERANCE = 1e-8  # a fraction this close below 1 is the atom at 0
 
 
 def _complete(
@@ -195,6 +197,13 @@ def _centred(z: np.ndarray) -> np.ndarray:
     return shifted
 
 
+def _in_cell(frac: np.ndarray) -> np.ndarray:
+    """``frac`` in [0, 1): whole lattice translations, the same crystal."""
+    wrapped = frac - np.floor(frac)
+    wrapped[wrapped > 1.0 - EDGE_TOLERANCE] = 0.0
+    return wrapped
+
+
 def make_slab(
     bulk: Model, options: SlabOptions, species: Sequence[str] | None = None
 ) -> SlabResult:
@@ -242,6 +251,8 @@ def make_slab(
         raise SurfaceError(_("A célula do slab ficou com volume ≤ 0"))
     frac = (cart @ frame) @ np.linalg.inv(cell)
     frac[:, 2] = _centred(frac[:, 2])  # the slab in the middle of the box
+    if options.flip:
+        frac[:, :2] = _in_cell(frac[:, :2])
     flags = tuple(bulk.flag(i) if i < len(bulk) else None for i in range(len(labels)))
     model = Model(cell, tuple(labels), frac, flags)
     return SlabResult(

@@ -1,7 +1,9 @@
 # Test fixtures
 
 Real Quantum ESPRESSO outputs, kept small. **Lain supports QE ≥ 7.1:** new fixtures are always
-from 7.1 or newer, and no code or fixture handles older formats.
+from 7.1 or newer, and no code or fixture handles older formats. The one exception is
+`qe_examples/`, a separate corpus of QE's own examples marked by version (see the table): its older
+outputs are text to read, and no code changes to accept them.
 
 `tests/test_qe_versions.py` holds one table with a row per fixture folder and checks each row per
 version: the Fermi / HOMO line of the pw.x output, the block separator of `.gnu` files (empty
@@ -15,6 +17,7 @@ and add a `Run` row. `git add` the folder: `test_fixtures_untouched.py` fails on
 
 | Folder | Source | Notes |
 |---|---|---|
+| `qe_examples/` | real runs of the QE 7.3 distribution (`PW/examples`, `PP/examples`, 7.1+ `test-suite` benchmarks), GPLv2 (its `LICENSE`) | written by `scripts/import_qe_examples.py`, never by hand: a curated set covering every calculation and variation, listed in its `manifest.json` with each version. Most outputs predate 7.1. Read by the `test_qe_examples_*` modules; the older walkers skip it (`conftest.py:own_fixtures`) |
 | `i18n_legacy/` | files written by the code of commit `13eeced`, before the i18n series (`bands.plot`, `pdos.plot`, `view3d.plot`, `folders.json`, every `choice` changed) | not QE runs: `test_i18n_closing.py` loads them in both languages and checks that nothing is rewritten (spec 60 R2.3). Never regenerate them with newer code: that is the point |
 | `al_bands/` | Al band-structure tutorial run (QE 7.3.1) | tutorial names (`al.scf.out`, `al.band.in`), `bands.in`/`bands.out` are bands.x files; `al.scf.out` crashes ASE's `espresso-out` reader (regression) |
 | `si_bands/` | Si band-structure tutorial run (QE 7.3.1) | explicit 200-point `K_POINTS crystal` list without labels; pw.x printed no eigenvalues |

@@ -14,7 +14,12 @@ perguntas e mensagens são em inglês. No Linux, rode num terminal. No Windows, 
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Mariano17omega/Lain/main/install.sh | bash
-# ou, de um clone:  bash install.sh
+```
+
+Ou, de um clone:
+
+```bash
+bash install.sh
 ```
 
 1. Verifica `git`, `ssh` e `rsync` (só o `git` é obrigatório) e instala o uv se ele faltar.
@@ -41,6 +46,32 @@ Um `config.yaml` que já existe só muda se você confirmar, e o antigo fica em 
 perguntas de novo depois: `bash install.sh --config-only`. No login por senha, o script nunca pede a senha: o Lain a
 lê de `QE_STUDIO_SSH_PASSWORD`. `local_root`, `key_path` e `xcrysden_path` precisam ser caminhos completos (começando
 por `/` ou `~`, ou por uma letra de unidade no Windows): o Lain leria um caminho relativo a partir da pasta onde roda.
+
+### Atualizar
+
+Rode o instalador de novo. Quando o repositório tem uma versão mais nova que a instalada, ele pergunta se você quer
+atualizar. Se aceitar, a pasta instalada passa a se chamar `lain-backup-<versão>`, ao lado de onde estava, e a versão
+nova fica no mesmo caminho. Sua configuração continua valendo, sem novas perguntas, e uma cópia dela (`config.yaml`, as
+preferências da interface e a pasta de dados do Lain) fica em `lain-backup-<versão>/config-backup/`. Feche o Lain antes
+de atualizar.
+
+### Desinstalar
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mariano17omega/Lain/main/uninstall.sh | bash
+# ou, de um clone:  bash uninstall.sh
+```
+
+O script lista o caminho completo de tudo que apagaria e pergunta antes; Enter responde não. Ele remove o comando `lain`,
+a entrada no menu de aplicativos, a configuração, os dados e o cache do Lain e a pasta do programa. Pastas
+`lain-backup-*` antigas têm uma pergunta própria.
+
+Ele nunca mexe nas suas simulações, nas pastas `.lain/` e `plots/` dentro delas, nas suas chaves ssh nem no `uv`. A pasta
+do programa fica, com o motivo indicado, se contiver suas simulações ou arquivos que não fazem parte do programa.
+
+O script nunca se conecta ao cluster. Se você entra com chave ssh, ele explica o que está envolvido e oferece renomear a
+chave no seu computador, para o ssh voltar a pedir sua senha. A chave não é apagada, e renomeá-la de volta desfaz isso.
+Veja [O que o instalador faz e como desfazer](ssh.md#o-que-o-instalador-faz-e-como-desfazer).
 
 ## Passo a passo
 

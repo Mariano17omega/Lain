@@ -1,0 +1,7 @@
+&PROJWFC
+  outdir='/home/seu_usuario/tmp/'
+  prefix       = 'H2'
+  ngauss       = 0
+  degauss      = 0.01470
+  deltae       = 0.05
+/

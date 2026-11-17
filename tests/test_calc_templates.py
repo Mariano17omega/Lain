@@ -23,7 +23,18 @@ from qe_studio.core.config import JobsConfig
 from qe_studio.core.viewer.qsub_lint import lint_script
 from reference_helpers import REFERENCE, needs_reference
 
-from calc_helpers import AL_PATH, AL_SCF, JOBS, al, expanded, ni, runs, script_inputs
+from calc_helpers import (
+    AL_PATH,
+    AL_SCF,
+    JOBS,
+    RUN,
+    al,
+    expanded,
+    ni,
+    runs,
+    script_inputs,
+    without_checks,
+)
 
 ROOT = files("qe_studio.resources").joinpath("templates")
 NEW_MODEL = REFERENCE / "Novo_modelo_de_scripts_QSUB" / "bands.qsub"
@@ -100,7 +111,8 @@ def _model_lines() -> list[str]:
 
 @needs_reference
 def test_the_bands_script_is_the_cluster_model_byte_for_byte():
-    """R2.5: all but lines 2-4 of the model, which hold no one's name or e-mail (R4.3)."""
+    """R2.5: all but lines 2-4 of the model, which hold no one's name or e-mail (R4.3). The step
+    checks (spec 103) are lines of their own: without them, every line is the model's."""
     values = {
         "job_name": "Bands-kao-001-p",
         "np": 32,
@@ -113,7 +125,8 @@ def test_the_bands_script_is_the_cluster_model_byte_for_byte():
     plan = by_id("bandas").plan(al(), values, JobsConfig(myemail=EMAIL), "avancado")
     assert plan.ok
     lines = _model_lines()
-    assert plan.files[0].text == lines[0] + "".join(lines[4:])
+    assert plan.files[0].text != without_checks(plan.files[0].text)
+    assert without_checks(plan.files[0].text) == lines[0] + "".join(lines[4:])
     assert "@" not in "".join(lines[1:4])
 
 
@@ -202,7 +215,7 @@ def test_a_renamed_input_is_the_value_of_its_variable():
 def test_steps_of_each_type_in_order():
     assert runs(_ours("scf", al(), {})) == ["scf_al.in"]
     assert runs(_ours("relax", al(), {})) == ["relax_al.in"]
-    assert runs(_ours("vc-relax", al(), {})) == ["vc-relax_al.in"]
+    assert runs(_ours("relax", al(), {"calculation": "vc-relax"})) == ["vc-relax_al.in"]
     bands = _ours("bandas", al(), {"kpath": AL_PATH})
     assert runs(bands) == ["scf_al.in", "bands.in", "bands_pp.in"]
     spin = _ours("bandas", ni(), {"kpath": AL_PATH})
@@ -211,6 +224,7 @@ def test_steps_of_each_type_in_order():
     assert re.findall(r'-i "([^"]+)"', pdos) == ["scf_al.in", "nscf_al.in", "projwfc.in"]
     moved = pdos.index("mkdir -p orbitals\nmv *pdos_atm#* orbitals/ 2>/dev/null")
     assert pdos.index("projwfc.out") < moved < pdos.index('sendMail "Job done" "$?"')  # R2.4
+    assert "mv *pdos_atm#* orbitals/ 2>/dev/null || true\n" in pdos  # "Job done" mails 0 (spec 103)
     assert "${MPICOMMAND} ${BANDSCOMMAND}" not in spin  # bands.x runs serial, like the reference
 
 
@@ -250,13 +264,14 @@ def test_no_script_template_names_an_input():
         assert not re.search(r"[\w.-]+\.(in|out)\b", text), name
 
 
-def test_only_np_nk_and_the_email_come_from_the_config():
-    """The rest of the cluster side is fixed in the templates, as in the cluster's model."""
-    jobs = JobsConfig(cores=32, nk=2, myemail=EMAIL)
+def test_only_np_and_the_email_come_from_the_config():
+    """The rest of the cluster side is fixed in the templates, as in the cluster's model; the pools
+    follow NP and the k-points (spec 102)."""
+    jobs = JobsConfig(cores=32, myemail=EMAIL)
     text = by_id("scf").plan(al(), {}, jobs, "avancado").files[0].text
     for line in (
         f'MYEMAIL="{EMAIL}"\n',
-        "NK=2\n",
+        "NK=8\n",
         'QE_COMMAND="/opt/espresso-7.1/bin/pw.x -nk $NK"\n',
         "#$ -pe physica 32\n",
         "export OMP_NUM_THREADS=1\nexport I_MPI_PIN_DOMAIN=core\n"
@@ -268,7 +283,18 @@ def test_only_np_nk_and_the_email_come_from_the_config():
         assert line in text
 
 
-def test_pdos_mails_the_status_of_projwfc_not_of_mv():
-    pdos = expanded(_ours("pdos", al(), {}))
-    assert pdos.index("PROJWFC_STATUS=$?") < pdos.index("mv *pdos_atm#*")
-    assert pdos.index("(exit ${PROJWFC_STATUS})") < pdos.index('sendMail "Job done" "$?"')
+@pytest.mark.parametrize("scf", [al, ni])
+def test_every_step_is_checked(scf):
+    """Spec 103 R1: one ``check_step`` of the same output under every program, and the function
+    once, after the cluster's block and before the first step."""
+    for calc_type in REGISTRY:
+        script = calc_type.plan(scf(), {"kpath": AL_PATH}, JOBS).files[0].text
+        lines = script.split("\n")
+        steps = [(k, match[1]) for k, line in enumerate(lines) if (match := RUN.search(line))]
+        assert steps, calc_type.id
+        for k, variable in steps:
+            assert lines[k + 1] == f'check_step $? "${{{variable}%.in}}.out"', calc_type.id
+        assert script.count("check_step $? ") == len(steps), calc_type.id
+        assert script.count("check_step() {") == 1, calc_type.id
+        function = script.index("check_step() {")
+        assert script.index('sendMail "Running ..."') < function < script.index(lines[steps[0][0]])

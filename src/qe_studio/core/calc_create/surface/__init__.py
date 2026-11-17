@@ -11,6 +11,9 @@ symbols, imported on first use: never ``ase.io``):
 - ``supercell``: a diagonal supercell, ``n1 × n2 × n3`` (spec 41).
 - ``fixing``: which atoms get ``if_pos = 0 0 0``; ``kmesh``: the mesh of the new cell.
 - ``write``: the structure into an input's text; ``report``: ``geracao.md``.
+- ``occupations``: the adsorbed system's occupations from its two SCFs (spec 96).
+- ``dipole``: where the ramp of the saw-like field and its dipole correction goes, and the keys
+  that write it (specs 98, 105).
 
 Errors are ``SurfaceError`` with a Portuguese sentence. Qt-free.
 """

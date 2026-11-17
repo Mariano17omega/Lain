@@ -9,6 +9,7 @@ import dataclasses
 
 import pytest
 
+from fragment_helpers import SMALL
 from qe_studio.core.calc_create.kpath import KPath, KPoint, repeated_points
 from qe_studio.core.calc_create.types import by_id
 from qe_studio.core.calc_create.types.bandas import CONSTRAINED_NOTE, constrained_magnetization
@@ -20,10 +21,6 @@ from calc_helpers import AL_PATH, AL_SCF, JOBS, NI_SCF, al, from_text, ni
 
 def plan(type_id, scf=None, mode="avancado", jobs=JOBS, **values):
     return by_id(type_id).plan(scf or al(), {"kpath": AL_PATH, **values}, jobs, mode)
-
-
-def with_nk(nk: int):
-    return JOBS.model_copy(update={"nk": nk})
 
 
 def al_with(old: str, new: str):
@@ -89,25 +86,32 @@ def gamma_scf(card: str = "K_POINTS gamma\n"):
     return al_with("K_POINTS automatic\n10 10 10 0 0 0", card.rstrip("\n"))
 
 
-@pytest.mark.parametrize("type_id", ["scf", "relax", "vc-relax"])
-def test_l07_gamma_with_pools_is_noted(type_id):
-    result = plan(type_id, gamma_scf(), jobs=with_nk(2))
+@pytest.mark.parametrize(
+    "type_id, values, name",
+    [
+        ("scf", {}, "scf_al.in"),
+        ("relax", {}, "relax_al.in"),
+        ("relax", {"calculation": "vc-relax"}, "vc-relax_al.in"),
+    ],
+)
+def test_l07_gamma_with_pools_is_noted(type_id, values, name):
+    result = plan(type_id, gamma_scf(), nk=2, **values)
     notes = [note for note in result.notes if "Gamma-only" in note]
-    assert len(notes) == 1 and f"{type_id}_al.in" in notes[0] and "nk = 2" in notes[0]
+    assert len(notes) == 1 and name in notes[0] and "nk = 2" in notes[0]
 
 
 def test_l07_a_missing_card_is_gamma_too():
     scf = al_with("K_POINTS automatic\n10 10 10 0 0 0", "")
-    assert any("Gamma-only" in note for note in plan("scf", scf, jobs=with_nk(2)).notes)
+    assert any("Gamma-only" in note for note in plan("scf", scf, nk=2).notes)
 
 
 def test_l07_one_pool_or_a_mesh_has_no_note():
-    assert not [n for n in plan("scf", gamma_scf(), jobs=with_nk(1)).notes if "Gamma-only" in n]
-    assert not [n for n in plan("scf", jobs=with_nk(4)).notes if "Gamma-only" in n]
+    assert not [n for n in plan("scf", gamma_scf(), nk=1).notes if "Gamma-only" in n]
+    assert not [n for n in plan("scf", nk=4).notes if "Gamma-only" in n]
 
 
 def test_l07_the_pools_of_the_form_count():
-    result = plan("scf", gamma_scf(), jobs=with_nk(1), nk=2)
+    result = plan("scf", gamma_scf(), nk=2)
     assert any("Gamma-only" in note for note in result.notes)
 
 
@@ -155,7 +159,7 @@ def test_l10_tetrahedra_opt_with_a_degauss_by_hand_is_an_error():
     assert calc.text_errors([linear, edited]) == []  # only the optimized method is stuck
 
 
-# -- L-14: a disk_io that leaves no data for bands.x / projwfc.x -------------------------------------
+# -- L-14: a disk_io that leaves no data for bands.x / projwfc.x / pp.x --------------------------------
 def with_disk_io(value: str):
     return al_with("prefix='al',", f"prefix='al',\n    disk_io='{value}',")
 
@@ -196,3 +200,34 @@ def test_l14_a_scf_without_disk_io_is_untouched():
 def test_l14_the_quote_and_case_of_the_value_do_not_matter():
     scf = al_with("prefix='al',", "prefix='al',\n    disk_io = \"NoWF\",")
     assert key_of(plan("pdos", scf), "nscf", "control", "disk_io") is None
+
+
+# The SCFs pp.x reads: ``nowf`` still saves the charge density, ``minimal`` and ``none`` do not.
+DENSITY_KEPT = [("nowf", True), ("minimal", False), ("none", False), ("low", True)]
+
+
+def assert_removal_notes(result, value: str, names: list[str]):
+    """One note per SCF named (in order), none at all when ``names`` is empty."""
+    notes = [note for note in result.notes if "disk_io" in note]
+    assert len(notes) == len(names), notes
+    for note, name in zip(notes, names, strict=True):
+        assert note.startswith(f"{name}: disk_io = '{value}' removido"), note
+
+
+@pytest.mark.parametrize("value, kept", DENSITY_KEPT)
+def test_l14_the_charge_scf_keeps_its_density(value, kept):
+    result = by_id("charge").plan(with_disk_io(value), {}, JOBS, "padrao")
+    assert (key_of(result, "scf", "control", "disk_io") == value) is kept
+    assert_removal_notes(result, value, [] if kept else [result.by_key("scf").name])
+
+
+@pytest.mark.parametrize("value, kept", DENSITY_KEPT)
+def test_l14_the_three_charge_diff_scfs_keep_their_density(value, kept):
+    text = SMALL.replace("  prefix = 'ilita'\n", f"  prefix = 'ilita'\n  disk_io = '{value}'\n")
+    assert text != SMALL
+    result = by_id("charge_diff").plan(from_text(text), {"atoms": (5, 6)}, JOBS, "padrao")
+    assert not result.errors
+    for key in ("scf", "scf_clean", "scf_isolated"):
+        assert (key_of(result, key, "control", "disk_io") == value) is kept, key
+    names = ["scf_ilita.in", "scf_ilita_clean.in", "scf_ilita_isolated.in"]
+    assert_removal_notes(result, value, [] if kept else names)

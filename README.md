@@ -40,8 +40,9 @@ flowchart LR
   never from their names. A missing SCF is looked up in sibling `*scf*` folders; anything else can be mapped by hand.
 - **Publication plots**: band structure, PDOS, bands + DOS, relax progress and SCF convergence; spin-polarized runs,
   gap readout in the legend, reusable plot styles, a tuning panel, PNG / SVG / PDF export and a CSV of the data.
-- **Create calculation**: SCF, Relax, VC-Relax, Bands, PDOS, Charge, Charge difference, Slab, Supercell, Molecule on
-  surface and Adsorption energy, each with the matching `.qsub`. Standard and Advanced modes, live 3D preview.
+- **Create calculation**: SCF, Relaxation (relax or vc-relax), Bands, PDOS, Charge, Charge difference, Slab,
+  Supercell, Molecule on surface and Adsorption energy, each with the matching `.qsub`. Standard and Advanced modes,
+  live 3D preview.
 - **Cluster over ssh**: previewed pull and push with `rsync`; a cluster mode that lists, plots, submits, cancels and
   moves to a trash straight on the cluster; your queue on the top bar. Key or password login over one shared
   connection.
@@ -67,6 +68,14 @@ login (`host`, `port` 22, `user`, `auth` key, `key_path`) and `jobs.myemail`; lo
 with `/` or `~`). Steps that touch the cluster ask first.
 Run `bash install.sh --config-only` in the repository to answer the questions again (the old `config.yaml` is kept
 as `config.yaml.bak`).
+
+To update, run the same command again. When the repository has a newer version, it asks first, renames the installed
+folder to `lain-backup-<version>`, puts the new version in the same place and keeps your configuration, with a copy in
+`lain-backup-<version>/config-backup/`.
+
+To uninstall, run `uninstall.sh` the same way (`curl -fsSL https://raw.githubusercontent.com/Mariano17omega/Lain/main/uninstall.sh | bash`,
+or `bash uninstall.sh` in the repository). It lists every path it would delete and asks first. Your simulations are
+never touched.
 
 ## Install, step by step
 
@@ -217,3 +226,10 @@ contributors (architecture, threading, i18n, logging) are in [`CLAUDE.md`](CLAUD
   files are reported as unsupported.
 - Linux is the primary target. On Windows, `rsync` and `ssh` must come from cwRsync or MSYS2
   (`sync.rsync_binary`, `sync.ssh_binary`; with MSYS2 also `sync.cygdrive_prefix: ""`).
+
+## License
+
+Lain is free software, released under the GNU General Public License, version 3 or (at your option) any later
+version (`GPL-3.0-or-later`): see [`LICENSE`](LICENSE). PyQt6 is distributed under the GPL v3, so Lain is too. The
+vendored fonts and icons keep their own licenses (OFL, Apache-2.0), and the Quantum ESPRESSO runs in
+`tests/fixtures/qe_examples/` keep QE's (GPL v2 or later, in its `LICENSE`).

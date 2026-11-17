@@ -25,7 +25,7 @@ from ..files.unique_names import write_new
 from ..sniff import FileKind, FileSniff
 from .cell_card import set_cell
 from .final_structure import FinalStructure, read_final_structure
-from .input_edit import InputEditor, read_input_text
+from .input_edit import RESTART_COMMENT, InputEditor, read_input_text
 from .pairing import same_name_input
 from .pw_input import fortran_int
 
@@ -156,6 +156,7 @@ def scf_from_relax(final: FinalStructure, in_text: str, name: str = _("O input")
     editor.set("control", "calculation", f"{quote}scf{quote}")
     for key in ("restart_mode", "nstep"):
         editor.remove("control", key)
+    editor.remove_comment("control", RESTART_COMMENT)  # the line a generated relax carries
     for namelist in ("ions", "cell"):
         while editor.remove_namelist(namelist):  # every one: a repeated &ions too
             pass

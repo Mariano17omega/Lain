@@ -5,10 +5,12 @@ BANDSCOMMAND="/opt/espresso-7.1/bin/bands.x"
 {% block body %}
 {% for input, output in pw_runs %}
 ${MPICOMMAND} ${QE_COMMAND} -i "{{ input }}" > "{{ output }}"
+check_step $? "{{ output }}"
 
 {% endfor %}
 {% for input, output in bands_x %}
 ${BANDSCOMMAND} -i "{{ input }}" > "{{ output }}"
+check_step $? "{{ output }}"
 {% if not loop.last %}
 
 {% endif %}

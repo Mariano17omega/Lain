@@ -11,8 +11,8 @@ calculations** (`pw.x`, `bands.x`, `projwfc.x`, `pp.x` inputs and `.qsub` script
 - **Detects** the type of each folder (SCF, relax, bands, PDOS…) from the **content** of its files, never from names.
 - **Plots** bands, PDOS, bands + DOS, relax/vc-relax and SCF convergence, with a tuning panel and PNG/SVG/PDF
   (+ CSV) export.
-- **Creates calculations** ("Criar cálculo" / *Create calculation*): SCF, Relax, VC-Relax, Bands, PDOS, Charge,
-  Charge difference, Slab, Supercell, Molecule on surface and Adsorption energy.
+- **Creates calculations** ("Criar cálculo" / *Create calculation*): SCF, Relaxation (relax or vc-relax), Bands,
+  PDOS, Charge, Charge difference, Slab, Supercell, Molecule on surface and Adsorption energy.
 - **Syncs** with the cluster through `rsync` + `ssh` (always with a preview) and has a **cluster mode** that lists,
   plots, submits, cancels and moves to trash straight on the cluster.
 - Shows the **structure in 3D**, with distance and angle measurements.

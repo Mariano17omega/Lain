@@ -49,7 +49,7 @@ def test_the_reference_scripts_have_no_problem():
 
 def test_every_generated_script_has_no_problem():
     scripts = dict(generated_scripts())
-    assert len(scripts) == len(REGISTRY) == 11
+    assert len(scripts) == len(REGISTRY) == 10
     for type_id, text in scripts.items():
         assert lint_script(text) == [], type_id
 

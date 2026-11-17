@@ -1,0 +1,42 @@
+&control
+  calculation='relax',
+  restart_mode='from_scratch',
+  prefix='Al001_bc2_FCP_v00',
+  pseudo_dir = '/home/seu_usuario/PSEUDO/',
+  outdir='/home/seu_usuario/tmp/',
+  tprnfor = .TRUE.
+  lfcp = .TRUE.
+/
+&system
+  ibrav = 0,
+  nat= 4, ntyp= 1,
+  ecutwfc = 20.0,
+  occupations='smearing', smearing='mp', degauss=0.03
+  assume_isolated='esm', esm_bc='bc2'
+/
+&electrons
+  diagonalization = 'rmm-davidson'
+  mixing_beta = 0.3
+/
+&ions
+  ion_dynamics = 'bfgs'
+/
+&fcp
+  fcp_mu = -4.2510,
+  fcp_dynamics = 'bfgs',
+  fcp_conv_thr = 1.d-2,
+  freeze_all_atoms = .TRUE.
+/
+ATOMIC_SPECIES
+  Al  26.981538   Al.pbe-n-van.UPF
+CELL_PARAMETERS angstrom
+  5.7269000760    0.0000000000    0.0000000000
+  0.0000000000    5.7269000760    0.0000000000
+  0.0000000000    0.0000000000   11.9999975199
+ATOMIC_POSITIONS angstrom
+Al   0.0000000000    0.0000000000    0.0000000000
+Al   2.8634500380    0.0000000000    0.0000000000
+Al   0.0000000000    2.8634500380    0.0000000000
+Al   2.8634500380    2.8634500380    0.0000000000
+K_POINTS automatic
+  6 6 1 1 1 0

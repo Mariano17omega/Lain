@@ -1,20 +1,37 @@
-"""VC-Relax: the relax plus ``&CELL`` (``cell_dynamics``, ``press``)."""
+"""The ``&CELL`` of a vc-relax (spec 95 R1.3): ``cell_dynamics`` and ``press``, shown only when the
+"Cálculo" of a relaxation is ``vc-relax``, and the pair of dynamics pw.x accepts.
+
+pw.x reads ``&CELL`` only in a ``vc-*`` calculation (``read_namelists.f90``): a relax keeps the
+input's cell, so ``&CELL`` is written only for a vc-relax.
+"""
 
 from __future__ import annotations
-
-import dataclasses
-from typing import ClassVar
 
 from ....i18n import _
 from ...qe.input_edit import InputEditor
 from ..edits import put_number, put_string
 from ..scf_info import ScfInfo
 from .base import FormField, Work
-from .relax import ION_DYNAMICS, RelaxType, _number
+from .fields import scf_number
 
+__all__ = [
+    "BFGS",
+    "CELL_DYNAMICS",
+    "DEFAULT_PRESS",
+    "VC_ONLY",
+    "VC_RELAX",
+    "cell_fields",
+    "default_cell",
+    "dynamics_problem",
+    "put_cell",
+]
+
+VC_RELAX = "vc-relax"
 CELL_DYNAMICS = ("bfgs", "damp-pr", "damp-w")
 BFGS = "bfgs"
+DAMPED = "damp-pr"  # the first damped one of INPUT_PW, for a damped ion_dynamics
 DEFAULT_PRESS = 0.0  # kbar
+VC_ONLY: tuple[tuple[str, tuple[object, ...]], ...] = (("calculation", (VC_RELAX,)),)
 
 
 def dynamics_problem(ion: str, cell: str) -> str | None:
@@ -26,59 +43,50 @@ def dynamics_problem(ion: str, cell: str) -> str | None:
     ).format(ion=ion, cell=cell)
 
 
-class VcRelaxType(RelaxType):
-    id: ClassVar[str] = "vc-relax"
-    label: ClassVar[str] = "VC-Relax"
-    folder_prefix: ClassVar[str] = "VC-Relax"
-    script_stem: ClassVar[str] = "vc-relax"
-    script_template: ClassVar[str] = "qsub/vc-relax.qsub.j2"
-    calculation: ClassVar[str] = "vc-relax"
+def default_cell(scf: ScfInfo, ion: str) -> str:
+    """The SCF's ``cell_dynamics`` when it goes with ``ion`` (the ``ion_dynamics`` default), else the
+    one that does: a vc-relax of the ``padrao`` mode, which hides both, never starts blocked."""
+    dynamics = (scf.value("cell", "cell_dynamics") or "").strip().lower()
+    cell = dynamics if dynamics in CELL_DYNAMICS else CELL_DYNAMICS[0]
+    if dynamics_problem(ion, cell) is None:
+        return cell
+    return BFGS if ion == BFGS else DAMPED
 
-    def input_fields(self, scf: ScfInfo) -> list[FormField]:
-        group = self.calculation
-        dynamics = (scf.value("cell", "cell_dynamics") or "").strip().lower()
-        press = _number(scf, "cell", "press")
-        relax = super().input_fields(scf)
-        cell = dynamics if dynamics in CELL_DYNAMICS else CELL_DYNAMICS[0]
-        ion = next(form_field.default for form_field in relax if form_field.id == "ion_dynamics")
-        if dynamics_problem(ion, cell) is not None:
-            # A pair of the SCF that does not go together must not block what Padrão hides.
-            cell = BFGS
-            relax = [
-                dataclasses.replace(form_field, default=ION_DYNAMICS[0])
-                if form_field.id == "ion_dynamics"
-                else form_field
-                for form_field in relax
-            ]
-        return [
-            *relax,
-            FormField(
-                "cell_dynamics",
-                _("Dinâmica da célula (cell_dynamics)"),
-                "choice",
-                cell,
-                group=group,
-                choices=CELL_DYNAMICS,
-                tooltip="&CELL cell_dynamics",
-            ),
-            FormField(
-                "press",
-                _("Pressão (press, kbar)"),
-                "float",
-                press if press is not None else DEFAULT_PRESS,
-                group=group,
-                tooltip=_("&CELL press: pressão externa alvo, em kbar"),
-            ),
-        ]
 
-    def edit(self, editor: InputEditor, work: Work) -> None:
-        super().edit(editor, work)
-        values = work.values
-        if values["cell_dynamics"] is not None:
-            put_string(editor, "cell", "cell_dynamics", values["cell_dynamics"])
-            if values["ion_dynamics"] is not None:
-                problem = dynamics_problem(values["ion_dynamics"], values["cell_dynamics"])
-                if problem is not None:
-                    work.problem("cell_dynamics", problem)
-        if values["press"] is not None:
-            put_number(editor, "cell", "press", values["press"])
+def cell_fields(scf: ScfInfo, group: str, ion_default: str) -> list[FormField]:
+    """``cell_dynamics`` and ``press``, shown only for a vc-relax."""
+    press = scf_number(scf, "cell", "press")
+    return [
+        FormField(
+            "cell_dynamics",
+            _("Dinâmica da célula (cell_dynamics)"),
+            "choice",
+            default_cell(scf, ion_default),
+            group=group,
+            choices=CELL_DYNAMICS,
+            tooltip="&CELL cell_dynamics",
+            shown_when=VC_ONLY,
+        ),
+        FormField(
+            "press",
+            _("Pressão (press, kbar)"),
+            "float",
+            press if press is not None else DEFAULT_PRESS,
+            group=group,
+            tooltip=_("&CELL press: pressão externa alvo, em kbar"),
+            shown_when=VC_ONLY,
+        ),
+    ]
+
+
+def put_cell(editor: InputEditor, work: Work) -> None:
+    """``&CELL`` of a vc-relax, and the problem of a pair pw.x refuses (marked on ``cell_dynamics``)."""
+    values = work.values
+    if values["cell_dynamics"] is not None:
+        put_string(editor, "cell", "cell_dynamics", values["cell_dynamics"])
+        if values["ion_dynamics"] is not None:
+            problem = dynamics_problem(values["ion_dynamics"], values["cell_dynamics"])
+            if problem is not None:
+                work.problem("cell_dynamics", problem)
+    if values["press"] is not None:
+        put_number(editor, "cell", "press", values["press"])

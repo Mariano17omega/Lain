@@ -2,6 +2,7 @@
 
 import pytest
 
+from fragment_helpers import SMALL
 from qe_studio.core.calc_create.overrides import apply_overrides
 from qe_studio.core.calc_create.render import TemplateFailure, render
 from qe_studio.core.calc_create.types import by_id, visible_fields
@@ -9,6 +10,7 @@ from qe_studio.core.calc_create.types.charge import (
     FORMATS_OF_IFLAG,
     IFLAGS,
     OUTPUT_FORMATS,
+    PAW_NOTE,
     PP_TEMPLATE,
     choice,
     code_of,
@@ -17,6 +19,7 @@ from qe_studio.core.calc_create.types.charge import (
 from qe_studio.core.calc_create.unit import UNIT_OUTDIR
 from qe_studio.core.calc_create.writer import folder_name
 from qe_studio.core.config import JobsConfig
+from qe_studio.i18n import _
 
 from calc_helpers import AL_SCF, JOBS, al, expanded, from_text, runs
 
@@ -141,9 +144,9 @@ def test_the_script_makes_the_folder_then_runs_pw_then_pp_without_mpi():
     assert runs(result.files[0].text) == ["scf_Al.in", "pp_Al_charge.in"]
 
 
-def test_np_and_nk_are_the_config_defaults():
+def test_np_is_the_config_default_and_nk_follows_the_k_points():
     text = plan().files[0].text
-    assert "#$ -pe physica 64\n" in text and "NK=4\n" in text
+    assert "#$ -pe physica 64\n" in text and "NK=16\n" in text  # 47 k-points: spec 102
 
 
 def test_the_mkdir_follows_fileout():
@@ -280,6 +283,25 @@ def test_a_negative_plot_num_is_an_error():
     assert plan(mode="avancado", plot_num=5).ok
 
 
+def test_spin_plot_num_needs_spin_in_the_scf():
+    """Spec 100 R2: pp.x writes zeros for plot_num = 6 without nspin = 2, and says nothing."""
+    result = plan(mode="avancado", plot_num=6)
+    assert not result.ok and "plot_num" in result.problems
+    assert "exige nspin = 2 no SCF; este tem nspin = 1" in result.problems["plot_num"]
+    spin = plan(from_text(SMALL), mode="avancado", plot_num=6)
+    assert spin.ok, spin.errors
+    assert "plot_num = 6" in pp_of(spin).text
+
+
+def test_the_plot_num_tooltip_has_the_paw_note():
+    tooltip = next(f for f in CHARGE.fields(AL_UPPER, JOBS) if f.id == "plot_num").tooltip
+    for line in PAW_NOTE:
+        assert _(line) in tooltip.splitlines(), line
+    for words in ("17", "21", "nspin = 2", "ρ↑ − ρ↓"):
+        assert words in tooltip, words
+    assert all(len(line) <= 100 for line in tooltip.splitlines())
+
+
 def test_the_choices_are_the_codes_of_the_input_pp_doc():
     fields = {f.id: f for f in CHARGE.fields(AL_UPPER, JOBS)}
     assert [code_of(c, -1) for c in fields["iflag"].choices] == [0, 1, 2, 3, 4]
@@ -297,7 +319,7 @@ def test_a_bad_name_is_marked_like_any_other_file_name():
 
 
 def test_the_cluster_settings_come_from_the_config():
-    jobs = JobsConfig(cores=32, nk=2)
+    jobs = JobsConfig(cores=32, nk=2)  # jobs.nk is ignored since spec 102
     text = CHARGE.plan(AL_UPPER, {}, jobs, "padrao", "Al").files[0].text
     assert 'PPCOMMAND="/opt/espresso-7.1/bin/pp.x"' in text and "#$ -pe physica 32" in text
-    assert 'QE_COMMAND="/opt/espresso-7.1/bin/pw.x -nk $NK"' in text and "NK=2\n" in text
+    assert 'QE_COMMAND="/opt/espresso-7.1/bin/pw.x -nk $NK"' in text and "NK=8\n" in text

@@ -7,6 +7,10 @@ nothing, and the regexes are the slow part), like in ``relax.py``.
 Values are kept as the regex groups, text as QE printed it; ``build.py`` turns them into rows.
 "Last wins" for quantities that repeat (energy, force, pressure…), "first" for the ones that
 describe the start (header, initial energy and volume).
+
+The functional's codes, the dispersion correction, the crystal axes, the tetrahedra (spec 97 R1) and
+the dipole correction (spec 98) are read for the adsorption energy's level of theory; the Summary does
+not show them.
 """
 
 from __future__ import annotations
@@ -15,8 +19,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal, NamedTuple
 
+from ....i18n import _
 from ..relax import NUMBER
 from ..structure import SiteList
+from ..units import number as qe_number
 from .model import Level, SummaryIssue
 
 Keep = Literal["first", "last", "both", "all"]
@@ -122,6 +128,26 @@ _RULES: tuple[_Rule, ...] = (
         "last",
     ),
     _rule("new_volume", "new unit-cell volume", rf"new unit-cell volume\s*=\s*({NUMBER})", "last"),
+    # -- level of theory (spec 97): PW/src/summary.f90:320-321 and the vdW modules' banners ---------
+    _rule("tetra", "tetrahedron method", r"number of k points=\s*\d+\s+\(tetrahedron method\)\s*$"),
+    _rule("vdw_mbd", "mbdlib:", r"mbdlib: K-point grid set to"),  # Modules/mbdlib.f90:107
+    _rule("vdw_ts", "TS-vdW", r"TS-vdW initialization"),  # Modules/tsvdw.f90:166
+    _rule("vdw_d3_3body", "DFT-D3", r"DFT-D3 Dispersion Correction \(3-body terms\)"),
+    _rule("vdw_d3", "DFT-D3", r"DFT-D3 Dispersion Correction \(no 3-body\)"),
+    _rule("vdw_d2", "Grimme-D2", r"Parameters for Dispersion \(Grimme-D2\) Correction"),
+    _rule("vdw_xdm", "XDM", r"Dispersion XDM Correction\s*="),  # PW/src/electrons.f90:1810
+    # spec 98: printed at each SCF step with dipfield (PW/src/add_efield.f90:178)
+    _rule("dipole", "Computed dipole along edir", r"Computed dipole along edir\((\d)\)"),
+)
+
+# The correction a header announces, by precedence: MBD prints the lines of TS too.
+_DISPERSION = (
+    ("vdw_mbd", "MBD"),
+    ("vdw_ts", "TS"),
+    ("vdw_d3_3body", _("DFT-D3 (3 corpos)")),
+    ("vdw_d3", "DFT-D3"),
+    ("vdw_d2", "DFT-D2"),
+    ("vdw_xdm", "XDM"),
 )
 
 _ERROR_BAR = re.compile(r"^\s*%{4,}\s*$")
@@ -131,6 +157,9 @@ _PSEUDO = re.compile(r"PseudoPot\.\s*#\s*(\d+)\s+for\s+(\S+)\s+read from file:")
 _ITERATION = re.compile(r"^\s*iteration\s+#")
 _CONVERGED = re.compile(r"convergence has been achieved in\s+(\d+)\s+iterations")
 _NOT_CONVERGED = re.compile(r"convergence NOT achieved after\s+(\d+)\s+iterations")
+# The line after "Exchange-correlation=": iexch icorr igcx igcc inlc imeta imetac (funct.f90:894-895)
+_XC_CODES = re.compile(r"^\s*\(\s*(-?\d+(?:\s+-?\d+)*)\s*\)\s*$")
+_AXIS = re.compile(rf"^\s*a\(([123])\)\s*=\s*\(\s*({NUMBER})\s+({NUMBER})\s+({NUMBER})\s*\)")
 
 
 @dataclass
@@ -143,6 +172,8 @@ class Facts:
         default_factory=dict
     )  # n → (element, file, line)
     stress: tuple[tuple[str, str, str], ...] = ()  # kbar rows of the last complete stress tensor
+    xc_codes: tuple[int, ...] | None = None  # of the first "Exchange-correlation=" line
+    axes: tuple[tuple[float, float, float], ...] = ()  # the header's a(1..3), in units of alat
     scf_status: Literal["converged", "not_converged"] | None = None  # of the last SCF cycle
     scf_iterations: int = 0
     scf_line: int | None = None
@@ -153,6 +184,20 @@ class Facts:
     def program(self) -> str | None:
         hit = self.first.get("program")
         return hit.groups[0] if hit else None
+
+    @property
+    def dispersion(self) -> str | None:
+        """The dispersion correction of the run (``"DFT-D3"``, ``"MBD"``…), None without one."""
+        return next((label for key, label in _DISPERSION if key in self.first), None)
+
+    @property
+    def tetrahedra(self) -> bool:
+        return "tetra" in self.first
+
+    @property
+    def dipole_correction(self) -> bool:
+        """Whether the run had the dipole correction (``tefield`` and ``dipfield``, spec 98)."""
+        return "dipole" in self.first
 
     def hit(self, key: str, *, first: bool = False) -> Hit | None:
         """The last match of ``key`` (the first one with ``first``; rules that keep one only)."""
@@ -171,6 +216,8 @@ class Scanner:
         self._exx_energy = False  # a "!!" energy (hybrid run) was already read
         self._stress: list[tuple[str, str, str]] | None = None
         self._pseudo: tuple[int, str, int] | None = None
+        self._xc_next = False  # the functional's codes come on the next line
+        self._axes: list[tuple[float, float, float]] = []
         self._message: tuple[str, int] | None = None
         self._error: list[str] | None = None
         self._error_line = 0
@@ -183,6 +230,11 @@ class Scanner:
             return
         if self._stress is not None and self._feed_stress(number, line):
             return
+        if self._xc_next and line.strip():
+            self._xc_next = False
+            if match := _XC_CODES.match(line):
+                self.facts.xc_codes = tuple(int(code) for code in match.group(1).split())
+                return
         if self._pseudo is not None and line.strip():
             index, element, at = self._pseudo
             self._pseudo = None
@@ -217,8 +269,12 @@ class Scanner:
                         facts.first[rule.key] = hit
                 elif rule.key == "pressure":
                     self._stress = []
+                elif rule.key == "xc" and facts.first[rule.key] is hit:
+                    self._xc_next = True
         if "tau(" in line and self._in_header:
             self._sites.feed(line)
+        elif "a(" in line and self._in_header and len(self._axes) < 3:
+            self._feed_axis(line)
         elif "Message from routine" in line and (match := _MESSAGE.search(line)):
             self._message = (match.group(1), number)
         elif "PseudoPot." in line and (match := _PSEUDO.search(line)):
@@ -242,6 +298,15 @@ class Scanner:
                 )
         if "Fermi energ" in line or "highest occupied" in line:
             facts.fermi_line = number
+
+    def _feed_axis(self, line: str) -> None:
+        match = _AXIS.match(line)
+        if match is None or int(match.group(1)) != len(self._axes) + 1:
+            return
+        x, y, z = (qe_number(match.group(i)) for i in (2, 3, 4))
+        self._axes.append((x, y, z))
+        if len(self._axes) == 3:
+            self.facts.axes = tuple(self._axes)
 
     def _feed_stress(self, number: int, line: str) -> bool:
         """Three rows of six numbers follow ``P=``: Ry/bohr³ then kbar. True if ``line`` was one."""

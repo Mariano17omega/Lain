@@ -79,7 +79,7 @@ def test_the_slab_tabs(qtbot, make_dialog):
     assert tabs.tab_labels() == [
         "Superfície",
         "Script (slab.qsub)",
-        "Slab (vc-relax_kaolinite.in)",
+        "Slab (relax_kaolinite.in)",
         "Relatório (geracao.md)",
         "Arquivos",
         "Descrição",

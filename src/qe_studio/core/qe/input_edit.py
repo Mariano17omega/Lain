@@ -21,13 +21,24 @@ from ...i18n import _
 from .input_lexer import CardHeader, Entry, Kind, LexState, LineScan, Mode, scan_line
 from .input_lint import Card
 
-__all__ = ["NAMELIST_ORDER", "InputEditor", "normalize_key", "read_input_text", "unquote"]
+__all__ = [
+    "NAMELIST_ORDER",
+    "RESTART_COMMENT",
+    "InputEditor",
+    "normalize_key",
+    "read_input_text",
+    "unquote",
+]
 
 # The order of pw.x's namelists: a new one goes where it belongs among those present.
 NAMELIST_ORDER = ("control", "system", "electrons", "ions", "cell")
 DEFAULT_INDENT = "  "
+# The line a generated relax carries as a comment in ``&CONTROL``: uncommented, it continues a relax
+# that ran out of ``nstep`` (pw.x reads the positions from ``<outdir>/<prefix>.save``).
+RESTART_COMMENT = "restart_mode = 'restart'"
 _TRAILING = re.compile(r"\s*,?\s*")  # what follows a removed entry: spaces and its comma
 _QUOTES = "'\""
+_BLANKS = re.compile(r"\s+")
 
 T = TypeVar("T")
 
@@ -161,6 +172,20 @@ class InputEditor:
         """Remove every ``key = value`` of the namelist: the whole line, or only the entry (and its
         comma) when the line holds something else."""
         return self._guarded(f"{namelist}.{key}", lambda: self._remove(namelist, key), False)
+
+    def add_comment(self, namelist: str, text: str) -> bool:
+        """Add the comment line ``! text`` at the end of the namelist (above its ``/``), indented like
+        its entries. False when the line is already there, the namelist is missing or it opens and
+        closes on one line (a comment after it would be outside)."""
+        return self._guarded(
+            f"{namelist} ({text})", lambda: self._add_comment(namelist, text), False
+        )
+
+    def remove_comment(self, namelist: str, text: str) -> bool:
+        """Remove the comment line ``! text`` of the namelist (what ``add_comment`` wrote)."""
+        return self._guarded(
+            f"{namelist} ({text})", lambda: self._remove_comment(namelist, text), False
+        )
 
     def remove_namelist(self, name: str) -> bool:
         """Remove the first ``&name`` from its opening to its ``/`` (or ``&end``)."""
@@ -360,6 +385,38 @@ class InputEditor:
             self._replace(entry.line, entry.line + 1, [])
         else:
             self._lines[entry.line] = new
+
+    def _comment_line(self, block: _Namelist, text: str) -> int | None:
+        """The line of the comment ``! text``, spacing aside (``!  restart_mode   = 'restart'`` is it)."""
+        wanted = _BLANKS.sub("", f"! {text}")
+        return next(
+            (
+                i
+                for i in range(block.open_line, block.end_line + 1)
+                if _BLANKS.sub("", self._lines[i]) == wanted
+            ),
+            None,
+        )
+
+    def _add_comment(self, namelist: str, text: str) -> bool:
+        block = self._first(namelist)
+        if block is None or self._comment_line(block, text) is not None:
+            return False
+        if block.close_col is not None and block.end_line == block.open_line:
+            return False
+        at = block.end_line if block.close_col is not None else block.end_line + 1
+        self._replace(at, at, [f"{self._indent(block)}! {text}"])
+        self._index()
+        return True
+
+    def _remove_comment(self, namelist: str, text: str) -> bool:
+        block = self._first(namelist)
+        index = self._comment_line(block, text) if block is not None else None
+        if index is None:
+            return False
+        self._replace(index, index + 1, [])
+        self._index()
+        return True
 
     def _remove_namelist(self, name: str) -> bool:
         block = self._first(name)

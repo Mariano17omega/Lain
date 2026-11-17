@@ -11,8 +11,8 @@
 - **Detecta** o tipo de cada pasta (SCF, relax, bandas, PDOS…) pelo **conteúdo** dos arquivos, nunca pelo nome.
 - **Plota** bandas, PDOS, bandas + DOS, relax/vc-relax e convergência do SCF, com painel de ajustes e exportação
   PNG/SVG/PDF (+ CSV).
-- **Cria cálculos** ("Criar cálculo"): SCF, Relax, VC-Relax, Bandas, PDOS, Carga, Diferença de carga, Slab,
-  Supercélula, Molécula na superfície e Energia de adsorção.
+- **Cria cálculos** ("Criar cálculo"): SCF, Relaxamento (relax ou vc-relax), Bandas, PDOS, Carga, Diferença de
+  carga, Slab, Supercélula, Molécula na superfície e Energia de adsorção.
 - **Sincroniza** com o cluster via `rsync` + `ssh` (sempre com prévia) e tem um **modo cluster** que lista,
   plota, submete, cancela e move para a lixeira direto no cluster.
 - Mostra a **estrutura em 3D**, com medidas de distância e ângulo.

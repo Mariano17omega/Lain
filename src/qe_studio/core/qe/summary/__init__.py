@@ -15,9 +15,10 @@ from pathlib import Path
 
 from ... import cancel
 from ...sniff import sniff
+from ..lowdin import LowdinReader
 from ..pw_output import PwOutput
 from ..relax import parse_relax
-from .build import RELAX_CALCULATIONS, build_summary
+from .build import PROJWFC_PROGRAM, RELAX_CALCULATIONS, build_summary
 from .mesh import k_mesh_of
 from .model import Level, OutputSummary, SummaryIssue, SummaryRow, SummarySection
 from .scan import Scanner
@@ -35,13 +36,19 @@ __all__ = [
 ]
 
 
-def _observe(lines: Iterable[str], scanner: Scanner) -> Iterator[str]:
+def _observe(lines: Iterable[str], scanner: Scanner, lowdin: LowdinReader) -> Iterator[str]:
     """Pass the lines through, letting the scanner see each one (so a second parser can share
-    the read)."""
+    the read). The Löwdin reader only sees those after a ``Program PROJWFC`` banner: the outputs of
+    other programs (a relax of hundreds of MB) do not pay for its searches."""
+    projwfc = False
     for number, line in enumerate(lines, 1):
         if number % cancel.CHECK_EVERY_LINES == 0:
             cancel.check()
         scanner.feed(number, line)
+        if projwfc:
+            lowdin.feed(line, number)
+        elif PROJWFC_PROGRAM in line:
+            projwfc = scanner.facts.program == PROJWFC_PROGRAM
         yield line
 
 
@@ -52,15 +59,15 @@ def summarize_lines(lines: Iterable[str], pw: PwOutput | None = None) -> OutputS
 
 
 def _summarize(lines: Iterable[str], pw: PwOutput | None, mesh: str | None) -> OutputSummary:
-    scanner = Scanner()
-    stream = _observe(lines, scanner)
+    scanner, lowdin = Scanner(), LowdinReader()
+    stream = _observe(lines, scanner, lowdin)
     relax = None
     if pw is not None and pw.calculation in RELAX_CALCULATIONS:
         relax = parse_relax(stream)
     else:
         for _ in stream:
             pass
-    return build_summary(scanner.finish(), pw, relax, mesh)
+    return build_summary(scanner.finish(), pw, relax, mesh, lowdin.finish())
 
 
 def summarize(path: Path) -> OutputSummary:

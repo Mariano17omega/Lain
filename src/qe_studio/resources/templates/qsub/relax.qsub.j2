@@ -2,6 +2,7 @@
 {% block body %}
 {% for input, output in pw_runs %}
 ${MPICOMMAND} ${QE_COMMAND} -i "{{ input }}" > "{{ output }}"
+check_step $? "{{ output }}"
 {% if not loop.last %}
 
 {% endif %}

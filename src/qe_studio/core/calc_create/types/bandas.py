@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from ....i18n import _
-from ...qe.pw_input import fortran_float
+from ...qe.pw_input import UNSET_MAGNETIZATION, fortran_float
 from ..edits import ensure_disk_io, ensure_smearing, put_number, put_path, put_string
 from ..kpath import KPath, collapse_note, collapsed_segments, repeat_note, repeated_points
 from ..render import render
@@ -26,7 +26,6 @@ BANDS = "bands.in"
 BANDS_X = "qe/bandas/bands_pp.in.j2"
 DEFAULT_FILBAND = "./band"
 CHANNELS = (("up", 1), ("dw", 2))  # the ↑/↓ names spec 13 pairs (band_up, band_dw)
-UNSET_MAGNETIZATION = -9999  # pw.x's "no tot_magnetization" is -10000 (QE:PW/src/input.f90:758)
 CONSTRAINED_NOTE = _(
     "tot_magnetization no SCF: o bands.x do QE aborta com magnetização restrita ('The bands code with constrained magnetization has not been tested'). Os pw.x rodam, e as bandas só saem da saída do pw.x (até 100 k-points, 50 por spin)"
 )

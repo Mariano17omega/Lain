@@ -28,7 +28,7 @@ MOLECULE = KAO / "scf-H3CHg.in"
 MOLECULE_FIELD = "molecule"  # surface_fields.MOLECULE: the field of the second SCF
 # The ids of ``calc_create.types.REGISTRY``, in its order (a test keeps them equal).
 TYPE_IDS = (
-    *("scf", "relax", "vc-relax", "bandas", "pdos", "charge", "charge_diff"),
+    *("scf", "relax", "bandas", "pdos", "charge", "charge_diff"),
     *("slab", "supercell", "adsorption", "ads_energy"),
 )
 
@@ -38,8 +38,8 @@ TYPE_IDS = (
 # the molecule (read, for the second state, only where ``with_molecule`` says).
 TYPED: dict[str, dict[str, object]] = {
     "scf": {"job_name": "job de teste", "name:scf": "scf al.in", "np": "0"},
-    "relax": {"nstep": "abc", "np": "64", "nk": "7"},
-    "vc-relax": {"press": "x", "np": "4", "nk": "8"},
+    # The vc-relax first (spec 95): its &CELL fields are checked only then.
+    "relax": {"calculation": "vc-relax", "nstep": "abc", "press": "x", "np": "64", "nk": "7"},
     "bandas": {"name:bands": "bands", "nk": "0"},
     "pdos": {"e_min": "30", "degauss": "abc"},
     "charge": {
@@ -61,7 +61,6 @@ TYPED: dict[str, dict[str, object]] = {
     },
     "supercell": {
         "n2": "2",
-        "bond_scale": "-1",
         "vacuum_min": "-1",
         "fix_rule": "camada inferior",
         "fix_fraction": "2",
@@ -74,7 +73,7 @@ TYPED: dict[str, dict[str, object]] = {
     },
     "ads_energy": {"name:scf1": "scf_al.in", "nk": "0"},  # a repeated name (spec 79 R2.3)
 }
-WITH_MOLECULE = {"adsorption"}
+WITH_MOLECULE = {"adsorption", "slab"}  # the slab's adsorption distance waits for it
 
 
 # -- step 2 --------------------------------------------------------------------------------------

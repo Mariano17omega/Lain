@@ -213,14 +213,16 @@ _EMAIL = re.compile(r"""[^\s@'"`$\\]+@[^\s@'"`$\\]+""")
 
 
 class JobsConfig(_Section):
-    """What "Criar cálculo" takes from the config: the defaults of NP and the pools of its ``.qsub``
-    scripts, the e-mail they notify and the cluster's pseudopotentials. The rest of the cluster side
+    """What "Criar cálculo" takes from the config: the default of NP of its ``.qsub`` scripts, the
+    e-mail they notify and the cluster's pseudopotentials. The rest of the cluster side
     (QE and MPI paths, parallel environment, OpenMP, Intel MPI and mail environment) is fixed in the
     script templates, the cluster's new model
     (``Documentation/Referencia_de_scripts_QSUB/Novo_modelo_de_scripts_QSUB``, spec 86)."""
 
     cores: int = Field(default=64, ge=1)  # default of the NP field
-    nk: int = Field(default=4, ge=1)  # default of the pools field (pw.x -nk), spec 28 R2.3
+    # Ignored since spec 102: the pools (pw.x -nk) follow NP and the k-points. Kept so that a config.yaml
+    # written before still loads (``extra="forbid"``).
+    nk: int | None = Field(default=None, ge=1)
     # The pseudopotentials on the cluster (POSIX), written into every generated pw.x input; None keeps
     # the SCF's (spec 28 R2.2).
     pseudo_dir: str | None = None

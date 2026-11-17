@@ -1,0 +1,44 @@
+ &control
+    calculation = 'scf'
+    prefix      = 'HCHO.aq'
+    pseudo_dir  = '/home/seu_usuario/PSEUDO/'
+    outdir      = '/home/seu_usuario/tmp/'
+    trism       = .true.
+ /
+ &system
+    ibrav       = 0
+    ntyp        = 3
+    nat         = 4
+    ecutwfc     = 25.0
+    ecutrho     = 225.0
+    occupations = 'fixed'
+ /
+ &electrons
+    mixing_beta = 0.4
+ /
+ &rism
+    nsolv    = 1
+    closure  = 'kh'
+    tempv    = 300.0  ! Kelvin
+    ecutsolv = 144.0  ! Rydberg
+    ! Lennard-Jones
+    solute_lj(1) = 'opls-aa'
+    solute_lj(2) = 'opls-aa'
+    solute_lj(3) = 'opls-aa'
+ /
+ATOMIC_SPECIES
+ C  -1.0  C.pbe-van_ak.UPF
+ O  -1.0  O.pbe-van_ak.UPF
+ H  -1.0  H.pbe-van_ak.UPF
+CELL_PARAMETERS angstrom
+   10.00000  0.00000  0.00000
+    0.0000  10.00000  0.00000
+    0.0000   0.00000 10.00000
+ATOMIC_POSITIONS {angstrom}
+ C  5.000  5.609  5.000
+ O  5.000  4.425  5.000
+ H  4.075  6.191  5.000
+ H  5.925  6.191  5.000
+K_POINTS {gamma}
+SOLVENTS {g/cm^3}
+ H2O  1.0  H2O.spc.MOL

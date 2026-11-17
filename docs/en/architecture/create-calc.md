@@ -44,14 +44,13 @@ classDiagram
     class ScfInfo
     CalcType <|-- ScfType
     CalcType <|-- RelaxType
-    RelaxType <|-- VcRelaxType
     CalcType <|-- BandasType
     CalcType <|-- PdosType
     CalcType <|-- ChargeType
     CalcType <|-- ChargeDiffType
-    CalcType <|-- SlabType
-    CalcType <|-- SupercellType
-    CalcType <|-- AdsorptionType
+    RelaxType <|-- SlabType
+    RelaxType <|-- SupercellType
+    RelaxType <|-- AdsorptionType
     CalcType <|-- AdsEnergyType
     CalcType o-- FormField
     CalcType ..> CalcPlan

@@ -16,7 +16,7 @@ flowchart TD
 ## Suggested order
 
 1. **SCF** with tested cutoffs and k-mesh. It is the base: almost every "Criar cálculo" type starts from an SCF.
-2. **Relax** (positions) or **VC-Relax** (positions + cell). Follow `|ΔE|` and force in the [relax plot](plots/relax.md).
+2. **Relaxation**: relax (positions) or vc-relax (positions + cell). Follow `|ΔE|` and force in the [relax plot](plots/relax.md).
 3. **Converged SCF**: from the context menu of a converged relax/vc-relax output, "Gerar SCF convergido" creates the
    `.in` with the final structure.
 4. From the final SCF:

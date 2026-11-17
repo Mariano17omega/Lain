@@ -77,10 +77,10 @@
     ],
     "ylim": [
      0.0,
-     0.4197
+     0.2769
     ],
     "xlabel": "Passo BFGS",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [
      "0",
@@ -127,7 +127,7 @@
     0.0,
     0.0727
    ],
-   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F máx final 2.0e-08 Ry/Bohr",
    "notes": []
   }
  },
@@ -208,11 +208,11 @@
      6.5
     ],
     "ylim": [
-     -0.011,
-     0.2302
+     -0.0063,
+     0.1329
     ],
     "xlabel": "Passo BFGS",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [
      "0",
@@ -259,7 +259,7 @@
     0.0,
     0.0373
    ],
-   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F máx final 2.0e-08 Ry/Bohr",
    "notes": []
   }
  },
@@ -351,7 +351,7 @@
     0.0,
     0.0727
    ],
-   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F máx final 2.0e-08 Ry/Bohr",
    "notes": []
   }
  },
@@ -364,10 +364,10 @@
     ],
     "ylim": [
      0.0,
-     0.4197
+     0.2769
     ],
     "xlabel": "Passo BFGS",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [
      "0",
@@ -412,9 +412,9 @@
    ],
    "ylim": [
     0.0,
-    0.4197
+    0.2769
    ],
-   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F máx final 2.0e-08 Ry/Bohr",
    "notes": []
   }
  },
@@ -426,11 +426,11 @@
      6.5
     ],
     "ylim": [
-     -0.011,
-     0.2302
+     -0.0063,
+     0.1329
     ],
     "xlabel": "Passo BFGS",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [
      "0",
@@ -474,10 +474,10 @@
     6.5
    ],
    "ylim": [
-    -0.011,
-    0.2302
+    -0.0063,
+    0.1329
    ],
-   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F máx final 2.0e-08 Ry/Bohr",
    "notes": []
   }
  },
@@ -549,10 +549,10 @@
     ],
     "ylim": [
      0.0,
-     0.4197
+     0.2769
     ],
     "xlabel": "Passo BFGS",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [
      "0",
@@ -590,7 +590,7 @@
     0.0,
     0.0727
    ],
-   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F final 0.0e+00 Ry/Bohr",
+   "summary": "Relaxado ✓ · 6 passos BFGS · |ΔE| final 0.0e+00 Ry · F máx final 2.0e-08 Ry/Bohr",
    "notes": []
   }
  },
@@ -660,10 +660,10 @@
     ],
     "ylim": [
      0.0001,
-     0.0036
+     0.0012
     ],
     "xlabel": "Passo BFGS",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [
      "0",
@@ -708,7 +708,7 @@
     0.0,
     0.0003
    ],
-   "summary": "Relaxado ✓ · 41 passos BFGS · |ΔE| final 1.9e-07 Ry · F final 3.0e-04 Ry/Bohr",
+   "summary": "Relaxado ✓ · 41 passos BFGS · |ΔE| final 1.9e-07 Ry · F máx final 9.6e-05 Ry/Bohr",
    "notes": []
   }
  },
@@ -744,11 +744,11 @@
      0.5
     ],
     "ylim": [
-     0.0001,
-     0.0011
+     0.0,
+     0.0001
     ],
     "xlabel": "Passo BFGS",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [
      "0"
@@ -789,7 +789,7 @@
     0.0,
     1.0
    ],
-   "summary": "Relaxado ✓ · 0 passos BFGS · F final 4.4e-04 Ry/Bohr",
+   "summary": "Relaxado ✓ · 0 passos BFGS · F máx final 9.8e-05 Ry/Bohr",
    "notes": []
   }
  },
@@ -859,10 +859,10 @@
     ],
     "ylim": [
      0.0001,
-     0.0031
+     0.0007
     ],
     "xlabel": "Passo BFGS",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [
      "0",
@@ -907,7 +907,7 @@
     0.0,
     0.0001
    ],
-   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F final 4.3e-04 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
+   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F máx final 9.8e-05 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
    "notes": []
   }
  },
@@ -977,10 +977,10 @@
     ],
     "ylim": [
      0.0001,
-     0.0031
+     0.0007
     ],
     "xlabel": "",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [],
     "line_collections": [],
@@ -1101,7 +1101,7 @@
     0.0,
     0.0001
    ],
-   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F final 4.3e-04 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
+   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F máx final 9.8e-05 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
    "notes": []
   }
  },
@@ -1160,11 +1160,11 @@
      4.5
     ],
     "ylim": [
-     0.0003,
-     0.0027
+     0.0001,
+     0.0007
     ],
     "xlabel": "",
-    "ylabel": "Força total (Ry/Bohr)",
+    "ylabel": "Maior componente da força (Ry/Bohr)",
     "title": "",
     "xticklabels": [],
     "line_collections": [],
@@ -1260,7 +1260,7 @@
     0.0,
     0.0001
    ],
-   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F final 4.3e-04 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
+   "summary": "Relaxado ✓ · 24 passos BFGS · |ΔH| final 5.5e-07 Ry · F máx final 9.8e-05 Ry/Bohr · V: 334.3 → 334.0 Å³ · P final = 0.03 kbar · E final (SCF final) -1107.464203 Ry",
    "notes": []
   }
  }

@@ -15,12 +15,16 @@ __all__ = ["inherited_suffix", "site_tag"]
 
 _NUMBER = re.compile(r"[0-9]+_")
 _NOT_TAG = re.compile(r"[^A-Za-z0-9]")
+# Folder prefixes of types that no longer exist, whose folders are still around: the VC-Relax joined
+# the Relaxamento (spec 95), but a ``VC-Relax_Al`` made before still passes ``Al`` on.
+LEGACY_PREFIXES = ("VC-Relax",)
 
 
 def inherited_suffix(scf_path: Path | None) -> str:
     """What follows ``<number>_<type prefix>_`` in the name of the folder holding the SCF, or ""
     when that folder has no type prefix or nothing after it (``2_Bands``, ``Notas``). The longest
-    prefix of a registered type that matches wins, without regard to case."""
+    prefix of a registered type (or a ``LEGACY_PREFIXES`` one) that matches wins, without regard to
+    case."""
     from .types import REGISTRY
 
     if scf_path is None:
@@ -30,8 +34,8 @@ def inherited_suffix(scf_path: Path | None) -> str:
     if match:
         name = name[match.end() :]
     best = ""
-    for calc_type in REGISTRY:
-        prefix = f"{calc_type.folder_prefix}_"
+    for type_prefix in (*(t.folder_prefix for t in REGISTRY), *LEGACY_PREFIXES):
+        prefix = f"{type_prefix}_"
         if len(prefix) > len(best) and name.lower().startswith(prefix.lower()):
             best = prefix
     return name[len(best) :] if best else ""

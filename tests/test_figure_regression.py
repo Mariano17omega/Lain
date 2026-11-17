@@ -121,7 +121,11 @@ GOLDEN = {
                 "legend": ["Total", "Al s", "Al p"],
             }
         ],
-        "info": ((-5.0, 5.0), (0.0, 0.5929), "E_F = 8.0585 eV (SCF) · 2 projeções · 1 espécies"),
+        "info": (
+            (-5.0, 5.0),
+            (0.0, 0.5929),
+            "E_F = 8.0585 eV (SCF) · 2 projeções · 1 espécies · spilling = 1.43 %",
+        ),
     },
     "al_pdos_vertical": {
         "folder": "al_pdos_flat",
@@ -145,7 +149,11 @@ GOLDEN = {
                 "legend": ["Total", "Al s", "Al p"],
             }
         ],
-        "info": ((0.0, 0.5929), (-5.0, 5.0), "E_F = 8.0585 eV (SCF) · 2 projeções · 1 espécies"),
+        "info": (
+            (0.0, 0.5929),
+            (-5.0, 5.0),
+            "E_F = 8.0585 eV (SCF) · 2 projeções · 1 espécies · spilling = 1.43 %",
+        ),
     },
     "ni_pdos_mirror": {
         "folder": "qe731_ni_spin_pdos",
@@ -176,7 +184,8 @@ GOLDEN = {
         "info": (
             (-5.0, 5.0),
             (-2.2248, 2.2248),
-            "E_F = 14.2704 eV (SCF) · 2 projeções · 1 espécies · spin polarizado · M = 0.71 μB/célula",
+            "E_F = 14.2704 eV (SCF) · 2 projeções · 1 espécies · spilling = 1.16 % · spin polarizado · "
+            "M = 0.71 μB/célula",
         ),
     },
     "ni_pdos_mirror_vertical": {
@@ -220,7 +229,8 @@ GOLDEN = {
         "info": (
             (-2.2248, 2.2248),
             (-5.0, 5.0),
-            "E_F = 14.2704 eV (SCF) · 2 projeções · 1 espécies · spin polarizado · M = 0.71 μB/célula",
+            "E_F = 14.2704 eV (SCF) · 2 projeções · 1 espécies · spilling = 1.16 % · spin polarizado · "
+            "M = 0.71 μB/célula",
         ),
     },
 }

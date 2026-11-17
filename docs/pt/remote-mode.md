@@ -118,7 +118,8 @@ stateDiagram-v2
 ```
 
 Job **rodando** só é parado criando `<prefix>.EXIT` (regra do administrador do cluster); `qdel` só vale para job
-**em espera**, pelo ID. Os próximos comandos do script ainda rodam (nscf, bands.x, projwfc.x…).
+**em espera**, pelo ID. Num script do "Criar cálculo", que [confere cada passo](create-calc/index.md#check-step), o job
+termina depois do pw.x parado e o e-mail avisa a falha. Num script antigo ou escrito à mão, os próximos comandos ainda rodam (nscf, bands.x, projwfc.x…).
 
 ### Apagar (lixeira)
 

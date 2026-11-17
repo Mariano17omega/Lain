@@ -1,0 +1,6 @@
+ &bands
+    prefix='Fe',
+    outdir='/home/seu_usuario/tmp/'
+    filband='fe.band'
+    lsym=.true.,
+ /

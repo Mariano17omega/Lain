@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "DEFAULT_MODE",
+    "FILLED",
     "MODES",
     "CalcPlan",
     "CalcType",
@@ -56,6 +57,7 @@ FileKind = Literal["pw_input", "qe_input", "qsub", "notes", "report"]
 Mode = Literal["padrao", "avancado"]
 MODES: tuple[Mode, ...] = ("padrao", "avancado")
 DEFAULT_MODE: Mode = "padrao"  # the window's on its first opening (spec 28 R5.2)
+FILLED: tuple[object, ...] = ()  # ``shown_when``: the field holds any value (a file was chosen)
 
 
 @dataclass(frozen=True)
@@ -76,8 +78,11 @@ class FormField:
     depends_on: tuple[
         str, ...
     ] = ()  # fields whose values change ``data`` (``CalcType.field_data``)
-    # (field id, the values it may hold): shown only when all of them hold (spec 87 R3).
-    shown_when: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    # (field id, the values it may hold, or ``FILLED``): shown only when all of them hold (spec 87 R3).
+    shown_when: tuple[tuple[str, tuple[object, ...]], ...] = ()
+    # An empty value is one the plan computes (``CalcPlan.auto``, spec 102): the window shows it filled
+    # until the user types, and an emptied field goes back to it.
+    auto: bool = False
 
 
 def is_visible(form_field: FormField, mode: Mode) -> bool:
@@ -92,6 +97,11 @@ def is_visible(form_field: FormField, mode: Mode) -> bool:
 
 def visible_fields(fields: Sequence[FormField], mode: Mode) -> list[FormField]:
     return [form_field for form_field in fields if is_visible(form_field, mode)]
+
+
+def _holds(value: object, accepted: tuple[object, ...]) -> bool:
+    """Whether a ``shown_when`` condition holds for the resolved ``value``."""
+    return value in accepted if accepted else value is not None
 
 
 def shown_fields(
@@ -109,7 +119,7 @@ def shown_fields(
     return [
         form_field
         for form_field in visible
-        if all(resolved.get(key) in accepted for key, accepted in form_field.shown_when)
+        if all(_holds(resolved.get(key), accepted) for key, accepted in form_field.shown_when)
     ]
 
 
@@ -133,6 +143,10 @@ class CalcPlan:
     # The errors read from the texts of ``files`` (``CalcType.text_errors``): an edit by hand
     # changes them (``core/calc_create/overrides.py``), while the fields' errors stay.
     text_errors: tuple[str, ...] = ()
+    # What the plan computed for the ``auto`` fields left empty, by field id (spec 102: the pools).
+    auto: Mapping[str, Any] = field(default_factory=dict)
+    # Field id → a warning the window shows under the field (also in ``notes``): never blocks (spec 105).
+    advice: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -268,11 +282,21 @@ class Work:
     scfs: tuple[ScfInfo, ...] = ()  # step 1's list, for a ``multi_scf`` type (spec 79)
     # What the script declares, in the order ``run`` was called: (variable, input's name), spec 86.
     script_inputs: list[tuple[str, str]] = field(default_factory=list)
+    auto: dict[str, Any] = field(default_factory=dict)  # ``CalcPlan.auto``, by field id
+    advice: dict[str, str] = field(default_factory=dict)  # ``CalcPlan.advice``, by field id
 
     def problem(self, field_id: str, text: str) -> None:
         """An error the window marks on the field ``field_id`` (it blocks "Criar" like any error)."""
         self.problems.setdefault(field_id, text)
         self.errors.append(text)
+
+    def advise(self, field_id: str, text: str) -> None:
+        """A note the window also shows under the field ``field_id``: why it matters, never an error.
+        A second one of the same field joins the first."""
+        self.notes.append(text)
+        lines = self.advice.get(field_id, "").splitlines()
+        if text not in lines:
+            self.advice[field_id] = "\n".join([*lines, text])
 
     def editor(self, scf: ScfInfo | None = None) -> InputEditor:
         """A fresh editor on the text of ``scf`` (default: the SCF), already a unit's (``outdir``,
@@ -338,8 +362,13 @@ class CalcType:
         from .files import name_field
         from .script import script_fields
 
-        names = [name_field(input_file) for input_file in self.input_files(scf, name, scfs)]
-        return [*script_fields(self, scf, jobs), *names, *self.input_fields(scf)]
+        own = self.input_fields(scf)
+        defaults = {form_field.id: form_field.default for form_field in own}
+        files = self.input_files(scf, name, scfs)
+        # A name that follows a choice (spec 95 R2) never also takes the folder's name or a list.
+        assert not (self.uses_name or self.multi_scf) or not any(f.named_by for f in files)
+        names = [name_field(input_file, defaults) for input_file in files]
+        return [*script_fields(self, scf, jobs), *names, *own]
 
     def input_files(
         self, scf: ScfInfo, name: str = "", scfs: tuple[ScfInfo, ...] = ()
@@ -363,8 +392,16 @@ class CalcType:
 
     def field_data(self, field_id: str, scf: ScfInfo, values: Mapping[str, Any]) -> Any:
         """The ``data`` of field ``field_id`` for the window's ``values`` (those of the fields shown):
-        asked again when a field of its ``depends_on`` changes (spec 42 R2.4)."""
-        return next((f.data for f in self.input_fields(scf) if f.id == field_id), None)
+        asked again when a field of its ``depends_on`` changes (spec 42 R2.4). The name of an input
+        that follows a choice is its standard name for the choice (spec 95 R2.4)."""
+        from .files import name_field_id, named_input
+
+        own = self.input_fields(scf)
+        if field_id.startswith(name_field_id("")):
+            named = named_input(self.input_files(scf), field_id)
+            if named is not None:
+                return named.standard(resolve(own, values)[0])
+        return next((f.data for f in own if f.id == field_id), None)
 
     def script_values(self, work: Work) -> dict[str, Any]:
         """Template variables of the script besides the common ones: the runs, by name."""
@@ -403,7 +440,7 @@ class CalcType:
         from ..render import TemplateFailure
         from ..unit import unit_notes
         from .files import check_names
-        from .script import gamma_pool_notes, script_file
+        from .script import choose_pools, gamma_pool_notes, script_file
 
         fields = self.fields(scf, jobs, name, scfs)
         shown = {form_field.id for form_field in shown_fields(fields, mode, values)}
@@ -415,11 +452,21 @@ class CalcType:
         work.errors.extend(problems.values())
         problems.update(check_names(work, self.script_name))
         files: list[PlannedFile] = []
+        auto: dict[str, Any] = {}
         try:
-            files.append(script_file(self, work, jobs))
-            files.extend(self.inputs(work))
-            nk = work.values.get("nk")
-            work.notes.extend(gamma_pool_notes(files, jobs.nk if nk is None else nk))
+            # The inputs first: the pools depend on their k-points. The script stays the first file and
+            # its notes the first notes.
+            mark = len(work.notes)
+            inputs = self.inputs(work)
+            later = work.notes[mark:]
+            del work.notes[mark:]
+            pools = choose_pools(work, inputs, jobs)
+            files.append(script_file(self, work, jobs, pools))
+            work.notes.extend(later)
+            files.extend(inputs)
+            work.notes.extend(gamma_pool_notes(files, pools.nk))
+            if pools.auto:
+                auto["nk"] = pools.nk
         except TemplateFailure as exc:
             work.errors.append(str(exc))
         for field_id, text in work.problems.items():
@@ -433,4 +480,6 @@ class CalcType:
             problems,
             work.folder_tag,
             text_errors,
+            {**work.auto, **auto},
+            dict(work.advice),
         )

@@ -1,0 +1,6 @@
+ &projwfc
+    prefix='Pt',
+    outdir='/home/seu_usuario/tmp/'
+    filpdos='pt',
+    emin=10, emax=25
+ /

@@ -52,6 +52,22 @@ sendMail "Running ..."
 # Run
 #########################################
 
+# Lain: the job ends at the first step that did not finish. pw.x leaves with status 0 and
+# "JOB DONE." also when it stops early, so its own messages are read as well.
+check_step() {  # check_step <status> <output>
+    local status=$1
+    if [ "$status" -eq 0 ] && grep -q "JOB DONE" "$2" && ! grep -q \
+        -e "convergence NOT achieved" -e "Program stopped by user request" \
+        -e "Maximum CPU time exceeded" -e "The maximum number of steps has been reached" \
+        -e "bfgs failed" "$2"; then
+        return 0
+    fi
+    [ "$status" -ne 0 ] || status=1
+    echo "Job failed: $2 (status $status)"
+    sendMail "Job failed: $2" "$status"
+    exit 1
+}
+
 
 {% block body %}{% endblock %}
 {% block post %}{% endblock %}

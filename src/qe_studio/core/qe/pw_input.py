@@ -91,6 +91,9 @@ class QEInput:
 
 
 NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eEdD][-+]?\d+)?")
+# pw.x's "no tot_magnetization" is -10000 (QE:PW/src/input.f90:758, 7.1: input.f90:664); anything
+# above this bound is a real constraint (-2 included) and anything below it pw.x refuses.
+UNSET_MAGNETIZATION = -9999
 
 
 def fortran_float(text: str) -> float | None:

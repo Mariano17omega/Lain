@@ -5,8 +5,9 @@ atoms and its ``prefix``: the one of the input with the same name, else the one 
 dir …/<prefix>.save/`` line, else the file's name. The rows are ordered by the heuristic of the
 request (most atoms first: the complex, then the substrate, then the adsorbates), which only fills in
 the default equation; the user edits it freely. A variable is written ``E(<name>)``, so a ``prefix``
-with ``-`` or ``.`` is never read as a subtraction. The report is a Markdown file beside the outputs,
-in the interface's language like ``geracao.md``, and never overwrites one (``_2``).
+with ``-`` or ``.`` is never read as a subtraction. The same pass that reads the atoms gives each row
+its level of theory (spec 97: ``level_of_theory``), which ``consistency`` compares; the report is
+``adsorption_report``.
 """
 
 from __future__ import annotations
@@ -14,29 +15,31 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 
 from ...i18n import _
 from .. import cancel
-from ..files.unique_names import write_new
 from ..qe.pairing import same_name_input
 from ..qe.pw_input import read_input
 from ..qe.scf import read_scf
+from ..qe.summary.mesh import k_mesh_of
+from ..qe.summary.scan import Facts, Scanner
+from ..sniff import sniff
 from .expression import ExpressionError, evaluate, incomplete
+from .level_of_theory import LevelOfTheory, level_of_theory
 
 # RYTOEV of QE 7.1's Modules/constants.f90: AUTOEV / 2 = HARTREE_SI / ELECTRONVOLT_SI / 2, with
 # HARTREE_SI = 4.3597447222071E-18 J and ELECTRONVOLT_SI = 1.602176634E-19 J (NIST 2018).
 RY_TO_EV = 13.605693122994
+# ELECTRONVOLT_SI × AVOGADRO / 1000 of the same file (:34 and :120): 1.602176634E-19 J × 6.02214076E23.
+EV_TO_KJ_PER_MOL = 96.48533212331002
 DEFAULT_NAME = "E_ads"
-REPORT_PREFIX = "energia_ads_"
-NAME_LIMIT = 200  # characters of the report's name before ``.md``
 NO_ENERGY = _("sem energia total final (o SCF não convergiu ou a saída está incompleta)")
+NOT_SCF = _("só saídas de SCF: a energia lida seria a da geometria inicial")
 
-_ATOMS = re.compile(r"number of atoms/cell\s*=\s*(\d+)")
 _SAVE_DIR = re.compile(r"output data dir\s+\S*?([^/\s]+)\.save/")
-_UNSAFE = re.compile(r"[^A-Za-z0-9._-]")  # as ``calc_create/types/files.unit_stem``
 _WORD = re.compile(r"[A-Za-z0-9_]")
 
 
@@ -62,6 +65,7 @@ class EnergyRow:
     energy_ry: float | None
     problem: str | None = None  # why the row has no energy: it stays out of the equation
     role: Role | None = None  # by the heuristic; None for a row without energy
+    theory: LevelOfTheory | None = None  # spec 97
 
 
 @dataclass(frozen=True)
@@ -82,16 +86,16 @@ def role_label(role: Role | None) -> str:
 
 
 # -- reading ----------------------------------------------------------------------------------------
-def _scan(path: Path) -> tuple[int | None, str | None]:
-    """The first ``number of atoms/cell`` and the last ``output data dir`` prefix, in one pass."""
-    atoms, save = None, None
+def _scan(path: Path) -> tuple[Facts, str | None]:
+    """The Summary's facts (atoms, level of theory) and the last ``output data dir`` prefix, in one
+    pass."""
+    scanner, save = Scanner(), None
     with open(path, encoding="utf-8", errors="replace") as handle:
-        for line in cancel.checked(handle):
-            if atoms is None and (match := _ATOMS.search(line)):
-                atoms = int(match.group(1))
-            elif "output data dir" in line and (match := _SAVE_DIR.search(line)):
+        for number, line in enumerate(cancel.checked(handle), 1):
+            scanner.feed(number, line)
+            if "output data dir" in line and (match := _SAVE_DIR.search(line)):
                 save = match.group(1)
-    return atoms, save
+    return scanner.finish(), save
 
 
 def _prefix(path: Path, save: str | None) -> str:
@@ -105,10 +109,15 @@ def _prefix(path: Path, save: str | None) -> str:
 
 def read_row(path: Path) -> EnergyRow:
     path = Path(path)
-    atoms, save = _scan(path)
-    energy = read_scf(path).final_energy_ry
-    problem = None if energy is not None else NO_ENERGY
-    return EnergyRow(path, _prefix(path, save), "", atoms, energy, problem)
+    facts, save = _scan(path)
+    nat = facts.hit("nat", first=True)
+    atoms = int(nat.groups[0] or 0) if nat else None
+    found = sniff(path)
+    # ``read_scf`` reads the first cycle only: in a relax that is the initial geometry's energy.
+    energy = read_scf(path).final_energy_ry if found.calculation == "scf" else None
+    problem = None if energy is not None else NO_ENERGY if found.calculation == "scf" else NOT_SCF
+    theory = level_of_theory(facts, found.pw, k_mesh_of(path))
+    return EnergyRow(path, _prefix(path, save), "", atoms, energy, problem, theory=theory)
 
 
 def read_rows(paths: Iterable[Path]) -> list[EnergyRow]:
@@ -138,9 +147,7 @@ def arrange(rows: Iterable[EnergyRow]) -> list[EnergyRow]:
                 (Role.COMPLEX, Role.SUBSTRATE)[with_energy] if with_energy < 2 else Role.ADSORBATE
             )
             with_energy += 1
-        out.append(
-            EnergyRow(row.path, row.prefix, name, row.atoms, row.energy_ry, row.problem, role)
-        )
+        out.append(replace(row, name=name, role=role))
     return out
 
 
@@ -161,10 +168,13 @@ def parse_equation(text: str) -> tuple[str, str]:
     return name.strip() or DEFAULT_NAME, expression.strip()
 
 
-def substitute(expression: str, rows: Sequence[EnergyRow]) -> tuple[str, dict[str, float]]:
-    """``expression`` with each ``E(<name>)`` replaced by an internal name, and their values. The
-    internal names start with what the text does not hold, as the parser reads it (NFKC), so a name
-    the user typed is never read as one: it stays unknown."""
+def substitute(
+    expression: str, rows: Sequence[EnergyRow]
+) -> tuple[str, dict[str, float], dict[str, str]]:
+    """``expression`` with each ``E(<name>)`` replaced by an internal name, their values, and the
+    internal name of each ``<name>`` (in order of appearance). The internal names start with what the
+    text does not hold, as the parser reads it (NFKC), so a name the user typed is never read as one:
+    it stays unknown."""
     energies = {row.name: row.energy_ry for row in rows if row.energy_ry is not None}
     empty = {row.name for row in rows if row.energy_ry is None}
     stem, plain = "_v", unicodedata.normalize("NFKC", expression)
@@ -195,7 +205,7 @@ def substitute(expression: str, rows: Sequence[EnergyRow]) -> tuple[str, dict[st
         out.append(f" {key} ")
         i = end
     out.append(expression[i:])
-    return "".join(out), values
+    return "".join(out), values, internal
 
 
 def calculate(equation: str, rows: Sequence[EnergyRow]) -> Outcome:
@@ -204,42 +214,13 @@ def calculate(equation: str, rows: Sequence[EnergyRow]) -> Outcome:
     if not expression and sum(row.energy_ry is not None for row in rows) < 2:
         return Outcome(name, None, _("São precisas pelo menos duas saídas com energia total"))
     try:
-        text, values = substitute(expression, rows)
+        text, values, _names = substitute(expression, rows)
         return Outcome(name, evaluate(text, values))
     except ExpressionError as exc:
         return Outcome(name, None, str(exc))
 
 
 def result_text(name: str, value_ry: float) -> str:
-    """``E_ads = -0.12345678 Ry = -1.6797 eV``, with a decimal point."""
-    return f"{name} = {value_ry:.8f} Ry = {value_ry * RY_TO_EV:.4f} eV"
-
-
-# -- the report -------------------------------------------------------------------------------------
-def report_text(rows: Sequence[EnergyRow], equation: str, outcome: Outcome) -> str:
-    header = (_("Prefixo"), _("Arquivo"), _("Átomos"), _("Energia total (Ry)"))
-    lines = [
-        _("# Energia de adsorção"),
-        "",
-        "| " + " | ".join(header) + " |",
-        "|" + "---|" * len(header),
-    ]
-    for row in rows:
-        atoms = "" if row.atoms is None else str(row.atoms)
-        energy = f"{row.energy_ry:.8f}" if row.energy_ry is not None else f"— ({row.problem})"
-        lines.append(f"| {row.name} | {row.path.name} | {atoms} | {energy} |")
-    lines += ["", _("## Equação"), "", "```", equation.strip(), "```", ""]
-    lines.append(_("**Resultado**: {text}").format(text=outcome.text))
-    return "\n".join(lines) + "\n"
-
-
-def report_name(rows: Sequence[EnergyRow]) -> str:
-    """``energia_ads_<prefix1>_<prefix2>….md``, the prefixes in the table's order."""
-    stems = (_UNSAFE.sub("_", row.prefix.strip()) or "pwscf" for row in rows)
-    return (REPORT_PREFIX + "_".join(stems))[:NAME_LIMIT] + ".md"
-
-
-def save_report(folder: Path, rows: Sequence[EnergyRow], equation: str, outcome: Outcome) -> Path:
-    """Write the report into ``folder`` (worker); a name taken gets ``_2``, never overwritten."""
-    text = report_text(rows, equation, outcome)
-    return write_new(Path(folder) / report_name(rows), text, first=2)
+    """``E_ads = -0.12345678 Ry = -1.6797 eV = -162.07 kJ/mol``, with a decimal point."""
+    ev = value_ry * RY_TO_EV
+    return f"{name} = {value_ry:.8f} Ry = {ev:.4f} eV = {ev * EV_TO_KJ_PER_MOL:.2f} kJ/mol"

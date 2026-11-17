@@ -9,8 +9,9 @@ from ....i18n import N_, _
 from ..scf_info import ScfInfo
 from ..surface.fixing import BOTTOM, NONE, SPECIES
 from ..surface.geometry import skewed
-from .base import FieldKind, FormField
-from .surface_fields import bond_scale_field, fix_fields, molecule_field
+from .base import FILLED, FieldKind, FormField
+from .surface_fields import MOLECULE, bond_scale_field, fix_fields, molecule_field
+from .vc_relax import VC_ONLY, VC_RELAX
 
 __all__ = [
     "AXIS_CHOICES",
@@ -22,7 +23,9 @@ __all__ = [
     "MESH_HINT",
     "METALS_LABEL",
     "SLAB_FIX_RULES",
+    "SURFACE_CALCULATION_TOOLTIP",
     "asks_mesh",
+    "calculation_fact",
     "dofree_field",
     "mesh_field",
     "non_orthogonal_notes",
@@ -39,6 +42,9 @@ CELL_DOFREE = (
     *("epitaxial_ab", "epitaxial_ac", "epitaxial_bc"),
 )
 DEFAULT_CELL_DOFREE = "2Dxy"
+SURFACE_CALCULATION_TOOLTIP = _(
+    "relax: o plano fica no parâmetro de rede do bulk, como na superfície de um cristal; vc-relax: o plano também relaxa (cell_dofree), para um material 2D isolado"
+)
 COMPLETE_LABEL = _("Completar poliedros de borda (O + H)")
 METALS_LABEL = _("Metais da borda")
 MESH_HINT = _("Vazio = a do SCF reescalada: o eixo do vácuo vale 1")
@@ -56,6 +62,7 @@ def _field(
     tooltip: str,
     standard: bool = False,
     choices: tuple[str, ...] = (),
+    shown_when: tuple[tuple[str, tuple[object, ...]], ...] = (),
 ) -> FormField:
     return FormField(
         field_id,
@@ -66,6 +73,7 @@ def _field(
         tooltip=tooltip,
         choices=choices,
         standard=standard,
+        shown_when=shown_when,
     )
 
 
@@ -116,6 +124,7 @@ def surface_fields() -> list[FormField]:
             "float",
             2.0,
             _("Somada ao vácuo só quando há molécula"),
+            shown_when=((MOLECULE, FILLED),),
         ),
         _field(
             "complete",
@@ -138,6 +147,7 @@ def surface_fields() -> list[FormField]:
             "text",
             "Al Si",
             _("Rótulos das espécies cujas ligações a O cortadas são completadas com O + H"),
+            shown_when=(("complete", (True,)),),
         ),
         bond_scale_field(GROUP),
         *fix_fields(GROUP, SLAB_FIX_RULES),
@@ -174,9 +184,17 @@ def dofree_field(group: str, default: str = DEFAULT_CELL_DOFREE) -> FormField:
         group=group,
         choices=CELL_DOFREE,
         tooltip=_("&CELL cell_dofree; '2Dxy' relaxa só o plano e a altura do vácuo não encolhe"),
+        shown_when=VC_ONLY,  # a relax keeps the cell (spec 95 R3.2)
     )
 
 
 def non_orthogonal_notes(dofree: str, cell: np.ndarray) -> list[str]:
     """The INPUT_PW warning when ``dofree`` constrains a cell whose axes are not orthogonal."""
     return [NON_ORTHOGONAL.format(dofree)] if dofree != "all" and skewed(cell) else []
+
+
+def calculation_fact(calculation: str, dofree: str) -> tuple[str, str]:
+    """The "Cálculo" line of ``geracao.md`` (spec 95 R3.5)."""
+    if calculation == VC_RELAX:
+        return (_("Cálculo"), _("vc-relax, cell_dofree = '{dofree}'").format(dofree=dofree))
+    return (_("Cálculo"), _("relax: célula fixa, o plano no parâmetro de rede do bulk"))

@@ -10,11 +10,11 @@ import pytest
 
 from qe_studio.core.calc_create.scf_info import ScfInfo
 from qe_studio.core.calc_create.surface.report import REPORT_KEY, REPORT_NAME
-from qe_studio.core.calc_create.types import by_id, visible_fields
+from qe_studio.core.calc_create.types import by_id, shown_fields, visible_fields
 from qe_studio.core.calc_create.types.slab import NO_MESH
 from qe_studio.core.calc_create.types.supercell import GAMMA_NOTE, GROUP, STACKED_NOTE
 from qe_studio.core.calc_create.writer import create_folder
-from qe_studio.core.qe.input_edit import InputEditor
+from qe_studio.core.qe.input_edit import RESTART_COMMENT, InputEditor
 from qe_studio.core.qe.input_lint import lint
 
 from calc_helpers import JOBS, from_text
@@ -43,7 +43,7 @@ def plan(scf: ScfInfo | None = None, mode: str = "avancado", **values):
 
 
 def input_text(result) -> str:
-    return result.by_key("vc-relax").text
+    return result.by_key("relax").text
 
 
 def editor_of(result) -> InputEditor:
@@ -82,7 +82,7 @@ def many_atoms(count: int) -> ScfInfo:
 def test_the_plan_reproduces_the_scripts(case, rule):
     """The fixed atoms are the script's both from the SCF's flags (the default) and by its rule."""
     values = {"fix_rule": SCRIPT_RULES[case]} if rule else {}
-    result = plan(read(SLABS[case]), **values)
+    result = plan(read(SLABS[case]), calculation="vc-relax", **values)  # the scripts' (spec 95)
     assert result.errors == ()
     stem = SLABS[case].stem.removeprefix("scf-")
     assert [f.name for f in result.files] == ["supercell.qsub", f"vc-relax_{stem}.in", REPORT_NAME]
@@ -100,6 +100,29 @@ def test_the_plan_reproduces_the_scripts(case, rule):
     assert editor.get("system", "nat") == str(len(data["labels"]))
     assert editor.get("system", "nbnd") is None and data["nbnd"] is None  # as in the SCF
     assert [i for i in lint(text).issues if i.severity == "error"] == []
+
+
+def test_a_surface_defaults_to_a_relax():
+    """Spec 95 R4: a surface keeps its plane; the vc-relax is a choice, with '2Dxy'."""
+    result = plan()
+    assert [f.name for f in result.files] == [
+        "supercell.qsub",
+        "relax_kaolinite-slab-001.in",
+        REPORT_NAME,
+    ]
+    editor = editor_of(result)
+    assert editor.get("control", "calculation") == "relax"
+    assert editor.get("cell", "cell_dofree") is None and editor.get("cell", "press") is None
+    assert "- **Cálculo**: relax: célula fixa, o plano no parâmetro de rede do bulk" in report(
+        result
+    )
+    vc = plan(calculation="vc-relax")
+    assert [f.name for f in vc.files][1] == "vc-relax_kaolinite-slab-001.in"
+    assert editor_of(vc).get("cell", "cell_dofree") == "2Dxy"
+    assert "- **Cálculo**: vc-relax, cell_dofree = '2Dxy'" in report(vc)
+    fields = SUPERCELL.fields(read(SLAB_001), JOBS)
+    relax = [f.id for f in shown_fields(fields, "avancado", {})]
+    assert "cell_dofree" not in relax and "calculation" in relax
 
 
 def test_the_report_of_the_001():
@@ -129,8 +152,11 @@ def test_the_report_of_the_010():
 def test_a_bulk_supercell():
     result = plan(read(BULK), n1=2, n2=2, n3=1)
     assert not result.errors
+    assert [f.name for f in result.files][1] == "vc-relax_kaolinite.in"
     editor = editor_of(result)
+    assert editor.get("control", "calculation") == "vc-relax"  # a bulk's default (spec 95 R4.1)
     assert editor.get("cell", "cell_dofree") == "all"
+    assert "- **Cálculo**: vc-relax, cell_dofree = 'all'" in report(result)
     assert editor.card("K_POINTS").lines == ("3 2 4 0 0 0",)
     assert editor.get("control", "prefix") == "kaolinite-2x2x1"
     assert editor.get("system", "nat") == "136"
@@ -139,6 +165,8 @@ def test_a_bulk_supercell():
     assert "- **Vácuo medido**: sem vácuo (bulk)" in report(result)
     assert "- **Átomos fixos**: 0/136, regra 'nenhum'" in report(result)
     assert not any("eixos não ortogonais" in note for note in result.notes)  # 'all'
+    relax = plan(read(BULK), n1=2, n2=2, n3=1, calculation="relax")
+    assert BULK_NOTE not in relax.notes and editor_of(relax).get("cell", "cell_dofree") is None
 
 
 def test_the_defaults_follow_the_scf():
@@ -148,9 +176,17 @@ def test_the_defaults_follow_the_scf():
         "n3": 1,
     }
     surface = defaults(read(SLAB_001))
-    assert (surface["cell_dofree"], surface["fix_rule"]) == ("2Dxy", "do SCF")
+    assert (surface["calculation"], surface["cell_dofree"], surface["fix_rule"]) == (
+        "relax",
+        "2Dxy",
+        "do SCF",
+    )
     bulk = defaults(read(BULK))
-    assert (bulk["cell_dofree"], bulk["fix_rule"]) == ("all", "nenhum")
+    assert (bulk["calculation"], bulk["cell_dofree"], bulk["fix_rule"]) == (
+        "vc-relax",
+        "all",
+        "nenhum",
+    )
     no_flags = from_text(_FLAGS.sub(r"\1", SLAB_TEXT), "slab.in")
     assert defaults(no_flags)["fix_rule"] == "camada inferior"
     assert defaults(no_flags)["kmesh"] is None
@@ -185,14 +221,27 @@ def test_the_whole_cell_keys_follow_the_copies():
 
 
 def test_an_unset_magnetization_stays_unset():
+    """-10000 is pw.x's "no tot_magnetization" (QE:PW/src/input.f90:758): nothing to multiply."""
     scf = from_text(
         SLAB_TEXT.replace(
-            "   ntyp             = 4\n", "   ntyp             = 4\n   tot_magnetization = -1\n"
+            "   ntyp             = 4\n", "   ntyp             = 4\n   tot_magnetization = -10000\n"
         )
     )
     result = plan(scf)
-    assert editor_of(result).get("system", "tot_magnetization") == "-1"
+    assert editor_of(result).get("system", "tot_magnetization") == "-10000"
     assert not any("tot_magnetization" in note for note in result.notes)
+
+
+def test_a_negative_magnetization_follows_the_copies():
+    """-2 is a real constraint to pw.x, so a 2 × 1 × 1 cell holds -4."""
+    scf = from_text(
+        SLAB_TEXT.replace(
+            "   ntyp             = 4\n", "   ntyp             = 4\n   tot_magnetization = -2\n"
+        )
+    )
+    result = plan(scf)
+    assert editor_of(result).get("system", "tot_magnetization") == "-4.0"
+    assert "tot_magnetization multiplicado pelas cópias da célula: -2 → -4" in result.notes
 
 
 def test_an_scf_that_fixes_every_atom_leaves_the_standard_mode_free():
@@ -207,7 +256,8 @@ def test_an_scf_that_fixes_every_atom_leaves_the_standard_mode_free():
 
 
 def test_a_dynamics_pair_pw_refuses_is_marked():
-    assert "cell_dynamics" in plan(cell_dynamics="damp-w").problems
+    assert "cell_dynamics" in plan(calculation="vc-relax", cell_dynamics="damp-w").problems
+    assert "cell_dynamics" not in plan(cell_dynamics="damp-w").problems  # a relax has no &CELL
 
 
 def test_no_atoms_is_an_error_not_a_crash():
@@ -218,7 +268,7 @@ def test_nine_copies_are_a_problem_of_the_field():
     result = plan(n2=9)
     assert result.problems["n2"] == "Repetições ao longo de b: de 1 a 8"
     assert "n1" not in result.problems
-    assert [f.key for f in result.files] == ["script", "vc-relax", REPORT_KEY]
+    assert [f.key for f in result.files] == ["script", "relax", REPORT_KEY]
     assert plan(n1=0).problems["n1"] == "Repetições ao longo de a: de 1 a 8"
 
 
@@ -226,7 +276,7 @@ def test_too_many_atoms_are_a_problem_of_the_fields_that_grew():
     result = plan(many_atoms(667), n1=3, n2=1, n3=1)
     text = "Supercélula grande demais para o Lain: 2001 átomos (máximo 2000)"
     assert result.problems == {"n1": text}
-    assert [f.key for f in result.files] == ["script", "vc-relax", REPORT_KEY]
+    assert [f.key for f in result.files] == ["script", "relax", REPORT_KEY]
     both = plan(many_atoms(667), n1=2, n2=2, n3=1).problems
     assert both["n1"] == both["n2"] and "n3" not in both
     largest = plan(many_atoms(250), n1=8, n2=1, n3=1)
@@ -242,8 +292,16 @@ def test_an_scf_too_big_by_itself_is_a_problem_of_the_first_field():
 def test_the_standard_mode_shows_the_repetitions():
     fields = SUPERCELL.fields(read(SLAB_001), JOBS)
     shown = [f.id for f in visible_fields(fields, "padrao")]
-    assert shown == ["n1", "n2", "n3"]
-    assert {f.group for f in fields if f.id in shown} == {GROUP}
+    assert shown == [
+        "n1",
+        "n2",
+        "n3",
+        "calculation",
+        "tefield",
+        "dipfield",
+        "nstep",
+    ]  # a surface: spec 98
+    assert {f.group for f in fields if f.id in shown} == {GROUP, "relax"}
     standard = plan(mode="padrao", fix_rule="nenhum", vacuum_min=99)  # hidden: their defaults
     assert "regra 'do SCF'" in report(standard)
     assert not any("abaixo do mínimo" in note for note in standard.notes)
@@ -266,6 +324,45 @@ def test_copies_along_the_vacuum_are_noted():
     assert STACKED_NOTE not in plan(read(BULK), n3=2).notes  # a bulk has no vacuum
 
 
+def uneven(note_axis: str, n: int, multiple: int, result: int) -> str:
+    return (
+        f"Rede de k-points ao longo de {note_axis}: {n} não divide por {multiple}, "
+        f"fica {result} (mais densa que a do SCF)"
+    )
+
+
+def with_mesh(text: str, mesh: str) -> ScfInfo:
+    return from_text(re.sub(r"K_POINTS automatic\n.*\n", f"K_POINTS automatic\n{mesh}\n", text))
+
+
+def test_an_uneven_mesh_rounds_up_and_says_so():
+    scf = with_mesh(SLAB_TEXT, "5 5 1  0 0 0")
+    result = plan(scf, n1=2, n2=1)
+    assert editor_of(result).card("K_POINTS").lines == ("3 5 1 0 0 0",)  # 5 / 2 → 3, not 2
+    assert uneven("a", 5, 2, 3) in result.notes
+    assert not any("ao longo de b" in note for note in result.notes)  # n2 = 1: nothing divided
+    assert "- **k-points**: 3 5 1 0 0 0 (do SCF 5 5 1 0 0 0, ÷ repetições; vácuo 1)" in report(
+        result
+    )
+    even = plan(with_mesh(SLAB_TEXT, "6 4 1  0 0 0"), n1=2, n2=2)
+    assert not any("não divide" in note for note in even.notes)
+    assert not any("não divide" in note for note in plan().notes)  # the fixture's 6 4 1 by 2 × 1
+
+
+def test_an_uneven_bulk_mesh_is_noted_on_each_axis():
+    bulk = with_mesh(BULK.read_text(), "5 4 5  0 0 0")
+    result = plan(bulk, n1=2, n2=2, n3=2)
+    assert editor_of(result).card("K_POINTS").lines == ("3 2 3 0 0 0",)
+    assert uneven("a", 5, 2, 3) in result.notes and uneven("c", 5, 2, 3) in result.notes
+    assert not any("ao longo de b" in note for note in result.notes)
+
+
+def test_a_typed_mesh_is_not_second_guessed():
+    result = plan(with_mesh(SLAB_TEXT, "5 5 1  0 0 0"), n1=2, kmesh="2 2 1 0 0 0")
+    assert editor_of(result).card("K_POINTS").lines == ("2 2 1 0 0 0",)
+    assert not any("não divide" in note for note in result.notes)
+
+
 def test_a_gamma_scf_keeps_gamma():
     scf = from_text(re.sub(r"K_POINTS automatic\n.*\n", "K_POINTS gamma\n", SLAB_TEXT))
     result = plan(scf)
@@ -286,14 +383,14 @@ def test_another_card_needs_a_mesh():
 def test_constraints_are_an_error_and_the_files_stay():
     result = plan(from_text(SLAB_TEXT + "\nCONSTRAINTS\n1\n'distance' 1 2 2.0\n"))
     assert any("CONSTRAINTS" in error for error in result.errors)
-    assert [f.key for f in result.files] == ["script", "vc-relax", REPORT_KEY]
+    assert [f.key for f in result.files] == ["script", "relax", REPORT_KEY]
     assert "Estrutura não gerada" in report(result)
 
 
 def test_errors_go_to_their_fields():
     assert "fix_species" in plan(fix_rule="espécies e vizinhos", fix_species="Fe").problems
     assert "fix_fraction" in plan(fix_rule="camada inferior", fix_fraction=0).problems
-    assert "bond_scale" in plan(bond_scale=0).problems
+    assert "bond_scale" in plan(fix_rule="espécies e vizinhos", bond_scale=0).problems
     assert "fix_rule" in plan(fix_rule="espécies e vizinhos", fix_species="Al Si O H").problems
 
 
@@ -301,6 +398,17 @@ def test_the_report_is_written_with_the_rest(tmp_path):
     created = create_folder(tmp_path, SUPERCELL, "kao", plan())
     assert created.folder.name == "Supercell_kao"
     names = [p.name for p in created.files]
-    assert names == ["supercell.qsub", "vc-relax_kaolinite-slab-001.in", REPORT_NAME]
+    assert names == ["supercell.qsub", "relax_kaolinite-slab-001.in", REPORT_NAME]
     assert "regra 'do SCF'" in (created.folder / REPORT_NAME).read_text()
-    assert "vc-relax_kaolinite-slab-001.in" in (created.folder / "supercell.qsub").read_text()
+    assert "relax_kaolinite-slab-001.in" in (created.folder / "supercell.qsub").read_text()
+
+
+def test_the_supercell_has_nstep_100_and_the_commented_restart_line():
+    scf = read(SLAB_001)
+    bare = from_text(re.sub(r"^.*restart_mode.*\n", "", scf.text, flags=re.MULTILINE))
+    text = input_text(plan(bare, mode="padrao"))
+    assert InputEditor.from_text(text).get("control", "nstep") == "100"
+    assert text.count(f"! {RESTART_COMMENT}") == 1
+    kept = input_text(plan(scf, mode="padrao"))  # this SCF sets it (the user's script): left alone
+    assert f"! {RESTART_COMMENT}" not in kept
+    assert InputEditor.from_text(kept).get("control", "restart_mode") == "restart"

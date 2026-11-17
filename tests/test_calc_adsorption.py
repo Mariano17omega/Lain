@@ -6,6 +6,7 @@ table of the fixed atoms, its marks from the rules and what the marks write."""
 
 from __future__ import annotations
 
+import re
 import time
 
 import numpy as np
@@ -16,8 +17,10 @@ from qe_studio.core.calc_create.scf_info import ScfInfo
 from qe_studio.core.calc_create.surface.adsorb import SURFACE
 from qe_studio.core.calc_create.surface.fixing import ALL_FIXED
 from qe_studio.core.calc_create.surface.merge import NBND_NOTE, merge_namelists, merge_species
+from qe_studio.core.calc_create.surface.occupations import SAME_OCCUPATIONS
 from qe_studio.core.calc_create.surface.report import REPORT_KEY, REPORT_NAME
 from qe_studio.core.calc_create.types import by_id, shown_fields, visible_fields
+from qe_studio.core.calc_create.types.adsorption import removed_h_note
 from qe_studio.core.calc_create.writer import create_folder
 from qe_studio.core.qe.input_edit import InputEditor
 from qe_studio.core.qe.input_lint import lint
@@ -39,6 +42,10 @@ from surface_helpers import (
 ADSORPTION = by_id("adsorption")
 INPUT = "relax_kaolinite-slab-001-2x1x1.in"
 VDW_NOTE = "vdw_corr: superfície 'grimme-d3', molécula 'grimme-d2'; vale o da superfície"
+OCCUPATIONS_NOTE = (
+    "occupations: superfície 'fixed', molécula 'smearing'; "
+    "valem o occupations, o smearing e o degauss da molécula"
+)
 
 
 def plan(scf: ScfInfo | None = None, window: str = "avancado", **values):
@@ -91,7 +98,11 @@ def test_the_plan_reproduces_the_scripts(case, rule):
     assert editor.get("control", "calculation") == data["calculation"] == "relax"
     assert number(editor, "control", "etot_conv_thr") == 1e-4
     assert number(editor, "control", "forc_conv_thr") == 1e-3  # the SCF's 1e-4 is not inherited
-    assert number(editor, "control", "nstep") == 50
+    assert (
+        number(editor, "control", "nstep") == 100
+    )  # the scripts' 50 is short: the default is 100 (spec 102)
+    assert len(re.findall(r"! *restart_mode *= *'restart'", text)) == 1  # the SCF's own: not twice
+    assert editor.get("control", "restart_mode") is None
     assert editor.get("ions", "ion_dynamics") == "bfgs"
     assert editor.get("system", "nat") == str(data["n_atoms"])
     assert [i for i in lint(text).issues if i.severity == "error"] == []
@@ -106,7 +117,8 @@ def test_species_and_namelists_of_the_two_scfs():
         rows[4] == "Hg  200.59    Hg.pbe-spn-kjpaw_psl.1.0.0.UPF"
     )  # the molecule's row as written
     assert editor.get("system", "ntyp") == "6"
-    assert editor.get("system", "occupations") == "smearing"  # the molecule's: it may close the gap
+    # The surface is ``fixed``: the molecule's smearing applies, as a whole (spec 96).
+    assert editor.get("system", "occupations") == "smearing"
     assert editor.get("system", "smearing") == "gauss"
     assert number(editor, "system", "degauss") == 0.01
     assert number(editor, "electrons", "mixing_beta") == 0.3  # the smaller of 0.4 and 0.3
@@ -114,6 +126,7 @@ def test_species_and_namelists_of_the_two_scfs():
     assert editor.get("system", "nbnd") is None
     assert editor.keys("cell") == [] and "&CELL" not in input_text(result).upper()
     assert VDW_NOTE in result.notes
+    assert OCCUPATIONS_NOTE in result.notes and SAME_OCCUPATIONS in result.notes
     assert editor.get("control", "prefix") == "kaolinite-slab-001-2x1x1-HgCH3-O43"
     assert editor.get("control", "outdir") == "./tmp/"
 
@@ -230,6 +243,15 @@ def test_each_error_is_marked_on_its_field(values, field_id, text):
     assert result.problems[field_id].startswith(text), result.problems
 
 
+def test_removed_h_note_asks_for_charge_and_spin():
+    """Each H taken off carries an electron: a fixed note, only when something was removed."""
+    note = removed_h_note(1)
+    assert note in plan(site=(43,), remove_h=True).notes
+    assert "tot_charge" in note and "nspin" in note
+    assert "2 H removidos" in removed_h_note(2)
+    assert not any("tot_charge" in each for each in plan(site=(43,), remove_h=False).notes)
+
+
 def test_an_atom_in_the_way_is_a_note():
     """O 43 with its H 59 kept: the anchor 2 Å above the O, 1.04 Å from the H, and no error."""
     result = plan(site=(43,), remove_h=False)
@@ -288,6 +310,9 @@ def test_the_standard_mode_shows_the_position_fields():
         "remove_h",
         "shift_x",
         "shift_y",
+        "tefield",
+        "dipfield",
+        "nstep",
         "fixed_atoms",
     ]
     fields = {f.id: f for f in ADSORPTION.input_fields(scf)}

@@ -3,7 +3,8 @@
 ``lint`` never raises and keeps tokenizing after an error, so a broken input still gives the viewer,
 the extract strip and the diff something to work with. It checks how things are *written* (quotes,
 ``/``, ``=``, parentheses, logicals, numbers, namelist and card names), not what the parameters
-mean: an unknown parameter name is advanced validation, left for later.
+mean: that is ``input_semantics.check_input`` (spec 104), which the viewer shows. An unknown
+parameter name is advanced validation, left for later.
 
 The line-level rules live in ``input_lexer``; this module adds the ones that need the whole file.
 """

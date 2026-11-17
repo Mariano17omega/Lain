@@ -1,0 +1,6 @@
+ &bands
+    prefix  = 'si'
+    outdir = '/home/seu_usuario/tmp/'
+    filband = 'sibands.dat'
+    lsym=.true.,
+ /

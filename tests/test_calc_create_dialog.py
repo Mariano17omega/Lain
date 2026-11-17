@@ -179,8 +179,7 @@ def test_a_place_outside_the_project_warns(qtbot, dialog, tmp_path):
         ("pdos", ["Script (pdos.qsub)", "SCF (scf_al.in)", "NSCF (nscf_al.in)", "projwfc.in"]),
         ("bandas", ["Script (bands.qsub)", "SCF (scf_al.in)", "Bandas (bands.in)", "bands_pp.in"]),
         ("scf", ["Script (scf.qsub)", "SCF (scf_al.in)"]),
-        ("relax", ["Script (relax.qsub)", "Relax (relax_al.in)"]),
-        ("vc-relax", ["Script (vc-relax.qsub)", "VC-Relax (vc-relax_al.in)"]),
+        ("relax", ["Script (relax.qsub)", "Relaxamento (relax_al.in)"]),
     ],
 )
 def test_a_tab_per_file(qtbot, dialog, type_id, labels):
@@ -188,6 +187,29 @@ def test_a_tab_per_file(qtbot, dialog, type_id, labels):
     assert tabs.tab_labels() == [*labels, "Arquivos", "Descrição"]
     assert tabs.tabs.objectName() == "calcTabs"
     assert not dialog.continue_button.isVisible() and dialog.create_button.isVisible()
+
+
+def test_the_name_of_a_relaxation_follows_its_calculation(qtbot, make_dialog):
+    """Spec 95 R2: in the avancado mode the name opens empty, its placeholder the standard name; a
+    change of "Cálculo" renames the tab and the placeholder, and a typed name stays."""
+    dialog = make_dialog(mode="avancado")
+    tabs = to_files(qtbot, dialog, "relax")
+    name = tabs.widget_of("name:relax")
+    assert isinstance(name, QLineEdit)
+    assert (name.text(), name.placeholderText()) == ("", "vazio = relax_al.in")
+    assert not tabs.form_of("cell_dynamics").shown("cell_dynamics")
+    choose(tabs.widget_of("calculation"), "vc-relax")
+    tabs.flush()
+    assert tabs.tab_labels()[1] == "Relaxamento (vc-relax_al.in)"
+    assert name.placeholderText() == "vazio = vc-relax_al.in" and name.text() == ""
+    assert tabs.form_of("cell_dynamics").shown("cell_dynamics")
+    name.setText("meu.in")
+    name.textEdited.emit("meu.in")
+    tabs.flush()
+    choose(tabs.widget_of("calculation"), "relax")
+    tabs.flush()
+    assert name.text() == "meu.in" and tabs.tab_labels()[1] == "Relaxamento (meu.in)"
+    assert name.placeholderText() == "vazio = relax_al.in"
 
 
 def test_fields_open_with_the_scf_values(qtbot, dialog):
@@ -929,6 +951,67 @@ def test_the_fixed_table_in_the_standard_mode(qtbot, make_dialog):
     assert isinstance(legend, QLabel)
     assert legend.text() == "A fração fixa da espessura vai de 0 (exclusive) a 1"
     assert table.value() == SCF_FIXED  # kept
+
+
+RULE_PARAMS = ("fix_fraction", "fix_species", "fix_neighbors")
+
+
+def pick_rule(tabs, rule: str) -> None:
+    combo = tabs.widget_of("fix_rule")
+    assert isinstance(combo, QComboBox)
+    combo.setCurrentIndex(combo.findData(rule))
+    combo.activated.emit(combo.currentIndex())
+
+
+@pytest.mark.parametrize(
+    "type_id, scf", [("slab", BULK), ("supercell", SUPERCELL_001), ("adsorption", SUPERCELL_001)]
+)
+def test_a_rule_shows_only_its_rows_and_keeps_what_was_typed(qtbot, dialog, type_id, scf):
+    tabs = to_files(qtbot, dialog, type_id, scf=scf, suffix="kao")
+    form = tabs.form_of("fix_rule")
+
+    def rows() -> set[str]:
+        for field_id in RULE_PARAMS:  # the label goes with the widget
+            assert len({widget.isHidden() for widget in form.rows[field_id]}) == 1
+        return {field_id for field_id in RULE_PARAMS if form.shown(field_id)}
+
+    pick_rule(tabs, "nenhum")
+    assert rows() == set()
+    pick_rule(tabs, "camada inferior")
+    assert rows() == {"fix_fraction"}
+    type_into(qtbot, tabs.widget_of("fix_fraction"), "0.3")
+    pick_rule(tabs, "espécies e vizinhos")
+    assert rows() == {"fix_species", "fix_neighbors"}
+    pick_rule(tabs, "camada inferior")
+    assert rows() == {"fix_fraction"} and tabs.widget_of("fix_fraction").text() == "0.3"
+
+
+def test_a_hidden_parameter_says_nothing_to_the_fixed_table(qtbot, dialog):
+    tabs = to_files(qtbot, dialog, "adsorption", scf=SUPERCELL_001, suffix="kao")
+    legend = tabs.form_of("fixed_atoms").rows["fixed_atoms"][1]
+    assert isinstance(legend, QLabel)
+    pick_rule(tabs, "camada inferior")
+    type_into(qtbot, tabs.widget_of("fix_fraction"), "abc")
+    tabs.flush()
+    assert legend.text().startswith("Valor inválido em Fração fixa")
+    pick_rule(tabs, "nenhum")
+    tabs.flush()
+    assert not legend.text().startswith("Valor inválido")
+    assert tabs.widget_of("fixed_atoms").value() == ()
+
+
+def test_the_slab_rows_follow_the_molecule_and_complete(qtbot, dialog):
+    tabs = to_files(qtbot, dialog, "slab", scf=BULK, suffix="kao")
+    form = tabs.form_of("metals")
+    assert not form.shown("metals") and not form.shown("ads_distance")
+    tabs.widget_of("complete").click()
+    assert form.shown("metals")
+    field = tabs.widget_of("molecule")
+    with qtbot.waitSignal(field.changed, timeout=10_000):
+        field.set_path(MOLECULE)
+    assert form.shown("ads_distance")
+    field.clear()
+    assert not form.shown("ads_distance")
 
 
 def test_unmarking_an_atom_frees_it_in_the_preview(qtbot, dialog, monkeypatch):
